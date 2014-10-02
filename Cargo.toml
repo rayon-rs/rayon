@@ -1,0 +1,5 @@
+[package]
+
+name = "rayon"
+version = "0.0.1"
+authors = ["Niko Matsakis <niko@alum.mit.edu>"]
