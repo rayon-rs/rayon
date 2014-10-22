@@ -22,7 +22,7 @@ fn quicksort(v: &mut [int]) {
 
     let pivot_value = v[0]; // simplest possible thing...
     let mid = partition(pivot_value, v);
-    let (left, right) = v.mut_split_at(mid);
+    let (left, right) = v.split_at_mut(mid);
     execute(&mut [
         || quicksort(left),
         || quicksort(right)
