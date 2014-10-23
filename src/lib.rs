@@ -18,7 +18,7 @@ pub struct Section<'s> {
 
 pub fn execute<'s>(closures: &'s mut [TaskBody<'s>]) {
     let mut join = Section::new();
-    for closure in closures.mut_iter() {
+    for closure in closures.iter_mut() {
         join.fork(closure);
     }
     join.sync();
