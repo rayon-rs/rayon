@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use super::{execute, Section};
+use super::{execute};
 
 #[test]
 fn use_it() {
