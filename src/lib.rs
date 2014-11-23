@@ -36,7 +36,7 @@ impl<'s> Section<'s> {
 
             // really don't want the `push` below to fail
             // after task has been spawned
-            self.tasks.reserve_additional(1);
+            self.tasks.reserve(1);
 
             let future = task::try_future(proc() {
                 let body: &mut TaskBody = transmute(body);
@@ -56,7 +56,7 @@ impl<'s> Section<'s> {
                     // propoagate any failure
                     match task.unwrap() {
                         Ok(()) => { }
-                        Err(_) => { fail!() }
+                        Err(_) => { panic!() }
                     }
                 }
             }
