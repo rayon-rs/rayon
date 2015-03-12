@@ -1,21 +1,48 @@
 #![cfg(test)]
 
-use super::{execute, Section};
+use super::execute;
 
 #[test]
 fn use_it() {
-    let mut left: int = 0;
-    let mut right: int = 0;
+    let mut left: isize = 0;
+    let mut right: isize = 0;
     execute(&mut [
-        || left = 22,
-        || right = 44
+        &mut || left = 22,
+        &mut || right = 44
     ]);
     assert_eq!(left, 22);
     assert_eq!(right, 44);
 }
 
 #[cfg(test)]
-fn quicksort(v: &mut [int]) {
+fn fib(n: usize, depth: usize) -> usize {
+    if n < 2 {
+        n
+    } else {
+        let mut r1: usize = 0;
+        let mut r2: usize = 0;
+        if depth > 0 {
+            execute(&mut [
+                &mut || r1 = fib(n-1, depth-1),
+                &mut || r2 = fib(n-2, depth-1),
+            ]);
+        } else {
+            r1 = fib(n-1, 0);
+            r2 = fib(n-2, 0);
+        }
+        r1 + r2
+    }
+}
+
+#[test]
+fn calc_fib() {
+    let n: usize = 20;
+    let res = fib(n, 3);
+    assert_eq!(res, 6765);
+}
+
+#[cfg(test)]
+fn quicksort(v: &mut [isize]) {
     if v.len() <= 1 {
         return;
     }
@@ -24,13 +51,13 @@ fn quicksort(v: &mut [int]) {
     let mid = partition(pivot_value, v);
     let (left, right) = v.split_at_mut(mid);
     execute(&mut [
-        || quicksort(left),
-        || quicksort(right)
+        &mut || quicksort(left),
+        &mut || quicksort(right)
     ]);
 
-    fn partition(pivot_value: int,
-                 v: &mut [int])
-                 -> uint
+    fn partition(pivot_value: isize,
+                 v: &mut [isize])
+                 -> usize
     {
         // Invariant:
         //     .. l ==> less than or equal to pivot
