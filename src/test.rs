@@ -1,9 +1,9 @@
 #![cfg(test)]
 
-use super::{execute, Section};
+use super::{execute, Section, TaskBody};
 
 #[test]
-fn use_it() {
+fn use_execute() {
     let mut left: int = 0;
     let mut right: int = 0;
     execute(&mut [
@@ -14,6 +14,23 @@ fn use_it() {
     assert_eq!(right, 44);
 }
 
+#[test]
+fn use_section() {
+    let mut left: int = 0;
+    let mut right: int = 0;
+
+    {
+        let mut section = Section::new();
+        let body: &mut TaskBody = &mut || left += 1;
+        section.fork(body);
+        let body: &mut TaskBody = &mut || right += 1;
+        section.fork(body);
+    }
+
+    assert_eq!(left, 1);
+    assert_eq!(right, 1);
+}
+
 #[cfg(test)]
 fn quicksort(v: &mut [int]) {
     if v.len() <= 1 {
@@ -22,7 +39,7 @@ fn quicksort(v: &mut [int]) {
 
     let pivot_value = v[0]; // simplest possible thing...
     let mid = partition(pivot_value, v);
-    let (left, right) = v.mut_split_at(mid);
+    let (left, right) = v.split_at_mut(mid);
     execute(&mut [
         || quicksort(left),
         || quicksort(right)
@@ -64,14 +81,77 @@ fn call_quicksort() {
     }
 }
 
-// #[test]
-// fn use_it_bad() {
-//     let mut left: int = 0;
-//     let mut right: int = 0;
-//     execute(&mut [
-//         || left = 22,
-//         || left = 44  //~ ERROR cannot borrow `left` as mutable more than once
-//     ]);
-//     assert_eq!(left, 22);
-//     assert_eq!(right, 44);
-// }
+//#[test]
+//fn use_it_bad() {
+//    let mut left: int = 0;
+//    let mut right: int = 0;
+//    execute(&mut [
+//        || left = 22,
+//        || left = 44  //~ ERROR cannot borrow `left` as mutable more than once
+//    ]);
+//    assert_eq!(left, 22);
+//    assert_eq!(right, 44);
+//}
+//
+//#[test]
+//fn illegal_section() {
+//    let mut left: int = 0;
+//    let mut right: int = 0;
+//
+//    {
+//        let mut section = Section::new();
+//        let body: &mut TaskBody = &mut || left += 1;
+//        section.fork(body);
+//        let body: &mut TaskBody = &mut || left += 1; //~ ERROR cannot borrow `left`
+//        section.fork(body);
+//    }
+//
+//    assert_eq!(left, 1);
+//    assert_eq!(right, 1);
+//}
+//
+//#[test]
+//fn illegal_section() {
+//    let mut left = 0;
+//    let mut section = Section::new();
+//
+//    let body: &mut TaskBody = &mut || left += 1;
+//    section.fork(body);
+//
+//    {
+//        let mut right = 0;
+//        let body: &mut TaskBody = &mut || right += 1; //~ ERROR cannot infer
+//        section.fork(body);
+//    }
+//}
+//
+//fn illegal_section<'a>() -> Section<'a> {
+//    let mut left = 0;
+//    let mut section = Section::new();
+//
+//    let body: &mut TaskBody = &mut || left += 1; //~ ERROR cannot infer
+//    section.fork(body);
+//
+//    section
+//}
+//
+//fn illegal_section() {
+//    let mut left = 0u;
+//    let mut section = Section::new();
+//
+//    let body: &mut TaskBody = &mut || left += 1;
+//    section.fork(body);
+//
+//    left += 1; //~ ERROR cannot assign
+//}
+//
+//fn illegal_section() {
+//    let mut left = 0u;
+//    let mut right = 0u;
+//    let mut section = Section::new();
+//
+//    let body: &mut TaskBody = &mut || left += 1;
+//    section.fork(body);
+//
+//    right = left; //~ ERROR cannot use `left`
+//}
