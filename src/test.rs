@@ -1,21 +1,20 @@
 #![cfg(test)]
 
+use api::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
 
-// use api::*;
-
-fn quick_sort<T:PartialOrd>(v: &mut [T]) {
+fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
         return;
     }
 
     let mid = partition(v);
     let (lo, hi) = v.split_at_mut(mid);
-    quick_sort(lo);
-    quick_sort(hi);
+    join(|| quick_sort(lo),
+         || quick_sort(hi));
 }
 
-fn partition<T:PartialOrd>(v: &mut [T]) -> usize {
+fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
     let pivot = v.len() - 1;
     let mut i = 0;
     for j in 0..pivot {
