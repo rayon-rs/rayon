@@ -1,9 +1,13 @@
-#![feature(unsafe_destructor)]
+#![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 
-use std::any::Any;
-use std::kinds::marker;
-use std::mem::transmute;
-use std::raw;
-use std::sync::Future;
-use std::task;
+extern crate rand;
 
+mod api;
+mod latch;
+mod job;
+#[cfg(test)] mod test;
+mod thread_pool;
+mod util;
+
+pub use api::initialize;
+pub use api::join;

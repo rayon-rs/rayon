@@ -5,4 +5,4 @@ version = "0.0.1"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 
 [dependencies]
-lazy_static = "0.1.15"
+rand = "0.3"
