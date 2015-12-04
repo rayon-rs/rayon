@@ -62,8 +62,6 @@ unsafe fn join_inject<A,R_A,B,R_B>(oper_a: A,
                                    -> (R_A, R_B)
     where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
 {
-    println!("join_inject");
-
     let mut result_a = None;
     let mut code_a = CodeImpl::new(oper_a, &mut result_a);
     let mut latch_a = Latch::new();

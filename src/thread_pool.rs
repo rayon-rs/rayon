@@ -11,7 +11,7 @@ use util::leak;
 
 ///////////////////////////////////////////////////////////////////////////
 
-const NUM_CPUS: usize = 1;
+const NUM_CPUS: usize = 2;
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -189,8 +189,12 @@ impl WorkerThread {
         let thread_info = self.thread_info();
         let mut deque = thread_info.deque.lock().unwrap();
         if deque.top == job {
-            deque.top = (*job).previous;
-            if deque.bottom == job {
+            let previous_job = (*job).previous;
+            deque.top = previous_job;
+
+            if previous_job != NULL_JOB {
+                (*previous_job).next = NULL_JOB;
+            } else {
                 deque.bottom = NULL_JOB;
             }
             true
@@ -282,7 +286,11 @@ unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job>
     let job = deque.bottom;
     let next = (*job).next;
     deque.bottom = next;
-    (*next).previous = NULL_JOB;
+    if next != NULL_JOB {
+        (*next).previous = NULL_JOB;
+    } else {
+        deque.top = NULL_JOB;
+    }
     Some(job)
 }
 

@@ -30,7 +30,7 @@ fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
 #[test]
 fn sort() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut data: Vec<_> = (0..2048).map(|_| rng.next_u32()).collect();
+    let mut data: Vec<_> = (0..12*1024).map(|_| rng.next_u32()).collect();
 
     quick_sort(&mut data);
 
