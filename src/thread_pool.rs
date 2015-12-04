@@ -73,8 +73,8 @@ impl Registry {
     // So long as all of the worker threads are hanging out in their
     // top-level loop, there is no work to be done.
 
-    fn start_working(&self, _index: usize) {
-        log!(StartWorking { index: _index });
+    fn start_working(&self, index: usize) {
+        log!(StartWorking { index: index });
         let mut state = self.state.lock().unwrap();
         state.threads_at_work += 1;
         self.work_available.notify_all();
@@ -198,6 +198,9 @@ impl WorkerThread {
             } else {
                 deque.bottom = NULL_JOB;
             }
+
+            stat_popped!();
+
             true
         } else {
             false
@@ -293,6 +296,7 @@ unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job>
     } else {
         deque.top = NULL_JOB;
     }
+    stat_stolen!();
     Some(job)
 }
 

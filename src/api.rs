@@ -13,6 +13,12 @@ pub fn initialize() {
     registry.wait_until_primed();
 }
 
+/// This is a debugging API not really intended for end users. It will
+/// dump some performance statistics out using `println`.
+pub fn dump_stats() {
+    dump_stats!();
+}
+
 pub fn join<A,R_A,B,R_B>(oper_a: A,
                          oper_b: B)
                          -> (R_A, R_B)

@@ -1,6 +1,7 @@
 //! Debug Logging
 
 use job::Job;
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use thread_pool::WorkerThread;
 
 #[allow(dead_code)]
@@ -15,22 +16,37 @@ pub enum Event {
     LostJob { worker: WorkerThread },
 }
 
+pub const DUMP_LOGS: bool = false;
+
 macro_rules! log {
     ($event:expr) => {
-        // println!("{:?}", $event);
+        if ::log::DUMP_LOGS { println!("{:?}", $event); }
     }
 }
 
-pub static STOLEN_JOB = ATOMIC_USIZE_INIT;
+pub static STOLEN_JOB: AtomicUsize = ATOMIC_USIZE_INIT;
 
 macro_rules! stat_stolen {
     () => {
+        ::log::STOLEN_JOB.fetch_add(1, ::std::sync::atomic::Ordering::SeqCst);
     }
 }
 
-pub static POPPED_JOB = ATOMIC_USIZE_INIT;
+pub static POPPED_JOB: AtomicUsize = ATOMIC_USIZE_INIT;
 
 macro_rules! stat_popped {
     () => {
+        ::log::POPPED_JOB.fetch_add(1, ::std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+macro_rules! dump_stats {
+    () => {
+        {
+            let stolen = ::log::STOLEN_JOB.load(::std::sync::atomic::Ordering::SeqCst);
+            println!("Jobs stolen: {:?}", stolen);
+            let popped = ::log::POPPED_JOB.load(::std::sync::atomic::Ordering::SeqCst);
+            println!("Jobs popped: {:?}", popped);
+        }
     }
 }
