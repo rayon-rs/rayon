@@ -21,3 +21,16 @@ macro_rules! log {
     }
 }
 
+pub static STOLEN_JOB = ATOMIC_USIZE_INIT;
+
+macro_rules! stat_stolen {
+    () => {
+    }
+}
+
+pub static POPPED_JOB = ATOMIC_USIZE_INIT;
+
+macro_rules! stat_popped {
+    () => {
+    }
+}
