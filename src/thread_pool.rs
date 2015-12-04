@@ -1,5 +1,7 @@
 use job::{Job, NULL_JOB};
 use latch::Latch;
+#[allow(unused_imports)]
+use log::Event::*;
 use rand;
 use std::cell::Cell;
 use std::sync::{Condvar, Mutex, Once, ONCE_INIT};
@@ -9,7 +11,7 @@ use util::leak;
 
 ///////////////////////////////////////////////////////////////////////////
 
-const NUM_CPUS: usize = 4;
+const NUM_CPUS: usize = 1;
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -70,19 +72,23 @@ impl Registry {
     // So long as all of the worker threads are hanging out in their
     // top-level loop, there is no work to be done.
 
-    fn start_working(&self) {
+    fn start_working(&self, _index: usize) {
+        log!(StartWorking { index: _index });
         let mut state = self.state.lock().unwrap();
         state.threads_at_work += 1;
         self.work_available.notify_all();
     }
 
     fn inject(&self, injected_jobs: &[*mut Job]) {
+        log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         state.injected_jobs.extend(injected_jobs);
         self.work_available.notify_all();
     }
 
-    fn wait_for_work(&self, was_active: bool) -> Option<*mut Job> {
+    fn wait_for_work(&self, _worker: usize, was_active: bool) -> Option<*mut Job> {
+        log!(WaitForWork { worker: _worker, was_active: was_active });
+
         let mut state = self.state.lock().unwrap();
 
         if was_active {
@@ -123,6 +129,7 @@ impl RegistryState {
 ///////////////////////////////////////////////////////////////////////////
 // WorkerThread identifiers
 
+#[derive(Copy, Clone, Debug)]
 pub struct WorkerThread(u32);
 
 thread_local! {
@@ -180,9 +187,12 @@ impl WorkerThread {
     #[inline]
     pub unsafe fn pop(&self, job: *mut Job) -> bool {
         let thread_info = self.thread_info();
-        let deque = thread_info.deque.lock().unwrap();
+        let mut deque = thread_info.deque.lock().unwrap();
         if deque.top == job {
-            deque.top == (*job).previous;
+            deque.top = (*job).previous;
+            if deque.bottom == job {
+                deque.bottom = NULL_JOB;
+            }
             true
         } else {
             false
@@ -234,13 +244,17 @@ unsafe fn main_loop(index: usize) {
     // store the thread index so we know that we are on a worker thread
     worker_index.set_current();
 
+    // let registry know we are ready to do work
+    registry.thread_infos[index].primed.set();
+
     let mut was_active = false;
     loop {
-        if let Some(injected_job) = registry.wait_for_work(was_active) {
+        if let Some(injected_job) = registry.wait_for_work(index, was_active) {
             (*injected_job).execute();
             was_active = true;
         } else if let Some(stolen_job) = steal_work(registry, index) {
-            registry.start_working();
+            log!(StoleWork { worker: index, job: stolen_job });
+            registry.start_working(index);
             (*stolen_job).execute();
             was_active = true;
         } else {

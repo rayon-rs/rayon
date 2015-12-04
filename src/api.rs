@@ -1,4 +1,6 @@
 use latch::Latch;
+#[allow(unused_imports)]
+use log::Event::*;
 use job::{Code, CodeImpl, Job};
 use thread_pool::{self, WorkerThread};
 
@@ -16,7 +18,9 @@ pub fn join<A,R_A,B,R_B>(oper_a: A,
     where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
 {
     unsafe {
-        match WorkerThread::current() {
+        let worker_thread = WorkerThread::current();
+        log!(Join { worker: worker_thread });
+        match worker_thread {
             Some(worker_thread) => {
                 // create a home where we will write result of task b
                 let mut result_b = None;
@@ -34,8 +38,10 @@ pub fn join<A,R_A,B,R_B>(oper_a: A,
 
                 // if b was not stolen, do it ourselves, else wait for the thief to finish
                 if worker_thread.pop(&mut job_b) {
+                    log!(PoppedJob { worker: worker_thread });
                     code_b.execute(); // not stolen, let's do it!
                 } else {
+                    log!(LostJob { worker: worker_thread });
                     // TODO help out!
                     latch_b.wait(); // stolen, wait for them to finish
                 }
@@ -56,6 +62,8 @@ unsafe fn join_inject<A,R_A,B,R_B>(oper_a: A,
                                    -> (R_A, R_B)
     where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
 {
+    println!("join_inject");
+
     let mut result_a = None;
     let mut code_a = CodeImpl::new(oper_a, &mut result_a);
     let mut latch_a = Latch::new();

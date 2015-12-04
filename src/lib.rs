@@ -2,6 +2,9 @@
 
 extern crate rand;
 
+#[macro_use]
+mod log;
+
 mod api;
 mod latch;
 mod job;
