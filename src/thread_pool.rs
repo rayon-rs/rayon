@@ -11,7 +11,7 @@ use util::leak;
 
 ///////////////////////////////////////////////////////////////////////////
 
-const NUM_CPUS: usize = 2;
+const NUM_CPUS: usize = 4;
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
