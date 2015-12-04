@@ -29,38 +29,39 @@ struct RegistryState {
 
 static mut THE_REGISTRY: Option<&'static Registry> = None;
 static THE_REGISTRY_SET: Once = ONCE_INIT;
-static THE_REGISTRY_INIT: Once = ONCE_INIT;
 
-fn get_registry_or_init() -> &'static Registry {
+/// Starts the worker threads (if that has not already happened) and
+/// returns the registry.
+pub fn get_registry() -> &'static Registry {
     THE_REGISTRY_SET.call_once(|| {
-        let registry = leak(Box::new(Registry::new()));
+        let registry = leak(Box::new(Registry::new(NUM_CPUS)));
         unsafe { THE_REGISTRY = Some(registry); }
     });
     unsafe { THE_REGISTRY.unwrap() }
 }
 
-#[inline]
-pub fn initialize() -> &'static Registry {
-    THE_REGISTRY_INIT.call_once(|| {
-        get_registry_or_init().finish_initializing();
-    });
-    unsafe { THE_REGISTRY.unwrap() }
-}
-
 impl Registry {
-    fn new() -> Registry {
-        for index in 0 .. NUM_CPUS {
+    fn new(num_threads: usize) -> Registry {
+        for index in 0 .. num_threads {
             thread::spawn(move || unsafe { main_loop(index) });
         }
 
         Registry {
-            thread_infos: (0..NUM_CPUS).map(|_| ThreadInfo::new()).collect(),
+            thread_infos: (0..num_threads).map(|_| ThreadInfo::new()).collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
         }
     }
 
-    fn finish_initializing(&self) {
+    fn num_threads(&self) -> usize {
+        self.thread_infos.len()
+    }
+
+    /// Waits for the worker threads to get up and running.  This is
+    /// meant to be used for benchmarking purposes, primarily, so that
+    /// you can get more consistent numbers by having everything
+    /// "ready to go".
+    pub fn wait_until_primed(&self) {
         for info in &self.thread_infos {
             info.primed.wait();
         }
@@ -243,7 +244,7 @@ unsafe fn main_loop(index: usize) {
     // implicitly blocks until Registry is initialized, which means
     // that later, if we see that `WORKER_THREAD_INDEX` is valid, we know
     // that `THE_REGISTRY` is `Some(_)`
-    let registry = get_registry_or_init();
+    let registry = get_registry();
 
     // store the thread index so we know that we are on a worker thread
     worker_index.set_current();
@@ -268,8 +269,9 @@ unsafe fn main_loop(index: usize) {
 }
 
 unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job> {
-    let start = rand::random::<usize>() % NUM_CPUS;
-    (start .. NUM_CPUS)
+    let num_threads = registry.num_threads();
+    let start = rand::random::<usize>() % num_threads;
+    (start .. num_threads)
         .chain(0 .. start)
         .filter(|&i| i != index)
         .filter_map(|i| steal_work_from(registry, i))
@@ -296,6 +298,6 @@ unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job>
 
 pub fn inject(jobs: &[*mut Job]) {
     debug_assert!(WorkerThread::current().is_none());
-    let registry = initialize();
+    let registry = get_registry();
     registry.inject(jobs);
 }

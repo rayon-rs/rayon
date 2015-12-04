@@ -9,7 +9,8 @@ use thread_pool::{self, WorkerThread};
 /// benchmarking purposes since it avoids initialization overhead in
 /// the actual operations.
 pub fn initialize() {
-    thread_pool::initialize();
+    let registry = thread_pool::get_registry();
+    registry.wait_until_primed();
 }
 
 pub fn join<A,R_A,B,R_B>(oper_a: A,
