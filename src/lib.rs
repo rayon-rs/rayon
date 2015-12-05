@@ -1,6 +1,10 @@
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
+#![cfg_attr(test, feature(test))]
 
 extern crate rand;
+
+#[cfg(test)]
+extern crate test as test_crate;
 
 #[macro_use]
 mod log;

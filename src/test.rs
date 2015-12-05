@@ -2,6 +2,7 @@
 
 use api::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use test_crate::Bencher;
 
 fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -27,12 +28,16 @@ fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
     i
 }
 
-#[test]
-fn sort() {
+#[bench]
+fn sort(b: &mut Bencher) {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut data: Vec<_> = (0..12*1024).map(|_| rng.next_u32()).collect();
+    let mut data: Vec<_> = (0..6*1024).map(|_| rng.next_u32()).collect();
 
-    quick_sort(&mut data);
+    initialize();
+
+    b.iter(|| {
+        quick_sort(&mut data);
+    });
 
     let mut sorted_data = data.clone();
     sorted_data.sort();
