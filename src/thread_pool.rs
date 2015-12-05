@@ -5,6 +5,7 @@ use log::Event::*;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use util::leak;
 
@@ -16,6 +17,7 @@ pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     state: Mutex<RegistryState>,
     work_available: Condvar,
+    terminate: AtomicBool,
 }
 
 struct RegistryState {
@@ -36,18 +38,21 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// returns the registry.
 pub fn get_registry() -> &'static Registry {
     THE_REGISTRY_SET.call_once(|| {
-        let registry = leak(Registry::new(NUM_CPUS));
+        let registry = leak(Registry::new());
         unsafe { THE_REGISTRY = Some(registry); }
     });
     unsafe { THE_REGISTRY.unwrap() }
 }
 
 impl Registry {
-    fn new(num_threads: usize) -> Arc<Registry> {
+    pub fn new() -> Arc<Registry> {
+        let num_threads = NUM_CPUS;
+
         let registry = Arc::new(Registry {
             thread_infos: (0..num_threads).map(|_| ThreadInfo::new()).collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
+            terminate: AtomicBool::new(false),
         });
 
         for index in 0 .. num_threads {
@@ -85,7 +90,7 @@ impl Registry {
         self.work_available.notify_all();
     }
 
-    fn inject(&self, injected_jobs: &[*mut Job]) {
+    pub unsafe fn inject(&self, injected_jobs: &[*mut Job]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         state.injected_jobs.extend(injected_jobs);
@@ -120,6 +125,10 @@ impl Registry {
 
             state = self.work_available.wait(state).unwrap();
         }
+    }
+
+    pub fn terminate(&self) {
+        self.terminate.store(true, Ordering::SeqCst);
     }
 }
 
@@ -260,7 +269,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     registry.thread_infos[index].primed.set();
 
     let mut was_active = false;
-    loop {
+    while !registry.terminate.load(Ordering::SeqCst) {
         if let Some(injected_job) = registry.wait_for_work(index, was_active) {
             (*injected_job).execute();
             was_active = true;
@@ -302,10 +311,4 @@ unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job>
     }
     stat_stolen!();
     Some(job)
-}
-
-pub unsafe fn inject(jobs: &[*mut Job]) {
-    debug_assert!(WorkerThread::current().is_null());
-    let registry = get_registry();
-    registry.inject(jobs);
 }

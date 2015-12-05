@@ -15,3 +15,4 @@ mod util;
 pub use api::initialize;
 pub use api::dump_stats;
 pub use api::join;
+pub use api::ThreadPool;

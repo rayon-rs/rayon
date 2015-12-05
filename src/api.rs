@@ -2,7 +2,8 @@ use latch::Latch;
 #[allow(unused_imports)]
 use log::Event::*;
 use job::{Code, CodeImpl, Job};
-use thread_pool::{self, WorkerThread};
+use std::sync::Arc;
+use thread_pool::{self, Registry, WorkerThread};
 
 /// Initializes the Rayon threadpool. You don't normally need to do
 /// this, as it happens automatically, but it is handy for
@@ -79,10 +80,44 @@ unsafe fn join_inject<A,R_A,B,R_B>(oper_a: A,
     let mut latch_b = Latch::new();
     let mut job_b = Job::new(&mut code_b, &mut latch_b);
 
-    thread_pool::inject(&[&mut job_a, &mut job_b]);
+    thread_pool::get_registry().inject(&[&mut job_a, &mut job_b]);
 
     latch_a.wait();
     latch_b.wait();
 
     (result_a.unwrap(), result_b.unwrap())
+}
+
+pub struct ThreadPool {
+    registry: Arc<Registry>
+}
+
+impl ThreadPool {
+    pub fn new() -> ThreadPool {
+        ThreadPool {
+            registry: Registry::new()
+        }
+    }
+
+    /// Executes `op` within the threadpool. Any attempts to `join`
+    /// which occur there will then operate within that threadpool.
+    pub fn install<OP,R>(&self, op: OP) -> R
+        where OP: FnOnce() -> R
+    {
+        unsafe {
+            let mut result_a = None;
+            let mut code_a = CodeImpl::new(op, &mut result_a);
+            let mut latch_a = Latch::new();
+            let mut job_a = Job::new(&mut code_a, &mut latch_a);
+            self.registry.inject(&[&mut job_a]);
+            latch_a.wait();
+            result_a.unwrap()
+        }
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        self.registry.terminate();
+    }
 }
