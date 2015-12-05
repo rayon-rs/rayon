@@ -1,5 +1,6 @@
 use latch::Latch;
 use std::mem;
+use str::ptr;
 
 /// A `Job` is used to advertise work for other threads that they may
 /// want to steal. In accordance with time honored tradition, jobs are
@@ -23,6 +24,15 @@ pub struct Job {
 pub const NULL_JOB: *mut Job = 0 as *mut Job;
 
 impl Job {
+    pub unsafe fn dummy() -> Job {
+        Job {
+            previous: NULL_JOB,
+            next: NULL_JOB,
+            code: ptr::null(),
+            latch: ptr::null(),
+        }
+    }
+
     pub unsafe fn new<'a>(code: *mut (Code+'a), latch: *mut Latch) -> Job {
         let code: *mut Code = mem::transmute(code);
         Job {

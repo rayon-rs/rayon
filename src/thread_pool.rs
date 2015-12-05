@@ -5,7 +5,7 @@ use log::Event::*;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::thread;
 use util::leak;
 
@@ -145,7 +145,7 @@ struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
     primed: Latch,
-    deque: Mutex<ThreadDeque>,
+    deque: ThreadDeque,
 }
 
 impl ThreadInfo {
@@ -158,13 +158,22 @@ impl ThreadInfo {
 }
 
 struct ThreadDeque {
-    bottom: *mut Job,
-    top: *mut Job,
+    dummy: Box<Job>,
+    bottom: AtomicPtr<Job>,
+    top: AtomicPtr<Job>,
+    lock: Mutex<()>,
 }
 
 impl ThreadDeque {
     fn new() -> ThreadDeque {
-        ThreadDeque { bottom: NULL_JOB, top: NULL_JOB }
+        let mut dummy = Box::new(Job::dummy());
+        let dummyp: *mut Job = &mut *dummy;
+        ThreadDeque {
+            dummy: dummy,
+            bottom: AtomicPtr::new(dummyp),
+            top: AtomicPtr::new(dummyp),
+            lock: Mutex::new()
+        }
     }
 }
 
@@ -216,44 +225,81 @@ impl WorkerThread {
 
     #[inline]
     pub unsafe fn push(&self, job: *mut Job) {
-        let thread_info = self.thread_info();
-        let mut deque = thread_info.deque.lock().unwrap();
-
-        let top = deque.top;
+        let deque = &self.thread_info().deque;
+        let top = deque.top.load(Ordering::SeqCst);
         (*job).previous = top;
-        if !top.is_null() {
-            (*top).next = job;
-        }
-
-        deque.top = job;
-        if deque.bottom.is_null() {
-            deque.bottom = job;
-        }
+        (*top).next = job;
+        deque.top.store(job, Ordering::SeqCst);
     }
 
     /// Pop `job` if it is still at the top of the stack.  Otherwise,
     /// some other thread has stolen this job.
     #[inline]
     pub unsafe fn pop(&self, job: *mut Job) -> bool {
-        let thread_info = self.thread_info();
-        let mut deque = thread_info.deque.lock().unwrap();
-        if deque.top == job {
-            let previous_job = (*job).previous;
-            deque.top = previous_job;
+        let deque = &self.thread_info().deque;
 
-            if previous_job != NULL_JOB {
-                (*previous_job).next = NULL_JOB;
-            } else {
-                deque.bottom = NULL_JOB;
-            }
+        // T-- in the THE protocol:
+        let top = deque.top.load(Ordering::SeqCst);
+        let previous = (*top).previous;;
+        deque.top.store(previous, Ordering::SeqCst);
 
-            stat_popped!();
+        // Check whether we conflicted with any thief
+        let bottom = deque.bottom.load(Ordering::SeqCst);
+        if bottom != top {
+            // No, we're all set.
+            return true;
+        }
 
-            true
-        } else {
-            false
+        // Yes, so restore top and acquire lock.
+        deque.top.store(top, Ordering::SeqCst);
+        let lock = deque.lock.lock().unwrap();
+
+        // Now thief cannot be active. Check whether they
+        // stole the top already.
+        let bottom = deque.bottom.load(Ordering::SeqCst); // FIXME could prob be weaker
+        if bottom == top {
+            
         }
     }
+
+    /// Try to take a job from the *bottom* of the deque. **This is
+    /// executed by thieves, not by the thread `self`.**
+    pub unsafe fn offer(&self) -> Option<*mut Job> {
+        let deque = &self.thread_info().deque;
+        let lock = deque.lock.lock().unwrap();
+
+        let bottom = deque.bottom.load(Ordering::SeqCst);
+        if bottom == NULL_JOB {
+            return None;
+        }
+
+        let next = (*bottom).next;
+        deque.bottom.store(next, Ordering::SeqCst);
+
+        let top = deque.top.load(Ordering::SeqCst);
+        if next == top {
+            
+        }
+    }
+}
+
+unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job> {
+    let thread_info = &registry.thread_infos[index];
+    let mut deque = thread_info.deque.lock().unwrap();
+    if deque.bottom.is_null() {
+        return None;
+    }
+
+    let job = deque.bottom;
+    let next = (*job).next;
+    deque.bottom = next;
+    if next != NULL_JOB {
+        (*next).previous = NULL_JOB;
+    } else {
+        deque.top = NULL_JOB;
+    }
+    stat_stolen!();
+    Some(job)
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -292,23 +338,4 @@ unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job> {
         .filter(|&i| i != index)
         .filter_map(|i| steal_work_from(registry, i))
         .next()
-}
-
-unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job> {
-    let thread_info = &registry.thread_infos[index];
-    let mut deque = thread_info.deque.lock().unwrap();
-    if deque.bottom.is_null() {
-        return None;
-    }
-
-    let job = deque.bottom;
-    let next = (*job).next;
-    deque.bottom = next;
-    if next != NULL_JOB {
-        (*next).previous = NULL_JOB;
-    } else {
-        deque.top = NULL_JOB;
-    }
-    stat_stolen!();
-    Some(job)
 }
