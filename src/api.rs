@@ -102,7 +102,7 @@ impl ThreadPool {
     /// Executes `op` within the threadpool. Any attempts to `join`
     /// which occur there will then operate within that threadpool.
     pub fn install<OP,R>(&self, op: OP) -> R
-        where OP: FnOnce() -> R
+        where OP: FnOnce() -> R + Send
     {
         unsafe {
             let mut result_a = None;
