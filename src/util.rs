@@ -1,7 +1,10 @@
 use std::mem;
+use std::sync::Arc;
 
-pub fn leak<T>(b: Box<T>) -> &'static T {
+pub fn leak<T>(b: Arc<T>) -> &'static T {
     unsafe {
-        mem::transmute(b)
+        let p: *const T = &*b;
+        mem::forget(b); // leak our reference, so that `b` is never freed
+        &*p
     }
 }

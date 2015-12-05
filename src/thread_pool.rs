@@ -4,9 +4,8 @@ use latch::Latch;
 use log::Event::*;
 use rand;
 use std::cell::Cell;
-use std::sync::{Condvar, Mutex, Once, ONCE_INIT};
+use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::thread;
-use std::u32;
 use util::leak;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -24,6 +23,9 @@ struct RegistryState {
     injected_jobs: Vec<*mut Job>,
 }
 
+unsafe impl Send for Registry { }
+unsafe impl Sync for Registry { }
+
 ///////////////////////////////////////////////////////////////////////////
 // Initialization
 
@@ -34,23 +36,26 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// returns the registry.
 pub fn get_registry() -> &'static Registry {
     THE_REGISTRY_SET.call_once(|| {
-        let registry = leak(Box::new(Registry::new(NUM_CPUS)));
+        let registry = leak(Registry::new(NUM_CPUS));
         unsafe { THE_REGISTRY = Some(registry); }
     });
     unsafe { THE_REGISTRY.unwrap() }
 }
 
 impl Registry {
-    fn new(num_threads: usize) -> Registry {
-        for index in 0 .. num_threads {
-            thread::spawn(move || unsafe { main_loop(index) });
-        }
-
-        Registry {
+    fn new(num_threads: usize) -> Arc<Registry> {
+        let registry = Arc::new(Registry {
             thread_infos: (0..num_threads).map(|_| ThreadInfo::new()).collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
+        });
+
+        for index in 0 .. num_threads {
+            let registry = registry.clone();
+            thread::spawn(move || unsafe { main_loop(registry, index) });
         }
+
+        registry
     }
 
     fn num_threads(&self) -> usize {
@@ -127,43 +132,77 @@ impl RegistryState {
     }
 }
 
+struct ThreadInfo {
+    // latch is set once thread has started and we are entering into
+    // the main loop
+    primed: Latch,
+    deque: Mutex<ThreadDeque>,
+}
+
+impl ThreadInfo {
+    fn new() -> ThreadInfo {
+        ThreadInfo {
+            deque: Mutex::new(ThreadDeque::new()),
+            primed: Latch::new(),
+        }
+    }
+}
+
+struct ThreadDeque {
+    bottom: *mut Job,
+    top: *mut Job,
+}
+
+impl ThreadDeque {
+    fn new() -> ThreadDeque {
+        ThreadDeque { bottom: NULL_JOB, top: NULL_JOB }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // WorkerThread identifiers
 
-#[derive(Copy, Clone, Debug)]
-pub struct WorkerThread(u32);
+pub struct WorkerThread {
+    registry: Arc<Registry>,
+    index: usize
+}
 
+// This is a bit sketchy, but basically: the WorkerThread is
+// allocated on the stack of the worker on entry and stored into this
+// thread local variable. So it will remain valid at least until the
+// worker is fully unwound. Using an unsafe pointer avoids the need
+// for a RefCell<T> etc.
 thread_local! {
-    static WORKER_THREAD_INDEX: Cell<u32> = Cell::new(u32::MAX)
+    static WORKER_THREAD_STATE: Cell<*const WorkerThread> =
+        Cell::new(0 as *const WorkerThread)
 }
 
 impl WorkerThread {
-    /// Gets the `WorkerThread` index for the current thread, if any.
+    /// Gets the `WorkerThread` index for the current thread; returns
+    /// NULL if this is not a worker thread. This pointer is valid
+    /// anywhere on the current thread.
     #[inline]
-    pub fn current() -> Option<WorkerThread> {
-        let n = WORKER_THREAD_INDEX.with(|t| t.get());
-        if n == u32::MAX { None } else { Some(WorkerThread(n)) }
+    pub unsafe fn current() -> *const WorkerThread {
+        WORKER_THREAD_STATE.with(|t| t.get())
     }
 
     /// Sets `self` as the worker thread index for the current thread.
     /// This is done during worker thread startup.
-    fn set_current(&self) {
-        assert!(self.0 != u32::MAX);
-        assert!(WORKER_THREAD_INDEX.with(|t| t.get()) == u32::MAX);
-        assert!(unsafe { THE_REGISTRY.is_some() });
-        WORKER_THREAD_INDEX.with(|t| t.set(self.0));
+    unsafe fn set_current(&self) {
+        WORKER_THREAD_STATE.with(|t| {
+            assert!(t.get().is_null());
+            t.set(self);
+        });
     }
 
     #[inline]
-    fn registry(&self) -> &'static Registry {
-        // if you have gotten possession of a worker thread,
-        // the registry must have been initialized by now
-        unsafe { THE_REGISTRY.unwrap() }
+    pub fn index(&self) -> usize {
+        self.index
     }
 
     #[inline]
-    fn thread_info(&self) -> &'static ThreadInfo {
-        &self.registry().thread_infos[self.0 as usize]
+    fn thread_info(&self) -> &ThreadInfo {
+        &self.registry.thread_infos[self.index]
     }
 
     #[inline]
@@ -209,48 +248,13 @@ impl WorkerThread {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// WorkerThread info
 
-struct ThreadInfo {
-    // latch is set once thread has started and we are entering into
-    // the main loop
-    primed: Latch,
-    deque: Mutex<ThreadDeque>,
-}
-
-struct ThreadDeque {
-    bottom: *mut Job,
-    top: *mut Job,
-}
-
-impl ThreadInfo {
-    fn new() -> ThreadInfo {
-        ThreadInfo {
-            deque: Mutex::new(ThreadDeque::new()),
-            primed: Latch::new(),
-        }
-    }
-}
-
-impl ThreadDeque {
-    fn new() -> ThreadDeque {
-        ThreadDeque { bottom: NULL_JOB, top: NULL_JOB }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-unsafe fn main_loop(index: usize) {
-    assert!(index < (u32::MAX as usize));
-    let worker_index = WorkerThread(index as u32);
-
-    // implicitly blocks until Registry is initialized, which means
-    // that later, if we see that `WORKER_THREAD_INDEX` is valid, we know
-    // that `THE_REGISTRY` is `Some(_)`
-    let registry = get_registry();
-
-    // store the thread index so we know that we are on a worker thread
-    worker_index.set_current();
+unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
+    let worker_thread = WorkerThread {
+        registry: registry.clone(),
+        index: index,
+    };
+    worker_thread.set_current();
 
     // let registry know we are ready to do work
     registry.thread_infos[index].primed.set();
@@ -260,7 +264,7 @@ unsafe fn main_loop(index: usize) {
         if let Some(injected_job) = registry.wait_for_work(index, was_active) {
             (*injected_job).execute();
             was_active = true;
-        } else if let Some(stolen_job) = steal_work(registry, index) {
+        } else if let Some(stolen_job) = steal_work(&registry, index) {
             log!(StoleWork { worker: index, job: stolen_job });
             registry.start_working(index);
             (*stolen_job).execute();
@@ -300,8 +304,8 @@ unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job>
     Some(job)
 }
 
-pub fn inject(jobs: &[*mut Job]) {
-    debug_assert!(WorkerThread::current().is_none());
+pub unsafe fn inject(jobs: &[*mut Job]) {
+    debug_assert!(WorkerThread::current().is_null());
     let registry = get_registry();
     registry.inject(jobs);
 }

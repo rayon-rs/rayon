@@ -2,7 +2,6 @@
 
 use job::Job;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
-use thread_pool::WorkerThread;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -11,9 +10,9 @@ pub enum Event {
     InjectJobs { count: usize },
     WaitForWork { worker: usize, was_active: bool },
     StoleWork { worker: usize, job: *mut Job },
-    Join { worker: Option<WorkerThread> },
-    PoppedJob { worker: WorkerThread },
-    LostJob { worker: WorkerThread },
+    Join { worker: usize },
+    PoppedJob { worker: usize },
+    LostJob { worker: usize },
 }
 
 pub const DUMP_LOGS: bool = false;

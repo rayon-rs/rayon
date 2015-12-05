@@ -26,40 +26,40 @@ pub fn join<A,R_A,B,R_B>(oper_a: A,
 {
     unsafe {
         let worker_thread = WorkerThread::current();
-        log!(Join { worker: worker_thread });
-        match worker_thread {
-            Some(worker_thread) => {
-                // create a home where we will write result of task b
-                let mut result_b = None;
 
-                // create virtual wrapper for task b; this all has to be
-                // done here so that the stack frame can keep it all live
-                // long enough
-                let mut code_b = CodeImpl::new(oper_b, &mut result_b);
-                let mut latch_b = Latch::new();
-                let mut job_b = Job::new(&mut code_b, &mut latch_b);
-                worker_thread.push(&mut job_b);
-
-                // execute task a; hopefully b gets stolen
-                let result_a = oper_a();
-
-                // if b was not stolen, do it ourselves, else wait for the thief to finish
-                if worker_thread.pop(&mut job_b) {
-                    log!(PoppedJob { worker: worker_thread });
-                    code_b.execute(); // not stolen, let's do it!
-                } else {
-                    log!(LostJob { worker: worker_thread });
-                    // TODO help out!
-                    latch_b.wait(); // stolen, wait for them to finish
-                }
-
-                // now result_b should be initialized
-                (result_a, result_b.unwrap())
-            }
-            None => {
-                join_inject(oper_a, oper_b)
-            }
+        // slow path: not yet in the thread pool
+        if worker_thread.is_null() {
+            return join_inject(oper_a, oper_b);
         }
+
+        log!(Join { worker: (*worker_thread).index() });
+
+        // create a home where we will write result of task b
+        let mut result_b = None;
+
+        // create virtual wrapper for task b; this all has to be
+        // done here so that the stack frame can keep it all live
+        // long enough
+        let mut code_b = CodeImpl::new(oper_b, &mut result_b);
+        let mut latch_b = Latch::new();
+        let mut job_b = Job::new(&mut code_b, &mut latch_b);
+        (*worker_thread).push(&mut job_b);
+
+        // execute task a; hopefully b gets stolen
+        let result_a = oper_a();
+
+        // if b was not stolen, do it ourselves, else wait for the thief to finish
+        if (*worker_thread).pop(&mut job_b) {
+            log!(PoppedJob { worker: (*worker_thread).index() });
+            code_b.execute(); // not stolen, let's do it!
+        } else {
+            log!(LostJob { worker: (*worker_thread).index() });
+            // TODO help out!
+            latch_b.wait(); // stolen, wait for them to finish
+        }
+
+        // now result_b should be initialized
+        (result_a, result_b.unwrap())
     }
 }
 
