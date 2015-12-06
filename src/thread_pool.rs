@@ -1,17 +1,18 @@
-use job::{Job, NULL_JOB};
+use deque::ThreadDeque;
+use job::Job;
 use latch::Latch;
 #[allow(unused_imports)]
 use log::Event::*;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use util::leak;
 
 ///////////////////////////////////////////////////////////////////////////
 
-const NUM_CPUS: usize = 4;
+const NUM_CPUS: usize = 8;
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -151,28 +152,8 @@ struct ThreadInfo {
 impl ThreadInfo {
     fn new() -> ThreadInfo {
         ThreadInfo {
-            deque: Mutex::new(ThreadDeque::new()),
+            deque: ThreadDeque::new(),
             primed: Latch::new(),
-        }
-    }
-}
-
-struct ThreadDeque {
-    dummy: Box<Job>,
-    bottom: AtomicPtr<Job>,
-    top: AtomicPtr<Job>,
-    lock: Mutex<()>,
-}
-
-impl ThreadDeque {
-    fn new() -> ThreadDeque {
-        let mut dummy = Box::new(Job::dummy());
-        let dummyp: *mut Job = &mut *dummy;
-        ThreadDeque {
-            dummy: dummy,
-            bottom: AtomicPtr::new(dummyp),
-            top: AtomicPtr::new(dummyp),
-            lock: Mutex::new()
         }
     }
 }
@@ -225,81 +206,15 @@ impl WorkerThread {
 
     #[inline]
     pub unsafe fn push(&self, job: *mut Job) {
-        let deque = &self.thread_info().deque;
-        let top = deque.top.load(Ordering::SeqCst);
-        (*job).previous = top;
-        (*top).next = job;
-        deque.top.store(job, Ordering::SeqCst);
+        self.thread_info().deque.push(job);
     }
 
-    /// Pop `job` if it is still at the top of the stack.  Otherwise,
-    /// some other thread has stolen this job.
+    /// Pop `job` from top of stack, returning `false` if it has been
+    /// stolen.
     #[inline]
-    pub unsafe fn pop(&self, job: *mut Job) -> bool {
-        let deque = &self.thread_info().deque;
-
-        // T-- in the THE protocol:
-        let top = deque.top.load(Ordering::SeqCst);
-        let previous = (*top).previous;;
-        deque.top.store(previous, Ordering::SeqCst);
-
-        // Check whether we conflicted with any thief
-        let bottom = deque.bottom.load(Ordering::SeqCst);
-        if bottom != top {
-            // No, we're all set.
-            return true;
-        }
-
-        // Yes, so restore top and acquire lock.
-        deque.top.store(top, Ordering::SeqCst);
-        let lock = deque.lock.lock().unwrap();
-
-        // Now thief cannot be active. Check whether they
-        // stole the top already.
-        let bottom = deque.bottom.load(Ordering::SeqCst); // FIXME could prob be weaker
-        if bottom == top {
-            
-        }
+    pub unsafe fn pop(&self) -> bool {
+        self.thread_info().deque.pop()
     }
-
-    /// Try to take a job from the *bottom* of the deque. **This is
-    /// executed by thieves, not by the thread `self`.**
-    pub unsafe fn offer(&self) -> Option<*mut Job> {
-        let deque = &self.thread_info().deque;
-        let lock = deque.lock.lock().unwrap();
-
-        let bottom = deque.bottom.load(Ordering::SeqCst);
-        if bottom == NULL_JOB {
-            return None;
-        }
-
-        let next = (*bottom).next;
-        deque.bottom.store(next, Ordering::SeqCst);
-
-        let top = deque.top.load(Ordering::SeqCst);
-        if next == top {
-            
-        }
-    }
-}
-
-unsafe fn steal_work_from(registry: &Registry, index: usize) -> Option<*mut Job> {
-    let thread_info = &registry.thread_infos[index];
-    let mut deque = thread_info.deque.lock().unwrap();
-    if deque.bottom.is_null() {
-        return None;
-    }
-
-    let job = deque.bottom;
-    let next = (*job).next;
-    deque.bottom = next;
-    if next != NULL_JOB {
-        (*next).previous = NULL_JOB;
-    } else {
-        deque.top = NULL_JOB;
-    }
-    stat_stolen!();
-    Some(job)
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -336,6 +251,6 @@ unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job> {
     (start .. num_threads)
         .chain(0 .. start)
         .filter(|&i| i != index)
-        .filter_map(|i| steal_work_from(registry, i))
+        .filter_map(|i| registry.thread_infos[i].deque.steal())
         .next()
 }

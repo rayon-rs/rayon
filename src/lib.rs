@@ -6,6 +6,7 @@ extern crate rand;
 mod log;
 
 mod api;
+mod deque;
 mod latch;
 mod job;
 #[cfg(test)] mod test;

@@ -50,7 +50,7 @@ pub fn join<A,R_A,B,R_B>(oper_a: A,
         let result_a = oper_a();
 
         // if b was not stolen, do it ourselves, else wait for the thief to finish
-        if (*worker_thread).pop(&mut job_b) {
+        if (*worker_thread).pop() {
             log!(PoppedJob { worker: (*worker_thread).index() });
             code_b.execute(); // not stolen, let's do it!
         } else {
