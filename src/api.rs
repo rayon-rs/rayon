@@ -55,8 +55,7 @@ pub fn join<A,R_A,B,R_B>(oper_a: A,
             code_b.execute(); // not stolen, let's do it!
         } else {
             log!(LostJob { worker: (*worker_thread).index() });
-            // TODO help out!
-            latch_b.wait(); // stolen, wait for them to finish
+            (*worker_thread).steal_until(&latch_b); // stolen, wait for them to finish
         }
 
         // now result_b should be initialized

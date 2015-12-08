@@ -215,6 +215,16 @@ impl WorkerThread {
     pub unsafe fn pop(&self) -> bool {
         self.thread_info().deque.pop()
     }
+
+    pub unsafe fn steal_until(&self, latch: &Latch) {
+        while !latch.probe() {
+            if let Some(job) = steal_work(&self.registry, self.index) {
+                (*job).execute();
+            } else {
+                thread::yield_now();
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
