@@ -9,12 +9,18 @@ use std::env;
 use std::str::FromStr;
 
 trait Joiner {
+    fn is_parallel() -> bool;
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
         where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send;
 }
 
 struct Parallel;
 impl Joiner for Parallel {
+    #[inline]
+    fn is_parallel() -> bool {
+        true
+    }
+    #[inline]
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
         where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send
     {
@@ -24,6 +30,11 @@ impl Joiner for Parallel {
 
 struct Sequential;
 impl Joiner for Sequential {
+    #[inline]
+    fn is_parallel() -> bool {
+        false
+    }
+    #[inline]
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
         where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send
     {
@@ -36,6 +47,10 @@ impl Joiner for Sequential {
 fn quick_sort<J:Joiner, T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
         return;
+    }
+
+    if J::is_parallel() && v.len() <= 1024 {
+        return quick_sort::<Sequential, T>(v);
     }
 
     let mid = partition(v);
