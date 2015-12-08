@@ -49,7 +49,7 @@ fn quick_sort<J:Joiner, T:PartialOrd+Send>(v: &mut [T]) {
         return;
     }
 
-    if J::is_parallel() && v.len() <= 1024 {
+    if J::is_parallel() && v.len() <= 10*1024 {
         return quick_sort::<Sequential, T>(v);
     }
 
@@ -76,13 +76,25 @@ fn main() {
     let mut kilo = 24;
     let mut run_par = true;
     let mut run_seq = true;
+    let mut reps = 10;
 
-    let args = env::args();
-    for arg in args.skip(1) {
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
         if arg == "--no-par" {
             run_par = false;
         } else if arg == "--no-seq" {
             run_seq = false;
+        } else if arg == "--reps" {
+            if let Some(reps_arg) = args.next() {
+                match usize::from_str(&reps_arg) {
+                    Ok(v) => reps = v,
+                    Err(_) => {
+                        println!("invalid argument `{}`, expected integer", reps_arg);
+                    }
+                }
+            } else {
+                println!("missing argument to --reps");
+            }
         } else {
             match usize::from_str(&arg) {
                 Ok(v) => kilo = v,
@@ -94,29 +106,31 @@ fn main() {
     }
 
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let data: Vec<_> = (0..kilo*1024).map(|_| rng.next_u32()).collect();
+    let mut par_time = 0;
+    let mut seq_time = 0;
 
     rayon::initialize();
 
-    let par_time = if run_par {
-        let mut data = data.clone();
-        let par_start = time::precise_time_ns();
-        quick_sort::<Parallel, u32>(&mut data);
-        time::precise_time_ns() - par_start
-    } else {
-        0
-    };
+    for _ in 0 .. reps {
+        let data: Vec<_> = (0..kilo*1024).map(|_| rng.next_u32()).collect();
 
-    let seq_time = if run_seq {
-        let mut data = data.clone();
-        let seq_start = time::precise_time_ns();
-        quick_sort::<Sequential, u32>(&mut data);
-        time::precise_time_ns() - seq_start
-    } else {
-        0
-    };
+        if run_par {
+            let mut data = data.clone();
+            let par_start = time::precise_time_ns();
+            quick_sort::<Parallel, u32>(&mut data);
+            par_time += time::precise_time_ns() - par_start;
+        }
+
+        if run_seq {
+            let mut data = data.clone();
+            let seq_start = time::precise_time_ns();
+            quick_sort::<Sequential, u32>(&mut data);
+            seq_time += time::precise_time_ns() - seq_start;
+        }
+    }
 
     println!("Array length    : {}K 32-bit integers", kilo);
+    println!("Repetitions     : {}", reps);
     if run_par { println!("Parallel time   : {}", par_time); }
     if run_seq { println!("Sequential time : {}", seq_time); }
     if run_par && run_seq {
