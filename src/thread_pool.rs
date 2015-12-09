@@ -3,6 +3,7 @@ use job::Job;
 use latch::Latch;
 #[allow(unused_imports)]
 use log::Event::*;
+use num_cpus;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
@@ -11,8 +12,6 @@ use std::thread;
 use util::leak;
 
 ///////////////////////////////////////////////////////////////////////////
-
-const NUM_CPUS: usize = 8;
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -47,7 +46,7 @@ pub fn get_registry() -> &'static Registry {
 
 impl Registry {
     pub fn new() -> Arc<Registry> {
-        let num_threads = NUM_CPUS;
+        let num_threads = num_cpus::get();
 
         let registry = Arc::new(Registry {
             thread_infos: (0..num_threads).map(|_| ThreadInfo::new()).collect(),

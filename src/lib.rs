@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 
+extern crate num_cpus;
 extern crate rand;
 
 #[macro_use]
