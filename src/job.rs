@@ -7,12 +7,6 @@ use std::mem;
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
 pub struct Job {
-    /// previous job in deque; managed by thread_pool
-    pub previous: *mut Job,
-
-    /// next job in deque; managed by thread_pool
-    pub next: *mut Job,
-
     /// code to execute (if job is stolen)
     code: *mut Code,
 
@@ -20,14 +14,10 @@ pub struct Job {
     latch: *mut Latch,
 }
 
-pub const NULL_JOB: *mut Job = 0 as *mut Job;
-
 impl Job {
     pub unsafe fn new<'a>(code: *mut (Code+'a), latch: *mut Latch) -> Job {
         let code: *mut Code = mem::transmute(code);
         Job {
-            previous: NULL_JOB,
-            next: NULL_JOB,
             code: code,
             latch: latch
         }

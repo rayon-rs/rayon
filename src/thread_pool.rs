@@ -1,4 +1,4 @@
-use deque::ThreadDeque;
+use deque::{BufferPool, Worker, Stealer, Stolen};
 use job::Job;
 use latch::Latch;
 #[allow(unused_imports)]
@@ -47,9 +47,10 @@ pub fn get_registry() -> &'static Registry {
 impl Registry {
     pub fn new() -> Arc<Registry> {
         let num_threads = num_cpus::get();
-
+        let pool = BufferPool::new();
         let registry = Arc::new(Registry {
-            thread_infos: (0..num_threads).map(|_| ThreadInfo::new()).collect(),
+            thread_infos: (0..num_threads).map(|_| ThreadInfo::new(&pool))
+                                          .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
             terminate: AtomicBool::new(false),
@@ -145,14 +146,17 @@ struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
     primed: Latch,
-    deque: ThreadDeque,
+    worker: Worker<JobRef>,
+    stealer: Stealer<JobRef>,
 }
 
 impl ThreadInfo {
-    fn new() -> ThreadInfo {
+    fn new(pool: &BufferPool<JobRef>) -> ThreadInfo {
+        let (worker, stealer) = pool.deque();
         ThreadInfo {
-            deque: ThreadDeque::new(),
             primed: Latch::new(),
+            worker: worker,
+            stealer: stealer,
         }
     }
 }
@@ -205,14 +209,14 @@ impl WorkerThread {
 
     #[inline]
     pub unsafe fn push(&self, job: *mut Job) {
-        self.thread_info().deque.push(job);
+        self.thread_info().worker.push(JobRef { ptr: job });
     }
 
     /// Pop `job` from top of stack, returning `false` if it has been
     /// stolen.
     #[inline]
     pub unsafe fn pop(&self) -> bool {
-        self.thread_info().deque.pop()
+        self.thread_info().worker.pop().is_some()
     }
 
     pub unsafe fn steal_until(&self, latch: &Latch) {
@@ -260,6 +264,20 @@ unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job> {
     (start .. num_threads)
         .chain(0 .. start)
         .filter(|&i| i != index)
-        .filter_map(|i| registry.thread_infos[i].deque.steal())
+        .flat_map(|i| match registry.thread_infos[i].stealer.steal() {
+            Stolen::Empty => None,
+            Stolen::Abort => None, // loop?
+            Stolen::Data(v) => Some(v.ptr),
+        })
         .next()
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct JobRef {
+    pub ptr: *mut Job
+}
+
+unsafe impl Send for JobRef { }
+unsafe impl Sync for JobRef { }
+
