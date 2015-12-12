@@ -2,9 +2,11 @@ use super::*;
 
 #[test]
 pub fn execute() {
-    let mut v: Vec<i32> = (0..1024).collect();
-    let mut w = vec![];
-    let w = v.into_par_iter()
-             .map(&|&i| i + 1)
-             .collect_into(&mut w);
+    let a: Vec<i32> = (0..1024).collect();
+    let mut b = vec![];
+    a.into_par_iter()
+     .map(&|&i| i + 1)
+     .collect_into(&mut b);
+    let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
+    assert_eq!(b, c);
 }

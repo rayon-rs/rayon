@@ -59,6 +59,7 @@ pub trait ParallelIteratorState: Sized {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct ParallelLen {
     /// Maximal number of elements that we will write
     pub maximal_len: usize,
@@ -230,6 +231,10 @@ pub fn collect_into<PAR_ITER,T>(pi: PAR_ITER, v: &mut Vec<T>)
     unsafe {
         collect_into_helper_with_len(state, len, CollectTarget(target));
     }
+
+    unsafe {
+        v.set_len(len.maximal_len);
+    }
 }
 
 unsafe fn collect_into_helper<STATE,T>(mut state: STATE,
@@ -272,3 +277,15 @@ impl<T> CollectTarget<T> {
         self.0
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+// 
+// pub fn reduce<PAR_ITER,OP,T>(pi: PAR_ITER) -> T
+//     where PAR_ITER: ParallelIterator<Item=T>,
+//           PAR_ITER::State: Send,
+//           OP: Fn(T, T) -> T,
+// {
+//     let mut state = pi.into_state();
+//     let len = state.len();
+//     
+// }
