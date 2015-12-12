@@ -10,6 +10,7 @@ mod log;
 mod api;
 mod latch;
 mod job;
+mod par_iter;
 #[cfg(test)] mod test;
 mod thread_pool;
 mod util;
