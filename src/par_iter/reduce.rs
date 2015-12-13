@@ -69,3 +69,33 @@ sum_rule!(u64, 0);
 sum_rule!(usize, 0);
 sum_rule!(f32, 0.0);
 sum_rule!(f64, 0.0);
+
+pub struct MulOp;
+
+pub const MUL: &'static MulOp = &MulOp;
+
+macro_rules! mul_rule {
+    ($i:ty, $z:expr) => {
+        impl ReduceOp<$i> for MulOp {
+            fn start_value(&self) -> $i {
+                $z
+            }
+            fn reduce(&self, value1: $i, value2: $i) -> $i {
+                value1 * value2
+            }
+        }
+    }
+}
+
+mul_rule!(i8, 1);
+mul_rule!(i16, 1);
+mul_rule!(i32, 1);
+mul_rule!(i64, 1);
+mul_rule!(isize, 1);
+mul_rule!(u8, 1);
+mul_rule!(u16, 1);
+mul_rule!(u32, 1);
+mul_rule!(u64, 1);
+mul_rule!(usize, 1);
+mul_rule!(f32, 1.0);
+mul_rule!(f64, 1.0);
