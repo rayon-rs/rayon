@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::ops::Fn;
-use self::reduce::{MulOp, SumOp};
+use self::reduce::{SumOp, MulOp, MinOp, MaxOp};
 
 mod collect;
 mod len;
@@ -16,10 +16,9 @@ pub use self::collect::collect_into;
 pub use self::len::ParallelLen;
 pub use self::len::THRESHOLD;
 pub use self::map::Map;
-pub use self::reduce::MUL;
 pub use self::reduce::reduce;
 pub use self::reduce::ReduceOp;
-pub use self::reduce::SUM;
+pub use self::reduce::{SUM, MUL, MIN, MAX};
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item=Self::Item>;
@@ -57,6 +56,18 @@ pub trait ParallelIterator {
         where Self: Sized, MulOp: ReduceOp<Self::Item>
     {
         reduce(self, MUL)
+    }
+
+    fn min(self) -> Self::Item
+        where Self: Sized, MinOp: ReduceOp<Self::Item>
+    {
+        reduce(self, MIN)
+    }
+
+    fn max(self) -> Self::Item
+        where Self: Sized, MaxOp: ReduceOp<Self::Item>
+    {
+        reduce(self, MAX)
     }
 
     fn reduce<REDUCE_OP>(self, reduce_op: &REDUCE_OP) -> Self::Item
