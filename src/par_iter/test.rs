@@ -16,7 +16,7 @@ pub fn map_reduce() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.into_par_iter()
               .map(|&i| i + 1)
-              .reduce(SUM);
+              .sum();
     let r2 = a.iter()
               .map(|&i| i + 1)
               .fold(0, |a,b| a+b);
