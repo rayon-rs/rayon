@@ -1,4 +1,5 @@
 use api::join;
+use std;
 use super::{ParallelIterator, ParallelIteratorState, ParallelLen, THRESHOLD};
 
 pub trait ReduceOp<T>: Sync {
@@ -99,3 +100,63 @@ mul_rule!(u64, 1);
 mul_rule!(usize, 1);
 mul_rule!(f32, 1.0);
 mul_rule!(f64, 1.0);
+
+pub struct MinOp;
+
+pub const MIN: &'static MinOp = &MinOp;
+
+macro_rules! min_rule {
+    ($i:ty, $z:expr, $f:expr) => {
+        impl ReduceOp<$i> for MinOp {
+            fn start_value(&self) -> $i {
+                $z
+            }
+            fn reduce(&self, value1: $i, value2: $i) -> $i {
+                $f(value1, value2)
+            }
+        }
+    }
+}
+
+min_rule!(i8, std::i8::MAX, std::cmp::min);
+min_rule!(i16, std::i16::MAX, std::cmp::min);
+min_rule!(i32, std::i32::MAX, std::cmp::min);
+min_rule!(i64, std::i64::MAX, std::cmp::min);
+min_rule!(isize, std::isize::MAX, std::cmp::min);
+min_rule!(u8, std::u8::MAX, std::cmp::min);
+min_rule!(u16, std::u16::MAX, std::cmp::min);
+min_rule!(u32, std::u32::MAX, std::cmp::min);
+min_rule!(u64, std::u64::MAX, std::cmp::min);
+min_rule!(usize, std::usize::MAX, std::cmp::min);
+min_rule!(f32, std::f32::INFINITY, f32::min);
+min_rule!(f64, std::f64::INFINITY, f64::min);
+
+pub struct MaxOp;
+
+pub const MAX: &'static MaxOp = &MaxOp;
+
+macro_rules! max_rule {
+    ($i:ty, $z:expr, $f:expr) => {
+        impl ReduceOp<$i> for MaxOp {
+            fn start_value(&self) -> $i {
+                $z
+            }
+            fn reduce(&self, value1: $i, value2: $i) -> $i {
+                $f(value1, value2)
+            }
+        }
+    }
+}
+
+max_rule!(i8, std::i8::MIN, std::cmp::max);
+max_rule!(i16, std::i16::MIN, std::cmp::max);
+max_rule!(i32, std::i32::MIN, std::cmp::max);
+max_rule!(i64, std::i64::MIN, std::cmp::max);
+max_rule!(isize, std::isize::MIN, std::cmp::max);
+max_rule!(u8, std::u8::MIN, std::cmp::max);
+max_rule!(u16, std::u16::MIN, std::cmp::max);
+max_rule!(u32, std::u32::MIN, std::cmp::max);
+max_rule!(u64, std::u64::MIN, std::cmp::max);
+max_rule!(usize, std::usize::MIN, std::cmp::max);
+max_rule!(f32, std::f32::NEG_INFINITY, f32::max);
+max_rule!(f64, std::f64::NEG_INFINITY, f64::max);
