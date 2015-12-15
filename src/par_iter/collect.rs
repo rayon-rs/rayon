@@ -1,6 +1,7 @@
 use api::join;
 use super::{ParallelIterator, ParallelIteratorState, ParallelLen, THRESHOLD};
 use std::isize;
+use std::mem;
 use std::ptr;
 
 pub fn collect_into<PAR_ITER,T>(pi: PAR_ITER, v: &mut Vec<T>)
@@ -36,11 +37,12 @@ unsafe fn collect_into_helper<STATE,T>(state: STATE,
         join(|| collect_into_helper(left, shared, len.left_cost(mid), left_target),
              || collect_into_helper(right, shared, len.right_cost(mid), right_target));
     } else {
-        let mut ptr = target.as_mut_ptr();
+        let mut p = DropInitialized::new(target.as_mut_ptr());
         state.for_each(shared, |item| {
-            ptr::write(ptr, item);
-            ptr = ptr.offset(1);
+            ptr::write(p.next, item);
+            p.bump();
         });
+        mem::forget(p); // fully initialized, so don't run the destructor
     }
 }
 
@@ -60,3 +62,29 @@ impl<T> CollectTarget<T> {
     }
 }
 
+struct DropInitialized<T> {
+    start: *mut T,
+    next: *mut T,
+}
+
+impl<T> DropInitialized<T> {
+    fn new(p: *mut T) -> DropInitialized<T> {
+        DropInitialized { start: p, next: p }
+    }
+
+    unsafe fn bump(&mut self) {
+        self.next = self.next.offset(1);
+    }
+}
+
+impl<T> Drop for DropInitialized<T> {
+    fn drop(&mut self) {
+        unsafe {
+            let mut p = self.start;
+            while p != self.next {
+                ptr::read(p);
+                p = p.offset(1);
+            }
+        }
+    }
+}
