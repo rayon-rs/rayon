@@ -160,3 +160,35 @@ max_rule!(u64, std::u64::MIN, std::cmp::max);
 max_rule!(usize, std::usize::MIN, std::cmp::max);
 max_rule!(f32, std::f32::NEG_INFINITY, f32::max);
 max_rule!(f64, std::f64::NEG_INFINITY, f64::max);
+
+pub struct ReduceWithOp<OP> {
+    op: OP
+}
+
+impl<OP> ReduceWithOp<OP> {
+    pub fn new(op: OP) -> ReduceWithOp<OP> {
+        ReduceWithOp {
+            op: op
+        }
+    }
+}
+
+impl<ITEM,OP> ReduceOp<Option<ITEM>> for ReduceWithOp<OP>
+    where OP: Fn(ITEM, ITEM) -> ITEM + Sync
+{
+    fn start_value(&self) -> Option<ITEM> {
+        None
+    }
+
+    fn reduce(&self, value1: Option<ITEM>, value2: Option<ITEM>) -> Option<ITEM> {
+        if let Some(value1) = value1 {
+            if let Some(value2) = value2 {
+                Some((self.op)(value1, value2))
+            } else {
+                Some(value1)
+            }
+        } else {
+            value2
+        }
+    }
+}
