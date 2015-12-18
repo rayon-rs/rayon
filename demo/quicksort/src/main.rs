@@ -49,7 +49,7 @@ fn quick_sort<J:Joiner, T:PartialOrd+Send>(v: &mut [T]) {
         return;
     }
 
-    if J::is_parallel() && v.len() <= 10*1024 {
+    if J::is_parallel() && v.len() <= 5*1024 {
         return quick_sort::<Sequential, T>(v);
     }
 
