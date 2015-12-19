@@ -20,10 +20,13 @@ pub fn dump_stats() {
     dump_stats!();
 }
 
-pub fn join<A,R_A,B,R_B>(oper_a: A,
+pub fn join<A,B,RA,B,RB>(oper_a: A,
                          oper_b: B)
-                         -> (R_A, R_B)
-    where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
+                         -> (RA, RB)
+    where A: FnOnce() -> RA + Send,
+          B: FnOnce() -> RB + Send,
+          RA: Send,
+          RB: Send,
 {
     unsafe {
         let worker_thread = WorkerThread::current();
@@ -64,10 +67,13 @@ pub fn join<A,R_A,B,R_B>(oper_a: A,
 }
 
 #[inline(never)] // cold path
-unsafe fn join_inject<A,R_A,B,R_B>(oper_a: A,
-                                   oper_b: B)
-                                   -> (R_A, R_B)
-    where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
+unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
+                                 oper_b: B)
+                                 -> (RA, RB)
+    where A: FnOnce() -> RA + Send,
+          B: FnOnce() -> RB + Send,
+          RA: Send,
+          RB: Send,
 {
     let mut result_a = None;
     let mut code_a = CodeImpl::new(oper_a, &mut result_a);
