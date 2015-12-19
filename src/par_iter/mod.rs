@@ -22,13 +22,13 @@ pub use self::reduce::{SUM, MUL, MIN, MAX};
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item=Self::Item>;
-    type Item;
+    type Item: Send;
 
     fn into_par_iter(self) -> Self::Iter;
 }
 
 pub trait ParallelIterator {
-    type Item;
+    type Item: Send;
     type Shared: Sync;
     type State: ParallelIteratorState<Shared=Self::Shared, Item=Self::Item> + Send;
 

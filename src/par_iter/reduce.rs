@@ -11,6 +11,7 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
     where PAR_ITER: ParallelIterator<Item=T>,
           PAR_ITER::State: Send,
           REDUCE_OP: ReduceOp<T>,
+          T: Send,
 {
     let (shared, mut state) = pi.state();
     let len = state.len();
@@ -23,7 +24,8 @@ fn reduce_helper<STATE,REDUCE_OP,T>(state: STATE,
                                     reduce_op: &REDUCE_OP)
                                     -> T
     where STATE: ParallelIteratorState<Item=T> + Send,
-          REDUCE_OP: ReduceOp<T>
+          REDUCE_OP: ReduceOp<T>,
+          T: Send,
 {
     if len.cost > THRESHOLD && len.maximal_len > 1 {
         let mid = len.maximal_len / 2;

@@ -5,7 +5,9 @@ use std::mem;
 use std::ptr;
 
 pub fn collect_into<PAR_ITER,T>(pi: PAR_ITER, v: &mut Vec<T>)
-    where PAR_ITER: ParallelIterator<Item=T>, PAR_ITER::State: Send
+    where PAR_ITER: ParallelIterator<Item=T>,
+          PAR_ITER::State: Send,
+          T: Send,
 {
     let (shared, mut state) = pi.state();
     let len = state.len();

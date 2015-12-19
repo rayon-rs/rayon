@@ -20,9 +20,9 @@ pub fn dump_stats() {
     dump_stats!();
 }
 
-pub fn join<A,B,RA,B,RB>(oper_a: A,
-                         oper_b: B)
-                         -> (RA, RB)
+pub fn join<A,B,RA,RB>(oper_a: A,
+                       oper_b: B)
+                       -> (RA, RB)
     where A: FnOnce() -> RA + Send,
           B: FnOnce() -> RB + Send,
           RA: Send,

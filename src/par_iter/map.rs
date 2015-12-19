@@ -14,7 +14,8 @@ impl<M, MAP_OP> Map<M, MAP_OP> {
 
 impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     where M: ParallelIterator,
-          MAP_OP: Fn(M::Item) -> R + Sync
+          MAP_OP: Fn(M::Item) -> R + Sync,
+          R: Send,
 {
     type Item = R;
     type Shared = MapShared<M, MAP_OP>;

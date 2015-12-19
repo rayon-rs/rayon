@@ -1,7 +1,10 @@
 #![cfg(test)]
 
+extern crate compiletest_rs as compiletest;
+
 use api::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use std::path::PathBuf;
 
 fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -56,4 +59,17 @@ fn sort_in_pool() {
     sorted_data.sort();
 
     assert_eq!(data, sorted_data);
+}
+
+#[test]
+fn negative_tests() {
+    let mode = "compile-fail";
+    let mut config = compiletest::default_config();
+    let cfg_mode = mode.parse().ok().expect("Invalid mode");
+
+    config.mode = cfg_mode;
+    config.src_base = PathBuf::from("neg-tests");
+    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
+    
+    compiletest::run_tests(&config);
 }
