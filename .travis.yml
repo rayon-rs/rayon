@@ -1,0 +1,9 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+script:
+  - cargo test
+  - cd demo/quicksort
+  - cargo build
