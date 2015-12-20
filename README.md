@@ -12,7 +12,7 @@ all integers in a slice in parallel:
 ```rust
 /// Increment all values in slice.
 fn increment_all(slice: &mut [i32]) {
-    if slice.len() < 1 {
+    if slice.len() < 1000 {
         for p in slice { *p += 1; }
     } else {
         let mid_point = slice.len() / 2;
