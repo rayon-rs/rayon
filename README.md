@@ -16,8 +16,8 @@ fn increment_all(slice: &mut [i32]) {
         for p in slice { *p += 1; }
     } else {
         let mid_point = slice.len() / 2;
-        let (left, right) = slice.split_mut_at(mid_point);
-        rayon::join(|| process(left), || process(right));
+        let (left, right) = slice.split_at_mut(mid_point);
+        rayon::join(|| increment_all(left), || increment_all(right));
     }
 }
 ```
