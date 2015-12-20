@@ -11,7 +11,8 @@ use std::str::FromStr;
 trait Joiner {
     fn is_parallel() -> bool;
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
-        where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send;
+        where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
+              R_A: Send, R_B: Send;
 }
 
 struct Parallel;
@@ -22,7 +23,8 @@ impl Joiner for Parallel {
     }
     #[inline]
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
-        where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send
+        where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
+              R_A: Send, R_B: Send
     {
         rayon::join(oper_a, oper_b)
     }
@@ -36,7 +38,8 @@ impl Joiner for Sequential {
     }
     #[inline]
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
-        where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send
+        where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
+              R_A: Send, R_B: Send
     {
         let a = oper_a();
         let b = oper_b();
