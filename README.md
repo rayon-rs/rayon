@@ -252,7 +252,7 @@ to think about atomicity at all. But often there are times when you
 WANT threads to interleave in the ways I showed above.
 
 Consider for example when you are conducting a search in parallel, say
-to find the shorest route. To avoid fruitless search, you might want
+to find the shortest route. To avoid fruitless search, you might want
 to keep a cell with the shortest route you've found thus far.  This
 way, when you are searching down some path that's already longer than
 this shortest route, you can just stop and avoid wasted effort. In
