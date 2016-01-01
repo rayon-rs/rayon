@@ -3,7 +3,6 @@ use std::sync::{Mutex, Condvar};
 use std::thread;
 
 pub trait Latch {
-    fn probe(&self) -> bool;
     fn set(&self);
     fn wait(&self);
 }
@@ -21,14 +20,14 @@ impl SpinLatch {
             b: AtomicBool::new(false)
         }
     }
+
+    /// Test if latch is set.
+    pub fn probe(&self) -> bool {
+        self.b.load(Ordering::Acquire)
+    }
 }
 
 impl Latch for SpinLatch {
-    /// Test if latch is set.
-    fn probe(&self) -> bool {
-        self.b.load(Ordering::Acquire)
-    }
-
     /// Set the latch to true, releasing all threads who are waiting.
     fn set(&self) {
         self.b.store(true, Ordering::Release);
@@ -62,11 +61,6 @@ impl LockLatch {
 }
 
 impl Latch for LockLatch {
-    /// Test if latch is set.
-    fn probe(&self) -> bool {
-        self.b.load(Ordering::Acquire)
-    }
-
     /// Set the latch to true, releasing all threads who are waiting.
     fn set(&self) {
         self.b.store(true, Ordering::Release);
