@@ -1,4 +1,4 @@
-use latch::{Latch, LockLatch, SpinLatch};
+use latch::{LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use job::{Code, CodeImpl, Job};

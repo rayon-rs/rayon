@@ -1,10 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Condvar};
-use std::thread;
 
 pub trait Latch {
     fn set(&self);
-    fn wait(&self);
 }
 
 /// A Latch starts as false and eventually becomes true. You can block
@@ -32,13 +30,6 @@ impl Latch for SpinLatch {
     fn set(&self) {
         self.b.store(true, Ordering::Release);
     }
-
-    /// Spin until latch is set. Use with caution.
-    fn wait(&self) {
-        while !self.probe() {
-            thread::yield_now();
-        }
-    }
 }
 
 /// A Latch starts as false and eventually becomes true. You can block
@@ -56,6 +47,14 @@ impl LockLatch {
             v: Condvar::new(),
         }
     }
+
+    /// Block until latch is set.
+    pub fn wait(&self) {
+        let mut guard = self.m.lock().unwrap();
+        while !*guard {
+            guard = self.v.wait(guard).unwrap();
+        }
+    }
 }
 
 impl Latch for LockLatch {
@@ -64,13 +63,5 @@ impl Latch for LockLatch {
         let mut guard = self.m.lock().unwrap();
         *guard = true;
         self.v.notify_all();
-    }
-
-    /// Spin until latch is set. Use with caution.
-    fn wait(&self) {
-        let mut guard = self.m.lock().unwrap();
-        while !*guard {
-            guard = self.v.wait(guard).unwrap();
-        }
     }
 }
