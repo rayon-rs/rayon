@@ -26,12 +26,12 @@ impl SpinLatch {
 impl Latch for SpinLatch {
     /// Test if latch is set.
     fn probe(&self) -> bool {
-        self.b.load(Ordering::SeqCst)
+        self.b.load(Ordering::Acquire)
     }
 
     /// Set the latch to true, releasing all threads who are waiting.
     fn set(&self) {
-        self.b.store(true, Ordering::SeqCst);
+        self.b.store(true, Ordering::Release);
     }
 
     /// Spin until latch is set. Use with caution.
@@ -64,12 +64,12 @@ impl LockLatch {
 impl Latch for LockLatch {
     /// Test if latch is set.
     fn probe(&self) -> bool {
-        self.b.load(Ordering::SeqCst)
+        self.b.load(Ordering::Acquire)
     }
 
     /// Set the latch to true, releasing all threads who are waiting.
     fn set(&self) {
-        self.b.store(true, Ordering::SeqCst);
+        self.b.store(true, Ordering::Release);
         self.v.notify_all();
     }
 
