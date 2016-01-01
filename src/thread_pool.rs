@@ -1,6 +1,6 @@
 use deque::{BufferPool, Worker, Stealer, Stolen};
 use job::Job;
-use latch::Latch;
+use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use num_cpus;
@@ -22,7 +22,7 @@ pub struct Registry {
 
 struct RegistryState {
     threads_at_work: usize,
-    injected_jobs: Vec<*mut Job>,
+    injected_jobs: Vec<*mut Job<LockLatch>>,
 }
 
 unsafe impl Send for Registry { }
@@ -91,14 +91,14 @@ impl Registry {
         self.work_available.notify_all();
     }
 
-    pub unsafe fn inject(&self, injected_jobs: &[*mut Job]) {
+    pub unsafe fn inject(&self, injected_jobs: &[*mut Job<LockLatch>]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         state.injected_jobs.extend(injected_jobs);
         self.work_available.notify_all();
     }
 
-    fn wait_for_work(&self, _worker: usize, was_active: bool) -> Option<*mut Job> {
+    fn wait_for_work(&self, _worker: usize, was_active: bool) -> Option<*mut Job<LockLatch>> {
         log!(WaitForWork { worker: _worker, was_active: was_active });
 
         let mut state = self.state.lock().unwrap();
@@ -145,7 +145,7 @@ impl RegistryState {
 struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
-    primed: Latch,
+    primed: LockLatch,
     worker: Worker<JobRef>,
     stealer: Stealer<JobRef>,
 }
@@ -154,7 +154,7 @@ impl ThreadInfo {
     fn new(pool: &BufferPool<JobRef>) -> ThreadInfo {
         let (worker, stealer) = pool.deque();
         ThreadInfo {
-            primed: Latch::new(),
+            primed: LockLatch::new(),
             worker: worker,
             stealer: stealer,
         }
@@ -208,7 +208,7 @@ impl WorkerThread {
     }
 
     #[inline]
-    pub unsafe fn push(&self, job: *mut Job) {
+    pub unsafe fn push(&self, job: *mut Job<SpinLatch>) {
         self.thread_info().worker.push(JobRef { ptr: job });
     }
 
@@ -219,7 +219,7 @@ impl WorkerThread {
         self.thread_info().worker.pop().is_some()
     }
 
-    pub unsafe fn steal_until(&self, latch: &Latch) {
+    pub unsafe fn steal_until(&self, latch: &SpinLatch) {
         while !latch.probe() {
             if let Some(job) = steal_work(&self.registry, self.index) {
                 (*job).execute();
@@ -258,7 +258,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     }
 }
 
-unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job> {
+unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job<SpinLatch>> {
     let num_threads = registry.num_threads();
     let start = rand::random::<usize>() % num_threads;
     (start .. num_threads)
@@ -275,7 +275,7 @@ unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job> {
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct JobRef {
-    pub ptr: *mut Job
+    pub ptr: *mut Job<SpinLatch>
 }
 
 unsafe impl Send for JobRef { }

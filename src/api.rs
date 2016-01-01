@@ -1,4 +1,4 @@
-use latch::Latch;
+use latch::{LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use job::{Code, CodeImpl, Job};
@@ -45,7 +45,7 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         // done here so that the stack frame can keep it all live
         // long enough
         let mut code_b = CodeImpl::new(oper_b, &mut result_b);
-        let mut latch_b = Latch::new();
+        let mut latch_b = SpinLatch::new();
         let mut job_b = Job::new(&mut code_b, &mut latch_b);
         (*worker_thread).push(&mut job_b);
 
@@ -77,12 +77,12 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
 {
     let mut result_a = None;
     let mut code_a = CodeImpl::new(oper_a, &mut result_a);
-    let mut latch_a = Latch::new();
+    let mut latch_a = LockLatch::new();
     let mut job_a = Job::new(&mut code_a, &mut latch_a);
 
     let mut result_b = None;
     let mut code_b = CodeImpl::new(oper_b, &mut result_b);
-    let mut latch_b = Latch::new();
+    let mut latch_b = LockLatch::new();
     let mut job_b = Job::new(&mut code_b, &mut latch_b);
 
     thread_pool::get_registry().inject(&[&mut job_a, &mut job_b]);
@@ -112,7 +112,7 @@ impl ThreadPool {
         unsafe {
             let mut result_a = None;
             let mut code_a = CodeImpl::new(op, &mut result_a);
-            let mut latch_a = Latch::new();
+            let mut latch_a = LockLatch::new();
             let mut job_a = Job::new(&mut code_a, &mut latch_a);
             self.registry.inject(&[&mut job_a]);
             latch_a.wait();

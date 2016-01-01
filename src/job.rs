@@ -6,16 +6,16 @@ use std::mem;
 /// arranged in a deque, so that thieves can take from the top of the
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
-pub struct Job {
+pub struct Job<L:Latch> {
     /// code to execute (if job is stolen)
     code: *mut Code,
 
     /// latch to signal once execution is done (if job is stolen)
-    latch: *mut Latch,
+    latch: *mut L,
 }
 
-impl Job {
-    pub unsafe fn new<'a>(code: *mut (Code+'a), latch: *mut Latch) -> Job {
+impl<L:Latch> Job<L> {
+    pub unsafe fn new<'a>(code: *mut (Code+'a), latch: *mut L) -> Job<L> {
         let code: *mut Code = mem::transmute(code);
         Job {
             code: code,
