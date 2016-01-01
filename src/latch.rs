@@ -44,8 +44,7 @@ impl Latch for SpinLatch {
 /// A Latch starts as false and eventually becomes true. You can block
 /// until it becomes true.
 pub struct LockLatch {
-    b: AtomicBool,
-    m: Mutex<()>,
+    m: Mutex<bool>,
     v: Condvar,
 }
 
@@ -53,8 +52,7 @@ impl LockLatch {
     #[inline]
     pub fn new() -> LockLatch {
         LockLatch {
-            b: AtomicBool::new(false),
-            m: Mutex::new(()),
+            m: Mutex::new(false),
             v: Condvar::new(),
         }
     }
@@ -63,14 +61,15 @@ impl LockLatch {
 impl Latch for LockLatch {
     /// Set the latch to true, releasing all threads who are waiting.
     fn set(&self) {
-        self.b.store(true, Ordering::Release);
+        let mut guard = self.m.lock().unwrap();
+        *guard = true;
         self.v.notify_all();
     }
 
     /// Spin until latch is set. Use with caution.
     fn wait(&self) {
         let mut guard = self.m.lock().unwrap();
-        while !self.probe() {
+        while !*guard {
             guard = self.v.wait(guard).unwrap();
         }
     }
