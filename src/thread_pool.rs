@@ -219,7 +219,7 @@ impl WorkerThread {
         self.thread_info().worker.pop().is_some()
     }
 
-    pub unsafe fn steal_until(&self, latch: &Latch) {
+    pub unsafe fn steal_until(&self, latch: &SpinLatch) {
         while !latch.probe() {
             if let Some(job) = steal_work(&self.registry, self.index) {
                 (*job).execute();
