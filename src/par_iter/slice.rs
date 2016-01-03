@@ -27,7 +27,7 @@ impl<'map, T: Sync> ParallelIteratorState for SliceIter<'map, T> {
     type Item = &'map T;
     type Shared = ();
 
-    fn len(&mut self) -> ParallelLen {
+    fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
         ParallelLen {
             maximal_len: self.slice.len(),
             cost: self.slice.len() as f64,

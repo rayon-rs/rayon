@@ -8,6 +8,7 @@ mod len;
 mod reduce;
 mod slice;
 mod map;
+mod weight;
 
 #[cfg(test)]
 mod test;
@@ -19,6 +20,7 @@ pub use self::map::Map;
 pub use self::reduce::reduce;
 pub use self::reduce::ReduceOp;
 pub use self::reduce::{SUM, MUL, MIN, MAX};
+pub use self::weight::Weight;
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item=Self::Item>;
@@ -33,6 +35,12 @@ pub trait ParallelIterator {
     type State: ParallelIteratorState<Shared=Self::Shared, Item=Self::Item> + Send;
 
     fn state(self) -> (Self::Shared, Self::State);
+
+    fn weight(self, scale: f64) -> Weight<Self>
+        where Self: Sized
+    {
+        Weight::new(self, scale)
+    }
 
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MAP_OP>
         where MAP_OP: Fn(Self::Item) -> R, Self: Sized
@@ -87,7 +95,7 @@ pub trait ParallelIteratorState: Sized {
     type Item;
     type Shared: Sync;
 
-    fn len(&mut self) -> ParallelLen;
+    fn len(&mut self, shared: &Self::Shared) -> ParallelLen;
 
     fn split_at(self, index: usize) -> (Self, Self);
 

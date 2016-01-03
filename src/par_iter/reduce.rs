@@ -14,7 +14,7 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
           T: Send,
 {
     let (shared, mut state) = pi.state();
-    let len = state.len();
+    let len = state.len(&shared);
     reduce_helper(state, &shared, len, reduce_op)
 }
 

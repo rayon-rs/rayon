@@ -61,8 +61,8 @@ impl<M, MAP_OP, R> ParallelIteratorState for MapState<M, MAP_OP>
     type Item = R;
     type Shared = MapShared<M, MAP_OP>;
 
-    fn len(&mut self) -> ParallelLen {
-        self.base.len()
+    fn len(&mut self, shared: &Self::Shared) -> ParallelLen {
+        self.base.len(&shared.base)
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
