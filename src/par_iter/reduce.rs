@@ -2,6 +2,26 @@ use api::join;
 use std;
 use super::{ParallelIterator, ParallelIteratorState, ParallelLen, THRESHOLD};
 
+/// Specifies a "reduce operator". This is the combination of a start
+/// value and a reduce function. The reduce function takes two items
+/// and computes a reduced version. The start value `S` is a kind of
+/// "zero" or "identity" value that may be intermingled as needed;
+/// idealy, `reduce(S, X)` for any item `X` yields `X`.
+///
+/// Example: to sum up the values, use a `start_value` of `0` and a
+/// reduce function of `reduce(a, b) = a + b`.
+///
+/// The order in which the reduce function will be applied is not
+/// specified. For example, the input `[ 0 1 2 ]` might be reduced in a
+/// sequential fashion:
+///
+///     reduce(reduce(reduce(S, 0), 1), 2)
+///
+/// or it might be reduced in a tree-like way:
+///
+///     reduce(reduce(0, 1), reduce(S, 2))
+///
+/// etc.
 pub trait ReduceOp<T>: Sync {
     fn start_value(&self) -> T;
     fn reduce(&self, value1: T, value2: T) -> T;
