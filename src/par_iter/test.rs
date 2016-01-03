@@ -47,3 +47,22 @@ pub fn map_reduce_weighted() {
               .fold(0, |a,b| a+b);
     assert_eq!(r1.unwrap(), r2);
 }
+
+#[test]
+pub fn check_weight() {
+    let a: Vec<i32> = (0..1024).collect();
+
+    let len1 = {
+        let (shared, mut state) = a.into_par_iter().state();
+        state.len(&shared)
+    };
+
+    let len2 = {
+        let (shared, mut state) = a.into_par_iter()
+                               .weight(2.0)
+                               .state();
+        state.len(&shared)
+    };
+
+    assert_eq!(len1.cost * 2.0, len2.cost);
+}
