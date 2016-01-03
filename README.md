@@ -2,7 +2,9 @@
 
 Rayon is a data-parallelism library for Rust. It is extremely
 lightweight and makes it easy to convert a sequential computation into
-a parallel one. It also guarantees data-race freedom.
+a parallel one. It also guarantees data-race freedom. (You may also
+enjoy [this blog post][blog] about Rayon, which gives more background
+and details about how it works .)
 
 Using rayon is very simple. There is one method you need to know
 about, `join`. `join` simply takes two closures and potentially runs
@@ -29,6 +31,28 @@ CPUs are already busy with other work, Rayon will instead opt to run
 them sequentially. The call to `join` is designed to have very low
 overhead in that case, so that you can safely call it even with very
 small workloads (as in the example above).
+
+### Parallel Iterators
+
+Rayon also supports an experimental API called "parallel iterators".
+These let you write iterator-like chains that execute in parallel.
+For example, to compute the sum of the squares of a sequence of
+integers, one might write:
+
+```rust
+fn sum_of_squares(input: &[i32]) -> i32 {
+    input.into_par_iter()
+         .map(|&i| i * i)
+         .sum()
+}
+```
+
+For more examples, see
+[the tests](https://github.com/nikomatsakis/rayon/blob/master/src/par_iter/test.rs)
+in
+[the `par_iter` module](https://github.com/nikomatsakis/rayon/blob/master/src/par_iter/mod.rs)
+(sorry, documentation is fairly lacking at this stage; rayon is still
+fairly experimental).
 
 ### Safety
 
@@ -273,4 +297,6 @@ fn search(path: &Path, cost_so_far: usize, best_cost: &Arc<AtomicUsize>) {
 
 Now in this case, we really WANT to see results from other threads
 interjected into our execution!
+
+[blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
 
