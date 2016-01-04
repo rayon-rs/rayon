@@ -8,6 +8,7 @@ mod len;
 mod reduce;
 mod slice;
 mod map;
+mod weight;
 
 #[cfg(test)]
 mod test;
@@ -19,6 +20,7 @@ pub use self::map::Map;
 pub use self::reduce::reduce;
 pub use self::reduce::ReduceOp;
 pub use self::reduce::{SUM, MUL, MIN, MAX};
+pub use self::weight::Weight;
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item=Self::Item>;
@@ -34,48 +36,103 @@ pub trait ParallelIterator {
 
     fn state(self) -> (Self::Shared, Self::State);
 
+    /// Indicates the relative "weight" of producing each item in this
+    /// parallel iterator. 1.0 indicates something very cheap, like
+    /// copying a value out of an array, or computing `x + 1`. Tuning
+    /// this value can affect how many subtasks are created and can
+    /// improve performance.
+    fn weight(self, scale: f64) -> Weight<Self>
+        where Self: Sized
+    {
+        Weight::new(self, scale)
+    }
+
+    /// Applies `map_op` to each item of his iterator, producing a new
+    /// iterator with the results.
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MAP_OP>
         where MAP_OP: Fn(Self::Item) -> R, Self: Sized
     {
         Map::new(self, map_op)
     }
 
+    /// Collects the results of the iterator into the specified
+    /// vector. The vector is always truncated before execution
+    /// begins. If possible, reusing the vector across calls can lead
+    /// to better performance since it reuses the same backing buffer.
     fn collect_into(self, target: &mut Vec<Self::Item>)
         where Self: Sized
     {
         collect_into(self, target);
     }
 
+    /// Reduces the items in the iterator into one item using `op`.
+    /// See also `sum`, `mul`, `min`, etc, which are slightly more
+    /// efficient. Returns `None` if the iterator is empty.
+    ///
+    /// Note: unlike in a sequential iterator, the order in which `op`
+    /// will be applied to reduce the result is not specified. So `op`
+    /// should be commutative and associative or else the results will
+    /// be non-deterministic.
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
         where Self: Sized, OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
     {
         reduce(self.map(Some), &ReduceWithOp::new(op))
     }
 
+    /// Sums up the items in the iterator.
+    ///
+    /// Note that the order in items will be reduced is not specified,
+    /// so if the `+` operator is not truly commutative and
+    /// associative (as is the case for floating point numbers), then
+    /// the results are not fully deterministic.
     fn sum(self) -> Self::Item
         where Self: Sized, SumOp: ReduceOp<Self::Item>
     {
         reduce(self, SUM)
     }
 
+    /// Multiplies all the items in the iterator.
+    ///
+    /// Note that the order in items will be reduced is not specified,
+    /// so if the `*` operator is not truly commutative and
+    /// associative (as is the case for floating point numbers), then
+    /// the results are not fully deterministic.
     fn mul(self) -> Self::Item
         where Self: Sized, MulOp: ReduceOp<Self::Item>
     {
         reduce(self, MUL)
     }
 
+    /// Computes the minimum of all the items in the iterator.
+    ///
+    /// Note that the order in items will be reduced is not specified,
+    /// so if the `Ord` impl is not truly commutative and associative
+    /// (as is the case for floating point numbers), then the results
+    /// are not deterministic.
     fn min(self) -> Self::Item
         where Self: Sized, MinOp: ReduceOp<Self::Item>
     {
         reduce(self, MIN)
     }
 
+    /// Computes the maximum of all the items in the iterator.
+    ///
+    /// Note that the order in items will be reduced is not specified,
+    /// so if the `Ord` impl is not truly commutative and associative
+    /// (as is the case for floating point numbers), then the results
+    /// are not deterministic.
     fn max(self) -> Self::Item
         where Self: Sized, MaxOp: ReduceOp<Self::Item>
     {
         reduce(self, MAX)
     }
 
+    /// Reduces the items using the given "reduce operator". You may
+    /// prefer `reduce_with` for a simpler interface.
+    ///
+    /// Note that the order in items will be reduced is not specified,
+    /// so if the `reduce_op` impl is not truly commutative and
+    /// associative, then the results are not deterministic.
     fn reduce<REDUCE_OP>(self, reduce_op: &REDUCE_OP) -> Self::Item
         where Self: Sized, REDUCE_OP: ReduceOp<Self::Item>
     {
@@ -87,7 +144,7 @@ pub trait ParallelIteratorState: Sized {
     type Item;
     type Shared: Sync;
 
-    fn len(&mut self) -> ParallelLen;
+    fn len(&mut self, shared: &Self::Shared) -> ParallelLen;
 
     fn split_at(self, index: usize) -> (Self, Self);
 

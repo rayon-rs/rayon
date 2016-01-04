@@ -10,7 +10,7 @@ pub fn collect_into<PAR_ITER,T>(pi: PAR_ITER, v: &mut Vec<T>)
           T: Send,
 {
     let (shared, mut state) = pi.state();
-    let len = state.len();
+    let len = state.len(&shared);
 
     v.truncate(0); // clear any old data
     v.reserve(len.maximal_len); // reserve enough space
