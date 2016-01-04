@@ -15,11 +15,15 @@ use super::{ParallelIterator, ParallelIteratorState, ParallelLen, THRESHOLD};
 /// specified. For example, the input `[ 0 1 2 ]` might be reduced in a
 /// sequential fashion:
 ///
-///     reduce(reduce(reduce(S, 0), 1), 2)
+/// ```ignore
+/// reduce(reduce(reduce(S, 0), 1), 2)
+/// ```
 ///
 /// or it might be reduced in a tree-like way:
 ///
-///     reduce(reduce(0, 1), reduce(S, 2))
+/// ```ignore
+/// reduce(reduce(0, 1), reduce(S, 2))
+/// ```
 ///
 /// etc.
 pub trait ReduceOp<T>: Sync {
