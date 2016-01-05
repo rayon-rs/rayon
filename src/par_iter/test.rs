@@ -66,3 +66,15 @@ pub fn check_weight() {
 
     assert_eq!(len1.cost * 2.0, len2.cost);
 }
+
+#[test]
+pub fn check_enumerate() {
+    let a: Vec<usize> = (0..1024).rev().collect();
+
+    let mut b = vec![];
+    a.into_par_iter()
+     .enumerate()
+     .map(|(i, &x)| i + x)
+     .collect_into(&mut b);
+    assert!(b.iter().all(|&x| x == a.len() - 1));
+}
