@@ -4,6 +4,7 @@ use std::ops::Fn;
 use self::reduce::{SumOp, MulOp, MinOp, MaxOp, ReduceWithOp};
 
 mod collect;
+mod enumerate;
 mod len;
 mod reduce;
 mod slice;
@@ -14,6 +15,7 @@ mod weight;
 mod test;
 
 pub use self::collect::collect_into;
+pub use self::enumerate::Enumerate;
 pub use self::len::ParallelLen;
 pub use self::len::THRESHOLD;
 pub use self::map::Map;
@@ -45,6 +47,13 @@ pub trait ParallelIterator {
         where Self: Sized
     {
         Weight::new(self, scale)
+    }
+
+    /// Yields an index along with each item.
+    fn enumerate(self) -> Enumerate<Self>
+        where Self: Sized
+    {
+        Enumerate::new(self)
     }
 
     /// Applies `map_op` to each item of his iterator, producing a new
