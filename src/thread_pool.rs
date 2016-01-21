@@ -1,4 +1,5 @@
-use deque::{BufferPool, Worker, Stealer, Stolen};
+use deque;
+use deque::{Worker, Stealer, Stolen};
 use job::Job;
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
@@ -47,9 +48,8 @@ pub fn get_registry() -> &'static Registry {
 impl Registry {
     pub fn new() -> Arc<Registry> {
         let num_threads = num_cpus::get();
-        let pool = BufferPool::new();
         let registry = Arc::new(Registry {
-            thread_infos: (0..num_threads).map(|_| ThreadInfo::new(&pool))
+            thread_infos: (0..num_threads).map(|_| ThreadInfo::new())
                                           .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
@@ -151,8 +151,8 @@ struct ThreadInfo {
 }
 
 impl ThreadInfo {
-    fn new(pool: &BufferPool<JobRef>) -> ThreadInfo {
-        let (worker, stealer) = pool.deque();
+    fn new() -> ThreadInfo {
+        let (worker, stealer) = deque::new();
         ThreadInfo {
             primed: LockLatch::new(),
             worker: worker,
