@@ -37,7 +37,7 @@ pub struct EnumerateShared<M>
     base: M::Shared,
 }
 
-impl<M> ParallelIteratorState for EnumerateState<M>
+unsafe impl<M> ParallelIteratorState for EnumerateState<M>
     where M: ParallelIterator,
 {
     type Item = (usize, M::Item);
