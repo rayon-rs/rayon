@@ -54,7 +54,7 @@ impl<MAP_OP> PhantomMap<MAP_OP> {
 
 unsafe impl<MAP_OP: Sync> Send for PhantomMap<MAP_OP> { }
 
-impl<M, MAP_OP, R> ParallelIteratorState for MapState<M, MAP_OP>
+unsafe impl<M, MAP_OP, R> ParallelIteratorState for MapState<M, MAP_OP>
     where M: ParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync
 {

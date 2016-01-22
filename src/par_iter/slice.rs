@@ -23,7 +23,7 @@ impl<'map, T: Sync> ParallelIterator for SliceIter<'map, T> {
     }
 }
 
-impl<'map, T: Sync> ParallelIteratorState for SliceIter<'map, T> {
+unsafe impl<'map, T: Sync> ParallelIteratorState for SliceIter<'map, T> {
     type Item = &'map T;
     type Shared = ();
 

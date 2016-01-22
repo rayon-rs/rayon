@@ -38,7 +38,7 @@ pub struct WeightShared<M>
     weight: f64,
 }
 
-impl<M> ParallelIteratorState for WeightState<M>
+unsafe impl<M> ParallelIteratorState for WeightState<M>
     where M: ParallelIterator,
 {
     type Item = M::Item;
