@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 description = "Simple work-stealing parallelism for Rust"
 license = "Apache-2.0/MIT"
+repository = "https://github.com/nikomatsakis/rayon"
 
 [dependencies]
 rand = "0.3"
@@ -11,4 +12,4 @@ num_cpus = "0.2.10"
 deque = "0.3.1"
 
 [dev-dependencies]
-compiletest_rs = "*"
+compiletest_rs = "0.0.11"
