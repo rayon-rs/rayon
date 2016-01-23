@@ -24,7 +24,8 @@ integers, please see the [notes on atomicity](#atomicity).
 **WARNING:** Rayon is still in **experimental** status. It is probably
 not very robust and not (yet) suitable for production applications.
 In particular, the handling of panics is known to be terrible.  See
-nikomatsakis/rayon#10 for more details.
+[nikomatsakis/rayon#10](https://github.com/nikomatsakis/rayon/issues/10)
+for more details.
 
 ### Parallel Iterators
 
