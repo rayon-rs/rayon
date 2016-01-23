@@ -1,4 +1,6 @@
-use super::{ParallelIterator, ParallelIteratorState, ParallelLen};
+use super::ParallelIterator;
+use super::len::ParallelLen;
+use super::state::ParallelIteratorState;
 use std::marker::PhantomData;
 
 pub struct Map<M, MAP_OP> {
@@ -70,11 +72,8 @@ unsafe impl<M, MAP_OP, R> ParallelIteratorState for MapState<M, MAP_OP>
          MapState { base: right, map_op: PhantomMapOp::new() })
     }
 
-    fn for_each<F>(self, shared: &Self::Shared, mut op: F)
-        where F: FnMut(R)
-    {
-        self.base.for_each(&shared.base, |item| {
-            op((shared.map_op)(item));
-        });
+    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
+        self.base.next(&shared.base)
+                 .map(|base| (shared.map_op)(base))
     }
 }

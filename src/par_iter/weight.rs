@@ -1,4 +1,6 @@
-use super::{ParallelIterator, ParallelIteratorState, ParallelLen};
+use super::ParallelIterator;
+use super::len::ParallelLen;
+use super::state::ParallelIteratorState;
 
 pub struct Weight<M> {
     base: M,
@@ -55,9 +57,7 @@ unsafe impl<M> ParallelIteratorState for WeightState<M>
         (WeightState { base: left }, WeightState { base: right })
     }
 
-    fn for_each<F>(self, shared: &Self::Shared, op: F)
-        where F: FnMut(Self::Item)
-    {
-        self.base.for_each(&shared.base, op)
+    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
+        self.base.next(&shared.base)
     }
 }

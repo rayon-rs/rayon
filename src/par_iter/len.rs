@@ -32,4 +32,5 @@ impl ParallelLen {
 }
 
 // The threshold cost where it is worth falling back to sequential.
+// This may be tweaked over time!
 pub const THRESHOLD: f64 = 10. * 1024.0;
