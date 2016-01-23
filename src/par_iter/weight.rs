@@ -1,4 +1,4 @@
-use super::ParallelIterator;
+use super::*;
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 
@@ -26,6 +26,10 @@ impl<M> ParallelIterator for Weight<M>
          WeightState { base: base_state })
     }
 }
+
+unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> { }
+
+unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> { }
 
 pub struct WeightState<M>
     where M: ParallelIterator

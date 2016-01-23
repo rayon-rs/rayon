@@ -1,4 +1,4 @@
-use super::{ParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator};
+use super::*;
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 use std::mem;
@@ -34,6 +34,10 @@ impl<'r, T: Send> ParallelIterator for SliceIterMut<'r, T> {
         ((), self)
     }
 }
+
+unsafe impl<'r, T: Send> BoundedParallelIterator for SliceIterMut<'r, T> { }
+
+unsafe impl<'r, T: Send> ExactParallelIterator for SliceIterMut<'r, T> { }
 
 unsafe impl<'r, T: Send> ParallelIteratorState for SliceIterMut<'r, T> {
     type Item = &'r mut T;

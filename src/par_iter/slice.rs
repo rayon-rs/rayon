@@ -1,4 +1,4 @@
-use super::{ParallelIterator, IntoParallelIterator, IntoParallelRefIterator};
+use super::*;
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 
@@ -33,6 +33,10 @@ impl<'r, T: Sync> ParallelIterator for SliceIter<'r, T> {
         ((), self)
     }
 }
+
+unsafe impl<'r, T: Sync> BoundedParallelIterator for SliceIter<'r, T> { }
+
+unsafe impl<'r, T: Sync> ExactParallelIterator for SliceIter<'r, T> { }
 
 unsafe impl<'r, T: Sync> ParallelIteratorState for SliceIter<'r, T> {
     type Item = &'r T;

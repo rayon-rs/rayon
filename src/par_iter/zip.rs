@@ -1,21 +1,21 @@
-use super::ParallelIterator;
+use super::{ParallelIterator, BoundedParallelIterator, ExactParallelIterator};
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 use std::cmp::min;
 
-pub struct ZipIter<A: ParallelIterator, B: ParallelIterator> {
+pub struct ZipIter<A: ExactParallelIterator, B: ExactParallelIterator> {
     a: A,
     b: B,
 }
 
-impl<A: ParallelIterator, B: ParallelIterator> ZipIter<A, B> {
+impl<A: ExactParallelIterator, B: ExactParallelIterator> ZipIter<A, B> {
     pub fn new(a: A, b: B) -> ZipIter<A, B> {
         ZipIter { a: a, b: b }
     }
 }
 
 impl<A, B> ParallelIterator for ZipIter<A, B>
-    where A: ParallelIterator, B: ParallelIterator
+    where A: ExactParallelIterator, B: ExactParallelIterator
 {
     type Item = (A::Item, B::Item);
     type Shared = ZipShared<A,B>;
@@ -28,18 +28,26 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     }
 }
 
-pub struct ZipShared<A: ParallelIterator, B: ParallelIterator> {
+unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
+    where A: ExactParallelIterator, B: ExactParallelIterator
+{}
+
+unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
+    where A: ExactParallelIterator, B: ExactParallelIterator
+{}
+
+pub struct ZipShared<A: ExactParallelIterator, B: ExactParallelIterator> {
     a: A::Shared,
     b: B::Shared,
 }
 
-pub struct ZipState<A: ParallelIterator, B: ParallelIterator> {
+pub struct ZipState<A: ExactParallelIterator, B: ExactParallelIterator> {
     a: A::State,
     b: B::State,
 }
 
 unsafe impl<A, B> ParallelIteratorState for ZipState<A,B>
-    where A: ParallelIterator, B: ParallelIterator
+    where A: ExactParallelIterator, B: ExactParallelIterator
 {
     type Item = (A::Item, B::Item);
     type Shared = ZipShared<A, B>;
@@ -48,12 +56,10 @@ unsafe impl<A, B> ParallelIteratorState for ZipState<A,B>
         let a_len = self.a.len(&shared.a);
         let b_len = self.b.len(&shared.b);
 
-        // At the moment, we don't have any sparse iterators.  When we
-        // add them, we should ensure that zip (like enumerate) can't
-        // be used with them, because it's not possible to support the
-        // split-at method.
-        assert!(!a_len.sparse);
-        assert!(!b_len.sparse);
+        // Because A and B are exact parallel iterators, sparse should
+        // always be false.
+        assert!(!a_len.sparse, "A is an exact parallel iterator, so parse should be false");
+        assert!(!b_len.sparse, "B is an exact parallel iterator, so parse should be false");
 
         ParallelLen {
             maximal_len: min(a_len.maximal_len, b_len.maximal_len),

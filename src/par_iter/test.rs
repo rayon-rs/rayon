@@ -1,6 +1,9 @@
 use super::*;
 use super::state::ParallelIteratorState;
 
+fn is_bounded<T: ExactParallelIterator>(_: T) { }
+fn is_exact<T: ExactParallelIterator>(_: T) { }
+
 #[test]
 pub fn execute() {
     let a: Vec<i32> = (0..1024).collect();
@@ -21,6 +24,13 @@ pub fn execute_range() {
      .collect_into(&mut b);
     let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
     assert_eq!(b, c);
+}
+
+#[test]
+pub fn check_map_exact_and_bounded() {
+    let a = [1, 2, 3];
+    is_bounded(a.par_iter().map(|x| x));
+    is_exact(a.par_iter().map(|x| x));
 }
 
 #[test]
@@ -80,6 +90,13 @@ pub fn check_weight() {
 }
 
 #[test]
+pub fn check_weight_exact_and_bounded() {
+    let a = [1, 2, 3];
+    is_bounded(a.par_iter().weight(2.0));
+    is_exact(a.par_iter().weight(2.0));
+}
+
+#[test]
 pub fn check_enumerate() {
     let a: Vec<usize> = (0..1024).rev().collect();
 
@@ -100,6 +117,26 @@ pub fn check_increment() {
      .for_each(|(i, v)| *v += i);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_slice_exact_and_bounded() {
+    let a = vec![1, 2, 3];
+    is_exact(a.par_iter());
+    is_bounded(a.par_iter());
+}
+
+#[test]
+pub fn check_slice_mut_exact_and_bounded() {
+    let mut a = vec![1, 2, 3];
+    is_exact(a.par_iter_mut());
+    is_bounded(a.par_iter_mut());
+}
+
+#[test]
+pub fn check_range_exact_and_bounded() {
+    is_exact((1..5).into_par_iter());
+    is_bounded((1..5).into_par_iter());
 }
 
 #[test]

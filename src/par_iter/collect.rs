@@ -1,5 +1,5 @@
 use api::join;
-use super::ParallelIterator;
+use super::ExactParallelIterator;
 use super::len::{ParallelLen, THRESHOLD};
 use super::state::ParallelIteratorState;
 use std::isize;
@@ -7,7 +7,8 @@ use std::mem;
 use std::ptr;
 
 pub fn collect_into<PAR_ITER,T>(pi: PAR_ITER, v: &mut Vec<T>)
-    where PAR_ITER: ParallelIterator<Item=T>,
+    where PAR_ITER: ExactParallelIterator<Item=T>,
+          PAR_ITER: ExactParallelIterator,
           PAR_ITER::State: Send,
           T: Send,
 {

@@ -91,13 +91,6 @@ pub trait ParallelIterator {
         self.weight(f64::INFINITY)
     }
 
-    /// Yields an index along with each item.
-    fn enumerate(self) -> Enumerate<Self>
-        where Self: Sized
-    {
-        Enumerate::new(self)
-    }
-
     /// Executes `OP` on each item produced by the iterator, in parallel.
     fn for_each<OP>(self, op: OP)
         where OP: Fn(Self::Item) + Sync, Self: Sized
@@ -111,16 +104,6 @@ pub trait ParallelIterator {
         where MAP_OP: Fn(Self::Item) -> R, Self: Sized
     {
         Map::new(self, map_op)
-    }
-
-    /// Collects the results of the iterator into the specified
-    /// vector. The vector is always truncated before execution
-    /// begins. If possible, reusing the vector across calls can lead
-    /// to better performance since it reuses the same backing buffer.
-    fn collect_into(self, target: &mut Vec<Self::Item>)
-        where Self: Sized
-    {
-        collect_into(self, target);
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -196,16 +179,60 @@ pub trait ParallelIterator {
     {
         reduce(self, reduce_op)
     }
+}
 
+/// A trait for parallel iterators items where the precise number of
+/// items is not known, but we can at least give an upper-bound. These
+/// sorts of iterators result from filtering.
+///
+/// # Safety note
+///
+/// This trait is declared as **unsafe to implement**, but it is
+/// perfectly safe to **use**. It is unsafe to implement because other
+/// code relies on the fact that the estimated length is an upper
+/// bound in order to guarantee safety invariants.
+pub unsafe trait BoundedParallelIterator: ParallelIterator {
+}
+
+/// A trait for parallel iterators items where the precise number of
+/// items is known. This occurs when e.g. iterating over a
+/// vector. Knowing precisely how many items will be produced is very
+/// useful.
+///
+/// # Safety note
+///
+/// This trait is declared as **unsafe to implement**, but it is
+/// perfectly safe to **use**. It is unsafe to implement because other
+/// code relies on the fact that the estimated length from an
+/// `ExactParallelIterator` is precisely correct in order to guarantee
+/// safety invariants.
+pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
     /// iterators are of unequal length, you only get the items they
     /// have in common.
     fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
-        where Self: Sized, ZIP_OP: IntoParallelIterator
+        where Self: Sized, ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: ExactParallelIterator
     {
         ZipIter::new(self, zip_op.into_par_iter())
+    }
+
+    /// Yields an index along with each item.
+    fn enumerate(self) -> Enumerate<Self>
+        where Self: Sized
+    {
+        Enumerate::new(self)
+    }
+
+    /// Collects the results of the iterator into the specified
+    /// vector. The vector is always truncated before execution
+    /// begins. If possible, reusing the vector across calls can lead
+    /// to better performance since it reuses the same backing buffer.
+    fn collect_into(self, target: &mut Vec<Self::Item>)
+        where Self: Sized
+    {
+        collect_into(self, target);
     }
 }
 
