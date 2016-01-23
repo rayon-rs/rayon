@@ -21,8 +21,10 @@ use self::weight::Weight;
 pub mod collect;
 pub mod enumerate;
 pub mod len;
+pub mod for_each;
 pub mod reduce;
 pub mod slice;
+pub mod slice_mut;
 pub mod state;
 pub mod map;
 pub mod weight;
@@ -42,6 +44,13 @@ pub trait IntoParallelRefIterator<'r> {
     type Item: Sync + 'r;
 
     fn par_iter(&'r self) -> Self::Iter;
+}
+
+pub trait IntoParallelRefMutIterator<'r> {
+    type Iter: ParallelIterator<Item=&'r mut Self::Item>;
+    type Item: Send + 'r;
+
+    fn par_iter_mut(&'r mut self) -> Self::Iter;
 }
 
 /// The `ParallelIterator` interface.
@@ -72,6 +81,13 @@ pub trait ParallelIterator {
         where Self: Sized
     {
         Enumerate::new(self)
+    }
+
+    /// Executes `OP` on each item produced by the iterator, in parallel.
+    fn for_each<OP>(self, op: OP)
+        where OP: Fn(Self::Item) + Sync, Self: Sized
+    {
+        for_each::for_each(self, &op)
     }
 
     /// Applies `map_op` to each item of his iterator, producing a new

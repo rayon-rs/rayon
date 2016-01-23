@@ -79,3 +79,14 @@ pub fn check_enumerate() {
      .collect_into(&mut b);
     assert!(b.iter().all(|&x| x == a.len() - 1));
 }
+
+#[test]
+pub fn check_increment() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+
+    a.par_iter_mut()
+     .enumerate()
+     .for_each(|(i, v)| *v += i);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
