@@ -13,6 +13,7 @@ use std::f64;
 use std::ops::Fn;
 use self::collect::collect_into;
 use self::enumerate::Enumerate;
+use self::filter::Filter;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
@@ -22,6 +23,7 @@ use self::zip::ZipIter;
 
 pub mod collect;
 pub mod enumerate;
+pub mod filter;
 pub mod len;
 pub mod for_each;
 pub mod reduce;
@@ -106,6 +108,14 @@ pub trait ParallelIterator {
         Map::new(self, map_op)
     }
 
+    /// Applies `map_op` to each item of his iterator, producing a new
+    /// iterator with the results.
+    fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
+        where FILTER_OP: Fn(&Self::Item) -> bool, Self: Sized
+    {
+        Filter::new(self, filter_op)
+    }
+
     /// Reduces the items in the iterator into one item using `op`.
     /// See also `sum`, `mul`, `min`, etc, which are slightly more
     /// efficient. Returns `None` if the iterator is empty.
@@ -178,6 +188,15 @@ pub trait ParallelIterator {
         where Self: Sized, REDUCE_OP: ReduceOp<Self::Item>
     {
         reduce(self, reduce_op)
+    }
+}
+
+impl<T: ParallelIterator> IntoParallelIterator for T {
+    type Iter = T;
+    type Item = T::Item;
+
+    fn into_par_iter(self) -> T {
+        self
     }
 }
 

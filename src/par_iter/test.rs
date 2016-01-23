@@ -170,3 +170,20 @@ pub fn check_range_split_at_overflow() {
     let r2 = right.map(|i| i as i32).sum();
     assert_eq!(r1 + r2, -100);
 }
+
+#[test]
+pub fn check_sum_filtered_ints() {
+    let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let par_sum_evens =
+        a.par_iter()
+         .filter(|&x| (x & 1) == 0)
+         .map(|&x| x)
+         .sum();
+    let seq_sum_evens =
+        a.iter()
+         .filter(|&x| (x & 1) == 0)
+         .map(|&x| x)
+         .fold(0, |a,b| a+b);
+    assert_eq!(par_sum_evens, seq_sum_evens);
+}
+
