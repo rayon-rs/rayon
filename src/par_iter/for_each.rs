@@ -14,7 +14,7 @@ pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
     for_each_helper(state, &shared, len, op)
 }
 
-fn for_each_helper<STATE,OP,T>(state: STATE,
+fn for_each_helper<STATE,OP,T>(mut state: STATE,
                                shared: &STATE::Shared,
                                len: ParallelLen,
                                op: &OP)
@@ -28,7 +28,9 @@ fn for_each_helper<STATE,OP,T>(state: STATE,
         join(|| for_each_helper(left, shared, len.left_cost(mid), op),
              || for_each_helper(right, shared, len.right_cost(mid), op));
     } else {
-        state.for_each(shared, |item| op(item));
+        while let Some(item) = state.next(shared) {
+            op(item);
+        }
     }
 }
 

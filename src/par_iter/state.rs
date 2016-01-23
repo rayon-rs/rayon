@@ -20,10 +20,20 @@ pub unsafe trait ParallelIteratorState: Sized {
     type Item;
     type Shared: Sync;
 
+    /// Returns an estimate of how much work is to be done.
+    ///
+    /// # Safety note
+    ///
+    /// If sparse is false, then `maximal_len` must be precisely
+    /// correct.
     fn len(&mut self, shared: &Self::Shared) -> ParallelLen;
 
+    /// Split this state into two other states, ideally of roughly
+    /// equal size.
     fn split_at(self, index: usize) -> (Self, Self);
 
-    fn for_each<OP>(self, shared: &Self::Shared, op: OP)
-        where OP: FnMut(Self::Item);
+    /// Extract the next item from this iterator state. Once this
+    /// method is called, sequential iteration has begun, and the
+    /// other methods will no longer be called.
+    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item>;
 }

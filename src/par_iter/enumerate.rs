@@ -55,13 +55,12 @@ unsafe impl<M> ParallelIteratorState for EnumerateState<M>
          EnumerateState { base: right, offset: self.offset + index })
     }
 
-    fn for_each<F>(self, shared: &Self::Shared, mut op: F)
-        where F: FnMut(Self::Item)
-    {
-        let mut count = self.offset;
-        self.base.for_each(&shared.base, |item| {
-            op((count, item));
-            count += 1;
-        });
+    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
+        self.base.next(&shared.base)
+                 .map(|base| {
+                     let index = self.offset;
+                     self.offset += 1;
+                     (index, base)
+                 })
     }
 }

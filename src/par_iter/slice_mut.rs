@@ -1,6 +1,7 @@
 use super::{ParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator};
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
+use std::mem;
 
 pub struct SliceIterMut<'r, T: 'r + Send> {
     slice: &'r mut [T]
@@ -51,11 +52,12 @@ unsafe impl<'r, T: Send> ParallelIteratorState for SliceIterMut<'r, T> {
         (left.into_par_iter(), right.into_par_iter())
     }
 
-    fn for_each<OP>(self, _shared: &Self::Shared, mut op: OP)
-        where OP: FnMut(&'r mut T)
-    {
-        for item in self.slice {
-            op(item);
-        }
+    fn next(&mut self, _shared: &Self::Shared) -> Option<&'r mut T> {
+        let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
+        slice.split_first_mut()
+             .map(|(head, tail)| {
+                 self.slice = tail;
+                 head
+             })
     }
 }

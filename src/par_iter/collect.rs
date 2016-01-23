@@ -28,7 +28,7 @@ pub fn collect_into<PAR_ITER,T>(pi: PAR_ITER, v: &mut Vec<T>)
     }
 }
 
-unsafe fn collect_into_helper<STATE,T>(state: STATE,
+unsafe fn collect_into_helper<STATE,T>(mut state: STATE,
                                        shared: &STATE::Shared,
                                        len: ParallelLen,
                                        target: CollectTarget<T>)
@@ -42,10 +42,10 @@ unsafe fn collect_into_helper<STATE,T>(state: STATE,
              || collect_into_helper(right, shared, len.right_cost(mid), right_target));
     } else {
         let mut p = DropInitialized::new(target.as_mut_ptr());
-        state.for_each(shared, |item| {
+        while let Some(item) = state.next(shared) {
             ptr::write(p.next, item);
             p.bump();
-        });
+        }
         mem::forget(p); // fully initialized, so don't run the destructor
     }
 }

@@ -51,11 +51,11 @@ unsafe impl<'r, T: Sync> ParallelIteratorState for SliceIter<'r, T> {
         (left.into_par_iter(), right.into_par_iter())
     }
 
-    fn for_each<OP>(self, _shared: &Self::Shared, mut op: OP)
-        where OP: FnMut(&'r T)
-    {
-        for item in self.slice {
-            op(item);
-        }
+    fn next(&mut self, _shared: &Self::Shared) -> Option<&'r T> {
+        self.slice.split_first()
+                  .map(|(head, tail)| {
+                      self.slice = tail;
+                      head
+                  })
     }
 }

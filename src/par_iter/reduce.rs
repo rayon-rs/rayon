@@ -44,7 +44,7 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
     reduce_helper(state, &shared, len, reduce_op)
 }
 
-fn reduce_helper<STATE,REDUCE_OP,T>(state: STATE,
+fn reduce_helper<STATE,REDUCE_OP,T>(mut state: STATE,
                                     shared: &STATE::Shared,
                                     len: ParallelLen,
                                     reduce_op: &REDUCE_OP)
@@ -62,9 +62,9 @@ fn reduce_helper<STATE,REDUCE_OP,T>(state: STATE,
         reduce_op.reduce(left_val, right_val)
     } else {
         let mut value = Some(reduce_op.start_value());
-        state.for_each(shared, |item| {
+        while let Some(item) = state.next(shared) {
             value = Some(reduce_op.reduce(value.take().unwrap(), item));
-        });
+        }
         value.unwrap()
     }
 }
