@@ -1,5 +1,7 @@
 use api::join;
-use super::{ParallelIterator, ParallelIteratorState, ParallelLen, THRESHOLD};
+use super::ParallelIterator;
+use super::len::{ParallelLen, THRESHOLD};
+use super::state::ParallelIteratorState;
 use std::isize;
 use std::mem;
 use std::ptr;

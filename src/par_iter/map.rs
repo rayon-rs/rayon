@@ -1,4 +1,6 @@
-use super::{ParallelIterator, ParallelIteratorState, ParallelLen};
+use super::ParallelIterator;
+use super::len::ParallelLen;
+use super::state::ParallelIteratorState;
 use std::marker::PhantomData;
 
 pub struct Map<M, MAP_OP> {

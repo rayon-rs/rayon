@@ -1,6 +1,8 @@
 use api::join;
 use std;
-use super::{ParallelIterator, ParallelIteratorState, ParallelLen, THRESHOLD};
+use super::ParallelIterator;
+use super::len::{ParallelLen, THRESHOLD};
+use super::state::ParallelIteratorState;
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items

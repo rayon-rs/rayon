@@ -1,28 +1,34 @@
 #![allow(dead_code)]
 
-use std::ops::Fn;
-use self::reduce::{SumOp, MulOp, MinOp, MaxOp, ReduceWithOp};
+//! The `ParallelIterator` module makes it easy to write parallel
+//! programs using an iterator-style interface. To get access to all
+//! the methods you want, the easiest is to write `use
+//! rayon::par_iter::*;` at the top of your module, which will import
+//! the various traits and methods you need.
+//!
+//! The submodules of this module mostly just contain implementaton
+//! details of little interest to an end-user.
 
-mod collect;
-mod enumerate;
-mod len;
-mod reduce;
-mod slice;
-mod map;
-mod weight;
+use std::ops::Fn;
+use self::collect::collect_into;
+use self::enumerate::Enumerate;
+use self::map::Map;
+use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
+                   SUM, MUL, MIN, MAX};
+use self::state::ParallelIteratorState;
+use self::weight::Weight;
+
+pub mod collect;
+pub mod enumerate;
+pub mod len;
+pub mod reduce;
+pub mod slice;
+pub mod state;
+pub mod map;
+pub mod weight;
 
 #[cfg(test)]
 mod test;
-
-pub use self::collect::collect_into;
-pub use self::enumerate::Enumerate;
-pub use self::len::ParallelLen;
-pub use self::len::THRESHOLD;
-pub use self::map::Map;
-pub use self::reduce::reduce;
-pub use self::reduce::ReduceOp;
-pub use self::reduce::{SUM, MUL, MIN, MAX};
-pub use self::weight::Weight;
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item=Self::Item>;
@@ -40,10 +46,14 @@ pub trait ParallelIterator {
     fn state(self) -> (Self::Shared, Self::State);
 
     /// Indicates the relative "weight" of producing each item in this
-    /// parallel iterator. 1.0 indicates something very cheap, like
-    /// copying a value out of an array, or computing `x + 1`. Tuning
-    /// this value can affect how many subtasks are created and can
-    /// improve performance.
+    /// parallel iterator. A higher weight will cause finer-grained
+    /// parallel subtasks. 1.0 indicates something very cheap and
+    /// uniform, like copying a value out of an array, or computing `x
+    /// + 1`. If your tasks are either very expensive, or very
+    /// unpredictable, you are better off with higher values. Using
+    /// `f64::INFINITY` will cause the finest grained parallel
+    /// subtasks possible. Tuning this value should not affect
+    /// correctness but can improve (or hurt) performance.
     fn weight(self, scale: f64) -> Weight<Self>
         where Self: Sized
     {
@@ -148,34 +158,6 @@ pub trait ParallelIterator {
     {
         reduce(self, reduce_op)
     }
-}
-
-/// The trait for types representing the internal *state* during
-/// parallelization. This basically represents a group of tasks
-/// to be done.
-///
-/// Note that this trait is declared as an **unsafe trait**. That
-/// means that the trait is unsafe to implement. The reason is that
-/// other bits of code, such as the `collect` routine on
-/// `ParallelIterator`, rely on the `len` and `for_each` functions
-/// being accurate and correct. For example, if the `len` function
-/// reports that it will produce N items, then `for_each` *must*
-/// produce `N` items or else the resulting vector will contain
-/// uninitialized memory.
-///
-/// This trait is not really intended to be implemented outside of the
-/// Rayon crate at this time. The precise safety requirements are kind
-/// of ill-documented for this reason (i.e., they are ill-understood).
-pub unsafe trait ParallelIteratorState: Sized {
-    type Item;
-    type Shared: Sync;
-
-    fn len(&mut self, shared: &Self::Shared) -> ParallelLen;
-
-    fn split_at(self, index: usize) -> (Self, Self);
-
-    fn for_each<OP>(self, shared: &Self::Shared, op: OP)
-        where OP: FnMut(Self::Item);
 }
 
 

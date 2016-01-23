@@ -1,4 +1,5 @@
 use super::*;
+use super::state::ParallelIteratorState;
 
 #[test]
 pub fn execute() {

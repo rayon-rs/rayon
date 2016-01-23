@@ -1,4 +1,6 @@
-use super::{ParallelIterator, ParallelIteratorState, ParallelLen};
+use super::ParallelIterator;
+use super::len::ParallelLen;
+use super::state::ParallelIteratorState;
 
 pub struct Weight<M> {
     base: M,

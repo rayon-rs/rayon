@@ -1,4 +1,6 @@
-use super::{IntoParallelIterator, ParallelIterator, ParallelIteratorState, ParallelLen};
+use super::{ParallelIterator, IntoParallelIterator};
+use super::len::ParallelLen;
+use super::state::ParallelIteratorState;
 
 pub struct SliceIter<'map, T: 'map + Sync> {
     slice: &'map [T]
