@@ -78,3 +78,15 @@ pub fn check_enumerate() {
      .collect_into(&mut b);
     assert!(b.iter().all(|&x| x == a.len() - 1));
 }
+
+#[test]
+pub fn check_filter() {
+    let a: Vec<usize> = (0..1024).collect();
+
+    let mut b = vec![];
+    a.into_par_iter()
+     .filter(|x| *x % 2 == 0)
+     .collect_into(&mut b);
+
+    assert!(b.iter().all(|&x| x % 2 == 0));
+}

@@ -5,6 +5,8 @@ use self::reduce::{SumOp, MulOp, MinOp, MaxOp, ReduceWithOp};
 
 mod collect;
 mod enumerate;
+mod filter;
+mod filter_map;
 mod len;
 mod reduce;
 mod slice;
@@ -16,6 +18,8 @@ mod test;
 
 pub use self::collect::collect_into;
 pub use self::enumerate::Enumerate;
+pub use self::filter::Filter;
+pub use self::filter_map::FilterMap;
 pub use self::len::ParallelLen;
 pub use self::len::THRESHOLD;
 pub use self::map::Map;
@@ -63,6 +67,18 @@ pub trait ParallelIterator {
         where MAP_OP: Fn(Self::Item) -> R, Self: Sized
     {
         Map::new(self, map_op)
+    }
+
+    fn filter<FILTER_PRED>(self, pred: FILTER_PRED) -> Filter<Self, FILTER_PRED>
+        where FILTER_PRED: Fn(&Self::Item) -> bool, Self: Sized,
+    {
+        Filter::new(self, pred)
+    }
+
+    fn filter_map<FILTER_OP, R>(self, filter_op: FILTER_OP) -> FilterMap<Self, FILTER_OP>
+        where FILTER_OP: Fn(Self::Item) -> Option<R>, Self: Sized,
+    {
+        FilterMap::new(self, filter_op)
     }
 
     /// Collects the results of the iterator into the specified
@@ -177,6 +193,3 @@ pub unsafe trait ParallelIteratorState: Sized {
     fn for_each<OP>(self, shared: &Self::Shared, op: OP)
         where OP: FnMut(Self::Item);
 }
-
-
-
