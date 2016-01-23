@@ -4,12 +4,72 @@ Rayon is a data-parallelism library for Rust. It is extremely
 lightweight and makes it easy to convert a sequential computation into
 a parallel one. It also guarantees data-race freedom. (You may also
 enjoy [this blog post][blog] about Rayon, which gives more background
-and details about how it works .)
+and details about how it works.)
 
-Using rayon is very simple. There is one method you need to know
-about, `join`. `join` simply takes two closures and potentially runs
-them in parallel. Here is a rather silly example that just increments
-all integers in a slice in parallel:
+[blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
+
+You can use Rayon in two ways. Which way you will want will depend on
+what you are doing:
+
+- Parallel iterators: convert iterator chains to execute in parallel.
+- The `join` method: convert recursive, divide-and-conquer style
+  problems to execute in parallel.
+
+No matter which way you choose, you don't have to worry about data
+races: Rayon statically guarantees data-race freedom. For the most
+part, adding calls to Rayon should not change how your programs works
+at all, in fact. However, if you operate on mutexes or atomic
+integers, please see the [notes on atomicity](#atomicity).
+
+**WARNING:** Rayon is still in **experimental** status. It is probably
+not very robust and not (yet) suitable for production applications.
+In particular, the handling of panics is known to be terrible.  See
+nikomatsakis/rayon#10 for more details.
+
+### Parallel Iterators
+
+Rayon supports an experimental API called "parallel iterators". These
+let you write iterator-like chains that execute in parallel. For
+example, to compute the sum of the squares of a sequence of integers,
+one might write:
+
+```rust
+use rayon::par_iter::*;
+fn sum_of_squares(input: &[i32]) -> i32 {
+    input.par_iter()
+         .map(|&i| i * i)
+         .sum()
+}
+```
+
+Or, to increment all the integers in a slice, you could write:
+
+```rust
+use rayon::par_iter::*;
+fn increment_all(input: &mut [i32]) {
+    input.par_iter_mut()
+         .for_each(|p| *p += 1);
+}
+```
+
+To use parallel iterators, first import the traits by adding something
+like `use rayon::par_iter::*` to your module. You can then call
+`par_iter` and `par_iter_mut` to get a parallel iterator.  Like a
+[regular iterator][], parallel iterators work by first constructing a
+computation and then executing it. See the
+[`ParallelIterator` trait][pt] for the list of available methods and
+more details. (Sorry, proper documentation is still somewhat lacking.)
+
+[regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
+[pt]: https://github.com/nikomatsakis/rayon/blob/master/src/par_iter/mod.rs
+
+### Using join for recursive, divide-and-conquer problems
+
+Parallel iterators are actually implemented in terms of a more
+primitive method called `join`. `join` simply takes two closures and
+potentially runs them in parallel. For example, we could rewrite the
+`increment_all` function we saw for parallel iterators as follows
+(this function increments all the integers in a slice):
 
 ```rust
 /// Increment all values in slice.
@@ -24,35 +84,36 @@ fn increment_all(slice: &mut [i32]) {
 }
 ```
 
-Note though that calling `join` is very different from just spawning
-two threads in terms of performance. This is because `join` does not
+Perhaps a more interesting example is this parallel quicksort:
+
+```rust
+fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
+    if v.len() <= 1 {
+        return;
+    }
+
+    let mid = partition(v);
+    let (lo, hi) = v.split_at_mut(mid);
+    rayon::join(|| quick_sort(lo), || quick_sort(hi));
+}
+```
+
+**Note though that calling `join` is very different from just spawning
+two threads in terms of performance.** This is because `join` does not
 *guarantee* that the two closures will run in parallel. If all of your
 CPUs are already busy with other work, Rayon will instead opt to run
 them sequentially. The call to `join` is designed to have very low
 overhead in that case, so that you can safely call it even with very
 small workloads (as in the example above).
 
-### Parallel Iterators
+However, in practice, the overhead is still noticeable. Therefore, for
+maximal performance, you want to have some kind of sequential fallback
+one your problem gets small enough. The parallel iterator APIs try to
+handle this for you. When using join, you have to code it yourself.
+For an example, see the [quicksort demo][], which includes sequential
+fallback after a certain size.
 
-Rayon also supports an experimental API called "parallel iterators".
-These let you write iterator-like chains that execute in parallel.
-For example, to compute the sum of the squares of a sequence of
-integers, one might write:
-
-```rust
-fn sum_of_squares(input: &[i32]) -> i32 {
-    input.into_par_iter()
-         .map(|&i| i * i)
-         .sum()
-}
-```
-
-For more examples, see
-[the tests](https://github.com/nikomatsakis/rayon/blob/master/src/par_iter/test.rs)
-in
-[the `par_iter` module](https://github.com/nikomatsakis/rayon/blob/master/src/par_iter/mod.rs)
-(sorry, documentation is fairly lacking at this stage; rayon is still
-fairly experimental).
+[quicksort demo]: https://github.com/nikomatsakis/rayon/blob/master/demo/quicksort/src/main.rs
 
 ### Safety
 
@@ -60,7 +121,9 @@ You've probably heard that parallel programming can be the source of
 bugs that are really hard to diagnose. That is certainly true!
 However, thanks to Rust's type system, you basically don't have to
 worry about that when using Rayon. The Rayon APIs are guaranteed to be
-data-race and deadlock free.
+data-race free. The Rayon APIs themselves also cannot cause deadlocks
+(though if your closures or callbacks use locks or ports, those locks
+might trigger deadlocks).
 
 For example, if you write code that tries to process the same mutable
 state from both closures, you will find that fails to compile:
@@ -112,6 +175,8 @@ This technique is not new. It was first introduced by the
 is an homage to that work.
 
 [cilk]: http://supertech.csail.mit.edu/cilk/
+
+<a name="atomicity"></a>
 
 #### Warning: Be wary of atomicity
 
@@ -298,5 +363,4 @@ fn search(path: &Path, cost_so_far: usize, best_cost: &Arc<AtomicUsize>) {
 Now in this case, we really WANT to see results from other threads
 interjected into our execution!
 
-[blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
 
