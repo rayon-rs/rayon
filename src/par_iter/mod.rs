@@ -18,6 +18,7 @@ use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
 use self::state::ParallelIteratorState;
 use self::weight::Weight;
+use self::zip::ZipIter;
 
 pub mod collect;
 pub mod enumerate;
@@ -29,6 +30,7 @@ pub mod slice_mut;
 pub mod state;
 pub mod map;
 pub mod weight;
+pub mod zip;
 
 #[cfg(test)]
 mod test;
@@ -192,6 +194,17 @@ pub trait ParallelIterator {
         where Self: Sized, REDUCE_OP: ReduceOp<Self::Item>
     {
         reduce(self, reduce_op)
+    }
+
+    /// Iterate over tuples `(A, B)`, where the items `A` are from
+    /// this iterator and `B` are from the iterator given as argument.
+    /// Like the `zip` method on ordinary iterators, if the two
+    /// iterators are of unequal length, you only get the items they
+    /// have in common.
+    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
+        where Self: Sized, ZIP_OP: IntoParallelIterator
+    {
+        ZipIter::new(self, zip_op.into_par_iter())
     }
 }
 
