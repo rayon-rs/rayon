@@ -37,6 +37,13 @@ pub trait IntoParallelIterator {
     fn into_par_iter(self) -> Self::Iter;
 }
 
+pub trait IntoParallelRefIterator<'r> {
+    type Iter: ParallelIterator<Item=&'r Self::Item>;
+    type Item: Sync + 'r;
+
+    fn par_iter(&'r self) -> Self::Iter;
+}
+
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator {
     type Item: Send;
