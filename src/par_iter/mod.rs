@@ -9,6 +9,7 @@
 //! The submodules of this module mostly just contain implementaton
 //! details of little interest to an end-user.
 
+use std::f64;
 use std::ops::Fn;
 use self::collect::collect_into;
 use self::enumerate::Enumerate;
@@ -66,14 +67,25 @@ pub trait ParallelIterator {
     /// parallel subtasks. 1.0 indicates something very cheap and
     /// uniform, like copying a value out of an array, or computing `x
     /// + 1`. If your tasks are either very expensive, or very
-    /// unpredictable, you are better off with higher values. Using
-    /// `f64::INFINITY` will cause the finest grained parallel
-    /// subtasks possible. Tuning this value should not affect
-    /// correctness but can improve (or hurt) performance.
+    /// unpredictable, you are better off with higher values. See also
+    /// `weight_max`, which is a convenient shorthand to force the
+    /// finest grained parallel execution posible. Tuning this value
+    /// should not affect correctness but can improve (or hurt)
+    /// performance.
     fn weight(self, scale: f64) -> Weight<Self>
         where Self: Sized
     {
         Weight::new(self, scale)
+    }
+
+    /// Shorthand for `self.weight(f64::INFINITY)`. This forces the
+    /// smallest granularity of parallel execution, which makes sense
+    /// when your parallel tasks are (potentially) very expensive to
+    /// execute.
+    fn weight_max(self) -> Weight<Self>
+        where Self: Sized
+    {
+        self.weight(f64::INFINITY)
     }
 
     /// Yields an index along with each item.
