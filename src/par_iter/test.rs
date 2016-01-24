@@ -187,3 +187,17 @@ pub fn check_sum_filtered_ints() {
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
 
+#[test]
+pub fn check_sum_filtermap_ints() {
+    let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let par_sum_evens =
+        a.par_iter()
+         .filter_map(|&x| if (x & 1) == 0 {Some(x as f32)} else {None})
+         .sum();
+    let seq_sum_evens =
+        a.iter()
+         .filter_map(|&x| if (x & 1) == 0 {Some(x as f32)} else {None})
+         .fold(0.0, |a,b| a+b);
+    assert_eq!(par_sum_evens, seq_sum_evens);
+}
+
