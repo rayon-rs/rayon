@@ -62,7 +62,7 @@ pub trait IntoParallelRefMutIterator<'data> {
 }
 
 /// The `ParallelIterator` interface.
-pub trait ParallelIterator {
+pub trait ParallelIterator: Sized {
     type Item: Send;
     type Shared: Sync;
     type State: ParallelIteratorState<Shared=Self::Shared, Item=Self::Item> + Send;
@@ -79,9 +79,7 @@ pub trait ParallelIterator {
     /// finest grained parallel execution posible. Tuning this value
     /// should not affect correctness but can improve (or hurt)
     /// performance.
-    fn weight(self, scale: f64) -> Weight<Self>
-        where Self: Sized
-    {
+    fn weight(self, scale: f64) -> Weight<Self> {
         Weight::new(self, scale)
     }
 
@@ -89,15 +87,13 @@ pub trait ParallelIterator {
     /// smallest granularity of parallel execution, which makes sense
     /// when your parallel tasks are (potentially) very expensive to
     /// execute.
-    fn weight_max(self) -> Weight<Self>
-        where Self: Sized
-    {
+    fn weight_max(self) -> Weight<Self> {
         self.weight(f64::INFINITY)
     }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     fn for_each<OP>(self, op: OP)
-        where OP: Fn(Self::Item) + Sync, Self: Sized
+        where OP: Fn(Self::Item) + Sync
     {
         for_each::for_each(self, &op)
     }
@@ -105,7 +101,7 @@ pub trait ParallelIterator {
     /// Applies `map_op` to each item of his iterator, producing a new
     /// iterator with the results.
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MAP_OP>
-        where MAP_OP: Fn(Self::Item) -> R, Self: Sized
+        where MAP_OP: Fn(Self::Item) -> R
     {
         Map::new(self, map_op)
     }
@@ -113,7 +109,7 @@ pub trait ParallelIterator {
     /// Applies `map_op` to each item of his iterator, producing a new
     /// iterator with the results.
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
-        where FILTER_OP: Fn(&Self::Item) -> bool, Self: Sized
+        where FILTER_OP: Fn(&Self::Item) -> bool
     {
         Filter::new(self, filter_op)
     }
@@ -121,7 +117,7 @@ pub trait ParallelIterator {
     /// Applies `map_op` to each item of his iterator, producing a new
     /// iterator with the results.
     fn filter_map<FILTER_OP,R>(self, filter_op: FILTER_OP) -> FilterMap<Self, FILTER_OP>
-        where FILTER_OP: Fn(Self::Item) -> Option<R>, Self: Sized
+        where FILTER_OP: Fn(Self::Item) -> Option<R>
     {
         FilterMap::new(self, filter_op)
     }
@@ -135,7 +131,7 @@ pub trait ParallelIterator {
     /// should be commutative and associative or else the results will
     /// be non-deterministic.
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
-        where Self: Sized, OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
     {
         reduce(self.map(Some), &ReduceWithOp::new(op))
     }
@@ -147,7 +143,7 @@ pub trait ParallelIterator {
     /// associative (as is the case for floating point numbers), then
     /// the results are not fully deterministic.
     fn sum(self) -> Self::Item
-        where Self: Sized, SumOp: ReduceOp<Self::Item>
+        where SumOp: ReduceOp<Self::Item>
     {
         reduce(self, SUM)
     }
@@ -159,7 +155,7 @@ pub trait ParallelIterator {
     /// associative (as is the case for floating point numbers), then
     /// the results are not fully deterministic.
     fn mul(self) -> Self::Item
-        where Self: Sized, MulOp: ReduceOp<Self::Item>
+        where MulOp: ReduceOp<Self::Item>
     {
         reduce(self, MUL)
     }
@@ -171,7 +167,7 @@ pub trait ParallelIterator {
     /// (as is the case for floating point numbers), then the results
     /// are not deterministic.
     fn min(self) -> Self::Item
-        where Self: Sized, MinOp: ReduceOp<Self::Item>
+        where MinOp: ReduceOp<Self::Item>
     {
         reduce(self, MIN)
     }
@@ -183,7 +179,7 @@ pub trait ParallelIterator {
     /// (as is the case for floating point numbers), then the results
     /// are not deterministic.
     fn max(self) -> Self::Item
-        where Self: Sized, MaxOp: ReduceOp<Self::Item>
+        where MaxOp: ReduceOp<Self::Item>
     {
         reduce(self, MAX)
     }
@@ -195,7 +191,7 @@ pub trait ParallelIterator {
     /// so if the `reduce_op` impl is not truly commutative and
     /// associative, then the results are not deterministic.
     fn reduce<REDUCE_OP>(self, reduce_op: &REDUCE_OP) -> Self::Item
-        where Self: Sized, REDUCE_OP: ReduceOp<Self::Item>
+        where REDUCE_OP: ReduceOp<Self::Item>
     {
         reduce(self, reduce_op)
     }
@@ -242,15 +238,13 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     /// iterators are of unequal length, you only get the items they
     /// have in common.
     fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
-        where Self: Sized, ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: ExactParallelIterator
+        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: ExactParallelIterator
     {
         ZipIter::new(self, zip_op.into_par_iter())
     }
 
     /// Yields an index along with each item.
-    fn enumerate(self) -> Enumerate<Self>
-        where Self: Sized
-    {
+    fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
     }
 
@@ -258,9 +252,7 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
-    fn collect_into(self, target: &mut Vec<Self::Item>)
-        where Self: Sized
-    {
+    fn collect_into(self, target: &mut Vec<Self::Item>) {
         collect_into(self, target);
     }
 }
