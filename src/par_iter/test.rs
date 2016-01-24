@@ -13,6 +13,17 @@ pub fn execute() {
 }
 
 #[test]
+pub fn execute_range() {
+    let a = 0i32..1024;
+    let mut b = vec![];
+    a.into_par_iter()
+     .map(|i| i + 1)
+     .collect_into(&mut b);
+    let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
+    assert_eq!(b, c);
+}
+
+#[test]
 pub fn map_reduce() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
@@ -99,6 +110,17 @@ pub fn check_zip() {
     a.par_iter_mut()
      .zip(&b[..])
      .for_each(|(a, &b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_zip_range() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+
+    a.par_iter_mut()
+     .zip(0usize..1024)
+     .for_each(|(a, b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
