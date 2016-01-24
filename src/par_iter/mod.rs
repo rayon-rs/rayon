@@ -45,18 +45,18 @@ pub trait IntoParallelIterator {
     fn into_par_iter(self) -> Self::Iter;
 }
 
-pub trait IntoParallelRefIterator<'r> {
-    type Iter: ParallelIterator<Item=&'r Self::Item>;
-    type Item: Sync + 'r;
+pub trait IntoParallelRefIterator<'data> {
+    type Iter: ParallelIterator<Item=&'data Self::Item>;
+    type Item: Sync + 'data;
 
-    fn par_iter(&'r self) -> Self::Iter;
+    fn par_iter(&'data self) -> Self::Iter;
 }
 
-pub trait IntoParallelRefMutIterator<'r> {
-    type Iter: ParallelIterator<Item=&'r mut Self::Item>;
-    type Item: Send + 'r;
+pub trait IntoParallelRefMutIterator<'data> {
+    type Iter: ParallelIterator<Item=&'data mut Self::Item>;
+    type Item: Send + 'data;
 
-    fn par_iter_mut(&'r mut self) -> Self::Iter;
+    fn par_iter_mut(&'data mut self) -> Self::Iter;
 }
 
 /// The `ParallelIterator` interface.

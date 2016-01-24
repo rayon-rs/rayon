@@ -2,30 +2,30 @@ use super::*;
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 
-pub struct SliceIter<'r, T: 'r + Sync> {
-    slice: &'r [T]
+pub struct SliceIter<'data, T: 'data + Sync> {
+    slice: &'data [T]
 }
 
-impl<'r, T: Sync> IntoParallelIterator for &'r [T] {
-    type Item = &'r T;
-    type Iter = SliceIter<'r, T>;
+impl<'data, T: Sync> IntoParallelIterator for &'data [T] {
+    type Item = &'data T;
+    type Iter = SliceIter<'data, T>;
 
     fn into_par_iter(self) -> Self::Iter {
         SliceIter { slice: self }
     }
 }
 
-impl<'r, T: Sync + 'r> IntoParallelRefIterator<'r> for [T] {
+impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
     type Item = T;
-    type Iter = SliceIter<'r, T>;
+    type Iter = SliceIter<'data, T>;
 
-    fn par_iter(&'r self) -> Self::Iter {
+    fn par_iter(&'data self) -> Self::Iter {
         self.into_par_iter()
     }
 }
 
-impl<'r, T: Sync> ParallelIterator for SliceIter<'r, T> {
-    type Item = &'r T;
+impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
+    type Item = &'data T;
     type Shared = ();
     type State = Self;
 
@@ -34,12 +34,12 @@ impl<'r, T: Sync> ParallelIterator for SliceIter<'r, T> {
     }
 }
 
-unsafe impl<'r, T: Sync> BoundedParallelIterator for SliceIter<'r, T> { }
+unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> { }
 
-unsafe impl<'r, T: Sync> ExactParallelIterator for SliceIter<'r, T> { }
+unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> { }
 
-unsafe impl<'r, T: Sync> ParallelIteratorState for SliceIter<'r, T> {
-    type Item = &'r T;
+unsafe impl<'data, T: Sync> ParallelIteratorState for SliceIter<'data, T> {
+    type Item = &'data T;
     type Shared = ();
 
     fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
@@ -55,7 +55,7 @@ unsafe impl<'r, T: Sync> ParallelIteratorState for SliceIter<'r, T> {
         (left.into_par_iter(), right.into_par_iter())
     }
 
-    fn next(&mut self, _shared: &Self::Shared) -> Option<&'r T> {
+    fn next(&mut self, _shared: &Self::Shared) -> Option<&'data T> {
         self.slice.split_first()
                   .map(|(head, tail)| {
                       self.slice = tail;
