@@ -77,3 +77,39 @@ unsafe impl<M> ParallelIteratorState for WeightState<M>
         self.base.next(&shared.base)
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct WeightProducer<P: Producer> {
+    base: P
+}
+
+impl<P: Producer> Producer for WeightProducer<P>
+{
+    type Item = P::Item;
+    type Shared = P::Shared;
+    type SeqState = P::SeqState;
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(index);
+        (WeightProducer { base: left }, WeightProducer { base: right })
+    }
+
+    unsafe fn start(&mut self, shared: &P::Shared) -> P::SeqState {
+        self.base.start(shared)
+    }
+
+    unsafe fn produce(&mut self,
+                      shared: &P::Shared,
+                      state: &mut P::SeqState)
+                      -> P::Item
+    {
+        self.base.produce(shared, state)
+    }
+
+    unsafe fn complete(self,
+                       shared: &P::Shared,
+                       state: P::SeqState) {
+        self.base.complete(shared, state)
+    }
+}
