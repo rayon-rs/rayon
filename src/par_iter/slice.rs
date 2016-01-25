@@ -75,3 +75,39 @@ unsafe impl<'data, T: Sync> ParallelIteratorState for SliceIter<'data, T> {
                   })
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct SliceProducer<'data, T: 'data + Sync> {
+    slice: &'data [T]
+}
+
+impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
+{
+    type Item = &'data T;
+    type Shared = ();
+    type SeqState = ();
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.slice.split_at(index);
+        (SliceProducer { slice: left }, SliceProducer { slice: right })
+    }
+
+    unsafe fn start(&mut self, _: &()) {
+    }
+
+    unsafe fn produce(&mut self,
+                      _: &(),
+                      _: &mut ())
+                      -> &'data T
+    {
+        let (head, tail) = self.slice.split_first().unwrap();
+        self.slice = tail;
+        head
+    }
+
+    unsafe fn complete(self,
+                       _: &(),
+                       _: ()) {
+    }
+}
