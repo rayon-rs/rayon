@@ -1,6 +1,6 @@
 use super::*;
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 
 pub struct Weight<M> {
     base: M,
@@ -20,6 +20,10 @@ impl<M> ParallelIterator for Weight<M>
     type Shared = WeightShared<M>;
     type State = WeightState<M>;
 
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+        unimplemented!()
+    }
+
     fn state(self) -> (Self::Shared, Self::State) {
         let (base_shared, base_state) = self.base.state();
         (WeightShared { base: base_shared, weight: self.weight },
@@ -27,7 +31,11 @@ impl<M> ParallelIterator for Weight<M>
     }
 }
 
-unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> { }
+unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
+    fn upper_bound(&mut self) -> u64 {
+        self.base.upper_bound()
+    }
+}
 
 unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
     fn len(&mut self) -> u64 {

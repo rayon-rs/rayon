@@ -1,6 +1,6 @@
 use super::{ParallelIterator, BoundedParallelIterator, ExactParallelIterator};
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 use std::cmp::min;
 
 pub struct ZipIter<A: ExactParallelIterator, B: ExactParallelIterator> {
@@ -21,6 +21,10 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     type Shared = ZipShared<A,B>;
     type State = ZipState<A,B>;
 
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+        unimplemented!()
+    }
+
     fn state(self) -> (Self::Shared, Self::State) {
         let (a_shared, a_state) = self.a.state();
         let (b_shared, b_state) = self.b.state();
@@ -30,7 +34,11 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 
 unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
     where A: ExactParallelIterator, B: ExactParallelIterator
-{}
+{
+    fn upper_bound(&mut self) -> u64 {
+        self.len()
+    }
+}
 
 unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
     where A: ExactParallelIterator, B: ExactParallelIterator

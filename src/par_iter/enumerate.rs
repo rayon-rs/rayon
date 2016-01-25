@@ -1,6 +1,6 @@
 use super::{ParallelIterator, BoundedParallelIterator, ExactParallelIterator};
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 
 pub struct Enumerate<M> {
     base: M,
@@ -19,6 +19,10 @@ impl<M> ParallelIterator for Enumerate<M>
     type Shared = EnumerateShared<M>;
     type State = EnumerateState<M>;
 
+    fn drive<C: Consumer<Item=Self::Item>>(self, _consumer: C) -> C::Result {
+        unimplemented!()
+    }
+
     fn state(self) -> (Self::Shared, Self::State) {
         let (base_shared, base_state) = self.base.state();
         (EnumerateShared { base: base_shared },
@@ -28,7 +32,11 @@ impl<M> ParallelIterator for Enumerate<M>
 
 unsafe impl<M> BoundedParallelIterator for Enumerate<M>
     where M: ExactParallelIterator,
-{}
+{
+    fn upper_bound(&mut self) -> u64 {
+        self.len()
+    }
+}
 
 unsafe impl<M> ExactParallelIterator for Enumerate<M>
     where M: ExactParallelIterator,

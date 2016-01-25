@@ -1,6 +1,6 @@
 use super::*;
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 use std::mem;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {
@@ -30,12 +30,20 @@ impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
     type Shared = ();
     type State = Self;
 
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+        unimplemented!()
+    }
+
     fn state(self) -> (Self::Shared, Self::State) {
         ((), self)
     }
 }
 
-unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> { }
+unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> {
+    fn upper_bound(&mut self) -> u64 {
+        ExactParallelIterator::len(self)
+    }
+}
 
 unsafe impl<'data, T: Send> ExactParallelIterator for SliceIterMut<'data, T> {
     fn len(&mut self) -> u64 {

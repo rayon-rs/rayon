@@ -68,16 +68,7 @@ pub trait Consumer: Send {
     type SeqState;
     type Result: Send;
 
-    /// When splitting, this is the type of the left consumer. It is
-    /// almost always `Self`, but separating out the type helps ensure
-    /// that generic code that drives consumers is more correct, since
-    /// they cannot mix up the results from the left and right side.
-    type Left: Consumer<Item=Self::Item, Shared=Self::Shared>;
-
-    /// See `Left`.
-    type Right: Consumer<Item=Self::Item, Shared=Self::Shared>;
-
-    unsafe fn split_at(self, index: u64) -> (Self::Left, Self::Right);
+    unsafe fn split_at(self, index: u64) -> (Self, Self);
     unsafe fn start(&mut self, shared: &Self::Shared) -> Self::SeqState;
     unsafe fn consume(&mut self,
                       shared: &Self::Shared,
@@ -86,8 +77,8 @@ pub trait Consumer: Send {
                       -> Self::SeqState;
     unsafe fn complete(self, shared: &Self::Shared, state: Self::SeqState) -> Self::Result;
     unsafe fn reduce(shared: &Self::Shared,
-                     left: <Self::Left as Consumer>::Result,
-                     right: <Self::Right as Consumer>::Result)
+                     left: Self::Result,
+                     right: Self::Result)
                      -> Self::Result;
 }
 

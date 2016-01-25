@@ -100,8 +100,6 @@ impl<PAR_ITER, REDUCE_OP> Consumer for ReduceConsumer<PAR_ITER, REDUCE_OP>
     type Shared = REDUCE_OP;
     type SeqState = PAR_ITER::Item;
     type Result = PAR_ITER::Item;
-    type Left = Self;
-    type Right = Self;
 
     unsafe fn split_at(self, _index: u64) -> (Self, Self) {
         (ReduceConsumer::new(), ReduceConsumer::new())

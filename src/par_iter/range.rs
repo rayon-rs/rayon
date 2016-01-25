@@ -23,12 +23,19 @@ macro_rules! range_impl {
             type Shared = ();
             type State = Self;
 
+            fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+                unimplemented!()
+            }
+
             fn state(self) -> (Self::Shared, Self::State) {
                 ((), self)
             }
         }
 
         unsafe impl BoundedParallelIterator for RangeIter<$t> {
+            fn upper_bound(&mut self) -> u64 {
+                ExactParallelIterator::len(self)
+            }
         }
 
         unsafe impl ExactParallelIterator for RangeIter<$t> {

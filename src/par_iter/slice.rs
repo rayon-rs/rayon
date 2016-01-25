@@ -1,6 +1,6 @@
 use super::*;
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 
 pub struct SliceIter<'data, T: 'data + Sync> {
     slice: &'data [T]
@@ -29,12 +29,20 @@ impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
     type Shared = ();
     type State = Self;
 
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+        unimplemented!()
+    }
+
     fn state(self) -> (Self::Shared, Self::State) {
         ((), self)
     }
 }
 
-unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> { }
+unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> {
+    fn upper_bound(&mut self) -> u64 {
+        ExactParallelIterator::len(self)
+    }
+}
 
 unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> {
     fn len(&mut self) -> u64 {

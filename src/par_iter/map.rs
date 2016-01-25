@@ -1,6 +1,6 @@
 use super::*;
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 use std::marker::PhantomData;
 
 pub struct Map<M, MAP_OP> {
@@ -23,6 +23,10 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     type Shared = MapShared<M, MAP_OP>;
     type State = MapState<M, MAP_OP>;
 
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+        unimplemented!()
+    }
+
     fn state(self) -> (Self::Shared, Self::State) {
         let (base_shared, base_state) = self.base.state();
         (MapShared { base: base_shared, map_op: self.map_op },
@@ -34,7 +38,11 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
     where M: BoundedParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
-{}
+{
+    fn upper_bound(&mut self) -> u64 {
+        self.base.upper_bound()
+    }
+}
 
 unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     where M: ExactParallelIterator,

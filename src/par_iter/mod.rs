@@ -18,7 +18,7 @@ use self::filter_map::FilterMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
-use self::state::ParallelIteratorState;
+use self::state::{Consumer, ParallelIteratorState};
 use self::weight::Weight;
 use self::zip::ZipIter;
 
@@ -36,6 +36,7 @@ pub mod map;
 pub mod weight;
 pub mod zip;
 pub mod range;
+mod util;
 
 #[cfg(test)]
 mod test;
@@ -68,6 +69,10 @@ pub trait ParallelIterator: Sized {
     type State: ParallelIteratorState<Shared=Self::Shared, Item=Self::Item> + Send;
 
     fn state(self) -> (Self::Shared, Self::State);
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result;
 
     /// Indicates the relative "weight" of producing each item in this
     /// parallel iterator. A higher weight will cause finer-grained
@@ -217,6 +222,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// code relies on the fact that the estimated length is an upper
 /// bound in order to guarantee safety invariants.
 pub unsafe trait BoundedParallelIterator: ParallelIterator {
+    fn upper_bound(&mut self) -> u64;
 }
 
 /// A trait for parallel iterators items where the precise number of
