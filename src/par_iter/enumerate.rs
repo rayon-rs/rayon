@@ -84,3 +84,55 @@ unsafe impl<M> ParallelIteratorState for EnumerateState<M>
                  })
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+// Producer implementation
+
+pub struct EnumerateProducer<M>
+    where M: Producer,
+{
+    base: M,
+    offset: usize,
+}
+
+pub struct EnumerateProducerShared<M>
+    where M: Producer,
+{
+    base: M::Shared,
+}
+
+impl<M> Producer for EnumerateProducer<M>
+    where M: Producer
+{
+    type Item = (usize, M::Item);
+    type Shared = EnumerateProducerShared<M>;
+    type SeqState = (usize, M::SeqState);
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(index);
+        (EnumerateProducer { base: left, offset: self.offset },
+         EnumerateProducer { base: right, offset: self.offset + index })
+    }
+
+    unsafe fn start(&mut self, shared: &EnumerateProducerShared<M>) -> (usize, M::SeqState) {
+        let state = self.base.start(&shared.base);
+        (self.offset, state)
+    }
+
+    unsafe fn produce(&mut self,
+                      shared: &EnumerateProducerShared<M>,
+                      state: &mut (usize, M::SeqState))
+                      -> (usize, M::Item)
+    {
+        let item = self.base.produce(&shared.base, &mut state.1);
+        let index = state.0;
+        state.0 += 1;
+        (index, item)
+    }
+
+    unsafe fn complete(self,
+                       shared: &EnumerateProducerShared<M>,
+                       state: (usize, M::SeqState)) {
+        self.base.complete(&shared.base, state.1);
+    }
+}

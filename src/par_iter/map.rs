@@ -1,6 +1,7 @@
 use super::*;
 use super::len::ParallelLen;
 use super::state::*;
+use super::util::PhantomType;
 use std::marker::PhantomData;
 
 pub struct Map<M, MAP_OP> {
@@ -99,5 +100,60 @@ unsafe impl<M, MAP_OP, R> ParallelIteratorState for MapState<M, MAP_OP>
     fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
         self.base.next(&shared.base)
                  .map(|base| (shared.map_op)(base))
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct MapProducer<M, MAP_OP, R>
+    where M: Producer,
+          MAP_OP: Fn(M::Item) -> R + Sync,
+          R: Send,
+{
+    base: M,
+    phantoms: PhantomType<MAP_OP>,
+}
+
+pub struct MapProducerShared<M, MAP_OP, R>
+    where M: Producer,
+          MAP_OP: Fn(M::Item) -> R + Sync,
+          R: Send,
+{
+    base: M::Shared,
+    map_op: MAP_OP,
+}
+
+impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
+    where M: Producer,
+          MAP_OP: Fn(M::Item) -> R + Sync,
+          R: Send,
+{
+    type Item = R;
+    type Shared = MapProducerShared<M, MAP_OP, R>;
+    type SeqState = M::SeqState;
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(index);
+        (MapProducer { base: left, phantoms: PhantomType::new() },
+         MapProducer { base: right, phantoms: PhantomType::new() })
+    }
+
+    unsafe fn start(&mut self, shared: &Self::Shared) -> M::SeqState {
+        self.base.start(&shared.base)
+    }
+
+    unsafe fn produce(&mut self,
+                      shared: &Self::Shared,
+                      state: &mut M::SeqState)
+                      -> R
+    {
+        let item = self.base.produce(&shared.base, state);
+        (shared.map_op)(item)
+    }
+
+    unsafe fn complete(self,
+                       shared: &Self::Shared,
+                       state: M::SeqState) {
+        self.base.complete(&shared.base, state)
     }
 }
