@@ -40,7 +40,11 @@ unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     where M: ExactParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
-{}
+{
+    fn len(&mut self) -> u64 {
+        self.base.len()
+    }
+}
 
 pub struct MapShared<M, MAP_OP>
     where M: ParallelIterator,

@@ -76,13 +76,13 @@ pub fn check_weight() {
 
     let len1 = {
         let (shared, mut state) = a.par_iter().state();
-        state.len(&shared)
+        ParallelIteratorState::len(&mut state, &shared)
     };
 
     let len2 = {
         let (shared, mut state) = a.par_iter()
-                               .weight(2.0)
-                               .state();
+                                   .weight(2.0)
+                                   .state();
         state.len(&shared)
     };
 

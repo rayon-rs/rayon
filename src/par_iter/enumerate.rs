@@ -32,7 +32,11 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
 
 unsafe impl<M> ExactParallelIterator for Enumerate<M>
     where M: ExactParallelIterator,
-{}
+{
+    fn len(&mut self) -> u64 {
+        self.base.len()
+    }
+}
 
 pub struct EnumerateState<M>
     where M: ParallelIterator

@@ -29,7 +29,11 @@ impl<M> ParallelIterator for Weight<M>
 
 unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> { }
 
-unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> { }
+unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
+    fn len(&mut self) -> u64 {
+        self.base.len()
+    }
+}
 
 pub struct WeightState<M>
     where M: ParallelIterator

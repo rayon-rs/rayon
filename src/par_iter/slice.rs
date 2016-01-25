@@ -36,7 +36,11 @@ impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
 
 unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> { }
 
-unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> { }
+unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> {
+    fn len(&mut self) -> u64 {
+        self.slice.len() as u64
+    }
+}
 
 unsafe impl<'data, T: Sync> ParallelIteratorState for SliceIter<'data, T> {
     type Item = &'data T;

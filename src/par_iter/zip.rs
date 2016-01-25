@@ -34,7 +34,11 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
 
 unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
     where A: ExactParallelIterator, B: ExactParallelIterator
-{}
+{
+    fn len(&mut self) -> u64 {
+        min(self.a.len(), self.b.len())
+    }
+}
 
 pub struct ZipShared<A: ExactParallelIterator, B: ExactParallelIterator> {
     a: A::Shared,

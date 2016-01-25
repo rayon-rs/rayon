@@ -32,6 +32,9 @@ macro_rules! range_impl {
         }
 
         unsafe impl ExactParallelIterator for RangeIter<$t> {
+            fn len(&mut self) -> u64 {
+                self.range.len() as u64
+            }
         }
 
         unsafe impl ParallelIteratorState for RangeIter<$t> {

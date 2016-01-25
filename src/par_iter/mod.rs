@@ -232,6 +232,15 @@ pub unsafe trait BoundedParallelIterator: ParallelIterator {
 /// `ExactParallelIterator` is precisely correct in order to guarantee
 /// safety invariants.
 pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
+    /// Produces an exact count of how many items this iterator will
+    /// produce, presuming no panic occurs.
+    ///
+    /// # Safety note
+    ///
+    /// Returning an incorrect value here could lead to **undefined
+    /// behavior**.
+    fn len(&mut self) -> u64;
+
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
