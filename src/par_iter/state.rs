@@ -49,7 +49,7 @@ pub trait Producer: Send {
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
-    unsafe fn split_at(self, index: u64) -> (Self, Self);
+    unsafe fn split_at(self, index: usize) -> (Self, Self);
 
     /// Start producing items. Returns some sequential state that must
     /// be threaded.
@@ -68,7 +68,7 @@ pub trait Consumer: Send {
     type SeqState;
     type Result: Send;
 
-    unsafe fn split_at(self, index: u64) -> (Self, Self);
+    unsafe fn split_at(self, index: usize) -> (Self, Self);
     unsafe fn start(&mut self, shared: &Self::Shared) -> Self::SeqState;
     unsafe fn consume(&mut self,
                       shared: &Self::Shared,
@@ -82,7 +82,7 @@ pub trait Consumer: Send {
                      -> Self::Result;
 }
 
-pub fn bridge<P,C>(len: u64,
+pub fn bridge<P,C>(len: usize,
                    cost: f64,
                    mut producer: P,
                    producer_shared: &P::Shared,

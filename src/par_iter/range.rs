@@ -33,14 +33,14 @@ macro_rules! range_impl {
         }
 
         unsafe impl BoundedParallelIterator for RangeIter<$t> {
-            fn upper_bound(&mut self) -> u64 {
+            fn upper_bound(&mut self) -> usize {
                 ExactParallelIterator::len(self)
             }
         }
 
         unsafe impl ExactParallelIterator for RangeIter<$t> {
-            fn len(&mut self) -> u64 {
-                self.range.len() as u64
+            fn len(&mut self) -> usize {
+                self.range.len() as usize
             }
         }
 

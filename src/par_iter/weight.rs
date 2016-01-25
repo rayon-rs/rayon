@@ -32,13 +32,13 @@ impl<M> ParallelIterator for Weight<M>
 }
 
 unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
-    fn upper_bound(&mut self) -> u64 {
+    fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 }
 
 unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
-    fn len(&mut self) -> u64 {
+    fn len(&mut self) -> usize {
         self.base.len()
     }
 }

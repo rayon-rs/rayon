@@ -39,7 +39,7 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
 {
-    fn upper_bound(&mut self) -> u64 {
+    fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 }
@@ -49,7 +49,7 @@ unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
 {
-    fn len(&mut self) -> u64 {
+    fn len(&mut self) -> usize {
         self.base.len()
     }
 }

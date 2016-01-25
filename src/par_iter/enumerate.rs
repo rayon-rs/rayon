@@ -33,7 +33,7 @@ impl<M> ParallelIterator for Enumerate<M>
 unsafe impl<M> BoundedParallelIterator for Enumerate<M>
     where M: ExactParallelIterator,
 {
-    fn upper_bound(&mut self) -> u64 {
+    fn upper_bound(&mut self) -> usize {
         self.len()
     }
 }
@@ -41,7 +41,7 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
 unsafe impl<M> ExactParallelIterator for Enumerate<M>
     where M: ExactParallelIterator,
 {
-    fn len(&mut self) -> u64 {
+    fn len(&mut self) -> usize {
         self.base.len()
     }
 }

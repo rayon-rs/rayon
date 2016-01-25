@@ -39,14 +39,14 @@ impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
 }
 
 unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> {
-    fn upper_bound(&mut self) -> u64 {
+    fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 }
 
 unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> {
-    fn len(&mut self) -> u64 {
-        self.slice.len() as u64
+    fn len(&mut self) -> usize {
+        self.slice.len() as usize
     }
 }
 

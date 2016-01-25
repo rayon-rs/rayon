@@ -41,7 +41,7 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
           FILTER_OP: Fn(M::Item) -> Option<R> + Sync,
           R: Send,
 {
-    fn upper_bound(&mut self) -> u64 {
+    fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 }
@@ -132,7 +132,7 @@ impl<ITEM, C, FILTER_OP> Consumer for FilterMapConsumer<ITEM, C, FILTER_OP>
     type SeqState = C::SeqState;
     type Result = C::Result;
 
-    unsafe fn split_at(self, index: u64) -> (Self, Self) {
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (FilterMapConsumer::new(left), FilterMapConsumer::new(right))
     }

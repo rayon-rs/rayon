@@ -35,7 +35,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
     where A: ExactParallelIterator, B: ExactParallelIterator
 {
-    fn upper_bound(&mut self) -> u64 {
+    fn upper_bound(&mut self) -> usize {
         self.len()
     }
 }
@@ -43,7 +43,7 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
 unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
     where A: ExactParallelIterator, B: ExactParallelIterator
 {
-    fn len(&mut self) -> u64 {
+    fn len(&mut self) -> usize {
         min(self.a.len(), self.b.len())
     }
 }

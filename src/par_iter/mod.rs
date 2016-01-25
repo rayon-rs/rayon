@@ -222,7 +222,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// code relies on the fact that the estimated length is an upper
 /// bound in order to guarantee safety invariants.
 pub unsafe trait BoundedParallelIterator: ParallelIterator {
-    fn upper_bound(&mut self) -> u64;
+    fn upper_bound(&mut self) -> usize;
 }
 
 /// A trait for parallel iterators items where the precise number of
@@ -245,7 +245,7 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     ///
     /// Returning an incorrect value here could lead to **undefined
     /// behavior**.
-    fn len(&mut self) -> u64;
+    fn len(&mut self) -> usize;
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
