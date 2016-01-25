@@ -42,7 +42,9 @@ macro_rules! range_impl {
 
             fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
-                let mid = self.range.start + index as $t;
+                // For signed $t, the length and requested index could be greater than $t::MAX, and
+                // then `index as $t` could wrap to negative, so wrapping_add is necessary.
+                let mid = self.range.start.wrapping_add(index as $t);
                 let left = self.range.start .. mid;
                 let right = mid .. self.range.end;
                 (left.into_par_iter(), right.into_par_iter())
