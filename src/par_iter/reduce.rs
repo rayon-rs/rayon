@@ -1,8 +1,9 @@
 use api::join;
 use std;
+use std::marker::PhantomData;
 use super::ParallelIterator;
 use super::len::{ParallelLen, THRESHOLD};
-use super::state::ParallelIteratorState;
+use super::state::*;
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
@@ -68,6 +69,73 @@ fn reduce_helper<STATE,REDUCE_OP,T>(mut state: STATE,
         value.unwrap()
     }
 }
+
+#[doc(hidden)]
+pub struct ReduceConsumer<PAR_ITER, REDUCE_OP>
+    where PAR_ITER: ParallelIterator,
+          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+{
+    data: PhantomData<(PAR_ITER, REDUCE_OP)>
+}
+
+impl<PAR_ITER, REDUCE_OP> ReduceConsumer<PAR_ITER, REDUCE_OP>
+    where PAR_ITER: ParallelIterator,
+          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+{
+    fn new() -> ReduceConsumer<PAR_ITER, REDUCE_OP> {
+        ReduceConsumer { data: PhantomData }
+    }
+}
+
+unsafe impl<PAR_ITER, REDUCE_OP> Send for ReduceConsumer<PAR_ITER, REDUCE_OP>
+    where PAR_ITER: ParallelIterator,
+          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+{ }
+
+impl<PAR_ITER, REDUCE_OP> Consumer for ReduceConsumer<PAR_ITER, REDUCE_OP>
+    where PAR_ITER: ParallelIterator,
+          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+{
+    type Item = PAR_ITER::Item;
+    type Shared = REDUCE_OP;
+    type SeqState = PAR_ITER::Item;
+    type Result = PAR_ITER::Item;
+    type Left = Self;
+    type Right = Self;
+
+    unsafe fn split_at(self, _index: u64) -> (Self, Self) {
+        (ReduceConsumer::new(), ReduceConsumer::new())
+    }
+
+    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> PAR_ITER::Item {
+        reduce_op.start_value()
+    }
+
+    unsafe fn consume(&mut self,
+                      reduce_op: &REDUCE_OP,
+                      prev_value: PAR_ITER::Item,
+                      item: PAR_ITER::Item)
+                      -> PAR_ITER::Item {
+        reduce_op.reduce(prev_value, item)
+    }
+
+    unsafe fn complete(self,
+                       _reduce_op: &REDUCE_OP,
+                       state: PAR_ITER::Item)
+                       -> PAR_ITER::Item {
+        state
+    }
+
+    unsafe fn reduce(reduce_op: &REDUCE_OP,
+                     a: PAR_ITER::Item,
+                     b: PAR_ITER::Item)
+                     -> PAR_ITER::Item {
+        reduce_op.reduce(a, b)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Specific operations
 
 pub struct SumOp;
 
