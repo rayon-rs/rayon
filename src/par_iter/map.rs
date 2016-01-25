@@ -1,4 +1,4 @@
-use super::ParallelIterator;
+use super::*;
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 use std::marker::PhantomData;
@@ -29,6 +29,18 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
          MapState { base: base_state, map_op: PhantomMapOp::new() })
     }
 }
+
+unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
+    where M: BoundedParallelIterator,
+          MAP_OP: Fn(M::Item) -> R + Sync,
+          R: Send,
+{}
+
+unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
+    where M: ExactParallelIterator,
+          MAP_OP: Fn(M::Item) -> R + Sync,
+          R: Send,
+{}
 
 pub struct MapShared<M, MAP_OP>
     where M: ParallelIterator,

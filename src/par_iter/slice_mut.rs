@@ -1,32 +1,32 @@
-use super::{ParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator};
+use super::*;
 use super::len::ParallelLen;
 use super::state::ParallelIteratorState;
 use std::mem;
 
-pub struct SliceIterMut<'r, T: 'r + Send> {
-    slice: &'r mut [T]
+pub struct SliceIterMut<'data, T: 'data + Send> {
+    slice: &'data mut [T]
 }
 
-impl<'r, T: Send> IntoParallelIterator for &'r mut [T] {
-    type Item = &'r mut T;
-    type Iter = SliceIterMut<'r, T>;
+impl<'data, T: Send> IntoParallelIterator for &'data mut [T] {
+    type Item = &'data mut T;
+    type Iter = SliceIterMut<'data, T>;
 
     fn into_par_iter(self) -> Self::Iter {
         SliceIterMut { slice: self }
     }
 }
 
-impl<'r, T: Send + 'r> IntoParallelRefMutIterator<'r> for [T] {
+impl<'data, T: Send + 'data> IntoParallelRefMutIterator<'data> for [T] {
     type Item = T;
-    type Iter = SliceIterMut<'r, T>;
+    type Iter = SliceIterMut<'data, T>;
 
-    fn par_iter_mut(&'r mut self) -> Self::Iter {
+    fn par_iter_mut(&'data mut self) -> Self::Iter {
         self.into_par_iter()
     }
 }
 
-impl<'r, T: Send> ParallelIterator for SliceIterMut<'r, T> {
-    type Item = &'r mut T;
+impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
+    type Item = &'data mut T;
     type Shared = ();
     type State = Self;
 
@@ -35,8 +35,12 @@ impl<'r, T: Send> ParallelIterator for SliceIterMut<'r, T> {
     }
 }
 
-unsafe impl<'r, T: Send> ParallelIteratorState for SliceIterMut<'r, T> {
-    type Item = &'r mut T;
+unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> { }
+
+unsafe impl<'data, T: Send> ExactParallelIterator for SliceIterMut<'data, T> { }
+
+unsafe impl<'data, T: Send> ParallelIteratorState for SliceIterMut<'data, T> {
+    type Item = &'data mut T;
     type Shared = ();
 
     fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
@@ -52,7 +56,7 @@ unsafe impl<'r, T: Send> ParallelIteratorState for SliceIterMut<'r, T> {
         (left.into_par_iter(), right.into_par_iter())
     }
 
-    fn next(&mut self, _shared: &Self::Shared) -> Option<&'r mut T> {
+    fn next(&mut self, _shared: &Self::Shared) -> Option<&'data mut T> {
         let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
         slice.split_first_mut()
              .map(|(head, tail)| {

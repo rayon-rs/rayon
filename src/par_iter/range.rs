@@ -1,6 +1,6 @@
-use super::{IntoParallelIterator, ParallelIterator};
+use super::*;
 use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::state::*;
 use std::ops::Range;
 
 pub struct RangeIter<T> {
@@ -26,6 +26,12 @@ macro_rules! range_impl {
             fn state(self) -> (Self::Shared, Self::State) {
                 ((), self)
             }
+        }
+
+        unsafe impl BoundedParallelIterator for RangeIter<$t> {
+        }
+
+        unsafe impl ExactParallelIterator for RangeIter<$t> {
         }
 
         unsafe impl ParallelIteratorState for RangeIter<$t> {
