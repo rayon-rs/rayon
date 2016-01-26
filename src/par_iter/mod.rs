@@ -15,6 +15,7 @@ use self::collect::collect_into;
 use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
+use self::flat_map::FlatMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
@@ -118,6 +119,14 @@ pub trait ParallelIterator: Sized {
         where FILTER_OP: Fn(Self::Item) -> Option<R>
     {
         FilterMap::new(self, filter_op)
+    }
+
+    /// Applies `map_op` to each item of his iterator, producing a new
+    /// iterator with the results.
+    fn flat_map<MAP_OP,PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
+        where MAP_OP: Fn(Self::Item) -> PI, PI: ParallelIterator
+    {
+        FlatMap::new(self, map_op)
     }
 
     /// Reduces the items in the iterator into one item using `op`.

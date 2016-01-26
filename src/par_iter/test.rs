@@ -209,3 +209,21 @@ pub fn check_sum_filtermap_ints() {
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
 
+#[test]
+pub fn check_flat_map_nested_ranges() {
+    // FIXME -- why are precise type hints required on the integers here?
+
+    let v =
+        (0_i32..10).into_par_iter()
+                   .flat_map(|i| (0_i32..10).into_par_iter().map(move |j| (i, j)))
+                   .map(|(i, j)| i * j)
+                   .sum();
+
+    let w =
+        (0_i32..10).flat_map(|i| (0_i32..10).map(move |j| (i, j)))
+                   .map(|(i, j)| i * j)
+                   .fold(0, |i, j| i + j);
+
+    assert_eq!(v, w);
+}
+
