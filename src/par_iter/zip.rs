@@ -97,3 +97,46 @@ unsafe impl<A, B> ParallelIteratorState for ZipState<A,B>
         None
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct ZipProducer<P: Producer, Q: Producer> {
+    p: P,
+    q: Q,
+}
+
+impl<P: Producer, Q: Producer> Producer for ZipProducer<P, Q>
+{
+    type Item = (P::Item, Q::Item);
+    type Shared = (P::Shared, Q::Shared);
+    type SeqState = (P::SeqState, Q::SeqState);
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (p_left, p_right) = self.p.split_at(index);
+        let (q_left, q_right) = self.q.split_at(index);
+        (ZipProducer { p: p_left, q: q_left }, ZipProducer { p: p_right, q: q_right })
+    }
+
+    unsafe fn start(&mut self, shared: &(P::Shared, Q::Shared)) -> (P::SeqState, Q::SeqState) {
+        let p_state = self.p.start(&shared.0);
+        let q_state = self.q.start(&shared.1);
+        (p_state, q_state)
+    }
+
+    unsafe fn produce(&mut self,
+                      shared: &(P::Shared, Q::Shared),
+                      state: &mut (P::SeqState, Q::SeqState))
+                      -> (P::Item, Q::Item)
+    {
+        let p = self.p.produce(&shared.0, &mut state.0);
+        let q = self.q.produce(&shared.1, &mut state.1);
+        (p, q)
+    }
+
+    unsafe fn complete(self,
+                       shared: &(P::Shared, Q::Shared),
+                       state: (P::SeqState, Q::SeqState)) {
+        self.p.complete(&shared.0, state.0);
+        self.q.complete(&shared.1, state.1);
+    }
+}
