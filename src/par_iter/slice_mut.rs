@@ -27,10 +27,10 @@ impl<'data, T: Send + 'data> IntoParallelRefMutIterator<'data> for [T] {
 impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
     type Item = &'data mut T;
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
         bridge(self, consumer, &shared)
     }
 }
@@ -38,6 +38,13 @@ impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
 unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 

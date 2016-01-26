@@ -21,13 +21,13 @@ impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
 {
     type Item = R;
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
         let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
         let shared = (shared, &self.filter_op);
-        self.base.drive(consumer, &shared)
+        self.base.drive_stateless(consumer, &shared)
     }
 }
 
@@ -38,6 +38,15 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
 {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
+        let shared = (shared, &self.filter_op);
+        self.base.drive(consumer, &shared)
     }
 }
 
@@ -102,3 +111,12 @@ impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'f, 'c, ITEM
         C::reduce(&shared.0, left, right)
     }
 }
+
+impl<'f, 'c, ITEM, C, FILTER_OP> StatelessConsumer<'f> for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
+    where C: StatelessConsumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f,
+{
+    fn split(&self) -> Self {
+        FilterMapConsumer::new(self.base.split())
+    }
+}
+

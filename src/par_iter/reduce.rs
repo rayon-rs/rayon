@@ -40,7 +40,7 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
 {
     let consumer: ReduceConsumer<PAR_ITER::Item, REDUCE_OP> =
         ReduceConsumer { data: PhantomType::new() };
-    pi.drive(consumer, reduce_op)
+    pi.drive_stateless(consumer, reduce_op)
 }
 
 struct ReduceConsumer<ITEM, REDUCE_OP>
@@ -102,6 +102,15 @@ impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
                      b: ITEM)
                      -> ITEM {
         reduce_op.reduce(a, b)
+    }
+}
+
+impl<'c, ITEM, REDUCE_OP> StatelessConsumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM> + 'c,
+          ITEM: Send + 'c,
+{
+    fn split(&self) -> Self {
+        ReduceConsumer { data: PhantomType::new() }
     }
 }
 

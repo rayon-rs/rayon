@@ -18,10 +18,10 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 {
     type Item = (A::Item, B::Item);
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
         bridge(self, consumer, &shared)
     }
 }
@@ -31,6 +31,13 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 

@@ -20,13 +20,13 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
 {
     type Item = M::Item;
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
         let consumer1: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
         let shared1 = (shared, &self.filter_op);
-        self.base.drive(consumer1, &shared1)
+        self.base.drive_stateless(consumer1, &shared1)
     }
 }
 
@@ -36,6 +36,15 @@ unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
 {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        let consumer1: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
+        let shared1 = (shared, &self.filter_op);
+        self.base.drive(consumer1, &shared1)
     }
 }
 
@@ -100,3 +109,12 @@ impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'f, 'c, C, FILTER
         C::reduce(&shared.0, left, right)
     }
 }
+
+impl<'f, 'c, C, FILTER_OP: 'f> StatelessConsumer<'f> for FilterConsumer<'f, 'c, C, FILTER_OP>
+    where C: StatelessConsumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+{
+    fn split(&self) -> Self {
+        FilterConsumer::new(self.base.split())
+    }
+}
+

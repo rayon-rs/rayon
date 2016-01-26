@@ -18,6 +18,21 @@ impl<M> ParallelIterator for Weight<M>
 {
     type Item = M::Item;
 
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
+        let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
+        let shared1 = (shared, self.weight);
+        self.base.drive_stateless(consumer1, &shared1)
+    }
+}
+
+unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
+    fn upper_bound(&mut self) -> usize {
+        self.base.upper_bound()
+    }
+
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
                                                    shared: &'c C::Shared)
@@ -25,12 +40,6 @@ impl<M> ParallelIterator for Weight<M>
         let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
         let shared1 = (shared, self.weight);
         self.base.drive(consumer1, &shared1)
-    }
-}
-
-unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
-    fn upper_bound(&mut self) -> usize {
-        self.base.upper_bound()
     }
 }
 
@@ -128,5 +137,13 @@ impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
         C::reduce(&shared.0, left, right)
+    }
+}
+
+impl<'w, 'c, C> StatelessConsumer<'w> for WeightConsumer<'w, 'c, C>
+    where C: StatelessConsumer<'c>, 'c: 'w
+{
+    fn split(&self) -> Self {
+        WeightConsumer::new(self.base.split())
     }
 }

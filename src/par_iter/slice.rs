@@ -26,10 +26,10 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
 impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
         bridge(self, consumer, &shared)
     }
 }
@@ -37,6 +37,13 @@ impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
 unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 

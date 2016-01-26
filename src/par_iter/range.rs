@@ -20,10 +20,10 @@ macro_rules! range_impl {
         impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
 
-            fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                           consumer: C,
-                                                           shared: &'c C::Shared)
-                                                           -> C::Result {
+            fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                              consumer: C,
+                                                                              shared: &'c C::Shared)
+                                                                              -> C::Result {
                 bridge(self, consumer, &shared)
             }
         }
@@ -31,6 +31,13 @@ macro_rules! range_impl {
         unsafe impl BoundedParallelIterator for RangeIter<$t> {
             fn upper_bound(&mut self) -> usize {
                 ExactParallelIterator::len(self)
+            }
+
+            fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                           consumer: C,
+                                                           shared: &'c C::Shared)
+                                                           -> C::Result {
+                bridge(self, consumer, &shared)
             }
         }
 

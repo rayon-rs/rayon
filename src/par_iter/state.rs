@@ -74,6 +74,11 @@ pub trait Consumer<'consume>: Send {
                      -> Self::Result;
 }
 
+/// A stateless consumer can be freely copied.
+pub trait StatelessConsumer<'c>: Consumer<'c> {
+    fn split(&self) -> Self;
+}
+
 pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
                              mut consumer: C,
                              consumer_shared: &'c C::Shared)

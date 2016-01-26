@@ -9,24 +9,13 @@ pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
           T: Send,
 {
     let consumer: ForEachConsumer<PAR_ITER::Item, OP> = ForEachConsumer { data: PhantomType::new() };
-    pi.drive(consumer, op)
+    pi.drive_stateless(consumer, op)
 }
 
 struct ForEachConsumer<ITEM, OP>
     where OP: Fn(ITEM) + Sync,
 {
     data: PhantomType<(ITEM, OP)>
-}
-
-impl<ITEM, OP> Copy for ForEachConsumer<ITEM, OP>
-    where OP: Fn(ITEM) + Sync,
-{
-}
-
-impl<ITEM, OP> Clone for ForEachConsumer<ITEM, OP>
-    where OP: Fn(ITEM) + Sync,
-{
-    fn clone(&self) -> Self { *self }
 }
 
 impl<'c, ITEM, OP> Consumer<'c> for ForEachConsumer<ITEM, OP>
@@ -43,7 +32,7 @@ impl<'c, ITEM, OP> Consumer<'c> for ForEachConsumer<ITEM, OP>
     }
 
     unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
-        (self, self)
+        (self.split(), self.split())
     }
 
     unsafe fn start(&mut self, _reduce_op: &OP) {
@@ -62,5 +51,13 @@ impl<'c, ITEM, OP> Consumer<'c> for ForEachConsumer<ITEM, OP>
     }
 
     unsafe fn reduce(_reduce_op: &OP, _: (), _: ()) {
+    }
+}
+
+impl<'c, ITEM, OP> StatelessConsumer<'c> for ForEachConsumer<ITEM, OP>
+    where OP: Fn(ITEM) + Sync + 'c, ITEM: 'c,
+{
+    fn split(&self) -> Self {
+        ForEachConsumer { data: PhantomType::new() }
     }
 }

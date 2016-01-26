@@ -21,13 +21,13 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
 {
     type Item = R;
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
         let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
         let shared1 = (shared, &self.map_op);
-        self.base.drive(consumer1, &shared1)
+        self.base.drive_stateless(consumer1, &shared1)
     }
 }
 
@@ -38,6 +38,15 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
 {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
+        let shared1 = (shared, &self.map_op);
+        self.base.drive(consumer1, &shared1)
     }
 }
 
@@ -161,3 +170,13 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_
     }
 }
 
+impl<'m, 'c, ITEM, C, MAP_OP> StatelessConsumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+    where C: StatelessConsumer<'c>,
+          MAP_OP: Fn(ITEM) -> C::Item + Sync,
+          ITEM: 'm,
+          MAP_OP: 'm,
+{
+    fn split(&self) -> Self {
+        MapConsumer::new(self.base.split())
+    }
+}

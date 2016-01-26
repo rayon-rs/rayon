@@ -18,7 +18,7 @@ use self::filter_map::FilterMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
-use self::state::{Consumer, Producer};
+use self::state::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
@@ -26,6 +26,7 @@ pub mod collect;
 pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
+pub mod flat_map;
 pub mod len;
 pub mod for_each;
 pub mod reduce;
@@ -65,13 +66,6 @@ pub trait IntoParallelRefMutIterator<'data> {
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
-
-    /// Internal method used to define the behavior of this parallel
-    /// iterator. You should not need to call this directly.
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result;
 
     /// Indicates the relative "weight" of producing each item in this
     /// parallel iterator. A higher weight will cause finer-grained
@@ -199,6 +193,13 @@ pub trait ParallelIterator: Sized {
     {
         reduce(self, reduce_op)
     }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result;
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {
@@ -222,6 +223,14 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// bound in order to guarantee safety invariants.
 pub unsafe trait BoundedParallelIterator: ParallelIterator {
     fn upper_bound(&mut self) -> usize;
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result;
+
 }
 
 /// A trait for parallel iterators items where the precise number of

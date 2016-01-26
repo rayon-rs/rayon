@@ -16,10 +16,10 @@ impl<M> ParallelIterator for Enumerate<M>
 {
     type Item = (usize, M::Item);
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
+    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+                                                                       consumer: C,
+                                                                       shared: &'c C::Shared)
+                                                                       -> C::Result {
         bridge(self, consumer, &shared)
     }
 }
@@ -29,6 +29,13 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 
