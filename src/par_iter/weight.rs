@@ -98,8 +98,8 @@ impl<P: Producer> Producer for WeightProducer<P>
     type Item = P::Item;
     type Shared = (f64, P::Shared);
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(&shared.1, items) * shared.0
+    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+        self.base.cost(&shared.1, len) * shared.0
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
@@ -137,8 +137,8 @@ impl<C> Consumer for WeightConsumer<C>
     type SeqState = C::SeqState;
     type Result = C::Result;
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(&shared.1, items) * shared.0
+    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
+        self.base.cost(&shared.1, cost) * shared.0
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {

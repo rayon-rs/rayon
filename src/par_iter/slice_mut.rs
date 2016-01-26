@@ -97,8 +97,8 @@ impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
     type Item = &'data mut T;
     type Shared = ();
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        items as f64
+    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+        len as f64
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {

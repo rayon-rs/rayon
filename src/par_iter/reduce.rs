@@ -101,9 +101,9 @@ impl<PAR_ITER, REDUCE_OP> Consumer for ReduceConsumer<PAR_ITER, REDUCE_OP>
     type SeqState = PAR_ITER::Item;
     type Result = PAR_ITER::Item;
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        (items as f64) * FUNC_ADJUSTMENT
+        cost * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {

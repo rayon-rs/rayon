@@ -122,9 +122,9 @@ impl<P: Producer, Q: Producer> Producer for ZipProducer<P, Q>
     type Item = (P::Item, Q::Item);
     type Shared = (P::Shared, Q::Shared);
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
         // Rather unclear that this should be `+`. It might be that max is better?
-        self.p.cost(&shared.0, items) + self.q.cost(&shared.1, items)
+        self.p.cost(&shared.0, len) + self.q.cost(&shared.1, len)
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {

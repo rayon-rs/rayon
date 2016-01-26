@@ -1,4 +1,5 @@
 use join;
+use super::PullParallelIterator;
 use super::len::*;
 
 /// The trait for types representing the internal *state* during
@@ -46,8 +47,8 @@ pub trait Producer: Send {
     type Item;
     type Shared: Sync;
 
-    /// Cost to produce `items` items.
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64;
+    /// Cost to produce `len` items.
+    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
@@ -63,8 +64,9 @@ pub trait Consumer: Send {
     type SeqState;
     type Result: Send;
 
-    /// Cost to process `items` number of items.
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64;
+    /// If it costs `producer_cost` to produce the items we will
+    /// consume, returns cost adjusted to account for consuming them.
+    fn cost(&mut self, shared: &Self::Shared, producer_cost: f64) -> f64;
 
     /// Divide the consumer into two consumers, one processing items
     /// `0..index` and one processing items `index..`.
@@ -92,13 +94,26 @@ pub trait Consumer: Send {
                      -> Self::Result;
 }
 
-pub fn bridge<P,C>(len: usize,
-                   cost: f64,
-                   mut producer: P,
-                   producer_shared: &P::Shared,
-                   mut consumer: C,
-                   consumer_shared: &C::Shared)
-                   -> C::Result
+pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
+                          mut consumer: C,
+                          consumer_shared: &C::Shared)
+                          -> C::Result
+    where PAR_ITER: PullParallelIterator, C: Consumer<Item=PAR_ITER::Item>
+{
+    let len = par_iter.len();
+    let (mut producer, producer_shared) = par_iter.into_producer();
+    let producer_cost = producer.cost(&producer_shared, len);
+    let cost = consumer.cost(consumer_shared, producer_cost);
+    bridge_producer_consumer(len, cost, producer, &producer_shared, consumer, consumer_shared)
+}
+
+fn bridge_producer_consumer<P,C>(len: usize,
+                                 cost: f64,
+                                 mut producer: P,
+                                 producer_shared: &P::Shared,
+                                 mut consumer: C,
+                                 consumer_shared: &C::Shared)
+                                 -> C::Result
     where P: Producer, C: Consumer<Item=P::Item>
 {
     unsafe { // asserting that we call the `op` methods in correct pattern
@@ -107,12 +122,12 @@ pub fn bridge<P,C>(len: usize,
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer) = consumer.split_at(consumer_shared, mid);
             let (left_result, right_result) =
-                join(|| bridge(mid, cost / 2.0,
-                               left_producer, producer_shared,
-                               left_consumer, consumer_shared),
-                     || bridge(len - mid, cost / 2.0,
-                               right_producer, producer_shared,
-                               right_consumer, consumer_shared));
+                join(|| bridge_producer_consumer(mid, cost / 2.0,
+                                                 left_producer, producer_shared,
+                                                 left_consumer, consumer_shared),
+                     || bridge_producer_consumer(len - mid, cost / 2.0,
+                                                 right_producer, producer_shared,
+                                                 right_consumer, consumer_shared));
             C::reduce(consumer_shared, left_result, right_result)
         } else {
             let mut consumer_state = consumer.start(consumer_shared);

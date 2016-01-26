@@ -136,8 +136,8 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
     type Item = R;
     type Shared = (M::Shared, MAP_OP);
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(&shared.0, items) * FUNC_ADJUSTMENT
+    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+        self.base.cost(&shared.0, len) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
@@ -186,8 +186,8 @@ impl<ITEM, C, MAP_OP> Consumer for MapConsumer<ITEM, C, MAP_OP>
     type SeqState = C::SeqState;
     type Result = C::Result;
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(&shared.base, items) * FUNC_ADJUSTMENT
+    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
+        self.base.cost(&shared.base, cost) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {

@@ -112,7 +112,7 @@ impl<M> Producer for EnumerateProducer<M>
     type Item = (usize, M::Item);
     type Shared = M::Shared;
 
-    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+    fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
         self.base.cost(shared, items) // enumerating is basically free
     }
 
