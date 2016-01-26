@@ -32,24 +32,7 @@ pub trait Consumer<'consume>: Send {
     fn cost(&mut self, shared: &Self::Shared, producer_cost: f64) -> f64;
 
     /// Divide the consumer into two consumers, one processing items
-    /// `0..index` and one processing items `index..`.
-    ///
-    /// # Warning
-    ///
-    /// Depending on what kind of iterator is driving this consumer,
-    /// `index` may be imprecise or a dummy value (`usize::MAX`):
-    ///
-    /// - `ExactParallelIterator`: precise indices will be given.
-    ///   The consumers you return should be fed exactly the expected
-    ///   number of items.
-    /// - `BoundedParallelIterator`: `index` is an "upper bound".
-    ///   The consumers you return should be fed at most the specified
-    ///   number of items.
-    /// - `ParallelIterator`: `index` is a dummy value. The consumers
-    ///   you return could be fed any number of items.
-    ///
-    /// Consumers should adjust their trait bounds appropriately to ensure
-    /// they are getting the precision they need.
+    /// `0..index` and one processing items from `index..`.
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self);
 
     /// Start processing items. This can return some sequential state
