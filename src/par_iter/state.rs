@@ -45,21 +45,13 @@ pub unsafe trait ParallelIteratorState: Sized {
 pub trait Producer: Send {
     type Item;
     type Shared: Sync;
-    type SeqState;
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
     unsafe fn split_at(self, index: usize) -> (Self, Self);
 
-    /// Start producing items. Returns some sequential state that must
-    /// be threaded.
-    unsafe fn start(&mut self, shared: &Self::Shared) -> Self::SeqState;
-
     /// Unless a panic occurs, expects to be called *exactly N times*.
-    unsafe fn produce(&mut self, shared: &Self::Shared, state: &mut Self::SeqState) -> Self::Item;
-
-    /// Finish producing items.
-    unsafe fn complete(self, shared: &Self::Shared, state: Self::SeqState);
+    unsafe fn produce(&mut self, shared: &Self::Shared) -> Self::Item;
 }
 
 pub trait Consumer: Send {
@@ -105,13 +97,11 @@ pub fn bridge<P,C>(len: usize,
                                right_consumer, consumer_shared));
             C::reduce(consumer_shared, left_result, right_result)
         } else {
-            let mut producer_state = producer.start(producer_shared);
             let mut consumer_state = consumer.start(consumer_shared);
             for _ in 0..len {
-                let item = producer.produce(producer_shared, &mut producer_state);
+                let item = producer.produce(producer_shared);
                 consumer_state = consumer.consume(consumer_shared, consumer_state, item);
             }
-            producer.complete(producer_shared, producer_state);
             consumer.complete(consumer_shared, consumer_state)
         }
     }

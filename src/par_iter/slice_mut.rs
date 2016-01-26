@@ -88,29 +88,16 @@ impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
 {
     type Item = &'data mut T;
     type Shared = ();
-    type SeqState = ();
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at_mut(index);
         (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
     }
 
-    unsafe fn start(&mut self, _: &()) {
-    }
-
-    unsafe fn produce(&mut self,
-                      _: &(),
-                      _: &mut ())
-                      -> &'data mut T
-    {
+    unsafe fn produce(&mut self, _: &()) -> &'data mut T {
         let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
         let (head, tail) = slice.split_first_mut().unwrap();
         self.slice = tail;
         head
-    }
-
-    unsafe fn complete(self,
-                       _: &(),
-                       _: ()) {
     }
 }

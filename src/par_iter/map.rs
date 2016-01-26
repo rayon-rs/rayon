@@ -130,7 +130,6 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
 {
     type Item = R;
     type Shared = MapProducerShared<M, MAP_OP, R>;
-    type SeqState = M::SeqState;
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
@@ -138,22 +137,8 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
          MapProducer { base: right, phantoms: PhantomType::new() })
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> M::SeqState {
-        self.base.start(&shared.base)
-    }
-
-    unsafe fn produce(&mut self,
-                      shared: &Self::Shared,
-                      state: &mut M::SeqState)
-                      -> R
-    {
-        let item = self.base.produce(&shared.base, state);
+    unsafe fn produce(&mut self, shared: &Self::Shared) -> R {
+        let item = self.base.produce(&shared.base);
         (shared.map_op)(item)
-    }
-
-    unsafe fn complete(self,
-                       shared: &Self::Shared,
-                       state: M::SeqState) {
-        self.base.complete(&shared.base, state)
     }
 }

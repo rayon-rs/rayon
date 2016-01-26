@@ -74,7 +74,6 @@ macro_rules! range_impl {
         impl Producer for RangeIter<$t> {
             type Item = $t;
             type Shared = ();
-            type SeqState = ();
 
             unsafe fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
@@ -86,14 +85,8 @@ macro_rules! range_impl {
                 (RangeIter { range: left }, RangeIter { range: right })
             }
 
-            unsafe fn start(&mut self, _: &()) {
-            }
-
-            unsafe fn produce(&mut self, shared: &(), state: &mut ()) -> $t {
+            unsafe fn produce(&mut self, shared: &()) -> $t {
                 self.range.next().unwrap()
-            }
-
-            unsafe fn complete(self, _: &(), _: ()) {
             }
         }
     }
