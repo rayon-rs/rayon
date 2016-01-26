@@ -41,7 +41,7 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
-    let consumer: ReduceConsumer<PAR_ITER, REDUCE_OP> = ReduceConsumer::new();
+    let consumer: ReduceConsumer<PAR_ITER, REDUCE_OP> = ReduceConsumer { data: PhantomType::new() };
     pi.drive(consumer, reduce_op)
 }
 
@@ -52,13 +52,17 @@ struct ReduceConsumer<PAR_ITER, REDUCE_OP>
     data: PhantomType<(PAR_ITER, REDUCE_OP)>
 }
 
-impl<PAR_ITER, REDUCE_OP> ReduceConsumer<PAR_ITER, REDUCE_OP>
+impl<PAR_ITER, REDUCE_OP> Copy for ReduceConsumer<PAR_ITER, REDUCE_OP>
     where PAR_ITER: ParallelIterator,
           REDUCE_OP: ReduceOp<PAR_ITER::Item>,
 {
-    fn new() -> ReduceConsumer<PAR_ITER, REDUCE_OP> {
-        ReduceConsumer { data: PhantomType::new() }
-    }
+}
+
+impl<PAR_ITER, REDUCE_OP> Clone for ReduceConsumer<PAR_ITER, REDUCE_OP>
+    where PAR_ITER: ParallelIterator,
+          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+{
+    fn clone(&self) -> Self { *self }
 }
 
 impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_OP>
@@ -78,7 +82,7 @@ impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_O
     }
 
     unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
-        (ReduceConsumer::new(), ReduceConsumer::new())
+        (self, self)
     }
 
     unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> PAR_ITER::Item {

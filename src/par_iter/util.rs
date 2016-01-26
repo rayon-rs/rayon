@@ -12,6 +12,12 @@ unsafe impl<T> Send for PhantomType<T> { }
 
 unsafe impl<T> Sync for PhantomType<T> { }
 
+impl<T> Copy for PhantomType<T> { }
+
+impl<T> Clone for PhantomType<T> {
+    fn clone(&self) -> Self { *self }
+}
+
 impl<T> PhantomType<T> {
     pub fn new() -> PhantomType<T> {
         PhantomType { data: PhantomData }
