@@ -4,7 +4,6 @@ use job::Job;
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
-use num_cpus;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
@@ -37,17 +36,16 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 
 /// Starts the worker threads (if that has not already happened) and
 /// returns the registry.
-pub fn get_registry() -> &'static Registry {
+pub fn get_registry(num_threads: usize) -> &'static Registry {
     THE_REGISTRY_SET.call_once(|| {
-        let registry = leak(Registry::new());
+        let registry = leak(Registry::new(num_threads));
         unsafe { THE_REGISTRY = Some(registry); }
     });
     unsafe { THE_REGISTRY.unwrap() }
 }
 
 impl Registry {
-    pub fn new() -> Arc<Registry> {
-        let num_threads = num_cpus::get();
+    pub fn new(num_threads: usize) -> Arc<Registry> {
         let registry = Arc::new(Registry {
             thread_infos: (0..num_threads).map(|_| ThreadInfo::new())
                                           .collect(),
@@ -280,4 +278,3 @@ pub struct JobRef {
 
 unsafe impl Send for JobRef { }
 unsafe impl Sync for JobRef { }
-

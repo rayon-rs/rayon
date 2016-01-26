@@ -4,13 +4,15 @@ use log::Event::*;
 use job::{Code, CodeImpl, Job};
 use std::sync::Arc;
 use thread_pool::{self, Registry, WorkerThread};
+use num_cpus;
 
 /// Initializes the Rayon threadpool. You don't normally need to do
 /// this, as it happens automatically, but it is handy for
 /// benchmarking purposes since it avoids initialization overhead in
 /// the actual operations.
-pub fn initialize() {
-    let registry = thread_pool::get_registry();
+pub fn initialize(num_threads: usize) {
+    assert!(num_threads > 0);
+    let registry = thread_pool::get_registry(num_threads);
     registry.wait_until_primed();
 }
 
@@ -85,7 +87,7 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
     let mut latch_b = LockLatch::new();
     let mut job_b = Job::new(&mut code_b, &mut latch_b);
 
-    thread_pool::get_registry().inject(&[&mut job_a, &mut job_b]);
+    thread_pool::get_registry(num_cpus::get()).inject(&[&mut job_a, &mut job_b]);
 
     latch_a.wait();
     latch_b.wait();
@@ -98,9 +100,10 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    pub fn new() -> ThreadPool {
+    pub fn new(num_threads: usize) -> ThreadPool {
+        assert!(num_threads > 0);
         ThreadPool {
-            registry: Registry::new()
+            registry: Registry::new(num_threads)
         }
     }
 
