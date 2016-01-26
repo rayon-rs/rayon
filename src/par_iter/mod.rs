@@ -205,6 +205,7 @@ pub trait ParallelIterator: Sized {
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
+    #[doc(hidden)]
     fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
                                                                       shared: &'c C::Shared)
@@ -235,6 +236,7 @@ pub unsafe trait BoundedParallelIterator: ParallelIterator {
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
+    #[doc(hidden)]
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
                                                    shared: &'c C::Shared)
@@ -279,11 +281,13 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
 pub trait PullParallelIterator: ExactParallelIterator {
     /// Producer type that this iterator creates. Users of the API
     /// never need to know about this type.
+    #[doc(hidden)]
     type Producer: Producer<Item=Self::Item>;
 
     /// Internal method to convert this parallel iterator into a
     /// producer that can be used to request the items. Users of the
     /// API never need to know about this fn.
+    #[doc(hidden)]
     fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared);
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from
