@@ -53,23 +53,23 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, 'c: 'f
+struct FilterMapConsumer<'c, ITEM, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
 {
     base: C,
-    phantoms: PhantomType<(&'f &'c (), ITEM, FILTER_OP)>,
+    phantoms: PhantomType<(&'c (), ITEM, FILTER_OP)>,
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, 'c: 'f
+impl<'c, ITEM, C, FILTER_OP> FilterMapConsumer<'c, ITEM, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
 {
-    fn new(base: C) -> FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP> {
+    fn new(base: C) -> FilterMapConsumer<'c, ITEM, C, FILTER_OP> {
         FilterMapConsumer { base: base, phantoms: PhantomType::new() }
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f,
+impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'c, ITEM, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f, 'c: 'f
 {
     type Item = ITEM;
     type Shared = (&'c C::Shared, &'f FILTER_OP);
@@ -112,8 +112,8 @@ impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'f, 'c, ITEM
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> StatelessConsumer<'f> for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: StatelessConsumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f,
+impl<'f, 'c, ITEM, C, FILTER_OP> StatelessConsumer<'f> for FilterMapConsumer<'c, ITEM, C, FILTER_OP>
+    where C: StatelessConsumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f, 'c: 'f
 {
     fn split(&self) -> Self {
         FilterMapConsumer::new(self.base.split())

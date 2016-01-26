@@ -51,23 +51,23 @@ unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f
+struct FilterConsumer<'c, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync
 {
     base: C,
-    filter_op: PhantomType<(&'f &'c (), FILTER_OP)>,
+    filter_op: PhantomType<(&'c (), FILTER_OP)>,
 }
 
-impl<'f, 'c, C, FILTER_OP> FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f
+impl<'c, C, FILTER_OP> FilterConsumer<'c, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync
 {
-    fn new(base: C) -> FilterConsumer<'f, 'c, C, FILTER_OP> {
+    fn new(base: C) -> FilterConsumer<'c, C, FILTER_OP> {
         FilterConsumer { base: base, filter_op: PhantomType::new() }
     }
 }
 
-impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'c, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f,
 {
     type Item = C::Item;
     type Shared = (&'c C::Shared, &'f FILTER_OP);
@@ -110,8 +110,8 @@ impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'f, 'c, C, FILTER
     }
 }
 
-impl<'f, 'c, C, FILTER_OP: 'f> StatelessConsumer<'f> for FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: StatelessConsumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+impl<'f, 'c, C, FILTER_OP: 'f> StatelessConsumer<'f> for FilterConsumer<'c, C, FILTER_OP>
+    where C: StatelessConsumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f,
 {
     fn split(&self) -> Self {
         FilterConsumer::new(self.base.split())

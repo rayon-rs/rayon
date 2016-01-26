@@ -112,26 +112,27 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct MapConsumer<'m, 'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync, 'c: 'm
+struct MapConsumer<'c, ITEM, C, MAP_OP>
+    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
 {
     base: C,
-    phantoms: PhantomType<(&'m &'c (), ITEM, MAP_OP)>,
+    phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> MapConsumer<'m, 'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync, 'm: 'c
+impl<'c, ITEM, C, MAP_OP> MapConsumer<'c, ITEM, C, MAP_OP>
+    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
 {
-    fn new(base: C) -> MapConsumer<'m, 'c, ITEM, C, MAP_OP> {
+    fn new(base: C) -> MapConsumer<'c, ITEM, C, MAP_OP> {
         MapConsumer { base: base, phantoms: PhantomType::new() }
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
     where C: Consumer<'c>,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
           ITEM: 'm,
           MAP_OP: 'm,
+          'c: 'm,
 {
     type Item = ITEM;
     type Shared = (&'c C::Shared, &'m MAP_OP);
@@ -170,11 +171,12 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> StatelessConsumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+impl<'m, 'c, ITEM, C, MAP_OP> StatelessConsumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
     where C: StatelessConsumer<'c>,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
           ITEM: 'm,
           MAP_OP: 'm,
+          'c: 'm,
 {
     fn split(&self) -> Self {
         MapConsumer::new(self.base.split())
