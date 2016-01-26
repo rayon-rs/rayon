@@ -19,7 +19,10 @@ impl<M> ParallelIterator for Enumerate<M>
     type Shared = EnumerateShared<M>;
     type State = EnumerateState<M>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
         bridge(self, consumer, &shared)
     }
 

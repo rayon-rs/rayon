@@ -41,7 +41,7 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: REDUCE_OP) -> T
           T: Send,
 {
     let consumer: ReduceConsumer<PAR_ITER, REDUCE_OP> = ReduceConsumer::new();
-    pi.drive(consumer, reduce_op)
+    pi.drive(consumer, &reduce_op)
 }
 
 struct ReduceConsumer<PAR_ITER, REDUCE_OP>
@@ -65,9 +65,11 @@ unsafe impl<PAR_ITER, REDUCE_OP> Send for ReduceConsumer<PAR_ITER, REDUCE_OP>
           REDUCE_OP: ReduceOp<PAR_ITER::Item>,
 { }
 
-impl<PAR_ITER, REDUCE_OP> Consumer for ReduceConsumer<PAR_ITER, REDUCE_OP>
+impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_OP>
     where PAR_ITER: ParallelIterator,
           REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+          PAR_ITER::Item: 'c,
+          REDUCE_OP: 'c,
 {
     type Item = PAR_ITER::Item;
     type Shared = REDUCE_OP;

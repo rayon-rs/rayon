@@ -24,10 +24,13 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     type Shared = MapShared<M, MAP_OP>;
     type State = MapState<M, MAP_OP>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
         let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
-        let shared1 = (shared, self.map_op);
-        self.base.drive(consumer1, shared1)
+        let shared1 = (shared, &self.map_op);
+        self.base.drive(consumer1, &shared1)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -157,26 +160,29 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct MapConsumer<ITEM, C, MAP_OP>
-    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+struct MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync, 'c: 'm
 {
     base: C,
-    phantoms: PhantomType<(ITEM, MAP_OP)>,
+    phantoms: PhantomType<(&'m &'c (), ITEM, MAP_OP)>,
 }
 
-impl<ITEM, C, MAP_OP> MapConsumer<ITEM, C, MAP_OP>
-    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, 'c, ITEM, C, MAP_OP> MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync, 'm: 'c
 {
-    fn new(base: C) -> MapConsumer<ITEM, C, MAP_OP> {
+    fn new(base: C) -> MapConsumer<'m, 'c, ITEM, C, MAP_OP> {
         MapConsumer { base: base, phantoms: PhantomType::new() }
     }
 }
 
-impl<ITEM, C, MAP_OP> Consumer for MapConsumer<ITEM, C, MAP_OP>
-    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+    where C: Consumer<'c>,
+          MAP_OP: Fn(ITEM) -> C::Item + Sync,
+          ITEM: 'm,
+          MAP_OP: 'm,
 {
     type Item = ITEM;
-    type Shared = (C::Shared, MAP_OP);
+    type Shared = (&'c C::Shared, &'m MAP_OP);
     type SeqState = C::SeqState;
     type Result = C::Result;
 

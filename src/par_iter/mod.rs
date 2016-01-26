@@ -72,7 +72,10 @@ pub trait ParallelIterator: Sized {
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result;
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result;
 
     /// Indicates the relative "weight" of producing each item in this
     /// parallel iterator. A higher weight will cause finer-grained

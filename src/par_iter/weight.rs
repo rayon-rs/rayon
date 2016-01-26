@@ -1,6 +1,7 @@
 use super::*;
 use super::len::ParallelLen;
 use super::state::*;
+use super::util::*;
 
 pub struct Weight<M> {
     base: M,
@@ -20,10 +21,13 @@ impl<M> ParallelIterator for Weight<M>
     type Shared = WeightShared<M>;
     type State = WeightState<M>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
         let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
         let shared1 = (shared, self.weight);
-        self.base.drive(consumer1, shared1)
+        self.base.drive(consumer1, &shared1)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -117,25 +121,26 @@ impl<P: Producer> Producer for WeightProducer<P>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct WeightConsumer<C>
-    where C: Consumer,
+struct WeightConsumer<'w, 'c, C>
+    where C: Consumer<'c>, 'c: 'w
 {
     base: C,
+    phantoms: PhantomType<&'w &'c ()>
 }
 
-impl<C> WeightConsumer<C>
-    where C: Consumer,
+impl<'w, 'c, C> WeightConsumer<'w, 'c, C>
+    where C: Consumer<'c>, 'c: 'w
 {
-    fn new(base: C) -> WeightConsumer<C> {
-        WeightConsumer { base: base, }
+    fn new(base: C) -> WeightConsumer<'w, 'c, C> {
+        WeightConsumer { base: base, phantoms: PhantomType::new() }
     }
 }
 
-impl<C> Consumer for WeightConsumer<C>
-    where C: Consumer,
+impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
+    where C: Consumer<'c>, 'c: 'w
 {
     type Item = C::Item;
-    type Shared = (C::Shared, f64);
+    type Shared = (&'c C::Shared, f64);
     type SeqState = C::SeqState;
     type Result = C::Result;
 

@@ -58,9 +58,10 @@ pub trait Producer: Send {
     unsafe fn produce(&mut self, shared: &Self::Shared) -> Self::Item;
 }
 
-pub trait Consumer: Send {
-    type Item;
-    type Shared: Sync;
+/// A consumer which consumes items within the lifetime `'consume`.
+pub trait Consumer<'consume>: Send {
+    type Item: 'consume;
+    type Shared: Sync + 'consume;
     type SeqState;
     type Result: Send;
 
@@ -70,6 +71,23 @@ pub trait Consumer: Send {
 
     /// Divide the consumer into two consumers, one processing items
     /// `0..index` and one processing items `index..`.
+    ///
+    /// # Warning
+    ///
+    /// Depending on what kind of iterator is driving this consumer,
+    /// `index` may be imprecise or a dummy value (`usize::MAX`):
+    ///
+    /// - `ExactParallelIterator`: precise indices will be given.
+    ///   The consumers you return should be fed exactly the expected
+    ///   number of items.
+    /// - `BoundedParallelIterator`: `index` is an "upper bound".
+    ///   The consumers you return should be fed at most the specified
+    ///   number of items.
+    /// - `ParallelIterator`: `index` is a dummy value. The consumers
+    ///   you return could be fed any number of items.
+    ///
+    /// Consumers should adjust their trait bounds appropriately to ensure
+    /// they are getting the precision they need.
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self);
 
     /// Start processing items. This can return some sequential state
@@ -94,11 +112,11 @@ pub trait Consumer: Send {
                      -> Self::Result;
 }
 
-pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
-                          mut consumer: C,
-                          consumer_shared: &C::Shared)
-                          -> C::Result
-    where PAR_ITER: PullParallelIterator, C: Consumer<Item=PAR_ITER::Item>
+pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
+                             mut consumer: C,
+                             consumer_shared: &'c C::Shared)
+                             -> C::Result
+    where PAR_ITER: PullParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
 {
     let len = par_iter.len();
     let (mut producer, producer_shared) = par_iter.into_producer();
@@ -107,14 +125,14 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
     bridge_producer_consumer(len, cost, producer, &producer_shared, consumer, consumer_shared)
 }
 
-fn bridge_producer_consumer<P,C>(len: usize,
-                                 cost: f64,
-                                 mut producer: P,
-                                 producer_shared: &P::Shared,
-                                 mut consumer: C,
-                                 consumer_shared: &C::Shared)
-                                 -> C::Result
-    where P: Producer, C: Consumer<Item=P::Item>
+fn bridge_producer_consumer<'c,P,C>(len: usize,
+                                    cost: f64,
+                                    mut producer: P,
+                                    producer_shared: &P::Shared,
+                                    mut consumer: C,
+                                    consumer_shared: &'c C::Shared)
+                                    -> C::Result
+    where P: Producer, C: Consumer<'c, Item=P::Item>
 {
     unsafe { // asserting that we call the `op` methods in correct pattern
         if len > 1 && cost > THRESHOLD {

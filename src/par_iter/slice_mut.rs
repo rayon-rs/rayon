@@ -30,7 +30,10 @@ impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
     type Shared = ();
     type State = Self;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
         bridge(self, consumer, &shared)
     }
 

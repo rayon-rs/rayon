@@ -22,10 +22,13 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
     type Shared = FilterShared<M, FILTER_OP>;
     type State = FilterState<M, FILTER_OP>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
         let consumer1: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
-        let shared1 = (shared, self.filter_op);
-        self.base.drive(consumer1, shared1)
+        let shared1 = (shared, &self.filter_op);
+        self.base.drive(consumer1, &shared1)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -88,26 +91,26 @@ unsafe impl<M, FILTER_OP> ParallelIteratorState for FilterState<M, FILTER_OP>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterConsumer<C, FILTER_OP>
-    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+struct FilterConsumer<'f, 'c, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f
 {
     base: C,
-    filter_op: PhantomType<FILTER_OP>,
+    filter_op: PhantomType<(&'f &'c (), FILTER_OP)>,
 }
 
-impl<C, FILTER_OP> FilterConsumer<C, FILTER_OP>
-    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+impl<'f, 'c, C, FILTER_OP> FilterConsumer<'f, 'c, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f
 {
-    fn new(base: C) -> FilterConsumer<C, FILTER_OP> {
+    fn new(base: C) -> FilterConsumer<'f, 'c, C, FILTER_OP> {
         FilterConsumer { base: base, filter_op: PhantomType::new() }
     }
 }
 
-impl<C, FILTER_OP> Consumer for FilterConsumer<C, FILTER_OP>
-    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'f, 'c, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync,
 {
     type Item = C::Item;
-    type Shared = (C::Shared, FILTER_OP);
+    type Shared = (&'c C::Shared, &'f FILTER_OP);
     type SeqState = C::SeqState;
     type Result = C::Result;
 
