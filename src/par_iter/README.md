@@ -22,8 +22,8 @@ modes (which is why there are two):
   this mode, the iterator instead is *given* each item in turn, which
   is then processed. This is the opposite of a normal iterator. It's
   more like a `for_each` call: each time a new item is produced, the
-  `consume` method is called with that item. (The traits themselves is
-  a bit more complex, as it supports state that can be threaded
+  `consume` method is called with that item. (The traits themselves are
+  a bit more complex, as they support state that can be threaded
   through and ultimately reduced.) Unlike producers, there are two
   variants of consumers. The difference is how the split is performed:
   - in the `Consumer` trait, splitting is done with `split_at`, which
