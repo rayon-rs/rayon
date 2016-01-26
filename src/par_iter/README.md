@@ -1,7 +1,7 @@
 # Parallel Iterators
 
 These are some notes on the design of the parallel iterator traits.
-This module does not describe how to **use** parallel iterators.
+This file does not describe how to **use** parallel iterators.
 
 ## The challenge
 
