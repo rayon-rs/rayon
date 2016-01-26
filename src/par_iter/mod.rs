@@ -247,22 +247,6 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     /// behavior**.
     fn len(&mut self) -> usize;
 
-    /// Iterate over tuples `(A, B)`, where the items `A` are from
-    /// this iterator and `B` are from the iterator given as argument.
-    /// Like the `zip` method on ordinary iterators, if the two
-    /// iterators are of unequal length, you only get the items they
-    /// have in common.
-    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
-        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: ExactParallelIterator
-    {
-        ZipIter::new(self, zip_op.into_par_iter())
-    }
-
-    /// Yields an index along with each item.
-    fn enumerate(self) -> Enumerate<Self> {
-        Enumerate::new(self)
-    }
-
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
@@ -272,5 +256,24 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     }
 }
 
+/// An iterator that supports "random access" to its data, meaning
+/// that you can split it at arbitrary indices and draw data from
+/// those points.
+pub trait PullParallelIterator: ExactParallelIterator {
+    /// Iterate over tuples `(A, B)`, where the items `A` are from
+    /// this iterator and `B` are from the iterator given as argument.
+    /// Like the `zip` method on ordinary iterators, if the two
+    /// iterators are of unequal length, you only get the items they
+    /// have in common.
+    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
+        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: PullParallelIterator
+    {
+        ZipIter::new(self, zip_op.into_par_iter())
+    }
 
+    /// Yields an index along with each item.
+    fn enumerate(self) -> Enumerate<Self> {
+        Enumerate::new(self)
+    }
+}
 

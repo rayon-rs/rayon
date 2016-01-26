@@ -1,21 +1,21 @@
-use super::{ParallelIterator, BoundedParallelIterator, ExactParallelIterator};
+use super::*;
 use super::len::ParallelLen;
 use super::state::*;
 use std::cmp::min;
 
-pub struct ZipIter<A: ExactParallelIterator, B: ExactParallelIterator> {
+pub struct ZipIter<A: PullParallelIterator, B: PullParallelIterator> {
     a: A,
     b: B,
 }
 
-impl<A: ExactParallelIterator, B: ExactParallelIterator> ZipIter<A, B> {
+impl<A: PullParallelIterator, B: PullParallelIterator> ZipIter<A, B> {
     pub fn new(a: A, b: B) -> ZipIter<A, B> {
         ZipIter { a: a, b: b }
     }
 }
 
 impl<A, B> ParallelIterator for ZipIter<A, B>
-    where A: ExactParallelIterator, B: ExactParallelIterator
+    where A: PullParallelIterator, B: PullParallelIterator
 {
     type Item = (A::Item, B::Item);
     type Shared = ZipShared<A,B>;
@@ -33,7 +33,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 }
 
 unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
-    where A: ExactParallelIterator, B: ExactParallelIterator
+    where A: PullParallelIterator, B: PullParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -41,25 +41,30 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
 }
 
 unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
-    where A: ExactParallelIterator, B: ExactParallelIterator
+    where A: PullParallelIterator, B: PullParallelIterator
 {
     fn len(&mut self) -> usize {
         min(self.a.len(), self.b.len())
     }
 }
 
-pub struct ZipShared<A: ExactParallelIterator, B: ExactParallelIterator> {
+impl<A,B> PullParallelIterator for ZipIter<A,B>
+    where A: PullParallelIterator, B: PullParallelIterator
+{
+}
+
+pub struct ZipShared<A: PullParallelIterator, B: PullParallelIterator> {
     a: A::Shared,
     b: B::Shared,
 }
 
-pub struct ZipState<A: ExactParallelIterator, B: ExactParallelIterator> {
+pub struct ZipState<A: PullParallelIterator, B: PullParallelIterator> {
     a: A::State,
     b: B::State,
 }
 
 unsafe impl<A, B> ParallelIteratorState for ZipState<A,B>
-    where A: ExactParallelIterator, B: ExactParallelIterator
+    where A: PullParallelIterator, B: PullParallelIterator
 {
     type Item = (A::Item, B::Item);
     type Shared = ZipShared<A, B>;

@@ -51,6 +51,9 @@ unsafe impl<'data, T: Send> ExactParallelIterator for SliceIterMut<'data, T> {
     }
 }
 
+impl<'data, T: Send> PullParallelIterator for SliceIterMut<'data, T> {
+}
+
 unsafe impl<'data, T: Send> ParallelIteratorState for SliceIterMut<'data, T> {
     type Item = &'data mut T;
     type Shared = ();

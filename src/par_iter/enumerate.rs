@@ -1,4 +1,4 @@
-use super::{ParallelIterator, BoundedParallelIterator, ExactParallelIterator};
+use super::*;
 use super::len::ParallelLen;
 use super::state::*;
 
@@ -13,7 +13,7 @@ impl<M> Enumerate<M> {
 }
 
 impl<M> ParallelIterator for Enumerate<M>
-    where M: ExactParallelIterator,
+    where M: PullParallelIterator,
 {
     type Item = (usize, M::Item);
     type Shared = EnumerateShared<M>;
@@ -31,7 +31,7 @@ impl<M> ParallelIterator for Enumerate<M>
 }
 
 unsafe impl<M> BoundedParallelIterator for Enumerate<M>
-    where M: ExactParallelIterator,
+    where M: PullParallelIterator,
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -39,11 +39,16 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
 }
 
 unsafe impl<M> ExactParallelIterator for Enumerate<M>
-    where M: ExactParallelIterator,
+    where M: PullParallelIterator,
 {
     fn len(&mut self) -> usize {
         self.base.len()
     }
+}
+
+impl<M> PullParallelIterator for Enumerate<M>
+    where M: PullParallelIterator,
+{
 }
 
 pub struct EnumerateState<M>

@@ -43,6 +43,9 @@ unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
     }
 }
 
+impl<M: PullParallelIterator> PullParallelIterator for Weight<M> {
+}
+
 pub struct WeightState<M>
     where M: ParallelIterator
 {

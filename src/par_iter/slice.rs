@@ -50,6 +50,9 @@ unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> {
     }
 }
 
+impl<'data, T: Sync> PullParallelIterator for SliceIter<'data, T> {
+}
+
 unsafe impl<'data, T: Sync> ParallelIteratorState for SliceIter<'data, T> {
     type Item = &'data T;
     type Shared = ();

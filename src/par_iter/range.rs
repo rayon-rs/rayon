@@ -44,6 +44,9 @@ macro_rules! range_impl {
             }
         }
 
+        impl PullParallelIterator for RangeIter<$t> {
+        }
+
         unsafe impl ParallelIteratorState for RangeIter<$t> {
             type Item = $t;
             type Shared = ();
