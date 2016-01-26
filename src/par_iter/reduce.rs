@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use super::ParallelIterator;
 use super::len::*;
 use super::state::*;
+use super::util::PhantomType;
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
@@ -48,7 +49,7 @@ struct ReduceConsumer<PAR_ITER, REDUCE_OP>
     where PAR_ITER: ParallelIterator,
           REDUCE_OP: ReduceOp<PAR_ITER::Item>,
 {
-    data: PhantomData<(PAR_ITER, REDUCE_OP)>
+    data: PhantomType<(PAR_ITER, REDUCE_OP)>
 }
 
 impl<PAR_ITER, REDUCE_OP> ReduceConsumer<PAR_ITER, REDUCE_OP>
@@ -56,14 +57,9 @@ impl<PAR_ITER, REDUCE_OP> ReduceConsumer<PAR_ITER, REDUCE_OP>
           REDUCE_OP: ReduceOp<PAR_ITER::Item>,
 {
     fn new() -> ReduceConsumer<PAR_ITER, REDUCE_OP> {
-        ReduceConsumer { data: PhantomData }
+        ReduceConsumer { data: PhantomType::new() }
     }
 }
-
-unsafe impl<PAR_ITER, REDUCE_OP> Send for ReduceConsumer<PAR_ITER, REDUCE_OP>
-    where PAR_ITER: ParallelIterator,
-          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
-{ }
 
 impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_OP>
     where PAR_ITER: ParallelIterator,
