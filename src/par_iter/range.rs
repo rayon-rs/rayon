@@ -70,6 +70,32 @@ macro_rules! range_impl {
                 self.range.next()
             }
         }
+
+        impl Producer for RangeIter<$t> {
+            type Item = $t;
+            type Shared = ();
+            type SeqState = ();
+
+            unsafe fn split_at(self, index: usize) -> (Self, Self) {
+                assert!(index <= self.range.len());
+                // For signed $t, the length and requested index could be greater than $t::MAX, and
+                // then `index as $t` could wrap to negative, so wrapping_add is necessary.
+                let mid = self.range.start.wrapping_add(index as $t);
+                let left = self.range.start .. mid;
+                let right = mid .. self.range.end;
+                (RangeIter { range: left }, RangeIter { range: right })
+            }
+
+            unsafe fn start(&mut self, _: &()) {
+            }
+
+            unsafe fn produce(&mut self, shared: &(), state: &mut ()) -> $t {
+                self.range.next().unwrap()
+            }
+
+            unsafe fn complete(self, _: &(), _: ()) {
+            }
+        }
     }
 }
 
