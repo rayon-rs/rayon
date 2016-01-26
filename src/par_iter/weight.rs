@@ -98,3 +98,55 @@ impl<P: Producer> Producer for WeightProducer<P>
         self.base.produce(shared)
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+// Consumer implementation
+
+struct WeightConsumer<C>
+    where C: Consumer,
+{
+    base: C,
+}
+
+impl<C> WeightConsumer<C>
+    where C: Consumer,
+{
+    fn new(base: C) -> WeightConsumer<C> {
+        WeightConsumer { base: base, }
+    }
+}
+
+impl<C> Consumer for WeightConsumer<C>
+    where C: Consumer,
+{
+    type Item = C::Item;
+    type Shared = C::Shared;
+    type SeqState = C::SeqState;
+    type Result = C::Result;
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(index);
+        (WeightConsumer::new(left), WeightConsumer::new(right))
+    }
+
+    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
+        self.base.start(shared)
+    }
+
+    unsafe fn consume(&mut self,
+                      shared: &Self::Shared,
+                      state: C::SeqState,
+                      item: Self::Item)
+                      -> C::SeqState
+    {
+        self.base.consume(shared, state, item)
+    }
+
+    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
+        self.base.complete(shared, state)
+    }
+
+    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
+        C::reduce(shared, left, right)
+    }
+}
