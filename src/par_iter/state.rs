@@ -1,5 +1,5 @@
 use join;
-use super::PullParallelIterator;
+use super::IndexedParallelIterator;
 use super::len::*;
 
 /// A producer which will produce a fixed number of items N. This is
@@ -83,7 +83,7 @@ pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
                              mut consumer: C,
                              consumer_shared: &'c C::Shared)
                              -> C::Result
-    where PAR_ITER: PullParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
+    where PAR_ITER: IndexedParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
 {
     let len = par_iter.len();
     let (mut producer, producer_shared) = par_iter.into_producer();

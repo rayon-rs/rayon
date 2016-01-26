@@ -2,19 +2,19 @@ use super::*;
 use super::state::*;
 use std::cmp::min;
 
-pub struct ZipIter<A: PullParallelIterator, B: PullParallelIterator> {
+pub struct ZipIter<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
     b: B,
 }
 
-impl<A: PullParallelIterator, B: PullParallelIterator> ZipIter<A, B> {
+impl<A: IndexedParallelIterator, B: IndexedParallelIterator> ZipIter<A, B> {
     pub fn new(a: A, b: B) -> ZipIter<A, B> {
         ZipIter { a: a, b: b }
     }
 }
 
 impl<A, B> ParallelIterator for ZipIter<A, B>
-    where A: PullParallelIterator, B: PullParallelIterator
+    where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     type Item = (A::Item, B::Item);
 
@@ -27,7 +27,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 }
 
 unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
-    where A: PullParallelIterator, B: PullParallelIterator
+    where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -42,15 +42,15 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
 }
 
 unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
-    where A: PullParallelIterator, B: PullParallelIterator
+    where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
         min(self.a.len(), self.b.len())
     }
 }
 
-impl<A,B> PullParallelIterator for ZipIter<A,B>
-    where A: PullParallelIterator, B: PullParallelIterator
+impl<A,B> IndexedParallelIterator for ZipIter<A,B>
+    where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     type Producer = ZipProducer<A::Producer, B::Producer>;
 

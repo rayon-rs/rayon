@@ -60,8 +60,8 @@ unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP, R, P> PullParallelIterator for Map<M, MAP_OP>
-    where M: PullParallelIterator<Producer=P>,
+impl<M, MAP_OP, R, P> IndexedParallelIterator for Map<M, MAP_OP>
+    where M: IndexedParallelIterator<Producer=P>,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
           P: Producer<Item=M::Item>,

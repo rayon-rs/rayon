@@ -12,7 +12,7 @@ impl<M> Enumerate<M> {
 }
 
 impl<M> ParallelIterator for Enumerate<M>
-    where M: PullParallelIterator,
+    where M: IndexedParallelIterator,
 {
     type Item = (usize, M::Item);
 
@@ -25,7 +25,7 @@ impl<M> ParallelIterator for Enumerate<M>
 }
 
 unsafe impl<M> BoundedParallelIterator for Enumerate<M>
-    where M: PullParallelIterator,
+    where M: IndexedParallelIterator,
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -40,15 +40,15 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
 }
 
 unsafe impl<M> ExactParallelIterator for Enumerate<M>
-    where M: PullParallelIterator,
+    where M: IndexedParallelIterator,
 {
     fn len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M> PullParallelIterator for Enumerate<M>
-    where M: PullParallelIterator,
+impl<M> IndexedParallelIterator for Enumerate<M>
+    where M: IndexedParallelIterator,
 {
     type Producer = EnumerateProducer<M::Producer>;
 

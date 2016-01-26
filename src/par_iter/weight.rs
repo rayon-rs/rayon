@@ -49,7 +49,7 @@ unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
     }
 }
 
-impl<M: PullParallelIterator> PullParallelIterator for Weight<M> {
+impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
     type Producer = WeightProducer<M::Producer>;
 
     fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {

@@ -54,7 +54,7 @@ unsafe impl<'data, T: Send> ExactParallelIterator for SliceIterMut<'data, T> {
     }
 }
 
-impl<'data, T: Send> PullParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send> IndexedParallelIterator for SliceIterMut<'data, T> {
     type Producer = SliceMutProducer<'data, T>;
 
     fn into_producer(self) -> (Self::Producer, ()) {

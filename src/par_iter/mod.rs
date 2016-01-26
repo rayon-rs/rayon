@@ -278,7 +278,7 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
 /// An iterator that supports "random access" to its data, meaning
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
-pub trait PullParallelIterator: ExactParallelIterator {
+pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Producer type that this iterator creates. Users of the API
     /// never need to know about this type.
     #[doc(hidden)]
@@ -296,7 +296,7 @@ pub trait PullParallelIterator: ExactParallelIterator {
     /// iterators are of unequal length, you only get the items they
     /// have in common.
     fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
-        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: PullParallelIterator
+        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: IndexedParallelIterator
     {
         ZipIter::new(self, zip_op.into_par_iter())
     }

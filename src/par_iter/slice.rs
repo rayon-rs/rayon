@@ -53,7 +53,7 @@ unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> {
     }
 }
 
-impl<'data, T: Sync> PullParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync> IndexedParallelIterator for SliceIter<'data, T> {
     type Producer = SliceProducer<'data, T>;
 
     fn into_producer(self) -> (Self::Producer, ()) {
