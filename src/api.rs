@@ -10,6 +10,10 @@ use num_cpus;
 /// this, as it happens automatically, but it is handy for
 /// benchmarking purposes since it avoids initialization overhead in
 /// the actual operations.
+/// But you need to call this if you want to specify the maximum number
+/// of threads that Rayon is allowed to use.
+/// If you don't specify it, Rayon uses all the cores avaiable (determined
+/// via num_cpus::get())
 pub fn initialize(num_threads: usize) {
     assert!(num_threads > 0);
     let registry = thread_pool::get_registry(num_threads);
