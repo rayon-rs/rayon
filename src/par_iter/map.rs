@@ -21,13 +21,13 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
 {
     type Item = R;
 
-    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
                                                                       shared: &'c C::Shared)
                                                                       -> C::Result {
         let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
         let shared1 = (shared, &self.map_op);
-        self.base.drive_stateless(consumer1, &shared1)
+        self.base.drive_unindexed(consumer1, &shared1)
     }
 }
 
@@ -171,8 +171,8 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> StatelessConsumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
-    where C: StatelessConsumer<'c>,
+impl<'m, 'c, ITEM, C, MAP_OP> UnindexedConsumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
+    where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
           ITEM: 'm,
           MAP_OP: 'm,

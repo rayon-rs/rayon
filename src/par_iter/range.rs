@@ -20,7 +20,7 @@ macro_rules! range_impl {
         impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
 
-            fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+            fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                               consumer: C,
                                                                               shared: &'c C::Shared)
                                                                               -> C::Result {

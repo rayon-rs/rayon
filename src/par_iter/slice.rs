@@ -26,7 +26,7 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
 impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
 
-    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
                                                                       shared: &'c C::Shared)
                                                                       -> C::Result {

@@ -18,13 +18,13 @@ impl<M> ParallelIterator for Weight<M>
 {
     type Item = M::Item;
 
-    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
                                                                       shared: &'c C::Shared)
                                                                       -> C::Result {
         let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
         let shared1 = (shared, self.weight);
-        self.base.drive_stateless(consumer1, &shared1)
+        self.base.drive_unindexed(consumer1, &shared1)
     }
 }
 
@@ -140,8 +140,8 @@ impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
     }
 }
 
-impl<'w, 'c, C> StatelessConsumer<'w> for WeightConsumer<'w, 'c, C>
-    where C: StatelessConsumer<'c>, 'c: 'w
+impl<'w, 'c, C> UnindexedConsumer<'w> for WeightConsumer<'w, 'c, C>
+    where C: UnindexedConsumer<'c>, 'c: 'w
 {
     fn split(&self) -> Self {
         WeightConsumer::new(self.base.split())

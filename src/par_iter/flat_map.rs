@@ -21,12 +21,12 @@ impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
 {
     type Item = PI::Item;
 
-    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
                                                                       shared: &'c C::Shared)
                                                                       -> C::Result {
         let consumer = FlatMapConsumer { base: consumer, phantoms: PhantomType::new() };
-        self.base.drive_stateless(consumer, &(shared, &self.map_op))
+        self.base.drive_unindexed(consumer, &(shared, &self.map_op))
     }
 }
 
@@ -34,7 +34,7 @@ impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
 // Consumer implementation
 
 struct FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: StatelessConsumer<'c>,
+    where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> PI + Sync,
           PI: ParallelIterator<Item=C::Item>,
           C::Item: Send,
@@ -44,7 +44,7 @@ struct FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
 }
 
 impl<'c, ITEM, C, MAP_OP, PI> FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: StatelessConsumer<'c>,
+    where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> PI + Sync,
           PI: ParallelIterator<Item=C::Item>,
           C::Item: Send,
@@ -55,7 +55,7 @@ impl<'c, ITEM, C, MAP_OP, PI> FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
 }
 
 impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: StatelessConsumer<'c>,
+    where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
           PI: ParallelIterator<Item=C::Item>,
           C::Item: Send,
@@ -90,7 +90,7 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
                       -> Option<C::Result>
     {
         let par_iter = (shared.1)(item).into_par_iter();
-        let result = par_iter.drive_stateless(self.base.split(), &shared.0);
+        let result = par_iter.drive_unindexed(self.base.split(), &shared.0);
 
         // We expect that `previous` is `None`, because we drive
         // the cost up so high, but just in case.
@@ -111,8 +111,8 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
     }
 }
 
-impl<'c, 'm, ITEM, C, MAP_OP, PI> StatelessConsumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: StatelessConsumer<'c>,
+impl<'c, 'm, ITEM, C, MAP_OP, PI> UnindexedConsumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
+    where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
           PI: ParallelIterator<Item=C::Item>,
           C::Item: Send,

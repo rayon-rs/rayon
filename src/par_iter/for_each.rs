@@ -9,7 +9,7 @@ pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
           T: Send,
 {
     let consumer: ForEachConsumer<PAR_ITER::Item, OP> = ForEachConsumer { data: PhantomType::new() };
-    pi.drive_stateless(consumer, op)
+    pi.drive_unindexed(consumer, op)
 }
 
 struct ForEachConsumer<ITEM, OP>
@@ -54,7 +54,7 @@ impl<'c, ITEM, OP> Consumer<'c> for ForEachConsumer<ITEM, OP>
     }
 }
 
-impl<'c, ITEM, OP> StatelessConsumer<'c> for ForEachConsumer<ITEM, OP>
+impl<'c, ITEM, OP> UnindexedConsumer<'c> for ForEachConsumer<ITEM, OP>
     where OP: Fn(ITEM) + Sync + 'c, ITEM: 'c,
 {
     fn split(&self) -> Self {

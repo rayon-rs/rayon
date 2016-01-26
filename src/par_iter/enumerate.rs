@@ -16,7 +16,7 @@ impl<M> ParallelIterator for Enumerate<M>
 {
     type Item = (usize, M::Item);
 
-    fn drive_stateless<'c, C: StatelessConsumer<'c, Item=Self::Item>>(self,
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                        consumer: C,
                                                                        shared: &'c C::Shared)
                                                                        -> C::Result {

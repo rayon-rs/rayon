@@ -58,7 +58,7 @@ pub trait Consumer<'consume>: Send {
 }
 
 /// A stateless consumer can be freely copied.
-pub trait StatelessConsumer<'c>: Consumer<'c> {
+pub trait UnindexedConsumer<'c>: Consumer<'c> {
     fn split(&self) -> Self;
 }
 
