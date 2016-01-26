@@ -34,14 +34,14 @@ pub trait ReduceOp<T>: Sync {
     fn reduce(&self, value1: T, value2: T) -> T;
 }
 
-pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: REDUCE_OP) -> T
+pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
     where PAR_ITER: ParallelIterator<Item=T>,
           PAR_ITER::State: Send,
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
     let consumer: ReduceConsumer<PAR_ITER, REDUCE_OP> = ReduceConsumer::new();
-    pi.drive(consumer, &reduce_op)
+    pi.drive(consumer, reduce_op)
 }
 
 struct ReduceConsumer<PAR_ITER, REDUCE_OP>
@@ -117,7 +117,7 @@ impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_O
 
 pub struct SumOp;
 
-pub const SUM: SumOp = SumOp;
+pub const SUM: &'static SumOp = &SumOp;
 
 macro_rules! sum_rule {
     ($i:ty, $z:expr) => {
@@ -147,7 +147,7 @@ sum_rule!(f64, 0.0);
 
 pub struct MulOp;
 
-pub const MUL: MulOp = MulOp;
+pub const MUL: &'static MulOp = &MulOp;
 
 macro_rules! mul_rule {
     ($i:ty, $z:expr) => {
@@ -177,7 +177,7 @@ mul_rule!(f64, 1.0);
 
 pub struct MinOp;
 
-pub const MIN: MinOp = MinOp;
+pub const MIN: &'static MinOp = &MinOp;
 
 macro_rules! min_rule {
     ($i:ty, $z:expr, $f:expr) => {
@@ -207,7 +207,7 @@ min_rule!(f64, std::f64::INFINITY, f64::min);
 
 pub struct MaxOp;
 
-pub const MAX: MaxOp = MaxOp;
+pub const MAX: &'static MaxOp = &MaxOp;
 
 macro_rules! max_rule {
     ($i:ty, $z:expr, $f:expr) => {
