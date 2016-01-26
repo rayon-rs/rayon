@@ -20,8 +20,10 @@ impl<M> ParallelIterator for Weight<M>
     type Shared = WeightShared<M>;
     type State = WeightState<M>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
-        unimplemented!()
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+        let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
+        let shared1 = (shared, self.weight);
+        self.base.drive(consumer1, shared1)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -48,7 +50,7 @@ impl<M: PullParallelIterator> PullParallelIterator for Weight<M> {
 
     fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
         let (base, shared) = self.base.into_producer();
-        (WeightProducer { base: base }, (self.weight, shared))
+        (WeightProducer { base: base }, (shared, self.weight))
     }
 }
 
@@ -96,10 +98,10 @@ pub struct WeightProducer<P: Producer> {
 impl<P: Producer> Producer for WeightProducer<P>
 {
     type Item = P::Item;
-    type Shared = (f64, P::Shared);
+    type Shared = (P::Shared, f64);
 
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
-        self.base.cost(&shared.1, len) * shared.0
+        self.base.cost(&shared.0, len) * shared.1
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
@@ -108,7 +110,7 @@ impl<P: Producer> Producer for WeightProducer<P>
     }
 
     unsafe fn produce(&mut self, shared: &Self::Shared) -> P::Item {
-        self.base.produce(&shared.1)
+        self.base.produce(&shared.0)
     }
 }
 
@@ -133,21 +135,21 @@ impl<C> Consumer for WeightConsumer<C>
     where C: Consumer,
 {
     type Item = C::Item;
-    type Shared = (f64, C::Shared);
+    type Shared = (C::Shared, f64);
     type SeqState = C::SeqState;
     type Result = C::Result;
 
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.1, cost) * shared.0
+        self.base.cost(&shared.0, cost) * shared.1
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.1, index);
+        let (left, right) = self.base.split_at(&shared.0, index);
         (WeightConsumer::new(left), WeightConsumer::new(right))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.1)
+        self.base.start(&shared.0)
     }
 
     unsafe fn consume(&mut self,
@@ -156,14 +158,14 @@ impl<C> Consumer for WeightConsumer<C>
                       item: Self::Item)
                       -> C::SeqState
     {
-        self.base.consume(&shared.1, state, item)
+        self.base.consume(&shared.0, state, item)
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.1, state)
+        self.base.complete(&shared.0, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.1, left, right)
+        C::reduce(&shared.0, left, right)
     }
 }

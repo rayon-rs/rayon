@@ -22,9 +22,10 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
     type Shared = FilterShared<M, FILTER_OP>;
     type State = FilterState<M, FILTER_OP>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
-        let filter_consumer: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
-        self.base.drive(filter_consumer)
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+        let consumer1: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
+        let shared1 = (shared, self.filter_op);
+        self.base.drive(consumer1, shared1)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -102,33 +103,26 @@ impl<C, FILTER_OP> FilterConsumer<C, FILTER_OP>
     }
 }
 
-struct FilterConsumerShared<C, FILTER_OP>
-    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
-{
-    base: C::Shared,
-    filter_op: FILTER_OP,
-}
-
 impl<C, FILTER_OP> Consumer for FilterConsumer<C, FILTER_OP>
     where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
 {
     type Item = C::Item;
-    type Shared = FilterConsumerShared<C, FILTER_OP>;
+    type Shared = (C::Shared, FILTER_OP);
     type SeqState = C::SeqState;
     type Result = C::Result;
 
     /// Cost to process `items` number of items.
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.base, cost) * FUNC_ADJUSTMENT
+        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.base, index);
+        let (left, right) = self.base.split_at(&shared.0, index);
         (FilterConsumer::new(left), FilterConsumer::new(right))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.base)
+        self.base.start(&shared.0)
     }
 
     unsafe fn consume(&mut self,
@@ -137,18 +131,18 @@ impl<C, FILTER_OP> Consumer for FilterConsumer<C, FILTER_OP>
                       item: Self::Item)
                       -> C::SeqState
     {
-        if (shared.filter_op)(&item) {
-            self.base.consume(&shared.base, state, item)
+        if (shared.1)(&item) {
+            self.base.consume(&shared.0, state, item)
         } else {
             state
         }
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.base, state)
+        self.base.complete(&shared.0, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.base, left, right)
+        C::reduce(&shared.0, left, right)
     }
 }

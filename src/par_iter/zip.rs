@@ -21,8 +21,8 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     type Shared = ZipShared<A,B>;
     type State = ZipState<A,B>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
-        unimplemented!()
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+        bridge(self, consumer, &shared)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {

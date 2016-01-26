@@ -24,8 +24,10 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     type Shared = MapShared<M, MAP_OP>;
     type State = MapState<M, MAP_OP>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
-        unimplemented!()
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
+        let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
+        let shared1 = (shared, self.map_op);
+        self.base.drive(consumer1, shared1)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -170,33 +172,25 @@ impl<ITEM, C, MAP_OP> MapConsumer<ITEM, C, MAP_OP>
     }
 }
 
-struct MapConsumerShared<ITEM, C, MAP_OP>
-    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
-{
-    base: C::Shared,
-    filter_op: MAP_OP,
-    phantoms: PhantomType<ITEM>
-}
-
 impl<ITEM, C, MAP_OP> Consumer for MapConsumer<ITEM, C, MAP_OP>
     where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
 {
     type Item = ITEM;
-    type Shared = MapConsumerShared<ITEM, C, MAP_OP>;
+    type Shared = (C::Shared, MAP_OP);
     type SeqState = C::SeqState;
     type Result = C::Result;
 
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.base, cost) * FUNC_ADJUSTMENT
+        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.base, index);
+        let (left, right) = self.base.split_at(&shared.0, index);
         (MapConsumer::new(left), MapConsumer::new(right))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.base)
+        self.base.start(&shared.0)
     }
 
     unsafe fn consume(&mut self,
@@ -205,16 +199,16 @@ impl<ITEM, C, MAP_OP> Consumer for MapConsumer<ITEM, C, MAP_OP>
                       item: Self::Item)
                       -> C::SeqState
     {
-        let mapped_item = (shared.filter_op)(item);
-        self.base.consume(&shared.base, state, mapped_item)
+        let mapped_item = (shared.1)(item);
+        self.base.consume(&shared.0, state, mapped_item)
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.base, state)
+        self.base.complete(&shared.0, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.base, left, right)
+        C::reduce(&shared.0, left, right)
     }
 }
 

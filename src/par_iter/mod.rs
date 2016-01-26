@@ -72,7 +72,7 @@ pub trait ParallelIterator: Sized {
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result;
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result;
 
     /// Indicates the relative "weight" of producing each item in this
     /// parallel iterator. A higher weight will cause finer-grained
@@ -260,12 +260,13 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 pub trait PullParallelIterator: ExactParallelIterator {
-    #[doc(hidden)]
+    /// Producer type that this iterator creates. Users of the API
+    /// never need to know about this type.
     type Producer: Producer<Item=Self::Item>;
 
-    /// Internal method to convert this parallel iterator into a producer
-    /// that can be used to request the items.
-    #[doc(hidden)]
+    /// Internal method to convert this parallel iterator into a
+    /// producer that can be used to request the items. Users of the
+    /// API never need to know about this fn.
     fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared);
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from

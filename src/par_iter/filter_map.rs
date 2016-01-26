@@ -24,9 +24,10 @@ impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
     type Shared = FilterShared<M, FILTER_OP>;
     type State = FilterState<M, FILTER_OP>;
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C, shared: C::Shared) -> C::Result {
         let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
-        self.base.drive(consumer)
+        let shared = (shared, self.filter_op);
+        self.base.drive(consumer, shared)
     }
 
     fn state(self) -> (Self::Shared, Self::State) {
@@ -116,34 +117,26 @@ impl<ITEM, C, FILTER_OP> FilterMapConsumer<ITEM, C, FILTER_OP>
     }
 }
 
-struct FilterMapConsumerShared<ITEM, C, FILTER_OP>
-    where C: Consumer, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
-{
-    base: C::Shared,
-    filter_op: FILTER_OP,
-    phantoms: PhantomType<ITEM>
-}
-
 impl<ITEM, C, FILTER_OP> Consumer for FilterMapConsumer<ITEM, C, FILTER_OP>
     where C: Consumer, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
 {
     type Item = ITEM;
-    type Shared = FilterMapConsumerShared<ITEM, C, FILTER_OP>;
+    type Shared = (C::Shared, FILTER_OP);
     type SeqState = C::SeqState;
     type Result = C::Result;
 
     /// Cost to process `items` number of items.
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.base, cost) * FUNC_ADJUSTMENT
+        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.base, index);
+        let (left, right) = self.base.split_at(&shared.0, index);
         (FilterMapConsumer::new(left), FilterMapConsumer::new(right))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.base)
+        self.base.start(&shared.0)
     }
 
     unsafe fn consume(&mut self,
@@ -152,18 +145,18 @@ impl<ITEM, C, FILTER_OP> Consumer for FilterMapConsumer<ITEM, C, FILTER_OP>
                       item: Self::Item)
                       -> C::SeqState
     {
-        if let Some(mapped_item) = (shared.filter_op)(item) {
-            self.base.consume(&shared.base, state, mapped_item)
+        if let Some(mapped_item) = (shared.1)(item) {
+            self.base.consume(&shared.0, state, mapped_item)
         } else {
             state
         }
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.base, state)
+        self.base.complete(&shared.0, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.base, left, right)
+        C::reduce(&shared.0, left, right)
     }
 }
