@@ -34,44 +34,17 @@ pub trait ReduceOp<T>: Sync {
     fn reduce(&self, value1: T, value2: T) -> T;
 }
 
-pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
+pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: REDUCE_OP) -> T
     where PAR_ITER: ParallelIterator<Item=T>,
           PAR_ITER::State: Send,
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
-    let (shared, mut state) = pi.state();
-    let len = state.len(&shared);
-    reduce_helper(state, &shared, len, reduce_op)
+    let consumer: ReduceConsumer<PAR_ITER, REDUCE_OP> = ReduceConsumer::new();
+    pi.drive(consumer, reduce_op)
 }
 
-fn reduce_helper<STATE,REDUCE_OP,T>(mut state: STATE,
-                                    shared: &STATE::Shared,
-                                    len: ParallelLen,
-                                    reduce_op: &REDUCE_OP)
-                                    -> T
-    where STATE: ParallelIteratorState<Item=T> + Send,
-          REDUCE_OP: ReduceOp<T>,
-          T: Send,
-{
-    if len.cost > THRESHOLD && len.maximal_len > 1 {
-        let mid = len.maximal_len / 2;
-        let (left, right) = state.split_at(mid);
-        let (left_val, right_val) =
-            join(|| reduce_helper(left, shared, len.left_cost(mid), reduce_op),
-                 || reduce_helper(right, shared, len.right_cost(mid), reduce_op));
-        reduce_op.reduce(left_val, right_val)
-    } else {
-        let mut value = Some(reduce_op.start_value());
-        while let Some(item) = state.next(shared) {
-            value = Some(reduce_op.reduce(value.take().unwrap(), item));
-        }
-        value.unwrap()
-    }
-}
-
-#[doc(hidden)]
-pub struct ReduceConsumer<PAR_ITER, REDUCE_OP>
+struct ReduceConsumer<PAR_ITER, REDUCE_OP>
     where PAR_ITER: ParallelIterator,
           REDUCE_OP: ReduceOp<PAR_ITER::Item>,
 {
@@ -142,7 +115,7 @@ impl<PAR_ITER, REDUCE_OP> Consumer for ReduceConsumer<PAR_ITER, REDUCE_OP>
 
 pub struct SumOp;
 
-pub const SUM: &'static SumOp = &SumOp;
+pub const SUM: SumOp = SumOp;
 
 macro_rules! sum_rule {
     ($i:ty, $z:expr) => {
@@ -172,7 +145,7 @@ sum_rule!(f64, 0.0);
 
 pub struct MulOp;
 
-pub const MUL: &'static MulOp = &MulOp;
+pub const MUL: MulOp = MulOp;
 
 macro_rules! mul_rule {
     ($i:ty, $z:expr) => {
@@ -202,7 +175,7 @@ mul_rule!(f64, 1.0);
 
 pub struct MinOp;
 
-pub const MIN: &'static MinOp = &MinOp;
+pub const MIN: MinOp = MinOp;
 
 macro_rules! min_rule {
     ($i:ty, $z:expr, $f:expr) => {
@@ -232,7 +205,7 @@ min_rule!(f64, std::f64::INFINITY, f64::min);
 
 pub struct MaxOp;
 
-pub const MAX: &'static MaxOp = &MaxOp;
+pub const MAX: MaxOp = MaxOp;
 
 macro_rules! max_rule {
     ($i:ty, $z:expr, $f:expr) => {

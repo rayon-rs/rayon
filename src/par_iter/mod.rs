@@ -138,7 +138,7 @@ pub trait ParallelIterator: Sized {
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
     {
-        reduce(self.map(Some), &ReduceWithOp::new(op))
+        reduce(self.map(Some), ReduceWithOp::new(op))
     }
 
     /// Sums up the items in the iterator.
@@ -195,7 +195,7 @@ pub trait ParallelIterator: Sized {
     /// Note that the order in items will be reduced is not specified,
     /// so if the `reduce_op` impl is not truly commutative and
     /// associative, then the results are not deterministic.
-    fn reduce<REDUCE_OP>(self, reduce_op: &REDUCE_OP) -> Self::Item
+    fn reduce<REDUCE_OP>(self, reduce_op: REDUCE_OP) -> Self::Item
         where REDUCE_OP: ReduceOp<Self::Item>
     {
         reduce(self, reduce_op)
