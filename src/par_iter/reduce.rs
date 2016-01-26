@@ -41,40 +41,36 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
-    let consumer: ReduceConsumer<PAR_ITER, REDUCE_OP> = ReduceConsumer { data: PhantomType::new() };
+    let consumer: ReduceConsumer<PAR_ITER::Item, REDUCE_OP> =
+        ReduceConsumer { data: PhantomType::new() };
     pi.drive(consumer, reduce_op)
 }
 
-struct ReduceConsumer<PAR_ITER, REDUCE_OP>
-    where PAR_ITER: ParallelIterator,
-          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+struct ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
 {
-    data: PhantomType<(PAR_ITER, REDUCE_OP)>
+    data: PhantomType<(ITEM, REDUCE_OP)>
 }
 
-impl<PAR_ITER, REDUCE_OP> Copy for ReduceConsumer<PAR_ITER, REDUCE_OP>
-    where PAR_ITER: ParallelIterator,
-          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+impl<ITEM, REDUCE_OP> Copy for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
 {
 }
 
-impl<PAR_ITER, REDUCE_OP> Clone for ReduceConsumer<PAR_ITER, REDUCE_OP>
-    where PAR_ITER: ParallelIterator,
-          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
+impl<ITEM, REDUCE_OP> Clone for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
 {
     fn clone(&self) -> Self { *self }
 }
 
-impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_OP>
-    where PAR_ITER: ParallelIterator,
-          REDUCE_OP: ReduceOp<PAR_ITER::Item>,
-          PAR_ITER::Item: 'c,
-          REDUCE_OP: 'c,
+impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM> + 'c,
+          ITEM: Send + 'c,
 {
-    type Item = PAR_ITER::Item;
+    type Item = ITEM;
     type Shared = REDUCE_OP;
-    type SeqState = PAR_ITER::Item;
-    type Result = PAR_ITER::Item;
+    type SeqState = ITEM;
+    type Result = ITEM;
 
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
@@ -85,29 +81,29 @@ impl<'c, PAR_ITER, REDUCE_OP> Consumer<'c> for ReduceConsumer<PAR_ITER, REDUCE_O
         (self, self)
     }
 
-    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> PAR_ITER::Item {
+    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> ITEM {
         reduce_op.start_value()
     }
 
     unsafe fn consume(&mut self,
                       reduce_op: &REDUCE_OP,
-                      prev_value: PAR_ITER::Item,
-                      item: PAR_ITER::Item)
-                      -> PAR_ITER::Item {
+                      prev_value: ITEM,
+                      item: ITEM)
+                      -> ITEM {
         reduce_op.reduce(prev_value, item)
     }
 
     unsafe fn complete(self,
                        _reduce_op: &REDUCE_OP,
-                       state: PAR_ITER::Item)
-                       -> PAR_ITER::Item {
+                       state: ITEM)
+                       -> ITEM {
         state
     }
 
     unsafe fn reduce(reduce_op: &REDUCE_OP,
-                     a: PAR_ITER::Item,
-                     b: PAR_ITER::Item)
-                     -> PAR_ITER::Item {
+                     a: ITEM,
+                     b: ITEM)
+                     -> ITEM {
         reduce_op.reduce(a, b)
     }
 }
