@@ -90,15 +90,19 @@ pub struct WeightProducer<P: Producer> {
 impl<P: Producer> Producer for WeightProducer<P>
 {
     type Item = P::Item;
-    type Shared = P::Shared;
+    type Shared = (f64, P::Shared);
+
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(&shared.1, items) * shared.0
+    }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (WeightProducer { base: left }, WeightProducer { base: right })
     }
 
-    unsafe fn produce(&mut self, shared: &P::Shared) -> P::Item {
-        self.base.produce(shared)
+    unsafe fn produce(&mut self, shared: &Self::Shared) -> P::Item {
+        self.base.produce(&shared.1)
     }
 }
 

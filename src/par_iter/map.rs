@@ -138,6 +138,10 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
     type Item = R;
     type Shared = MapProducerShared<M, MAP_OP, R>;
 
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(&shared.base, items) * FUNC_ADJUSTMENT
+    }
+
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (MapProducer { base: left, phantoms: PhantomType::new() },

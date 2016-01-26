@@ -46,6 +46,9 @@ pub trait Producer: Send {
     type Item;
     type Shared: Sync;
 
+    /// Cost to produce `items` items.
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64;
+
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
     unsafe fn split_at(self, index: usize) -> (Self, Self);

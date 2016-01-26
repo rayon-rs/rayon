@@ -112,6 +112,10 @@ impl<M> Producer for EnumerateProducer<M>
     type Item = (usize, M::Item);
     type Shared = EnumerateProducerShared<M>;
 
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(&shared.base, items) // enumerating is basically free
+    }
+
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (EnumerateProducer { base: left, offset: self.offset },

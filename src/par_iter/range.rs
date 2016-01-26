@@ -78,6 +78,10 @@ macro_rules! range_impl {
             type Item = $t;
             type Shared = ();
 
+            unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+                items as f64
+            }
+
             unsafe fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
                 // For signed $t, the length and requested index could be greater than $t::MAX, and

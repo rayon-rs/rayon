@@ -90,6 +90,10 @@ impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
     type Item = &'data T;
     type Shared = ();
 
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        items as f64
+    }
+
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
         (SliceProducer { slice: left }, SliceProducer { slice: right })
