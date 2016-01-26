@@ -142,3 +142,66 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
         (shared.map_op)(item)
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
+// Consumer implementation
+
+struct MapConsumer<ITEM, C, MAP_OP>
+    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+{
+    base: C,
+    phantoms: PhantomType<(ITEM, MAP_OP)>,
+}
+
+impl<ITEM, C, MAP_OP> MapConsumer<ITEM, C, MAP_OP>
+    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+{
+    fn new(base: C) -> MapConsumer<ITEM, C, MAP_OP> {
+        MapConsumer { base: base, phantoms: PhantomType::new() }
+    }
+}
+
+struct MapConsumerShared<ITEM, C, MAP_OP>
+    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+{
+    base: C::Shared,
+    filter_op: MAP_OP,
+    phantoms: PhantomType<ITEM>
+}
+
+impl<ITEM, C, MAP_OP> Consumer for MapConsumer<ITEM, C, MAP_OP>
+    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+{
+    type Item = ITEM;
+    type Shared = MapConsumerShared<ITEM, C, MAP_OP>;
+    type SeqState = C::SeqState;
+    type Result = C::Result;
+
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(index);
+        (MapConsumer::new(left), MapConsumer::new(right))
+    }
+
+    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
+        self.base.start(&shared.base)
+    }
+
+    unsafe fn consume(&mut self,
+                      shared: &Self::Shared,
+                      state: C::SeqState,
+                      item: Self::Item)
+                      -> C::SeqState
+    {
+        let mapped_item = (shared.filter_op)(item);
+        self.base.consume(&shared.base, state, mapped_item)
+    }
+
+    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
+        self.base.complete(&shared.base, state)
+    }
+
+    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
+        C::reduce(&shared.base, left, right)
+    }
+}
+
