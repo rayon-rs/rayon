@@ -44,6 +44,12 @@ unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
 }
 
 impl<M: PullParallelIterator> PullParallelIterator for Weight<M> {
+    type Producer = WeightProducer<M::Producer>;
+
+    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
+        let (base, shared) = self.base.into_producer();
+        (WeightProducer { base: base }, (self.weight, shared))
+    }
 }
 
 pub struct WeightState<M>

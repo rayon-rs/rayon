@@ -18,7 +18,7 @@ use self::filter_map::FilterMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
-use self::state::{Consumer, ParallelIteratorState};
+use self::state::{Consumer, ParallelIteratorState, Producer};
 use self::weight::Weight;
 use self::zip::ZipIter;
 
@@ -260,6 +260,14 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 pub trait PullParallelIterator: ExactParallelIterator {
+    #[doc(hidden)]
+    type Producer: Producer<Item=Self::Item>;
+
+    /// Internal method to convert this parallel iterator into a producer
+    /// that can be used to request the items.
+    #[doc(hidden)]
+    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared);
+
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two

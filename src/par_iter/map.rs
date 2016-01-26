@@ -55,11 +55,18 @@ unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP, R> PullParallelIterator for Map<M, MAP_OP>
-    where M: PullParallelIterator,
+impl<M, MAP_OP, R, P> PullParallelIterator for Map<M, MAP_OP>
+    where M: PullParallelIterator<Producer=P>,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
+          P: Producer<Item=M::Item>,
 {
+    type Producer = MapProducer<P, MAP_OP, R>;
+
+    fn into_producer(self) -> (Self::Producer, (P::Shared, MAP_OP)) {
+        let (base, shared) = self.base.into_producer();
+        (MapProducer { base: base, phantoms: PhantomType::new() }, (shared, self.map_op))
+    }
 }
 
 pub struct MapShared<M, MAP_OP>
@@ -121,25 +128,16 @@ pub struct MapProducer<M, MAP_OP, R>
     phantoms: PhantomType<MAP_OP>,
 }
 
-pub struct MapProducerShared<M, MAP_OP, R>
-    where M: Producer,
-          MAP_OP: Fn(M::Item) -> R + Sync,
-          R: Send,
-{
-    base: M::Shared,
-    map_op: MAP_OP,
-}
-
 impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
     where M: Producer,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
 {
     type Item = R;
-    type Shared = MapProducerShared<M, MAP_OP, R>;
+    type Shared = (M::Shared, MAP_OP);
 
     unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(&shared.base, items) * FUNC_ADJUSTMENT
+        self.base.cost(&shared.0, items) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
@@ -149,8 +147,8 @@ impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
     }
 
     unsafe fn produce(&mut self, shared: &Self::Shared) -> R {
-        let item = self.base.produce(&shared.base);
-        (shared.map_op)(item)
+        let item = self.base.produce(&shared.0);
+        (shared.1)(item)
     }
 }
 

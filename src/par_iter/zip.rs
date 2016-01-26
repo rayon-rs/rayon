@@ -51,6 +51,13 @@ unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
 impl<A,B> PullParallelIterator for ZipIter<A,B>
     where A: PullParallelIterator, B: PullParallelIterator
 {
+    type Producer = ZipProducer<A::Producer, B::Producer>;
+
+    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
+        let (a_producer, a_shared) = self.a.into_producer();
+        let (b_producer, b_shared) = self.b.into_producer();
+        (ZipProducer { p: a_producer, q: b_producer }, (a_shared, b_shared))
+    }
 }
 
 pub struct ZipShared<A: PullParallelIterator, B: PullParallelIterator> {

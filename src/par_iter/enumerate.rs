@@ -49,6 +49,12 @@ unsafe impl<M> ExactParallelIterator for Enumerate<M>
 impl<M> PullParallelIterator for Enumerate<M>
     where M: PullParallelIterator,
 {
+    type Producer = EnumerateProducer<M::Producer>;
+
+    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
+        let (base, shared) = self.base.into_producer();
+        (EnumerateProducer { base: base, offset: 0 }, shared)
+    }
 }
 
 pub struct EnumerateState<M>
@@ -100,20 +106,14 @@ pub struct EnumerateProducer<M>
     offset: usize,
 }
 
-pub struct EnumerateProducerShared<M>
-    where M: Producer,
-{
-    base: M::Shared,
-}
-
 impl<M> Producer for EnumerateProducer<M>
     where M: Producer
 {
     type Item = (usize, M::Item);
-    type Shared = EnumerateProducerShared<M>;
+    type Shared = M::Shared;
 
     unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(&shared.base, items) // enumerating is basically free
+        self.base.cost(shared, items) // enumerating is basically free
     }
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
@@ -122,11 +122,8 @@ impl<M> Producer for EnumerateProducer<M>
          EnumerateProducer { base: right, offset: self.offset + index })
     }
 
-    unsafe fn produce(&mut self,
-                      shared: &EnumerateProducerShared<M>)
-                      -> (usize, M::Item)
-    {
-        let item = self.base.produce(&shared.base);
+    unsafe fn produce(&mut self, shared: &Self::Shared) -> (usize, M::Item) {
+        let item = self.base.produce(shared);
         let index = self.offset;
         self.offset += 1;
         (index, item)

@@ -45,6 +45,11 @@ macro_rules! range_impl {
         }
 
         impl PullParallelIterator for RangeIter<$t> {
+            type Producer = Self;
+
+            fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
+                (self, ())
+            }
         }
 
         unsafe impl ParallelIteratorState for RangeIter<$t> {
