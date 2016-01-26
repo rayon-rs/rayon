@@ -1,5 +1,5 @@
 use super::*;
-use super::len::ParallelLen;
+use super::len::*;
 use super::state::*;
 use super::util::PhantomType;
 use std::marker::PhantomData;
@@ -184,8 +184,12 @@ impl<ITEM, C, MAP_OP> Consumer for MapConsumer<ITEM, C, MAP_OP>
     type SeqState = C::SeqState;
     type Result = C::Result;
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(&shared.base, items) * FUNC_ADJUSTMENT
+    }
+
+    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(&shared.base, index);
         (MapConsumer::new(left), MapConsumer::new(right))
     }
 

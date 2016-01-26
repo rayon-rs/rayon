@@ -1,5 +1,5 @@
 use super::*;
-use super::len::ParallelLen;
+use super::len::*;
 use super::state::*;
 use super::util::PhantomType;
 
@@ -117,8 +117,13 @@ impl<C, FILTER_OP> Consumer for FilterConsumer<C, FILTER_OP>
     type SeqState = C::SeqState;
     type Result = C::Result;
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
+    /// Cost to process `items` number of items.
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(&shared.base, items) * FUNC_ADJUSTMENT
+    }
+
+    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(&shared.base, index);
         (FilterConsumer::new(left), FilterConsumer::new(right))
     }
 

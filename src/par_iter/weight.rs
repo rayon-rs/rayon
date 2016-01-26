@@ -123,17 +123,21 @@ impl<C> Consumer for WeightConsumer<C>
     where C: Consumer,
 {
     type Item = C::Item;
-    type Shared = C::Shared;
+    type Shared = (f64, C::Shared);
     type SeqState = C::SeqState;
     type Result = C::Result;
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(&shared.1, items) * shared.0
+    }
+
+    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(&shared.1, index);
         (WeightConsumer::new(left), WeightConsumer::new(right))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(shared)
+        self.base.start(&shared.1)
     }
 
     unsafe fn consume(&mut self,
@@ -142,14 +146,14 @@ impl<C> Consumer for WeightConsumer<C>
                       item: Self::Item)
                       -> C::SeqState
     {
-        self.base.consume(shared, state, item)
+        self.base.consume(&shared.1, state, item)
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(shared, state)
+        self.base.complete(&shared.1, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(shared, left, right)
+        C::reduce(&shared.1, left, right)
     }
 }

@@ -60,14 +60,29 @@ pub trait Consumer: Send {
     type SeqState;
     type Result: Send;
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self);
+    /// Cost to process `items` number of items.
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64;
+
+    /// Divide the consumer into two consumers, one processing items
+    /// `0..index` and one processing items `index..`.
+    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self);
+
+    /// Start processing items. This can return some sequential state
+    /// that will be threaded through as items are consumed.
     unsafe fn start(&mut self, shared: &Self::Shared) -> Self::SeqState;
+
+    /// Consume next item and return new sequential state.
     unsafe fn consume(&mut self,
                       shared: &Self::Shared,
                       state: Self::SeqState,
                       item: Self::Item)
                       -> Self::SeqState;
+
+    /// Finish consuming items, produce final result.
     unsafe fn complete(self, shared: &Self::Shared, state: Self::SeqState) -> Self::Result;
+
+    /// Reduce two final results into one; this is executed after a
+    /// split.
     unsafe fn reduce(shared: &Self::Shared,
                      left: Self::Result,
                      right: Self::Result)
@@ -87,7 +102,7 @@ pub fn bridge<P,C>(len: usize,
         if len > 1 && cost > THRESHOLD {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
-            let (left_consumer, right_consumer) = consumer.split_at(mid);
+            let (left_consumer, right_consumer) = consumer.split_at(consumer_shared, mid);
             let (left_result, right_result) =
                 join(|| bridge(mid, cost / 2.0,
                                left_producer, producer_shared,

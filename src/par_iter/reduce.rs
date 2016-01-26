@@ -2,7 +2,7 @@ use api::join;
 use std;
 use std::marker::PhantomData;
 use super::ParallelIterator;
-use super::len::{ParallelLen, THRESHOLD};
+use super::len::*;
 use super::state::*;
 
 /// Specifies a "reduce operator". This is the combination of a start
@@ -101,7 +101,12 @@ impl<PAR_ITER, REDUCE_OP> Consumer for ReduceConsumer<PAR_ITER, REDUCE_OP>
     type SeqState = PAR_ITER::Item;
     type Result = PAR_ITER::Item;
 
-    unsafe fn split_at(self, _index: usize) -> (Self, Self) {
+    unsafe fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
+        (items as f64) * FUNC_ADJUSTMENT
+    }
+
+    unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
         (ReduceConsumer::new(), ReduceConsumer::new())
     }
 
