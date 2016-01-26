@@ -1,5 +1,4 @@
 use super::*;
-use super::len::ParallelLen;
 use super::state::*;
 use std::ops::Range;
 
@@ -20,18 +19,12 @@ macro_rules! range_impl {
 
         impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
-            type Shared = ();
-            type State = Self;
 
             fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                            consumer: C,
                                                            shared: &'c C::Shared)
                                                            -> C::Result {
                 bridge(self, consumer, &shared)
-            }
-
-            fn state(self) -> (Self::Shared, Self::State) {
-                ((), self)
             }
         }
 
@@ -55,38 +48,11 @@ macro_rules! range_impl {
             }
         }
 
-        unsafe impl ParallelIteratorState for RangeIter<$t> {
-            type Item = $t;
-            type Shared = ();
-
-            fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
-                ParallelLen {
-                    maximal_len: self.range.len(),
-                    cost: self.range.len() as f64,
-                    sparse: false,
-                }
-            }
-
-            fn split_at(self, index: usize) -> (Self, Self) {
-                assert!(index <= self.range.len());
-                // For signed $t, the length and requested index could be greater than $t::MAX, and
-                // then `index as $t` could wrap to negative, so wrapping_add is necessary.
-                let mid = self.range.start.wrapping_add(index as $t);
-                let left = self.range.start .. mid;
-                let right = mid .. self.range.end;
-                (left.into_par_iter(), right.into_par_iter())
-            }
-
-            fn next(&mut self, _shared: &Self::Shared) -> Option<$t> {
-                self.range.next()
-            }
-        }
-
         impl Producer for RangeIter<$t> {
             type Item = $t;
             type Shared = ();
 
-            fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+            fn cost(&mut self, _: &Self::Shared, len: usize) -> f64 {
                 len as f64
             }
 
@@ -100,7 +66,7 @@ macro_rules! range_impl {
                 (RangeIter { range: left }, RangeIter { range: right })
             }
 
-            unsafe fn produce(&mut self, shared: &()) -> $t {
+            unsafe fn produce(&mut self, _: &()) -> $t {
                 self.range.next().unwrap()
             }
         }

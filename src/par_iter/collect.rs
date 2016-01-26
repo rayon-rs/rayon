@@ -1,4 +1,3 @@
-use api::join;
 use super::ExactParallelIterator;
 use super::len::*;
 use super::state::*;
@@ -9,7 +8,6 @@ use std::ptr;
 pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
     where PAR_ITER: ExactParallelIterator<Item=T>,
           PAR_ITER: ExactParallelIterator,
-          PAR_ITER::State: Send,
           T: Send,
 {
     let len = pi.len();
@@ -24,44 +22,6 @@ pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
     unsafe {
         // TODO -- drops are not quite right here!
         v.set_len(len);
-    }
-}
-
-unsafe fn collect_into_helper<STATE,T>(mut state: STATE,
-                                       shared: &STATE::Shared,
-                                       len: ParallelLen,
-                                       target: CollectTarget<T>)
-    where STATE: ParallelIteratorState<Item=T> + Send
-{
-    if len.cost > THRESHOLD && len.maximal_len > 1 {
-        let mid = len.maximal_len / 2;
-        let (left, right) = state.split_at(mid);
-        let (left_target, right_target) = target.split_at(mid);
-        join(|| collect_into_helper(left, shared, len.left_cost(mid), left_target),
-             || collect_into_helper(right, shared, len.right_cost(mid), right_target));
-    } else {
-        let mut p = DropInitialized::new(target.as_mut_ptr());
-        while let Some(item) = state.next(shared) {
-            ptr::write(p.next, item);
-            p.bump();
-        }
-        mem::forget(p); // fully initialized, so don't run the destructor
-    }
-}
-
-struct CollectTarget<T>(*mut T);
-
-unsafe impl<T> Send for CollectTarget<T> { }
-
-impl<T> CollectTarget<T> {
-    unsafe fn split_at(self, mid: usize) -> (CollectTarget<T>, CollectTarget<T>) {
-        assert!(mid < (isize::MAX) as usize);
-        let mid = mid as isize;
-        (CollectTarget(self.0), CollectTarget(self.0.offset(mid)))
-    }
-
-    fn as_mut_ptr(self) -> *mut T {
-        self.0
     }
 }
 
@@ -105,7 +65,7 @@ impl<'c, ITEM: Send + 'c> Consumer<'c> for CollectConsumer<ITEM> {
     type SeqState = DropInitialized<ITEM>;
     type Result = ();
 
-    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
+    fn cost(&mut self, _: &Self::Shared, cost: f64) -> f64 {
         cost * FUNC_ADJUSTMENT
     }
 
@@ -135,6 +95,6 @@ impl<'c, ITEM: Send + 'c> Consumer<'c> for CollectConsumer<ITEM> {
         mem::forget(p); // fully initialized, so don't run the destructor
     }
 
-    unsafe fn reduce(_: &(), a: (), b: ()) {
+    unsafe fn reduce(_: &(), _: (), _: ()) {
     }
 }

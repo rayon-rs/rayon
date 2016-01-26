@@ -1,5 +1,4 @@
 use super::*;
-use super::len::ParallelLen;
 use super::state::*;
 
 pub struct SliceIter<'data, T: 'data + Sync> {
@@ -26,18 +25,12 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
 
 impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
-    type Shared = ();
-    type State = Self;
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
                                                    shared: &'c C::Shared)
                                                    -> C::Result {
         bridge(self, consumer, &shared)
-    }
-
-    fn state(self) -> (Self::Shared, Self::State) {
-        ((), self)
     }
 }
 
@@ -61,32 +54,6 @@ impl<'data, T: Sync> PullParallelIterator for SliceIter<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Sync> ParallelIteratorState for SliceIter<'data, T> {
-    type Item = &'data T;
-    type Shared = ();
-
-    fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
-        ParallelLen {
-            maximal_len: self.slice.len(),
-            cost: self.slice.len() as f64,
-            sparse: false,
-        }
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.slice.split_at(index);
-        (left.into_par_iter(), right.into_par_iter())
-    }
-
-    fn next(&mut self, _shared: &Self::Shared) -> Option<&'data T> {
-        self.slice.split_first()
-                  .map(|(head, tail)| {
-                      self.slice = tail;
-                      head
-                  })
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct SliceProducer<'data, T: 'data + Sync> {
@@ -98,7 +65,7 @@ impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
     type Item = &'data T;
     type Shared = ();
 
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+    fn cost(&mut self, _shared: &Self::Shared, len: usize) -> f64 {
         len as f64
     }
 

@@ -2,7 +2,6 @@ use super::*;
 use super::len::*;
 use super::state::*;
 use super::util::PhantomType;
-use std::marker::PhantomData;
 
 pub struct Map<M, MAP_OP> {
     base: M,
@@ -21,8 +20,6 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
           R: Send,
 {
     type Item = R;
-    type Shared = MapShared<M, MAP_OP>;
-    type State = MapState<M, MAP_OP>;
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
@@ -31,12 +28,6 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
         let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
         let shared1 = (shared, &self.map_op);
         self.base.drive(consumer1, &shared1)
-    }
-
-    fn state(self) -> (Self::Shared, Self::State) {
-        let (base_shared, base_state) = self.base.state();
-        (MapShared { base: base_shared, map_op: self.map_op },
-         MapState { base: base_state, map_op: PhantomMapOp::new() })
     }
 }
 
@@ -71,54 +62,6 @@ impl<M, MAP_OP, R, P> PullParallelIterator for Map<M, MAP_OP>
     fn into_producer(self) -> (Self::Producer, (P::Shared, MAP_OP)) {
         let (base, shared) = self.base.into_producer();
         (MapProducer { base: base, phantoms: PhantomType::new() }, (shared, self.map_op))
-    }
-}
-
-pub struct MapShared<M, MAP_OP>
-    where M: ParallelIterator,
-{
-    base: M::Shared,
-    map_op: MAP_OP,
-}
-
-pub struct MapState<M, MAP_OP>
-    where M: ParallelIterator,
-{
-    base: M::State,
-    map_op: PhantomMapOp<MAP_OP>,
-}
-
-// Wrapper for `PhantomData` to allow `MapState` to impl `Send`
-struct PhantomMapOp<MAP_OP>(PhantomData<*const MAP_OP>);
-
-impl<MAP_OP> PhantomMapOp<MAP_OP> {
-    fn new() -> PhantomMapOp<MAP_OP> {
-        PhantomMapOp(PhantomData)
-    }
-}
-
-unsafe impl<MAP_OP: Sync> Send for PhantomMapOp<MAP_OP> { }
-
-unsafe impl<M, MAP_OP, R> ParallelIteratorState for MapState<M, MAP_OP>
-    where M: ParallelIterator,
-          MAP_OP: Fn(M::Item) -> R + Sync,
-{
-    type Item = R;
-    type Shared = MapShared<M, MAP_OP>;
-
-    fn len(&mut self, shared: &Self::Shared) -> ParallelLen {
-        self.base.len(&shared.base)
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
-        (MapState { base: left, map_op: PhantomMapOp::new() },
-         MapState { base: right, map_op: PhantomMapOp::new() })
-    }
-
-    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
-        self.base.next(&shared.base)
-                 .map(|base| (shared.map_op)(base))
     }
 }
 

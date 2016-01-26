@@ -1,5 +1,5 @@
 use super::*;
-use super::state::ParallelIteratorState;
+use super::state::*;
 
 fn is_bounded<T: ExactParallelIterator>(_: T) { }
 fn is_exact<T: ExactParallelIterator>(_: T) { }
@@ -76,19 +76,19 @@ pub fn map_reduce_weighted() {
 pub fn check_weight() {
     let a: Vec<i32> = (0..1024).collect();
 
-    let len1 = {
-        let (shared, mut state) = a.par_iter().state();
-        ParallelIteratorState::len(&mut state, &shared)
+    let cost1 = {
+        let (mut producer, shared) = a.par_iter().into_producer();
+        producer.cost(&shared, 1024)
     };
 
-    let len2 = {
-        let (shared, mut state) = a.par_iter()
-                                   .weight(2.0)
-                                   .state();
-        state.len(&shared)
+    let cost2 = {
+        let (mut producer, shared) = a.par_iter()
+                                      .weight(2.0)
+                                      .into_producer();
+        producer.cost(&shared, 1024)
     };
 
-    assert_eq!(len1.cost * 2.0, len2.cost);
+    assert_eq!(cost1 * 2.0, cost2);
 }
 
 #[test]
@@ -171,10 +171,12 @@ pub fn check_zip_range() {
 #[test]
 pub fn check_range_split_at_overflow() {
     // Note, this split index overflows i8!
-    let (left, right) = (-100i8..100).into_par_iter().split_at(150);
-    let r1 = left.map(|i| i as i32).sum();
-    let r2 = right.map(|i| i as i32).sum();
-    assert_eq!(r1 + r2, -100);
+    unsafe {
+        let (left, right) = (-100i8..100).into_par_iter().split_at(150);
+        let r1 = left.map(|i| i as i32).sum();
+        let r2 = right.map(|i| i as i32).sum();
+        assert_eq!(r1 + r2, -100);
+    }
 }
 
 #[test]

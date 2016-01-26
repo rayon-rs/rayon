@@ -1,5 +1,4 @@
 use super::*;
-use super::len::ParallelLen;
 use super::state::*;
 
 pub struct Enumerate<M> {
@@ -16,20 +15,12 @@ impl<M> ParallelIterator for Enumerate<M>
     where M: PullParallelIterator,
 {
     type Item = (usize, M::Item);
-    type Shared = EnumerateShared<M>;
-    type State = EnumerateState<M>;
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
                                                    shared: &'c C::Shared)
                                                    -> C::Result {
         bridge(self, consumer, &shared)
-    }
-
-    fn state(self) -> (Self::Shared, Self::State) {
-        let (base_shared, base_state) = self.base.state();
-        (EnumerateShared { base: base_shared },
-         EnumerateState { base: base_state, offset: 0 })
     }
 }
 
@@ -57,45 +48,6 @@ impl<M> PullParallelIterator for Enumerate<M>
     fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
         let (base, shared) = self.base.into_producer();
         (EnumerateProducer { base: base, offset: 0 }, shared)
-    }
-}
-
-pub struct EnumerateState<M>
-    where M: ParallelIterator
-{
-    base: M::State,
-    offset: usize,
-}
-
-pub struct EnumerateShared<M>
-    where M: ParallelIterator
-{
-    base: M::Shared,
-}
-
-unsafe impl<M> ParallelIteratorState for EnumerateState<M>
-    where M: ParallelIterator,
-{
-    type Item = (usize, M::Item);
-    type Shared = EnumerateShared<M>;
-
-    fn len(&mut self, shared: &Self::Shared) -> ParallelLen {
-        self.base.len(&shared.base)
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
-        (EnumerateState { base: left, offset: self.offset },
-         EnumerateState { base: right, offset: self.offset + index })
-    }
-
-    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
-        self.base.next(&shared.base)
-                 .map(|base| {
-                     let index = self.offset;
-                     self.offset += 1;
-                     (index, base)
-                 })
     }
 }
 

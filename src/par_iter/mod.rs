@@ -18,7 +18,7 @@ use self::filter_map::FilterMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
-use self::state::{Consumer, ParallelIteratorState, Producer};
+use self::state::{Consumer, Producer};
 use self::weight::Weight;
 use self::zip::ZipIter;
 
@@ -65,10 +65,6 @@ pub trait IntoParallelRefMutIterator<'data> {
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
-    type Shared: Sync;
-    type State: ParallelIteratorState<Shared=Self::Shared, Item=Self::Item> + Send;
-
-    fn state(self) -> (Self::Shared, Self::State);
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.

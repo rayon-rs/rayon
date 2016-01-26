@@ -1,6 +1,4 @@
-use api::join;
 use std;
-use std::marker::PhantomData;
 use super::ParallelIterator;
 use super::len::*;
 use super::state::*;
@@ -37,7 +35,6 @@ pub trait ReduceOp<T>: Sync {
 
 pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
     where PAR_ITER: ParallelIterator<Item=T>,
-          PAR_ITER::State: Send,
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
@@ -72,7 +69,7 @@ impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
     type SeqState = ITEM;
     type Result = ITEM;
 
-    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
+    fn cost(&mut self, _shared: &Self::Shared, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
         cost * FUNC_ADJUSTMENT
     }

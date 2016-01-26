@@ -19,8 +19,6 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
           FILTER_OP: Fn(&M::Item) -> bool + Sync,
 {
     type Item = M::Item;
-    type Shared = FilterShared<M, FILTER_OP>;
-    type State = FilterState<M, FILTER_OP>;
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
@@ -30,12 +28,6 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
         let shared1 = (shared, &self.filter_op);
         self.base.drive(consumer1, &shared1)
     }
-
-    fn state(self) -> (Self::Shared, Self::State) {
-        let (base_shared, base_state) = self.base.state();
-        (FilterShared { base: base_shared, filter_op: self.filter_op },
-         FilterState { base: base_state, filter_op: PhantomType::new() })
-    }
 }
 
 unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
@@ -44,47 +36,6 @@ unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
 {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
-    }
-}
-
-pub struct FilterShared<M, FILTER_OP>
-    where M: ParallelIterator,
-{
-    base: M::Shared,
-    filter_op: FILTER_OP,
-}
-
-pub struct FilterState<M, FILTER_OP>
-    where M: ParallelIterator,
-{
-    base: M::State,
-    filter_op: PhantomType<FILTER_OP>,
-}
-
-unsafe impl<M, FILTER_OP> ParallelIteratorState for FilterState<M, FILTER_OP>
-    where M: ParallelIterator,
-          FILTER_OP: Fn(&M::Item) -> bool + Sync
-{
-    type Item = M::Item;
-    type Shared = FilterShared<M, FILTER_OP>;
-
-    fn len(&mut self, shared: &Self::Shared) -> ParallelLen {
-        self.base.len(&shared.base)
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
-        (FilterState { base: left, filter_op: PhantomType::new() },
-         FilterState { base: right, filter_op: PhantomType::new() })
-    }
-
-    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
-        while let Some(base) = self.base.next(&shared.base) {
-            if (shared.filter_op)(&base) {
-                return Some(base);
-            }
-        }
-        None
     }
 }
 
