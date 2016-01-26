@@ -1,5 +1,5 @@
 use super::*;
-use super::state::*;
+use super::internal::*;
 use std::mem;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {

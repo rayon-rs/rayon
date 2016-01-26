@@ -1,5 +1,5 @@
 use super::*;
-use super::state::*;
+use super::internal::*;
 
 pub struct Enumerate<M> {
     base: M,

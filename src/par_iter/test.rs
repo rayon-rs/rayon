@@ -1,5 +1,5 @@
 use super::*;
-use super::state::*;
+use super::internal::*;
 
 fn is_bounded<T: ExactParallelIterator>(_: T) { }
 fn is_exact<T: ExactParallelIterator>(_: T) { }

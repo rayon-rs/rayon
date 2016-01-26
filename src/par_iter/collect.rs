@@ -1,6 +1,6 @@
 use super::ExactParallelIterator;
 use super::len::*;
-use super::state::*;
+use super::internal::*;
 use std::isize;
 use std::mem;
 use std::ptr;

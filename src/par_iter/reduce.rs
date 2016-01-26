@@ -1,7 +1,7 @@
 use std;
 use super::ParallelIterator;
 use super::len::*;
-use super::state::*;
+use super::internal::*;
 use super::util::PhantomType;
 
 /// Specifies a "reduce operator". This is the combination of a start

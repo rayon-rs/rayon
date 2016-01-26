@@ -1,3 +1,7 @@
+//! Internal traits and functions used to implement parallel
+//! iteration. These should be considered highly unstable: users of
+//! parallel iterators should not need to interact with them directly.
+
 use join;
 use super::IndexedParallelIterator;
 use super::len::*;

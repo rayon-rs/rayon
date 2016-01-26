@@ -1,6 +1,6 @@
 use super::*;
 use super::len::*;
-use super::state::*;
+use super::internal::*;
 use super::util::PhantomType;
 
 pub struct Filter<M, FILTER_OP> {

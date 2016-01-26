@@ -19,7 +19,7 @@ use self::flat_map::FlatMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
-use self::state::*;
+use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
@@ -28,12 +28,12 @@ pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
 pub mod flat_map;
+pub mod internal;
 pub mod len;
 pub mod for_each;
 pub mod reduce;
 pub mod slice;
 pub mod slice_mut;
-pub mod state;
 pub mod map;
 pub mod weight;
 pub mod zip;

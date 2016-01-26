@@ -1,5 +1,5 @@
 use super::*;
-use super::state::*;
+use super::internal::*;
 use std::cmp::min;
 
 pub struct ZipIter<A: IndexedParallelIterator, B: IndexedParallelIterator> {
