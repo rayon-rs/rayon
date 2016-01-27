@@ -152,12 +152,10 @@ pub fn check_zip_range() {
 #[test]
 pub fn check_range_split_at_overflow() {
     // Note, this split index overflows i8!
-    unsafe {
-        let (left, right) = (-100i8..100).into_par_iter().split_at(150);
-        let r1 = left.map(|i| i as i32).sum();
-        let r2 = right.map(|i| i as i32).sum();
-        assert_eq!(r1 + r2, -100);
-    }
+    let (left, right) = (-100i8..100).into_par_iter().split_at(150);
+    let r1 = left.map(|i| i as i32).sum();
+    let r2 = right.map(|i| i as i32).sum();
+    assert_eq!(r1 + r2, -100);
 }
 
 #[test]

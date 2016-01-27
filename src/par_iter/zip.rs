@@ -27,7 +27,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     }
 }
 
-unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
+impl<A,B> BoundedParallelIterator for ZipIter<A,B>
     where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
@@ -42,7 +42,7 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
     }
 }
 
-unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
+impl<A,B> ExactParallelIterator for ZipIter<A,B>
     where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
@@ -126,14 +126,14 @@ impl<'z, 'a, 'b, A: Producer<'a>, B: Producer<'b>> Producer<'z> for ZipProducer<
         self.p.cost(&shared.0, len) + self.q.cost(&shared.1, len)
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (p_left, p_right) = self.p.split_at(index);
         let (q_left, q_right) = self.q.split_at(index);
         (ZipProducer { p: p_left, q: q_left, phantoms: PhantomType::new() },
          ZipProducer { p: p_right, q: q_right, phantoms: PhantomType::new() })
     }
 
-    unsafe fn produce(&mut self, shared: &(&A::Shared, &B::Shared)) -> (A::Item, B::Item) {
+    fn produce(&mut self, shared: &(&A::Shared, &B::Shared)) -> (A::Item, B::Item) {
         let p = self.p.produce(shared.0);
         let q = self.q.produce(shared.1);
         (p, q)

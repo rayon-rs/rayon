@@ -74,15 +74,15 @@ impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
         cost * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
+    fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
         (self, self)
     }
 
-    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> ITEM {
+    fn start(&mut self, reduce_op: &REDUCE_OP) -> ITEM {
         reduce_op.start_value()
     }
 
-    unsafe fn consume(&mut self,
+    fn consume(&mut self,
                       reduce_op: &REDUCE_OP,
                       prev_value: ITEM,
                       item: ITEM)
@@ -90,14 +90,14 @@ impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
         reduce_op.reduce(prev_value, item)
     }
 
-    unsafe fn complete(self,
+    fn complete(self,
                        _reduce_op: &REDUCE_OP,
                        state: ITEM)
                        -> ITEM {
         state
     }
 
-    unsafe fn reduce(reduce_op: &REDUCE_OP,
+    fn reduce(reduce_op: &REDUCE_OP,
                      a: ITEM,
                      b: ITEM)
                      -> ITEM {

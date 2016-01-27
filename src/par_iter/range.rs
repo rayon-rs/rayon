@@ -28,7 +28,7 @@ macro_rules! range_impl {
             }
         }
 
-        unsafe impl BoundedParallelIterator for RangeIter<$t> {
+        impl BoundedParallelIterator for RangeIter<$t> {
             fn upper_bound(&mut self) -> usize {
                 ExactParallelIterator::len(self)
             }
@@ -41,7 +41,7 @@ macro_rules! range_impl {
             }
         }
 
-        unsafe impl ExactParallelIterator for RangeIter<$t> {
+        impl ExactParallelIterator for RangeIter<$t> {
             fn len(&mut self) -> usize {
                 self.range.len() as usize
             }
@@ -63,7 +63,7 @@ macro_rules! range_impl {
                 len as f64
             }
 
-            unsafe fn split_at(self, index: usize) -> (Self, Self) {
+            fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
                 // For signed $t, the length and requested index could be greater than $t::MAX, and
                 // then `index as $t` could wrap to negative, so wrapping_add is necessary.
@@ -73,7 +73,7 @@ macro_rules! range_impl {
                 (RangeIter { range: left }, RangeIter { range: right })
             }
 
-            unsafe fn produce(&mut self, _: &()) -> $t {
+            fn produce(&mut self, _: &()) -> $t {
                 self.range.next().unwrap()
             }
         }
