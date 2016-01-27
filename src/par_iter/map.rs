@@ -82,12 +82,14 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
         {
             type Output = WP::Output;
 
-            fn with_producer<P: Producer<Item=ITEM>>(self,
-                                                     base: P,
-                                                     shared: P::Shared)
-                                                     -> WP::Output {
+            fn with_producer<'p, P>(self,
+                                    base: P,
+                                    shared: &'p P::Shared)
+                                    -> WP::Output
+                where P: Producer<'p, Item=ITEM>
+            {
                 let producer = MapProducer { base: base, phantoms: PhantomType::new() };
-                self.wp.with_producer(producer, (shared, self.map_op))
+                self.wp.with_producer(producer, &(shared, &self.map_op))
             }
         }
     }
@@ -95,22 +97,23 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct MapProducer<M, MAP_OP, R>
-    where M: Producer,
-          MAP_OP: Fn(M::Item) -> R + Sync,
+pub struct MapProducer<'p, P, MAP_OP, R>
+    where P: Producer<'p>,
+          MAP_OP: Fn(P::Item) -> R + Sync,
           R: Send,
 {
-    base: M,
-    phantoms: PhantomType<MAP_OP>,
+    base: P,
+    phantoms: PhantomType<(&'p (), R, MAP_OP)>,
 }
 
-impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
-    where M: Producer,
-          MAP_OP: Fn(M::Item) -> R + Sync,
+impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
+    where P: Producer<'p>,
+          MAP_OP: Fn(P::Item) -> R + Sync + 'm,
           R: Send,
+          'p: 'm
 {
     type Item = R;
-    type Shared = (M::Shared, MAP_OP);
+    type Shared = (&'p P::Shared, &'m MAP_OP);
 
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
         self.base.cost(&shared.0, len) * FUNC_ADJUSTMENT

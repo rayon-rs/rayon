@@ -57,7 +57,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
     fn with_producer<WP>(self, wp: WP) -> WP::Output
         where WP: ProducerContinuation<Self::Item>
     {
-        wp.with_producer(SliceProducer { slice: self.slice }, ())
+        wp.with_producer(SliceProducer { slice: self.slice }, &())
     }
 }
 
@@ -67,7 +67,7 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
     slice: &'data [T]
 }
 
-impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
+impl<'p, 'data, T: 'data + Sync> Producer<'p> for SliceProducer<'data, T>
 {
     type Item = &'data T;
     type Shared = ();

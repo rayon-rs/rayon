@@ -58,7 +58,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> 
     fn with_producer<WP>(self, wp: WP) -> WP::Output
         where WP: ProducerContinuation<Self::Item>
     {
-        wp.with_producer(SliceMutProducer { slice: self.slice }, ())
+        wp.with_producer(SliceMutProducer { slice: self.slice }, &())
     }
 }
 
@@ -68,7 +68,7 @@ pub struct SliceMutProducer<'data, T: 'data + Send> {
     slice: &'data mut [T]
 }
 
-impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
+impl<'p, 'data, T: 'data + Send> Producer<'p> for SliceMutProducer<'data, T>
 {
     type Item = &'data mut T;
     type Shared = ();

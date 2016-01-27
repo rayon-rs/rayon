@@ -65,10 +65,11 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
         {
             type Output = WP::Output;
 
-            fn with_producer<P>(self, base: P, shared: P::Shared) -> Self::Output
-                where P: Producer<Item=ITEM>
+            fn with_producer<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
+                where P: Producer<'p, Item=ITEM>
             {
-                self.wp.with_producer(WeightProducer { base: base }, (shared, self.weight))
+                self.wp.with_producer(WeightProducer { base: base, phantoms: PhantomType::new() },
+                                      &(shared, self.weight))
             }
         }
     }
@@ -76,14 +77,14 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct WeightProducer<P: Producer> {
-    base: P
+pub struct WeightProducer<'p, P> {
+    base: P,
+    phantoms: PhantomType<&'p ()>
 }
 
-impl<P: Producer> Producer for WeightProducer<P>
-{
+impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
     type Item = P::Item;
-    type Shared = (P::Shared, f64);
+    type Shared = (&'p P::Shared, f64);
 
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
         self.base.cost(&shared.0, len) * shared.1
@@ -91,7 +92,8 @@ impl<P: Producer> Producer for WeightProducer<P>
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (WeightProducer { base: left }, WeightProducer { base: right })
+        (WeightProducer { base: left, phantoms: PhantomType::new() },
+         WeightProducer { base: right, phantoms: PhantomType::new() })
     }
 
     unsafe fn produce(&mut self, shared: &Self::Shared) -> P::Item {

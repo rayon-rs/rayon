@@ -9,16 +9,16 @@ use super::len::*;
 
 pub trait ProducerContinuation<ITEM> {
     type Output;
-    fn with_producer<P>(self, producer: P, shared: P::Shared) -> Self::Output
-        where P: Producer<Item=ITEM>;
+    fn with_producer<'p, P>(self, producer: P, shared: &'p P::Shared) -> Self::Output
+        where P: Producer<'p, Item=ITEM>;
 }
 
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer: Send {
+pub trait Producer<'produce>: Send {
     type Item;
-    type Shared: Sync;
+    type Shared: Sync + 'produce;
 
     /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64;
@@ -92,27 +92,29 @@ pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
 
     impl<'c, C> ProducerContinuation<C::Item> for Continuation<'c, C> where C: Consumer<'c> {
         type Output = C::Result;
-        fn with_producer<P: Producer<Item=C::Item>>(mut self,
-                                                    mut producer: P,
-                                                    producer_shared: P::Shared)
-                                                    -> C::Result {
+        fn with_producer<'p, P>(mut self,
+                                mut producer: P,
+                                producer_shared: &'p P::Shared)
+                                -> C::Result
+            where P: Producer<'p, Item=C::Item>
+        {
             let producer_cost = producer.cost(&producer_shared, self.len);
             let cost = self.consumer.cost(self.consumer_shared, producer_cost);
             bridge_producer_consumer(self.len, cost,
-                                     producer, &producer_shared,
+                                     producer, producer_shared,
                                      self.consumer, self.consumer_shared)
         }
     }
 }
 
-fn bridge_producer_consumer<'c,P,C>(len: usize,
-                                    cost: f64,
-                                    mut producer: P,
-                                    producer_shared: &P::Shared,
-                                    mut consumer: C,
-                                    consumer_shared: &'c C::Shared)
-                                    -> C::Result
-    where P: Producer, C: Consumer<'c, Item=P::Item>
+fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
+                                       cost: f64,
+                                       mut producer: P,
+                                       producer_shared: &'p P::Shared,
+                                       mut consumer: C,
+                                       consumer_shared: &'c C::Shared)
+                                       -> C::Result
+    where P: Producer<'p>, C: Consumer<'c, Item=P::Item>
 {
     unsafe { // asserting that we call the `op` methods in correct pattern
         if len > 1 && cost > THRESHOLD {
