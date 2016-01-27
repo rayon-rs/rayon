@@ -50,11 +50,27 @@ unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
 }
 
 impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
-    type Producer = WeightProducer<M::Producer>;
+    fn with_producer<WP>(self, wp: WP) -> WP::Output
+        where WP: ProducerContinuation<Self::Item>
+    {
+        return self.base.with_producer(Continuation { weight: self.weight, wp: wp });
 
-    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
-        let (base, shared) = self.base.into_producer();
-        (WeightProducer { base: base }, (shared, self.weight))
+        struct Continuation<WP> {
+            weight: f64,
+            wp: WP
+        }
+
+        impl<ITEM,WP> ProducerContinuation<ITEM> for Continuation<WP>
+            where WP: ProducerContinuation<ITEM>
+        {
+            type Output = WP::Output;
+
+            fn with_producer<P>(self, base: P, shared: P::Shared) -> Self::Output
+                where P: Producer<Item=ITEM>
+            {
+                self.wp.with_producer(WeightProducer { base: base }, (shared, self.weight))
+            }
+        }
     }
 }
 

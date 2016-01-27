@@ -7,6 +7,12 @@ use join;
 use super::IndexedParallelIterator;
 use super::len::*;
 
+pub trait ProducerContinuation<ITEM> {
+    type Output;
+    fn with_producer<P>(self, producer: P, shared: P::Shared) -> Self::Output
+        where P: Producer<Item=ITEM>;
+}
+
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
@@ -14,7 +20,7 @@ pub trait Producer: Send {
     type Item;
     type Shared: Sync;
 
-    /// Cost to produce `len` items.
+    /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
@@ -68,16 +74,35 @@ pub trait UnindexedConsumer<'c>: Consumer<'c> {
 }
 
 pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
-                             mut consumer: C,
+                             consumer: C,
                              consumer_shared: &'c C::Shared)
                              -> C::Result
     where PAR_ITER: IndexedParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
 {
     let len = par_iter.len();
-    let (mut producer, producer_shared) = par_iter.into_producer();
-    let producer_cost = producer.cost(&producer_shared, len);
-    let cost = consumer.cost(consumer_shared, producer_cost);
-    bridge_producer_consumer(len, cost, producer, &producer_shared, consumer, consumer_shared)
+    return par_iter.with_producer(Continuation { len: len,
+                                                 consumer: consumer,
+                                                 consumer_shared: consumer_shared });
+
+    struct Continuation<'c, C> where C: Consumer<'c> {
+        len: usize,
+        consumer: C,
+        consumer_shared: &'c C::Shared,
+    }
+
+    impl<'c, C> ProducerContinuation<C::Item> for Continuation<'c, C> where C: Consumer<'c> {
+        type Output = C::Result;
+        fn with_producer<P: Producer<Item=C::Item>>(mut self,
+                                                    mut producer: P,
+                                                    producer_shared: P::Shared)
+                                                    -> C::Result {
+            let producer_cost = producer.cost(&producer_shared, self.len);
+            let cost = self.consumer.cost(self.consumer_shared, producer_cost);
+            bridge_producer_consumer(self.len, cost,
+                                     producer, &producer_shared,
+                                     self.consumer, self.consumer_shared)
+        }
+    }
 }
 
 fn bridge_producer_consumer<'c,P,C>(len: usize,

@@ -60,17 +60,36 @@ unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP, R, P> IndexedParallelIterator for Map<M, MAP_OP>
-    where M: IndexedParallelIterator<Producer=P>,
+impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
+    where M: IndexedParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
-          P: Producer<Item=M::Item>,
 {
-    type Producer = MapProducer<P, MAP_OP, R>;
+    fn with_producer<WP>(self, wp: WP) -> WP::Output
+        where WP: ProducerContinuation<Self::Item>
+    {
+        return self.base.with_producer(Continuation { wp: wp, map_op: self.map_op });
 
-    fn into_producer(self) -> (Self::Producer, (P::Shared, MAP_OP)) {
-        let (base, shared) = self.base.into_producer();
-        (MapProducer { base: base, phantoms: PhantomType::new() }, (shared, self.map_op))
+        struct Continuation<WP, MAP_OP> {
+            wp: WP,
+            map_op: MAP_OP,
+        }
+
+        impl<ITEM, R, MAP_OP, WP> ProducerContinuation<ITEM> for Continuation<WP, MAP_OP>
+            where MAP_OP: Fn(ITEM) -> R + Sync,
+                  R: Send,
+                  WP: ProducerContinuation<R>
+        {
+            type Output = WP::Output;
+
+            fn with_producer<P: Producer<Item=ITEM>>(self,
+                                                     base: P,
+                                                     shared: P::Shared)
+                                                     -> WP::Output {
+                let producer = MapProducer { base: base, phantoms: PhantomType::new() };
+                self.wp.with_producer(producer, (shared, self.map_op))
+            }
+        }
     }
 }
 

@@ -281,16 +281,11 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 pub trait IndexedParallelIterator: ExactParallelIterator {
-    /// Producer type that this iterator creates. Users of the API
-    /// never need to know about this type.
-    #[doc(hidden)]
-    type Producer: Producer<Item=Self::Item>;
-
     /// Internal method to convert this parallel iterator into a
     /// producer that can be used to request the items. Users of the
     /// API never need to know about this fn.
     #[doc(hidden)]
-    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared);
+    fn with_producer<WP: ProducerContinuation<Self::Item>>(self, wp: WP) -> WP::Output;
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.

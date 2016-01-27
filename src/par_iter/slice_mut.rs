@@ -55,10 +55,10 @@ unsafe impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data
 }
 
 impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> {
-    type Producer = SliceMutProducer<'data, T>;
-
-    fn into_producer(self) -> (Self::Producer, ()) {
-        (SliceMutProducer { slice: self.slice }, ())
+    fn with_producer<WP>(self, wp: WP) -> WP::Output
+        where WP: ProducerContinuation<Self::Item>
+    {
+        wp.with_producer(SliceMutProducer { slice: self.slice }, ())
     }
 }
 

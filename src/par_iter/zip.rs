@@ -52,12 +52,56 @@ unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
 impl<A,B> IndexedParallelIterator for ZipIter<A,B>
     where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
-    type Producer = ZipProducer<A::Producer, B::Producer>;
+    fn with_producer<WP>(self, wp: WP) -> WP::Output
+        where WP: ProducerContinuation<Self::Item>
+    {
+        return self.a.with_producer(ContinuationA {
+            wp: wp,
+            b: self.b,
+        });
 
-    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
-        let (a_producer, a_shared) = self.a.into_producer();
-        let (b_producer, b_shared) = self.b.into_producer();
-        (ZipProducer { p: a_producer, q: b_producer }, (a_shared, b_shared))
+        struct ContinuationA<WP, B> {
+            wp: WP,
+            b: B
+        }
+
+        impl<WP, A_ITEM, B> ProducerContinuation<A_ITEM> for ContinuationA<WP, B>
+            where B: IndexedParallelIterator,
+                  WP: ProducerContinuation<(A_ITEM, B::Item)>,
+        {
+            type Output = WP::Output;
+
+            fn with_producer<P>(self, a_producer: P, a_shared: P::Shared) -> Self::Output
+                where P: Producer<Item=A_ITEM>
+            {
+                return self.b.with_producer(ContinuationB {
+                    a_producer: a_producer,
+                    a_shared: a_shared,
+                    wp: self.wp
+                });
+            }
+        }
+
+        struct ContinuationB<WP, A> where A: Producer {
+            a_producer: A,
+            a_shared: A::Shared,
+            wp: WP
+        }
+
+        impl<WP, A, B_ITEM> ProducerContinuation<B_ITEM> for ContinuationB<WP, A>
+            where A: Producer,
+                  WP: ProducerContinuation<(A::Item, B_ITEM)>,
+        {
+            type Output = WP::Output;
+
+            fn with_producer<P>(self, b_producer: P, b_shared: P::Shared) -> Self::Output
+                where P: Producer<Item=B_ITEM>
+            {
+                self.wp.with_producer(ZipProducer { p: self.a_producer, q: b_producer },
+                                      (self.a_shared, b_shared))
+            }
+        }
+
     }
 }
 

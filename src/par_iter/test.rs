@@ -73,25 +73,6 @@ pub fn map_reduce_weighted() {
 }
 
 #[test]
-pub fn check_weight() {
-    let a: Vec<i32> = (0..1024).collect();
-
-    let cost1 = {
-        let (mut producer, shared) = a.par_iter().into_producer();
-        producer.cost(&shared, 1024)
-    };
-
-    let cost2 = {
-        let (mut producer, shared) = a.par_iter()
-                                      .weight(2.0)
-                                      .into_producer();
-        producer.cost(&shared, 1024)
-    };
-
-    assert_eq!(cost1 * 2.0, cost2);
-}
-
-#[test]
 pub fn check_weight_exact_and_bounded() {
     let a = [1, 2, 3];
     is_bounded(a.par_iter().weight(2.0));
