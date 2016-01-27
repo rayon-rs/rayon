@@ -35,7 +35,7 @@ fn sort() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..6*1024).map(|_| rng.next_u32()).collect();
 
-    initialize();
+    initialize(None);
 
     quick_sort(&mut data);
 
@@ -50,7 +50,7 @@ fn sort_in_pool() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..12*1024).map(|_| rng.next_u32()).collect();
 
-    let pool = ThreadPool::new();
+    let pool = ThreadPool::new(None);
     pool.install(|| {
         quick_sort(&mut data);
     });
@@ -70,6 +70,6 @@ fn negative_tests() {
     config.mode = cfg_mode;
     config.src_base = PathBuf::from("neg-tests");
     config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
-    
+
     compiletest::run_tests(&config);
 }

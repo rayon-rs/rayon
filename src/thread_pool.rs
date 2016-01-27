@@ -10,6 +10,7 @@ use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use util::leak;
+use num_cpus;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -36,7 +37,7 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 
 /// Starts the worker threads (if that has not already happened) and
 /// returns the registry.
-pub fn get_registry(num_threads: usize) -> &'static Registry {
+pub fn get_registry(num_threads: Option<usize>) -> &'static Registry {
     THE_REGISTRY_SET.call_once(|| {
         let registry = leak(Registry::new(num_threads));
         unsafe { THE_REGISTRY = Some(registry); }
@@ -45,16 +46,20 @@ pub fn get_registry(num_threads: usize) -> &'static Registry {
 }
 
 impl Registry {
-    pub fn new(num_threads: usize) -> Arc<Registry> {
+    pub fn new(num_threads: Option<usize>) -> Arc<Registry> {
+        let limit_value = match num_threads {
+            Some(value) => value,
+            None => num_cpus::get()
+        };
         let registry = Arc::new(Registry {
-            thread_infos: (0..num_threads).map(|_| ThreadInfo::new())
+            thread_infos: (0..limit_value).map(|_| ThreadInfo::new())
                                           .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
             terminate: AtomicBool::new(false),
         });
 
-        for index in 0 .. num_threads {
+        for index in 0 .. limit_value {
             let registry = registry.clone();
             thread::spawn(move || unsafe { main_loop(registry, index) });
         }
@@ -62,7 +67,7 @@ impl Registry {
         registry
     }
 
-    fn num_threads(&self) -> usize {
+    pub fn num_threads(&self) -> usize {
         self.thread_infos.len()
     }
 

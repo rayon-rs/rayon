@@ -4,7 +4,6 @@ use log::Event::*;
 use job::{Code, CodeImpl, Job};
 use std::sync::Arc;
 use thread_pool::{self, Registry, WorkerThread};
-use num_cpus;
 
 /// Initializes the Rayon threadpool. You don't normally need to do
 /// this, as it happens automatically, but it is handy for
@@ -12,11 +11,18 @@ use num_cpus;
 /// the actual operations.
 /// But you need to call this if you want to specify the maximum number
 /// of threads that Rayon is allowed to use.
-/// If you don't specify it, Rayon uses all the cores avaiable (determined
-/// via num_cpus::get())
-pub fn initialize(num_threads: usize) {
-    assert!(num_threads > 0);
+/// If you pass None or don't call this function at all, Rayon uses all
+/// the cores available (determined via num_cpus::get())
+/// This function panics if:
+///  - you pass zero as the number of threads
+///  - you call it multiple times and the arguments you pass are different
+///    for each call
+pub fn initialize(num_threads: Option<usize>) {
     let registry = thread_pool::get_registry(num_threads);
+    if let Some(value) = num_threads {
+        assert!(value == registry.num_threads());
+        assert!(value > 0);
+    }
     registry.wait_until_primed();
 }
 
@@ -91,7 +97,7 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
     let mut latch_b = LockLatch::new();
     let mut job_b = Job::new(&mut code_b, &mut latch_b);
 
-    thread_pool::get_registry(num_cpus::get()).inject(&[&mut job_a, &mut job_b]);
+    thread_pool::get_registry(None).inject(&[&mut job_a, &mut job_b]);
 
     latch_a.wait();
     latch_b.wait();
@@ -104,8 +110,14 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    pub fn new(num_threads: usize) -> ThreadPool {
-        assert!(num_threads > 0);
+    /// Constructs a new thread pool
+    /// If you pass None as arguments, the current number of cores are used
+    /// as determinde via num_cpus::get()
+    /// This function panics if you pass zero as the number of threads
+    pub fn new(num_threads: Option<usize>) -> ThreadPool {
+        if let Some(value) = num_threads {
+            assert!(value > 0);
+        }
         ThreadPool {
             registry: Registry::new(num_threads)
         }
