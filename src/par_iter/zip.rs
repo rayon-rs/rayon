@@ -109,17 +109,17 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct ZipProducer<'p, 'q, P: Producer<'p>, Q: Producer<'q>> {
-    p: P,
-    q: Q,
-    phantoms: PhantomType<(&'p (), &'q ())>,
+pub struct ZipProducer<'a, 'b, A: Producer<'a>, B: Producer<'b>> {
+    p: A,
+    q: B,
+    phantoms: PhantomType<(&'a (), &'b ())>,
 }
 
-impl<'z, 'p, 'q, P: Producer<'p>, Q: Producer<'q>> Producer<'z> for ZipProducer<'p, 'q, P, Q>
-    where 'p: 'z, 'q: 'z
+impl<'z, 'a, 'b, A: Producer<'a>, B: Producer<'b>> Producer<'z> for ZipProducer<'a, 'b, A, B>
+    where 'a: 'z, 'b: 'z
 {
-    type Item = (P::Item, Q::Item);
-    type Shared = (&'p P::Shared, &'q Q::Shared);
+    type Item = (A::Item, B::Item);
+    type Shared = (&'a A::Shared, &'b B::Shared);
 
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
         // Rather unclear that this should be `+`. It might be that max is better?
@@ -133,7 +133,7 @@ impl<'z, 'p, 'q, P: Producer<'p>, Q: Producer<'q>> Producer<'z> for ZipProducer<
          ZipProducer { p: p_right, q: q_right, phantoms: PhantomType::new() })
     }
 
-    unsafe fn produce(&mut self, shared: &(&P::Shared, &Q::Shared)) -> (P::Item, Q::Item) {
+    unsafe fn produce(&mut self, shared: &(&A::Shared, &B::Shared)) -> (A::Item, B::Item) {
         let p = self.p.produce(shared.0);
         let q = self.q.produce(shared.1);
         (p, q)
