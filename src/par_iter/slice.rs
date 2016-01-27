@@ -23,7 +23,7 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
     }
 }
 
-impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
@@ -34,7 +34,7 @@ impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> {
+unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
@@ -47,13 +47,13 @@ unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> {
+unsafe impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
     fn len(&mut self) -> usize {
-        self.slice.len() as usize
+        self.slice.len()
     }
 }
 
-impl<'data, T: Sync> IndexedParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
     type Producer = SliceProducer<'data, T>;
 
     fn into_producer(self) -> (Self::Producer, ()) {

@@ -6,7 +6,7 @@ pub struct SliceIterMut<'data, T: 'data + Send> {
     slice: &'data mut [T]
 }
 
-impl<'data, T: Send> IntoParallelIterator for &'data mut [T] {
+impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
     type Item = &'data mut T;
     type Iter = SliceIterMut<'data, T>;
 
@@ -24,7 +24,7 @@ impl<'data, T: Send + 'data> IntoParallelRefMutIterator<'data> for [T] {
     }
 }
 
-impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
     type Item = &'data mut T;
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
@@ -35,7 +35,7 @@ impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> {
+unsafe impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
@@ -48,13 +48,13 @@ unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Send> ExactParallelIterator for SliceIterMut<'data, T> {
+unsafe impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data, T> {
     fn len(&mut self) -> usize {
-        self.slice.len() as usize
+        self.slice.len()
     }
 }
 
-impl<'data, T: Send> IndexedParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> {
     type Producer = SliceMutProducer<'data, T>;
 
     fn into_producer(self) -> (Self::Producer, ()) {
