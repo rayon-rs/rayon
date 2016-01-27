@@ -7,7 +7,9 @@
 //! the various traits and methods you need.
 //!
 //! The submodules of this module mostly just contain implementaton
-//! details of little interest to an end-user.
+//! details of little interest to an end-user. If you'd like to read
+//! the code itself, the `internals` module and `README.md` file are a
+//! good place to start.
 
 use std::f64;
 use std::ops::Fn;
@@ -15,10 +17,11 @@ use self::collect::collect_into;
 use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
+use self::flat_map::FlatMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    SUM, MUL, MIN, MAX};
-use self::state::ParallelIteratorState;
+use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
@@ -26,16 +29,18 @@ pub mod collect;
 pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
+pub mod flat_map;
+pub mod internal;
 pub mod len;
 pub mod for_each;
 pub mod reduce;
 pub mod slice;
 pub mod slice_mut;
-pub mod state;
 pub mod map;
 pub mod weight;
 pub mod zip;
 pub mod range;
+mod util;
 
 #[cfg(test)]
 mod test;
@@ -64,10 +69,6 @@ pub trait IntoParallelRefMutIterator<'data> {
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
-    type Shared: Sync;
-    type State: ParallelIteratorState<Shared=Self::Shared, Item=Self::Item> + Send;
-
-    fn state(self) -> (Self::Shared, Self::State);
 
     /// Indicates the relative "weight" of producing each item in this
     /// parallel iterator. A higher weight will cause finer-grained
@@ -120,6 +121,14 @@ pub trait ParallelIterator: Sized {
         where FILTER_OP: Fn(Self::Item) -> Option<R>
     {
         FilterMap::new(self, filter_op)
+    }
+
+    /// Applies `map_op` to each item of his iterator, producing a new
+    /// iterator with the results.
+    fn flat_map<MAP_OP,PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
+        where MAP_OP: Fn(Self::Item) -> PI, PI: ParallelIterator
+    {
+        FlatMap::new(self, map_op)
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -195,6 +204,14 @@ pub trait ParallelIterator: Sized {
     {
         reduce(self, reduce_op)
     }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    #[doc(hidden)]
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result;
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {
@@ -217,6 +234,16 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// code relies on the fact that the estimated length is an upper
 /// bound in order to guarantee safety invariants.
 pub unsafe trait BoundedParallelIterator: ParallelIterator {
+    fn upper_bound(&mut self) -> usize;
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    #[doc(hidden)]
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result;
+
 }
 
 /// A trait for parallel iterators items where the precise number of
@@ -232,21 +259,14 @@ pub unsafe trait BoundedParallelIterator: ParallelIterator {
 /// `ExactParallelIterator` is precisely correct in order to guarantee
 /// safety invariants.
 pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
-    /// Iterate over tuples `(A, B)`, where the items `A` are from
-    /// this iterator and `B` are from the iterator given as argument.
-    /// Like the `zip` method on ordinary iterators, if the two
-    /// iterators are of unequal length, you only get the items they
-    /// have in common.
-    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
-        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: ExactParallelIterator
-    {
-        ZipIter::new(self, zip_op.into_par_iter())
-    }
-
-    /// Yields an index along with each item.
-    fn enumerate(self) -> Enumerate<Self> {
-        Enumerate::new(self)
-    }
+    /// Produces an exact count of how many items this iterator will
+    /// produce, presuming no panic occurs.
+    ///
+    /// # Safety note
+    ///
+    /// Returning an incorrect value here could lead to **undefined
+    /// behavior**.
+    fn len(&mut self) -> usize;
 
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution
@@ -257,5 +277,35 @@ pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
     }
 }
 
+/// An iterator that supports "random access" to its data, meaning
+/// that you can split it at arbitrary indices and draw data from
+/// those points.
+pub trait IndexedParallelIterator: ExactParallelIterator {
+    /// Producer type that this iterator creates. Users of the API
+    /// never need to know about this type.
+    #[doc(hidden)]
+    type Producer: Producer<Item=Self::Item>;
 
+    /// Internal method to convert this parallel iterator into a
+    /// producer that can be used to request the items. Users of the
+    /// API never need to know about this fn.
+    #[doc(hidden)]
+    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared);
+
+    /// Iterate over tuples `(A, B)`, where the items `A` are from
+    /// this iterator and `B` are from the iterator given as argument.
+    /// Like the `zip` method on ordinary iterators, if the two
+    /// iterators are of unequal length, you only get the items they
+    /// have in common.
+    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
+        where ZIP_OP: IntoParallelIterator, ZIP_OP::Iter: IndexedParallelIterator
+    {
+        ZipIter::new(self, zip_op.into_par_iter())
+    }
+
+    /// Yields an index along with each item.
+    fn enumerate(self) -> Enumerate<Self> {
+        Enumerate::new(self)
+    }
+}
 

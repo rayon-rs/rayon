@@ -1,13 +1,12 @@
 use super::*;
-use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::internal::*;
 use std::mem;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {
     slice: &'data mut [T]
 }
 
-impl<'data, T: Send> IntoParallelIterator for &'data mut [T] {
+impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
     type Item = &'data mut T;
     type Iter = SliceIterMut<'data, T>;
 
@@ -25,43 +24,68 @@ impl<'data, T: Send + 'data> IntoParallelRefMutIterator<'data> for [T] {
     }
 }
 
-impl<'data, T: Send> ParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
     type Item = &'data mut T;
-    type Shared = ();
-    type State = Self;
 
-    fn state(self) -> (Self::Shared, Self::State) {
-        ((), self)
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 
-unsafe impl<'data, T: Send> BoundedParallelIterator for SliceIterMut<'data, T> { }
+unsafe impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> {
+    fn upper_bound(&mut self) -> usize {
+        ExactParallelIterator::len(self)
+    }
 
-unsafe impl<'data, T: Send> ExactParallelIterator for SliceIterMut<'data, T> { }
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
+    }
+}
 
-unsafe impl<'data, T: Send> ParallelIteratorState for SliceIterMut<'data, T> {
+unsafe impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data, T> {
+    fn len(&mut self) -> usize {
+        self.slice.len()
+    }
+}
+
+impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> {
+    type Producer = SliceMutProducer<'data, T>;
+
+    fn into_producer(self) -> (Self::Producer, ()) {
+        (SliceMutProducer { slice: self.slice }, ())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct SliceMutProducer<'data, T: 'data + Send> {
+    slice: &'data mut [T]
+}
+
+impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
+{
     type Item = &'data mut T;
     type Shared = ();
 
-    fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
-        ParallelLen {
-            maximal_len: self.slice.len(),
-            cost: self.slice.len() as f64,
-            sparse: false,
-        }
+    fn cost(&mut self, _: &Self::Shared, len: usize) -> f64 {
+        len as f64
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at_mut(index);
-        (left.into_par_iter(), right.into_par_iter())
+        (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
     }
 
-    fn next(&mut self, _shared: &Self::Shared) -> Option<&'data mut T> {
+    unsafe fn produce(&mut self, _: &()) -> &'data mut T {
         let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
-        slice.split_first_mut()
-             .map(|(head, tail)| {
-                 self.slice = tail;
-                 head
-             })
+        let (head, tail) = slice.split_first_mut().unwrap();
+        self.slice = tail;
+        head
     }
 }

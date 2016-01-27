@@ -1,8 +1,9 @@
 use super::*;
-use super::state::ParallelIteratorState;
+use super::internal::*;
 
 fn is_bounded<T: ExactParallelIterator>(_: T) { }
 fn is_exact<T: ExactParallelIterator>(_: T) { }
+fn is_indexed<T: IndexedParallelIterator>(_: T) { }
 
 #[test]
 pub fn execute() {
@@ -31,6 +32,7 @@ pub fn check_map_exact_and_bounded() {
     let a = [1, 2, 3];
     is_bounded(a.par_iter().map(|x| x));
     is_exact(a.par_iter().map(|x| x));
+    is_indexed(a.par_iter().map(|x| x));
 }
 
 #[test]
@@ -74,19 +76,19 @@ pub fn map_reduce_weighted() {
 pub fn check_weight() {
     let a: Vec<i32> = (0..1024).collect();
 
-    let len1 = {
-        let (shared, mut state) = a.par_iter().state();
-        state.len(&shared)
+    let cost1 = {
+        let (mut producer, shared) = a.par_iter().into_producer();
+        producer.cost(&shared, 1024)
     };
 
-    let len2 = {
-        let (shared, mut state) = a.par_iter()
-                               .weight(2.0)
-                               .state();
-        state.len(&shared)
+    let cost2 = {
+        let (mut producer, shared) = a.par_iter()
+                                      .weight(2.0)
+                                      .into_producer();
+        producer.cost(&shared, 1024)
     };
 
-    assert_eq!(len1.cost * 2.0, len2.cost);
+    assert_eq!(cost1 * 2.0, cost2);
 }
 
 #[test]
@@ -94,6 +96,7 @@ pub fn check_weight_exact_and_bounded() {
     let a = [1, 2, 3];
     is_bounded(a.par_iter().weight(2.0));
     is_exact(a.par_iter().weight(2.0));
+    is_indexed(a.par_iter().weight(2.0));
 }
 
 #[test]
@@ -122,21 +125,24 @@ pub fn check_increment() {
 #[test]
 pub fn check_slice_exact_and_bounded() {
     let a = vec![1, 2, 3];
-    is_exact(a.par_iter());
     is_bounded(a.par_iter());
+    is_exact(a.par_iter());
+    is_indexed(a.par_iter());
 }
 
 #[test]
 pub fn check_slice_mut_exact_and_bounded() {
     let mut a = vec![1, 2, 3];
-    is_exact(a.par_iter_mut());
     is_bounded(a.par_iter_mut());
+    is_exact(a.par_iter_mut());
+    is_indexed(a.par_iter_mut());
 }
 
 #[test]
 pub fn check_range_exact_and_bounded() {
-    is_exact((1..5).into_par_iter());
     is_bounded((1..5).into_par_iter());
+    is_exact((1..5).into_par_iter());
+    is_indexed((1..5).into_par_iter());
 }
 
 #[test]
@@ -165,10 +171,12 @@ pub fn check_zip_range() {
 #[test]
 pub fn check_range_split_at_overflow() {
     // Note, this split index overflows i8!
-    let (left, right) = (-100i8..100).into_par_iter().split_at(150);
-    let r1 = left.map(|i| i as i32).sum();
-    let r2 = right.map(|i| i as i32).sum();
-    assert_eq!(r1 + r2, -100);
+    unsafe {
+        let (left, right) = (-100i8..100).into_par_iter().split_at(150);
+        let r1 = left.map(|i| i as i32).sum();
+        let r2 = right.map(|i| i as i32).sum();
+        assert_eq!(r1 + r2, -100);
+    }
 }
 
 #[test]
@@ -199,5 +207,23 @@ pub fn check_sum_filtermap_ints() {
          .filter_map(|&x| if (x & 1) == 0 {Some(x as f32)} else {None})
          .fold(0.0, |a,b| a+b);
     assert_eq!(par_sum_evens, seq_sum_evens);
+}
+
+#[test]
+pub fn check_flat_map_nested_ranges() {
+    // FIXME -- why are precise type hints required on the integers here?
+
+    let v =
+        (0_i32..10).into_par_iter()
+                   .flat_map(|i| (0_i32..10).into_par_iter().map(move |j| (i, j)))
+                   .map(|(i, j)| i * j)
+                   .sum();
+
+    let w =
+        (0_i32..10).flat_map(|i| (0_i32..10).map(move |j| (i, j)))
+                   .map(|(i, j)| i * j)
+                   .fold(0, |i, j| i + j);
+
+    assert_eq!(v, w);
 }
 

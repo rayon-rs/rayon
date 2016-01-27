@@ -1,8 +1,8 @@
-use api::join;
 use std;
 use super::ParallelIterator;
-use super::len::{ParallelLen, THRESHOLD};
-use super::state::ParallelIteratorState;
+use super::len::*;
+use super::internal::*;
+use super::util::PhantomType;
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
@@ -35,39 +35,87 @@ pub trait ReduceOp<T>: Sync {
 
 pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
     where PAR_ITER: ParallelIterator<Item=T>,
-          PAR_ITER::State: Send,
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
-    let (shared, mut state) = pi.state();
-    let len = state.len(&shared);
-    reduce_helper(state, &shared, len, reduce_op)
+    let consumer: ReduceConsumer<PAR_ITER::Item, REDUCE_OP> =
+        ReduceConsumer { data: PhantomType::new() };
+    pi.drive_unindexed(consumer, reduce_op)
 }
 
-fn reduce_helper<STATE,REDUCE_OP,T>(mut state: STATE,
-                                    shared: &STATE::Shared,
-                                    len: ParallelLen,
-                                    reduce_op: &REDUCE_OP)
-                                    -> T
-    where STATE: ParallelIteratorState<Item=T> + Send,
-          REDUCE_OP: ReduceOp<T>,
-          T: Send,
+struct ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
 {
-    if len.cost > THRESHOLD && len.maximal_len > 1 {
-        let mid = len.maximal_len / 2;
-        let (left, right) = state.split_at(mid);
-        let (left_val, right_val) =
-            join(|| reduce_helper(left, shared, len.left_cost(mid), reduce_op),
-                 || reduce_helper(right, shared, len.right_cost(mid), reduce_op));
-        reduce_op.reduce(left_val, right_val)
-    } else {
-        let mut value = Some(reduce_op.start_value());
-        while let Some(item) = state.next(shared) {
-            value = Some(reduce_op.reduce(value.take().unwrap(), item));
-        }
-        value.unwrap()
+    data: PhantomType<(ITEM, REDUCE_OP)>
+}
+
+impl<ITEM, REDUCE_OP> Copy for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
+{
+}
+
+impl<ITEM, REDUCE_OP> Clone for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
+{
+    fn clone(&self) -> Self { *self }
+}
+
+impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM> + 'c,
+          ITEM: Send + 'c,
+{
+    type Item = ITEM;
+    type Shared = REDUCE_OP;
+    type SeqState = ITEM;
+    type Result = ITEM;
+
+    fn cost(&mut self, _shared: &Self::Shared, cost: f64) -> f64 {
+        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
+        cost * FUNC_ADJUSTMENT
+    }
+
+    unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
+        (self, self)
+    }
+
+    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> ITEM {
+        reduce_op.start_value()
+    }
+
+    unsafe fn consume(&mut self,
+                      reduce_op: &REDUCE_OP,
+                      prev_value: ITEM,
+                      item: ITEM)
+                      -> ITEM {
+        reduce_op.reduce(prev_value, item)
+    }
+
+    unsafe fn complete(self,
+                       _reduce_op: &REDUCE_OP,
+                       state: ITEM)
+                       -> ITEM {
+        state
+    }
+
+    unsafe fn reduce(reduce_op: &REDUCE_OP,
+                     a: ITEM,
+                     b: ITEM)
+                     -> ITEM {
+        reduce_op.reduce(a, b)
     }
 }
+
+impl<'c, ITEM, REDUCE_OP> UnindexedConsumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM> + 'c,
+          ITEM: Send + 'c,
+{
+    fn split(&self) -> Self {
+        ReduceConsumer { data: PhantomType::new() }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Specific operations
 
 pub struct SumOp;
 

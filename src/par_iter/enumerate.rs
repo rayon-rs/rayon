@@ -1,6 +1,5 @@
-use super::{ParallelIterator, BoundedParallelIterator, ExactParallelIterator};
-use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::*;
+use super::internal::*;
 
 pub struct Enumerate<M> {
     base: M,
@@ -13,62 +12,82 @@ impl<M> Enumerate<M> {
 }
 
 impl<M> ParallelIterator for Enumerate<M>
-    where M: ExactParallelIterator,
+    where M: IndexedParallelIterator,
 {
     type Item = (usize, M::Item);
-    type Shared = EnumerateShared<M>;
-    type State = EnumerateState<M>;
 
-    fn state(self) -> (Self::Shared, Self::State) {
-        let (base_shared, base_state) = self.base.state();
-        (EnumerateShared { base: base_shared },
-         EnumerateState { base: base_state, offset: 0 })
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
+                                                                       consumer: C,
+                                                                       shared: &'c C::Shared)
+                                                                       -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 
 unsafe impl<M> BoundedParallelIterator for Enumerate<M>
-    where M: ExactParallelIterator,
-{}
+    where M: IndexedParallelIterator,
+{
+    fn upper_bound(&mut self) -> usize {
+        self.len()
+    }
+
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
+    }
+}
 
 unsafe impl<M> ExactParallelIterator for Enumerate<M>
-    where M: ExactParallelIterator,
-{}
-
-pub struct EnumerateState<M>
-    where M: ParallelIterator
+    where M: IndexedParallelIterator,
 {
-    base: M::State,
+    fn len(&mut self) -> usize {
+        self.base.len()
+    }
+}
+
+impl<M> IndexedParallelIterator for Enumerate<M>
+    where M: IndexedParallelIterator,
+{
+    type Producer = EnumerateProducer<M::Producer>;
+
+    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
+        let (base, shared) = self.base.into_producer();
+        (EnumerateProducer { base: base, offset: 0 }, shared)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Producer implementation
+
+pub struct EnumerateProducer<M>
+    where M: Producer,
+{
+    base: M,
     offset: usize,
 }
 
-pub struct EnumerateShared<M>
-    where M: ParallelIterator
-{
-    base: M::Shared,
-}
-
-unsafe impl<M> ParallelIteratorState for EnumerateState<M>
-    where M: ParallelIterator,
+impl<M> Producer for EnumerateProducer<M>
+    where M: Producer
 {
     type Item = (usize, M::Item);
-    type Shared = EnumerateShared<M>;
+    type Shared = M::Shared;
 
-    fn len(&mut self, shared: &Self::Shared) -> ParallelLen {
-        self.base.len(&shared.base)
+    fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
+        self.base.cost(shared, items) // enumerating is basically free
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (EnumerateState { base: left, offset: self.offset },
-         EnumerateState { base: right, offset: self.offset + index })
+        (EnumerateProducer { base: left, offset: self.offset },
+         EnumerateProducer { base: right, offset: self.offset + index })
     }
 
-    fn next(&mut self, shared: &Self::Shared) -> Option<Self::Item> {
-        self.base.next(&shared.base)
-                 .map(|base| {
-                     let index = self.offset;
-                     self.offset += 1;
-                     (index, base)
-                 })
+    unsafe fn produce(&mut self, shared: &Self::Shared) -> (usize, M::Item) {
+        let item = self.base.produce(shared);
+        let index = self.offset;
+        self.offset += 1;
+        (index, item)
     }
 }

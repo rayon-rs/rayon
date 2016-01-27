@@ -1,6 +1,5 @@
 use super::*;
-use super::len::ParallelLen;
-use super::state::*;
+use super::internal::*;
 use std::ops::Range;
 
 pub struct RangeIter<T> {
@@ -20,44 +19,62 @@ macro_rules! range_impl {
 
         impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
-            type Shared = ();
-            type State = Self;
 
-            fn state(self) -> (Self::Shared, Self::State) {
-                ((), self)
+            fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
+                                                                              consumer: C,
+                                                                              shared: &'c C::Shared)
+                                                                              -> C::Result {
+                bridge(self, consumer, &shared)
             }
         }
 
         unsafe impl BoundedParallelIterator for RangeIter<$t> {
+            fn upper_bound(&mut self) -> usize {
+                ExactParallelIterator::len(self)
+            }
+
+            fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                           consumer: C,
+                                                           shared: &'c C::Shared)
+                                                           -> C::Result {
+                bridge(self, consumer, &shared)
+            }
         }
 
         unsafe impl ExactParallelIterator for RangeIter<$t> {
+            fn len(&mut self) -> usize {
+                self.range.len() as usize
+            }
         }
 
-        unsafe impl ParallelIteratorState for RangeIter<$t> {
+        impl IndexedParallelIterator for RangeIter<$t> {
+            type Producer = Self;
+
+            fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
+                (self, ())
+            }
+        }
+
+        impl Producer for RangeIter<$t> {
             type Item = $t;
             type Shared = ();
 
-            fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
-                ParallelLen {
-                    maximal_len: self.range.len(),
-                    cost: self.range.len() as f64,
-                    sparse: false,
-                }
+            fn cost(&mut self, _: &Self::Shared, len: usize) -> f64 {
+                len as f64
             }
 
-            fn split_at(self, index: usize) -> (Self, Self) {
+            unsafe fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
                 // For signed $t, the length and requested index could be greater than $t::MAX, and
                 // then `index as $t` could wrap to negative, so wrapping_add is necessary.
                 let mid = self.range.start.wrapping_add(index as $t);
                 let left = self.range.start .. mid;
                 let right = mid .. self.range.end;
-                (left.into_par_iter(), right.into_par_iter())
+                (RangeIter { range: left }, RangeIter { range: right })
             }
 
-            fn next(&mut self, _shared: &Self::Shared) -> Option<$t> {
-                self.range.next()
+            unsafe fn produce(&mut self, _: &()) -> $t {
+                self.range.next().unwrap()
             }
         }
     }

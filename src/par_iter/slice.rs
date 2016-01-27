@@ -1,6 +1,5 @@
 use super::*;
-use super::len::ParallelLen;
-use super::state::ParallelIteratorState;
+use super::internal::*;
 
 pub struct SliceIter<'data, T: 'data + Sync> {
     slice: &'data [T]
@@ -24,42 +23,67 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
     }
 }
 
-impl<'data, T: Sync> ParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
-    type Shared = ();
-    type State = Self;
 
-    fn state(self) -> (Self::Shared, Self::State) {
-        ((), self)
+    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
+                                                                      consumer: C,
+                                                                      shared: &'c C::Shared)
+                                                                      -> C::Result {
+        bridge(self, consumer, &shared)
     }
 }
 
-unsafe impl<'data, T: Sync> BoundedParallelIterator for SliceIter<'data, T> { }
+unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
+    fn upper_bound(&mut self) -> usize {
+        ExactParallelIterator::len(self)
+    }
 
-unsafe impl<'data, T: Sync> ExactParallelIterator for SliceIter<'data, T> { }
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
+                                                   consumer: C,
+                                                   shared: &'c C::Shared)
+                                                   -> C::Result {
+        bridge(self, consumer, &shared)
+    }
+}
 
-unsafe impl<'data, T: Sync> ParallelIteratorState for SliceIter<'data, T> {
+unsafe impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
+    fn len(&mut self) -> usize {
+        self.slice.len()
+    }
+}
+
+impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
+    type Producer = SliceProducer<'data, T>;
+
+    fn into_producer(self) -> (Self::Producer, ()) {
+        (SliceProducer { slice: self.slice }, ())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+pub struct SliceProducer<'data, T: 'data + Sync> {
+    slice: &'data [T]
+}
+
+impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
+{
     type Item = &'data T;
     type Shared = ();
 
-    fn len(&mut self, _shared: &Self::Shared) -> ParallelLen {
-        ParallelLen {
-            maximal_len: self.slice.len(),
-            cost: self.slice.len() as f64,
-            sparse: false,
-        }
+    fn cost(&mut self, _shared: &Self::Shared, len: usize) -> f64 {
+        len as f64
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
-        (left.into_par_iter(), right.into_par_iter())
+        (SliceProducer { slice: left }, SliceProducer { slice: right })
     }
 
-    fn next(&mut self, _shared: &Self::Shared) -> Option<&'data T> {
-        self.slice.split_first()
-                  .map(|(head, tail)| {
-                      self.slice = tail;
-                      head
-                  })
+    unsafe fn produce(&mut self, _: &()) -> &'data T {
+        let (head, tail) = self.slice.split_first().unwrap();
+        self.slice = tail;
+        head
     }
 }
