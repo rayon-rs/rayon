@@ -30,21 +30,21 @@ impl<'f, OP, ITEM> Consumer for ForEachConsumer<'f, OP, ITEM>
         cost * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, _index: usize) -> (Self, Self) {
+    fn split_at(self, _index: usize) -> (Self, Self) {
         (self.split(), self.split())
     }
 
-    unsafe fn start(&mut self) {
+    fn start(&mut self) {
     }
 
-    unsafe fn consume(&mut self, _prev_value: (), item: ITEM) {
+    fn consume(&mut self, _prev_value: (), item: ITEM) {
         (self.op)(item);
     }
 
-    unsafe fn complete(self, _state: ()) {
+    fn complete(self, _state: ()) {
     }
 
-    unsafe fn reduce(_: (), _: ()) {
+    fn reduce(_: (), _: ()) {
     }
 }
 

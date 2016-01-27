@@ -24,7 +24,7 @@ impl<M> ParallelIterator for Enumerate<M>
     }
 }
 
-unsafe impl<M> BoundedParallelIterator for Enumerate<M>
+impl<M> BoundedParallelIterator for Enumerate<M>
     where M: IndexedParallelIterator,
 {
     fn upper_bound(&mut self) -> usize {
@@ -36,7 +36,7 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
     }
 }
 
-unsafe impl<M> ExactParallelIterator for Enumerate<M>
+impl<M> ExactParallelIterator for Enumerate<M>
     where M: IndexedParallelIterator,
 {
     fn len(&mut self) -> usize {
@@ -96,7 +96,7 @@ impl<'p, P> Producer<'p> for EnumerateProducer<'p, P>
         self.base.cost(shared, items) // enumerating is basically free
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (EnumerateProducer { base: left,
                              offset: self.offset,
@@ -106,7 +106,7 @@ impl<'p, P> Producer<'p> for EnumerateProducer<'p, P>
                              phantoms: PhantomType::new() })
     }
 
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> (usize, P::Item) {
+    fn produce(&mut self, shared: &Self::Shared) -> (usize, P::Item) {
         let item = self.base.produce(shared);
         let index = self.offset;
         self.offset += 1;

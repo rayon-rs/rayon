@@ -26,10 +26,10 @@ pub trait Producer<'produce>: Send {
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
-    unsafe fn split_at(self, index: usize) -> (Self, Self);
+    fn split_at(self, index: usize) -> (Self, Self);
 
     /// Unless a panic occurs, expects to be called *exactly N times*.
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> Self::Item;
+    fn produce(&mut self, shared: &Self::Shared) -> Self::Item;
 }
 
 /// A consumer which consumes items that are fed to it.
@@ -44,24 +44,24 @@ pub trait Consumer: Send {
 
     /// Divide the consumer into two consumers, one processing items
     /// `0..index` and one processing items from `index..`.
-    unsafe fn split_at(self, index: usize) -> (Self, Self);
+    fn split_at(self, index: usize) -> (Self, Self);
 
     /// Start processing items. This can return some sequential state
     /// that will be threaded through as items are consumed.
-    unsafe fn start(&mut self) -> Self::SeqState;
+    fn start(&mut self) -> Self::SeqState;
 
     /// Consume next item and return new sequential state.
-    unsafe fn consume(&mut self,
+    fn consume(&mut self,
                       state: Self::SeqState,
                       item: Self::Item)
                       -> Self::SeqState;
 
     /// Finish consuming items, produce final result.
-    unsafe fn complete(self, state: Self::SeqState) -> Self::Result;
+    fn complete(self, state: Self::SeqState) -> Self::Result;
 
     /// Reduce two final results into one; this is executed after a
     /// split.
-    unsafe fn reduce(left: Self::Result, right: Self::Result) -> Self::Result;
+    fn reduce(left: Self::Result, right: Self::Result) -> Self::Result;
 }
 
 /// A stateless consumer can be freely copied.
@@ -112,26 +112,24 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
                                        -> C::Result
     where P: Producer<'p>, C: Consumer<Item=P::Item>
 {
-    unsafe { // asserting that we call the `op` methods in correct pattern
-        if len > 1 && cost > THRESHOLD {
-            let mid = len / 2;
-            let (left_producer, right_producer) = producer.split_at(mid);
-            let (left_consumer, right_consumer) = consumer.split_at(mid);
-            let (left_result, right_result) =
-                join(|| bridge_producer_consumer(mid, cost / 2.0,
-                                                 left_producer, producer_shared,
-                                                 left_consumer),
-                     || bridge_producer_consumer(len - mid, cost / 2.0,
-                                                 right_producer, producer_shared,
-                                                 right_consumer));
-            C::reduce(left_result, right_result)
-        } else {
-            let mut consumer_state = consumer.start();
-            for _ in 0..len {
-                let item = producer.produce(producer_shared);
-                consumer_state = consumer.consume(consumer_state, item);
-            }
-            consumer.complete(consumer_state)
+    if len > 1 && cost > THRESHOLD {
+        let mid = len / 2;
+        let (left_producer, right_producer) = producer.split_at(mid);
+        let (left_consumer, right_consumer) = consumer.split_at(mid);
+        let (left_result, right_result) =
+            join(|| bridge_producer_consumer(mid, cost / 2.0,
+                                             left_producer, producer_shared,
+                                             left_consumer),
+                 || bridge_producer_consumer(len - mid, cost / 2.0,
+                                             right_producer, producer_shared,
+                                             right_consumer));
+        C::reduce(left_result, right_result)
+    } else {
+        let mut consumer_state = consumer.start();
+        for _ in 0..len {
+            let item = producer.produce(producer_shared);
+            consumer_state = consumer.consume(consumer_state, item);
         }
+        consumer.complete(consumer_state)
     }
 }

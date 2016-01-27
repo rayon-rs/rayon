@@ -224,14 +224,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// A trait for parallel iterators items where the precise number of
 /// items is not known, but we can at least give an upper-bound. These
 /// sorts of iterators result from filtering.
-///
-/// # Safety note
-///
-/// This trait is declared as **unsafe to implement**, but it is
-/// perfectly safe to **use**. It is unsafe to implement because other
-/// code relies on the fact that the estimated length is an upper
-/// bound in order to guarantee safety invariants.
-pub unsafe trait BoundedParallelIterator: ParallelIterator {
+pub trait BoundedParallelIterator: ParallelIterator {
     fn upper_bound(&mut self) -> usize;
 
     /// Internal method used to define the behavior of this parallel
@@ -247,15 +240,7 @@ pub unsafe trait BoundedParallelIterator: ParallelIterator {
 /// items is known. This occurs when e.g. iterating over a
 /// vector. Knowing precisely how many items will be produced is very
 /// useful.
-///
-/// # Safety note
-///
-/// This trait is declared as **unsafe to implement**, but it is
-/// perfectly safe to **use**. It is unsafe to implement because other
-/// code relies on the fact that the estimated length from an
-/// `ExactParallelIterator` is precisely correct in order to guarantee
-/// safety invariants.
-pub unsafe trait ExactParallelIterator: BoundedParallelIterator {
+pub trait ExactParallelIterator: BoundedParallelIterator {
     /// Produces an exact count of how many items this iterator will
     /// produce, presuming no panic occurs.
     ///
