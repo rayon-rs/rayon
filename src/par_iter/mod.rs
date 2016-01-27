@@ -8,7 +8,7 @@
 //!
 //! The submodules of this module mostly just contain implementaton
 //! details of little interest to an end-user. If you'd like to read
-//! the code itself, the `internals` module and `README.md` file are a
+//! the code itself, the `internal` module and `README.md` file are a
 //! good place to start.
 
 use std::f64;
