@@ -50,25 +50,25 @@ unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
 }
 
 impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
-    fn with_producer<WP>(self, wp: WP) -> WP::Output
-        where WP: ProducerContinuation<Self::Item>
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Continuation { weight: self.weight, wp: wp });
+        return self.base.with_producer(Callback { weight: self.weight, callback: callback });
 
-        struct Continuation<WP> {
+        struct Callback<CB> {
             weight: f64,
-            wp: WP
+            callback: CB
         }
 
-        impl<ITEM,WP> ProducerContinuation<ITEM> for Continuation<WP>
-            where WP: ProducerContinuation<ITEM>
+        impl<ITEM,CB> ProducerCallback<ITEM> for Callback<CB>
+            where CB: ProducerCallback<ITEM>
         {
-            type Output = WP::Output;
+            type Output = CB::Output;
 
             fn with_producer<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
                 where P: Producer<'p, Item=ITEM>
             {
-                self.wp.with_producer(WeightProducer { base: base, phantoms: PhantomType::new() },
+                self.callback.with_producer(WeightProducer { base: base, phantoms: PhantomType::new() },
                                       &(shared, self.weight))
             }
         }

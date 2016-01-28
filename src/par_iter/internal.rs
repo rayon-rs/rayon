@@ -7,7 +7,7 @@ use join;
 use super::IndexedParallelIterator;
 use super::len::*;
 
-pub trait ProducerContinuation<ITEM> {
+pub trait ProducerCallback<ITEM> {
     type Output;
     fn with_producer<'p, P>(self, producer: P, shared: &'p P::Shared) -> Self::Output
         where P: Producer<'p, Item=ITEM>;
@@ -80,17 +80,17 @@ pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
     where PAR_ITER: IndexedParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
 {
     let len = par_iter.len();
-    return par_iter.with_producer(Continuation { len: len,
+    return par_iter.with_producer(Callback { len: len,
                                                  consumer: consumer,
                                                  consumer_shared: consumer_shared });
 
-    struct Continuation<'c, C> where C: Consumer<'c> {
+    struct Callback<'c, C> where C: Consumer<'c> {
         len: usize,
         consumer: C,
         consumer_shared: &'c C::Shared,
     }
 
-    impl<'c, C> ProducerContinuation<C::Item> for Continuation<'c, C> where C: Consumer<'c> {
+    impl<'c, C> ProducerCallback<C::Item> for Callback<'c, C> where C: Consumer<'c> {
         type Output = C::Result;
         fn with_producer<'p, P>(mut self,
                                 mut producer: P,

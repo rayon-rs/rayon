@@ -65,31 +65,31 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
 {
-    fn with_producer<WP>(self, wp: WP) -> WP::Output
-        where WP: ProducerContinuation<Self::Item>
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Continuation { wp: wp, map_op: self.map_op });
+        return self.base.with_producer(Callback { callback: callback, map_op: self.map_op });
 
-        struct Continuation<WP, MAP_OP> {
-            wp: WP,
+        struct Callback<CB, MAP_OP> {
+            callback: CB,
             map_op: MAP_OP,
         }
 
-        impl<ITEM, R, MAP_OP, WP> ProducerContinuation<ITEM> for Continuation<WP, MAP_OP>
+        impl<ITEM, R, MAP_OP, CB> ProducerCallback<ITEM> for Callback<CB, MAP_OP>
             where MAP_OP: Fn(ITEM) -> R + Sync,
                   R: Send,
-                  WP: ProducerContinuation<R>
+                  CB: ProducerCallback<R>
         {
-            type Output = WP::Output;
+            type Output = CB::Output;
 
             fn with_producer<'p, P>(self,
                                     base: P,
                                     shared: &'p P::Shared)
-                                    -> WP::Output
+                                    -> CB::Output
                 where P: Producer<'p, Item=ITEM>
             {
                 let producer = MapProducer { base: base, phantoms: PhantomType::new() };
-                self.wp.with_producer(producer, &(shared, &self.map_op))
+                self.callback.with_producer(producer, &(shared, &self.map_op))
             }
         }
     }

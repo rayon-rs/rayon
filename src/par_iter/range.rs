@@ -48,10 +48,10 @@ macro_rules! range_impl {
         }
 
         impl IndexedParallelIterator for RangeIter<$t> {
-            fn with_producer<WP>(self, wp: WP) -> WP::Output
-                where WP: ProducerContinuation<Self::Item>
+            fn with_producer<CB>(self, callback: CB) -> CB::Output
+                where CB: ProducerCallback<Self::Item>
             {
-                wp.with_producer(self, &())
+                callback.with_producer(self, &())
             }
         }
 

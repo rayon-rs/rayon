@@ -51,29 +51,29 @@ unsafe impl<M> ExactParallelIterator for Enumerate<M>
 impl<M> IndexedParallelIterator for Enumerate<M>
     where M: IndexedParallelIterator,
 {
-    fn with_producer<WP>(self, wp: WP) -> WP::Output
-        where WP: ProducerContinuation<Self::Item>
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Continuation { wp: wp });
+        return self.base.with_producer(Callback { callback: callback });
 
-        struct Continuation<WP> {
-            wp: WP,
+        struct Callback<CB> {
+            callback: CB,
         }
 
-        impl<ITEM, WP> ProducerContinuation<ITEM> for Continuation<WP>
-            where WP: ProducerContinuation<(usize, ITEM)>
+        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
+            where CB: ProducerCallback<(usize, ITEM)>
         {
-            type Output = WP::Output;
+            type Output = CB::Output;
             fn with_producer<'produce, P>(self,
                                           base: P,
                                           shared: &'produce P::Shared)
-                                          -> WP::Output
+                                          -> CB::Output
                 where P: Producer<'produce, Item=ITEM>
             {
                 let producer = EnumerateProducer { base: base,
                                                    offset: 0,
                                                    phantoms: PhantomType::new() };
-                self.wp.with_producer(producer, shared)
+                self.callback.with_producer(producer, shared)
             }
         }
     }

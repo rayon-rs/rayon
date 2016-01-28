@@ -285,7 +285,7 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// producer that can be used to request the items. Users of the
     /// API never need to know about this fn.
     #[doc(hidden)]
-    fn with_producer<WP: ProducerContinuation<Self::Item>>(self, wp: WP) -> WP::Output;
+    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.

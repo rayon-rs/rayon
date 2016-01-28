@@ -54,10 +54,10 @@ unsafe impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T
 }
 
 impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
-    fn with_producer<WP>(self, wp: WP) -> WP::Output
-        where WP: ProducerContinuation<Self::Item>
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
     {
-        wp.with_producer(SliceProducer { slice: self.slice }, &())
+        callback.with_producer(SliceProducer { slice: self.slice }, &())
     }
 }
 

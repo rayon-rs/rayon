@@ -53,52 +53,52 @@ unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
 impl<A,B> IndexedParallelIterator for ZipIter<A,B>
     where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
-    fn with_producer<WP>(self, wp: WP) -> WP::Output
-        where WP: ProducerContinuation<Self::Item>
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
     {
-        return self.a.with_producer(ContinuationA {
-            wp: wp,
+        return self.a.with_producer(CallbackA {
+            callback: callback,
             b: self.b,
         });
 
-        struct ContinuationA<WP, B> {
-            wp: WP,
+        struct CallbackA<CB, B> {
+            callback: CB,
             b: B
         }
 
-        impl<WP, A_ITEM, B> ProducerContinuation<A_ITEM> for ContinuationA<WP, B>
+        impl<CB, A_ITEM, B> ProducerCallback<A_ITEM> for CallbackA<CB, B>
             where B: IndexedParallelIterator,
-                  WP: ProducerContinuation<(A_ITEM, B::Item)>,
+                  CB: ProducerCallback<(A_ITEM, B::Item)>,
         {
-            type Output = WP::Output;
+            type Output = CB::Output;
 
             fn with_producer<'a, A>(self, a_producer: A, a_shared: &'a A::Shared) -> Self::Output
                 where A: Producer<'a, Item=A_ITEM>
             {
-                return self.b.with_producer(ContinuationB {
+                return self.b.with_producer(CallbackB {
                     a_producer: a_producer,
                     a_shared: a_shared,
-                    wp: self.wp
+                    callback: self.callback,
                 });
             }
         }
 
-        struct ContinuationB<'p, WP, A> where A: Producer<'p> {
+        struct CallbackB<'p, CB, A> where A: Producer<'p> {
             a_producer: A,
             a_shared: &'p A::Shared,
-            wp: WP
+            callback: CB
         }
 
-        impl<'a, WP, A, B_ITEM> ProducerContinuation<B_ITEM> for ContinuationB<'a, WP, A>
+        impl<'a, CB, A, B_ITEM> ProducerCallback<B_ITEM> for CallbackB<'a, CB, A>
             where A: Producer<'a>,
-                  WP: ProducerContinuation<(A::Item, B_ITEM)>,
+                  CB: ProducerCallback<(A::Item, B_ITEM)>,
         {
-            type Output = WP::Output;
+            type Output = CB::Output;
 
             fn with_producer<'b, B>(self, b_producer: B, b_shared: &'b B::Shared) -> Self::Output
                 where B: Producer<'b, Item=B_ITEM>
             {
-                self.wp.with_producer(ZipProducer { p: self.a_producer, q: b_producer,
+                self.callback.with_producer(ZipProducer { p: self.a_producer, q: b_producer,
                                                     phantoms: PhantomType::new() },
                                       &(self.a_shared, b_shared))
             }
