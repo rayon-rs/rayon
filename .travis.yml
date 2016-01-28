@@ -1,7 +1,11 @@
 language: rust
 rust:
+  - stable
   - nightly
 script:
-  - cargo test
+  - cargo build
+  - |
+    [ $TRAVIS_RUST_VERSION != nightly ] ||
+    cargo test
   - cd demo/quicksort
   - cargo build

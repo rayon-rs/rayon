@@ -5,7 +5,7 @@ pub struct SliceIter<'data, T: 'data + Sync> {
     slice: &'data [T]
 }
 
-impl<'data, T: Sync> IntoParallelIterator for &'data [T] {
+impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
     type Item = &'data T;
     type Iter = SliceIter<'data, T>;
 
