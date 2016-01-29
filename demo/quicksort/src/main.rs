@@ -112,7 +112,13 @@ fn main() {
     let mut par_time = 0;
     let mut seq_time = 0;
 
-    rayon::initialize(None);
+    let result = rayon::Configuration::new().set_bench().initialize();
+
+    match result {
+        rayon::InitResult::InitOk => println!("Rayon initialization successfull"),
+        rayon::InitResult::NumberOfThreadsZero => println!("the number of threads must be greater than zero"),
+        rayon::InitResult::NumberOfThreadsNotEqual => println!("initialisation called multiple times with different number of threads")
+    }
 
     for _ in 0 .. reps {
         let data: Vec<_> = (0..kilo*1024).map(|_| rng.next_u32()).collect();

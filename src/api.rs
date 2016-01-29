@@ -5,25 +5,55 @@ use job::{Code, CodeImpl, Job};
 use std::sync::Arc;
 use thread_pool::{self, Registry, WorkerThread};
 
-/// Initializes the Rayon threadpool. You don't normally need to do
-/// this, as it happens automatically, but it is handy for
-/// benchmarking purposes since it avoids initialization overhead in
-/// the actual operations.
-/// But you need to call this if you want to specify the maximum number
-/// of threads that Rayon is allowed to use.
-/// If you pass None or don't call this function at all, Rayon uses all
-/// the cores available (determined via num_cpus::get())
-/// This function panics if:
-///  - you pass zero as the number of threads
-///  - you call it multiple times and the arguments you pass are different
-///    for each call
-pub fn initialize(num_threads: Option<usize>) {
-    let registry = thread_pool::get_registry(num_threads);
-    if let Some(value) = num_threads {
-        assert!(value == registry.num_threads());
-        assert!(value > 0);
+#[derive(Debug,PartialEq)]
+pub enum InitResult {
+    InitOk,
+    NumberOfThreadsZero,
+    NumberOfThreadsNotEqual
+}
+
+#[derive(Debug)]
+pub struct Configuration {
+    pub bench: bool,
+    pub num_threads: Option<usize>
+}
+
+impl Configuration {
+    pub fn new() -> Configuration {
+        Configuration { bench: false, num_threads: None }
     }
-    registry.wait_until_primed();
+
+    pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
+        self.num_threads = Some(num_threads);
+        self
+    }
+
+    pub fn set_bench(mut self) -> Configuration {
+        self.bench = true;
+        self
+    }
+
+    pub fn initialize(self) -> InitResult {
+        if let Some(value) = self.num_threads {
+            if value == 0 {
+                return InitResult::NumberOfThreadsZero;
+            }
+        }
+
+        let registry = thread_pool::get_registry(self.num_threads);
+
+        if let Some(value) = self.num_threads {
+            if value != registry.num_threads() {
+                return InitResult::NumberOfThreadsNotEqual;
+            }
+        }
+
+        if self.bench {
+            registry.wait_until_primed();
+        }
+
+        InitResult::InitOk
+    }
 }
 
 /// This is a debugging API not really intended for end users. It will
@@ -111,16 +141,19 @@ pub struct ThreadPool {
 
 impl ThreadPool {
     /// Constructs a new thread pool
-    /// If you pass None as arguments, the current number of cores are used
+    /// If you pass None as arguments, the current number of cores is used
     /// as determinde via num_cpus::get()
-    /// This function panics if you pass zero as the number of threads
-    pub fn new(num_threads: Option<usize>) -> ThreadPool {
+    /// This function returns Error() if the number of threads is zero
+    /// otherwise it returns Ok()
+    pub fn new(num_threads: Option<usize>) -> Result<ThreadPool,InitResult> {
         if let Some(value) = num_threads {
-            assert!(value > 0);
+            if value == 0 {
+                return Err(InitResult::NumberOfThreadsZero);
+            }
         }
-        ThreadPool {
+        Ok(ThreadPool {
             registry: Registry::new(num_threads)
-        }
+        })
     }
 
     /// Executes `op` within the threadpool. Any attempts to `join`
