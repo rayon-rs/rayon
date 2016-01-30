@@ -7,6 +7,7 @@ extern crate time;
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::env;
 use std::str::FromStr;
+use rayon::InitResult::{NumberOfThreadsZero, NumberOfThreadsNotEqual};
 
 trait Joiner {
     fn is_parallel() -> bool;
@@ -115,9 +116,9 @@ fn main() {
     let result = rayon::Configuration::new().set_bench().initialize();
 
     match result {
-        rayon::InitResult::InitOk => println!("Rayon initialization successfull"),
-        rayon::InitResult::NumberOfThreadsZero => println!("the number of threads must be greater than zero"),
-        rayon::InitResult::NumberOfThreadsNotEqual => println!("initialisation called multiple times with different number of threads")
+        Ok(_) => println!("Rayon initialization successfull"),
+        Err(NumberOfThreadsZero) => println!("the number of threads must be greater than zero"),
+        Err(NumberOfThreadsNotEqual) => println!("initialisation called multiple times with different number of threads")
     }
 
     for _ in 0 .. reps {

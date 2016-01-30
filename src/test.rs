@@ -38,7 +38,7 @@ fn sort() {
     let result = Configuration::new().set_bench().initialize();
 
     match result {
-        InitResult::InitOk => {
+        Ok(_) => {
             quick_sort(&mut data);
 
             let mut sorted_data = data.clone();
@@ -46,8 +46,8 @@ fn sort() {
 
             assert_eq!(data, sorted_data);
         },
-        InitResult::NumberOfThreadsZero => panic!("expected InitOk, but got NumberOfThreadsZero"),
-        InitResult::NumberOfThreadsNotEqual => panic!("expected InitOk, but got NumberOfThreadsNotEqual")
+        Err(InitResult::NumberOfThreadsZero) => panic!("expected InitOk, but got NumberOfThreadsZero"),
+        Err(InitResult::NumberOfThreadsNotEqual) => panic!("expected InitOk, but got NumberOfThreadsNotEqual")
     }
 }
 

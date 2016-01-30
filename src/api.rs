@@ -7,7 +7,6 @@ use thread_pool::{self, Registry, WorkerThread};
 
 #[derive(Debug,PartialEq)]
 pub enum InitResult {
-    InitOk,
     NumberOfThreadsZero,
     NumberOfThreadsNotEqual
 }
@@ -33,10 +32,10 @@ impl Configuration {
         self
     }
 
-    pub fn initialize(self) -> InitResult {
+    pub fn initialize(self) -> Result<(), InitResult> {
         if let Some(value) = self.num_threads {
             if value == 0 {
-                return InitResult::NumberOfThreadsZero;
+                return Err(InitResult::NumberOfThreadsZero);
             }
         }
 
@@ -44,7 +43,7 @@ impl Configuration {
 
         if let Some(value) = self.num_threads {
             if value != registry.num_threads() {
-                return InitResult::NumberOfThreadsNotEqual;
+                return Err(InitResult::NumberOfThreadsNotEqual);
             }
         }
 
@@ -52,7 +51,7 @@ impl Configuration {
             registry.wait_until_primed();
         }
 
-        InitResult::InitOk
+        Ok(())
     }
 }
 
