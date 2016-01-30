@@ -67,7 +67,7 @@ fn main() {
     println!("  --ticks {}", ticks);
 
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut benchmark = NBodyBenchmark::new(4000, &mut rng);
+    let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
 
     let par_time = {
         let par_start = time::precise_time_ns();
