@@ -60,38 +60,60 @@ unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP, R, P> IndexedParallelIterator for Map<M, MAP_OP>
-    where M: IndexedParallelIterator<Producer=P>,
+impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
+    where M: IndexedParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
-          P: Producer<Item=M::Item>,
 {
-    type Producer = MapProducer<P, MAP_OP, R>;
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
+    {
+        return self.base.with_producer(Callback { callback: callback, map_op: self.map_op });
 
-    fn into_producer(self) -> (Self::Producer, (P::Shared, MAP_OP)) {
-        let (base, shared) = self.base.into_producer();
-        (MapProducer { base: base, phantoms: PhantomType::new() }, (shared, self.map_op))
+        struct Callback<CB, MAP_OP> {
+            callback: CB,
+            map_op: MAP_OP,
+        }
+
+        impl<ITEM, R, MAP_OP, CB> ProducerCallback<ITEM> for Callback<CB, MAP_OP>
+            where MAP_OP: Fn(ITEM) -> R + Sync,
+                  R: Send,
+                  CB: ProducerCallback<R>
+        {
+            type Output = CB::Output;
+
+            fn callback<'p, P>(self,
+                               base: P,
+                               shared: &'p P::Shared)
+                               -> CB::Output
+                where P: Producer<'p, Item=ITEM>
+            {
+                let producer = MapProducer { base: base, phantoms: PhantomType::new() };
+                self.callback.callback(producer, &(shared, &self.map_op))
+            }
+        }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct MapProducer<M, MAP_OP, R>
-    where M: Producer,
-          MAP_OP: Fn(M::Item) -> R + Sync,
+pub struct MapProducer<'p, P, MAP_OP, R>
+    where P: Producer<'p>,
+          MAP_OP: Fn(P::Item) -> R + Sync,
           R: Send,
 {
-    base: M,
-    phantoms: PhantomType<MAP_OP>,
+    base: P,
+    phantoms: PhantomType<(&'p (), R, MAP_OP)>,
 }
 
-impl<M, MAP_OP, R> Producer for MapProducer<M, MAP_OP, R>
-    where M: Producer,
-          MAP_OP: Fn(M::Item) -> R + Sync,
+impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
+    where P: Producer<'p>,
+          MAP_OP: Fn(P::Item) -> R + Sync + 'm,
           R: Send,
+          'p: 'm
 {
     type Item = R;
-    type Shared = (M::Shared, MAP_OP);
+    type Shared = (&'p P::Shared, &'m MAP_OP);
 
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
         self.base.cost(&shared.0, len) * FUNC_ADJUSTMENT

@@ -50,24 +50,41 @@ unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
 }
 
 impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
-    type Producer = WeightProducer<M::Producer>;
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
+    {
+        return self.base.with_producer(Callback { weight: self.weight, callback: callback });
 
-    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
-        let (base, shared) = self.base.into_producer();
-        (WeightProducer { base: base }, (shared, self.weight))
+        struct Callback<CB> {
+            weight: f64,
+            callback: CB
+        }
+
+        impl<ITEM,CB> ProducerCallback<ITEM> for Callback<CB>
+            where CB: ProducerCallback<ITEM>
+        {
+            type Output = CB::Output;
+
+            fn callback<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
+                where P: Producer<'p, Item=ITEM>
+            {
+                self.callback.callback(WeightProducer { base: base, phantoms: PhantomType::new() },
+                                       &(shared, self.weight))
+            }
+        }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct WeightProducer<P: Producer> {
-    base: P
+pub struct WeightProducer<'p, P> {
+    base: P,
+    phantoms: PhantomType<&'p ()>
 }
 
-impl<P: Producer> Producer for WeightProducer<P>
-{
+impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
     type Item = P::Item;
-    type Shared = (P::Shared, f64);
+    type Shared = (&'p P::Shared, f64);
 
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
         self.base.cost(&shared.0, len) * shared.1
@@ -75,7 +92,8 @@ impl<P: Producer> Producer for WeightProducer<P>
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (WeightProducer { base: left }, WeightProducer { base: right })
+        (WeightProducer { base: left, phantoms: PhantomType::new() },
+         WeightProducer { base: right, phantoms: PhantomType::new() })
     }
 
     unsafe fn produce(&mut self, shared: &Self::Shared) -> P::Item {

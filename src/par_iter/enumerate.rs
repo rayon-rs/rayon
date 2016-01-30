@@ -1,5 +1,6 @@
 use super::*;
 use super::internal::*;
+use super::util::PhantomType;
 
 pub struct Enumerate<M> {
     base: M,
@@ -50,29 +51,50 @@ unsafe impl<M> ExactParallelIterator for Enumerate<M>
 impl<M> IndexedParallelIterator for Enumerate<M>
     where M: IndexedParallelIterator,
 {
-    type Producer = EnumerateProducer<M::Producer>;
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
+    {
+        return self.base.with_producer(Callback { callback: callback });
 
-    fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
-        let (base, shared) = self.base.into_producer();
-        (EnumerateProducer { base: base, offset: 0 }, shared)
+        struct Callback<CB> {
+            callback: CB,
+        }
+
+        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
+            where CB: ProducerCallback<(usize, ITEM)>
+        {
+            type Output = CB::Output;
+            fn callback<'produce, P>(self,
+                                     base: P,
+                                     shared: &'produce P::Shared)
+                                     -> CB::Output
+                where P: Producer<'produce, Item=ITEM>
+            {
+                let producer = EnumerateProducer { base: base,
+                                                   offset: 0,
+                                                   phantoms: PhantomType::new() };
+                self.callback.callback(producer, shared)
+            }
+        }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Producer implementation
 
-pub struct EnumerateProducer<M>
-    where M: Producer,
+pub struct EnumerateProducer<'p, P>
+    where P: Producer<'p>,
 {
-    base: M,
+    base: P,
     offset: usize,
+    phantoms: PhantomType<&'p ()>,
 }
 
-impl<M> Producer for EnumerateProducer<M>
-    where M: Producer
+impl<'p, P> Producer<'p> for EnumerateProducer<'p, P>
+    where P: Producer<'p>
 {
-    type Item = (usize, M::Item);
-    type Shared = M::Shared;
+    type Item = (usize, P::Item);
+    type Shared = P::Shared;
 
     fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
         self.base.cost(shared, items) // enumerating is basically free
@@ -80,11 +102,15 @@ impl<M> Producer for EnumerateProducer<M>
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (EnumerateProducer { base: left, offset: self.offset },
-         EnumerateProducer { base: right, offset: self.offset + index })
+        (EnumerateProducer { base: left,
+                             offset: self.offset,
+                             phantoms: PhantomType::new() },
+         EnumerateProducer { base: right,
+                             offset: self.offset + index,
+                             phantoms: PhantomType::new() })
     }
 
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> (usize, M::Item) {
+    unsafe fn produce(&mut self, shared: &Self::Shared) -> (usize, P::Item) {
         let item = self.base.produce(shared);
         let index = self.offset;
         self.offset += 1;

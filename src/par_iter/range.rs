@@ -48,14 +48,14 @@ macro_rules! range_impl {
         }
 
         impl IndexedParallelIterator for RangeIter<$t> {
-            type Producer = Self;
-
-            fn into_producer(self) -> (Self::Producer, <Self::Producer as Producer>::Shared) {
-                (self, ())
+            fn with_producer<CB>(self, callback: CB) -> CB::Output
+                where CB: ProducerCallback<Self::Item>
+            {
+                callback.callback(self, &())
             }
         }
 
-        impl Producer for RangeIter<$t> {
+        impl<'p> Producer<'p> for RangeIter<$t> {
             type Item = $t;
             type Shared = ();
 

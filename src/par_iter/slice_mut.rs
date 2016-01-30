@@ -55,10 +55,10 @@ unsafe impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data
 }
 
 impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> {
-    type Producer = SliceMutProducer<'data, T>;
-
-    fn into_producer(self) -> (Self::Producer, ()) {
-        (SliceMutProducer { slice: self.slice }, ())
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
+    {
+        callback.callback(SliceMutProducer { slice: self.slice }, &())
     }
 }
 
@@ -68,7 +68,7 @@ pub struct SliceMutProducer<'data, T: 'data + Send> {
     slice: &'data mut [T]
 }
 
-impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
+impl<'p, 'data, T: 'data + Send> Producer<'p> for SliceMutProducer<'data, T>
 {
     type Item = &'data mut T;
     type Shared = ();

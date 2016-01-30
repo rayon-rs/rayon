@@ -7,14 +7,20 @@ use join;
 use super::IndexedParallelIterator;
 use super::len::*;
 
+pub trait ProducerCallback<ITEM> {
+    type Output;
+    fn callback<'p, P>(self, producer: P, shared: &'p P::Shared) -> Self::Output
+        where P: Producer<'p, Item=ITEM>;
+}
+
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer: Send {
+pub trait Producer<'produce>: Send {
     type Item;
-    type Shared: Sync;
+    type Shared: Sync + 'produce;
 
-    /// Cost to produce `len` items.
+    /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
@@ -68,26 +74,47 @@ pub trait UnindexedConsumer<'c>: Consumer<'c> {
 }
 
 pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
-                             mut consumer: C,
+                             consumer: C,
                              consumer_shared: &'c C::Shared)
                              -> C::Result
     where PAR_ITER: IndexedParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
 {
     let len = par_iter.len();
-    let (mut producer, producer_shared) = par_iter.into_producer();
-    let producer_cost = producer.cost(&producer_shared, len);
-    let cost = consumer.cost(consumer_shared, producer_cost);
-    bridge_producer_consumer(len, cost, producer, &producer_shared, consumer, consumer_shared)
+    return par_iter.with_producer(Callback { len: len,
+                                                 consumer: consumer,
+                                                 consumer_shared: consumer_shared });
+
+    struct Callback<'c, C> where C: Consumer<'c> {
+        len: usize,
+        consumer: C,
+        consumer_shared: &'c C::Shared,
+    }
+
+    impl<'c, C> ProducerCallback<C::Item> for Callback<'c, C> where C: Consumer<'c> {
+        type Output = C::Result;
+        fn callback<'p, P>(mut self,
+                           mut producer: P,
+                           producer_shared: &'p P::Shared)
+                           -> C::Result
+            where P: Producer<'p, Item=C::Item>
+        {
+            let producer_cost = producer.cost(&producer_shared, self.len);
+            let cost = self.consumer.cost(self.consumer_shared, producer_cost);
+            bridge_producer_consumer(self.len, cost,
+                                     producer, producer_shared,
+                                     self.consumer, self.consumer_shared)
+        }
+    }
 }
 
-fn bridge_producer_consumer<'c,P,C>(len: usize,
-                                    cost: f64,
-                                    mut producer: P,
-                                    producer_shared: &P::Shared,
-                                    mut consumer: C,
-                                    consumer_shared: &'c C::Shared)
-                                    -> C::Result
-    where P: Producer, C: Consumer<'c, Item=P::Item>
+fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
+                                       cost: f64,
+                                       mut producer: P,
+                                       producer_shared: &'p P::Shared,
+                                       mut consumer: C,
+                                       consumer_shared: &'c C::Shared)
+                                       -> C::Result
+    where P: Producer<'p>, C: Consumer<'c, Item=P::Item>
 {
     unsafe { // asserting that we call the `op` methods in correct pattern
         if len > 1 && cost > THRESHOLD {

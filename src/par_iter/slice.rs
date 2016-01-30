@@ -54,10 +54,10 @@ unsafe impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T
 }
 
 impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
-    type Producer = SliceProducer<'data, T>;
-
-    fn into_producer(self) -> (Self::Producer, ()) {
-        (SliceProducer { slice: self.slice }, ())
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
+    {
+        callback.callback(SliceProducer { slice: self.slice }, &())
     }
 }
 
@@ -67,7 +67,7 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
     slice: &'data [T]
 }
 
-impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
+impl<'p, 'data, T: 'data + Sync> Producer<'p> for SliceProducer<'data, T>
 {
     type Item = &'data T;
     type Shared = ();
