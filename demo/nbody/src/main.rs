@@ -17,6 +17,7 @@ fn main() {
     let mut ticks = DEFAULT_TICKS;
     let mut run_par = true;
     let mut run_seq = true;
+    let mut visualize = false;
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -24,6 +25,8 @@ fn main() {
             run_par = false;
         } else if arg == "--no-seq" {
             run_seq = false;
+        } else if arg == "--visualize" {
+            visualize = true;
         } else if arg == "--ticks" {
             if let Some(ticks_arg) = args.next() {
                 match usize::from_str(&ticks_arg) {
@@ -66,10 +69,24 @@ fn main() {
     println!("  --bodies {}", num_bodies);
     println!("  --ticks {}", ticks);
 
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
+    if visualize {
+        visualize_benchmarks(num_bodies, ticks);
+    } else {
+        run_benchmarks(run_par, run_seq, num_bodies, ticks);
+    }
+}
 
+fn visualize_benchmarks(num_bodies: usize,
+                        ticks: usize) {
+}
+
+fn run_benchmarks(run_par: bool,
+                  run_seq: bool,
+                  num_bodies: usize,
+                  ticks: usize) {
     let par_time = {
+        let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+        let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
         let par_start = time::precise_time_ns();
         for _ in 0..ticks {
             benchmark.tick_par();
@@ -78,6 +95,8 @@ fn main() {
     };
 
     let seq_time = {
+        let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+        let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
         let seq_start = time::precise_time_ns();
         for _ in 0..ticks {
             benchmark.tick_seq();

@@ -7,3 +7,4 @@ authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 rand = "0.3"
 rayon = { path = "../../" }
 time = "0.1"
+sdl = "0.3.6"
