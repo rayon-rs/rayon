@@ -72,7 +72,7 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
         {
             type Output = CB::Output;
 
-            fn with_producer<'a, A>(self, a_producer: A, a_shared: &'a A::Shared) -> Self::Output
+            fn callback<'a, A>(self, a_producer: A, a_shared: &'a A::Shared) -> Self::Output
                 where A: Producer<'a, Item=A_ITEM>
             {
                 return self.b.with_producer(CallbackB {
@@ -95,12 +95,12 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
         {
             type Output = CB::Output;
 
-            fn with_producer<'b, B>(self, b_producer: B, b_shared: &'b B::Shared) -> Self::Output
+            fn callback<'b, B>(self, b_producer: B, b_shared: &'b B::Shared) -> Self::Output
                 where B: Producer<'b, Item=B_ITEM>
             {
-                self.callback.with_producer(ZipProducer { p: self.a_producer, q: b_producer,
-                                                    phantoms: PhantomType::new() },
-                                      &(self.a_shared, b_shared))
+                self.callback.callback(ZipProducer { p: self.a_producer, q: b_producer,
+                                                     phantoms: PhantomType::new() },
+                                       &(self.a_shared, b_shared))
             }
         }
 

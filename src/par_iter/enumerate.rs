@@ -64,16 +64,16 @@ impl<M> IndexedParallelIterator for Enumerate<M>
             where CB: ProducerCallback<(usize, ITEM)>
         {
             type Output = CB::Output;
-            fn with_producer<'produce, P>(self,
-                                          base: P,
-                                          shared: &'produce P::Shared)
-                                          -> CB::Output
+            fn callback<'produce, P>(self,
+                                     base: P,
+                                     shared: &'produce P::Shared)
+                                     -> CB::Output
                 where P: Producer<'produce, Item=ITEM>
             {
                 let producer = EnumerateProducer { base: base,
                                                    offset: 0,
                                                    phantoms: PhantomType::new() };
-                self.callback.with_producer(producer, shared)
+                self.callback.callback(producer, shared)
             }
         }
     }

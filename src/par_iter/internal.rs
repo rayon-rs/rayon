@@ -9,7 +9,7 @@ use super::len::*;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
-    fn with_producer<'p, P>(self, producer: P, shared: &'p P::Shared) -> Self::Output
+    fn callback<'p, P>(self, producer: P, shared: &'p P::Shared) -> Self::Output
         where P: Producer<'p, Item=ITEM>;
 }
 
@@ -92,10 +92,10 @@ pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
 
     impl<'c, C> ProducerCallback<C::Item> for Callback<'c, C> where C: Consumer<'c> {
         type Output = C::Result;
-        fn with_producer<'p, P>(mut self,
-                                mut producer: P,
-                                producer_shared: &'p P::Shared)
-                                -> C::Result
+        fn callback<'p, P>(mut self,
+                           mut producer: P,
+                           producer_shared: &'p P::Shared)
+                           -> C::Result
             where P: Producer<'p, Item=C::Item>
         {
             let producer_cost = producer.cost(&producer_shared, self.len);

@@ -57,7 +57,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.with_producer(SliceProducer { slice: self.slice }, &())
+        callback.callback(SliceProducer { slice: self.slice }, &())
     }
 }
 

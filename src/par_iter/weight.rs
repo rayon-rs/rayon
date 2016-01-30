@@ -65,11 +65,11 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
         {
             type Output = CB::Output;
 
-            fn with_producer<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
+            fn callback<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
                 where P: Producer<'p, Item=ITEM>
             {
-                self.callback.with_producer(WeightProducer { base: base, phantoms: PhantomType::new() },
-                                      &(shared, self.weight))
+                self.callback.callback(WeightProducer { base: base, phantoms: PhantomType::new() },
+                                       &(shared, self.weight))
             }
         }
     }

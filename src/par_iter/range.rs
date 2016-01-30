@@ -51,7 +51,7 @@ macro_rules! range_impl {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {
-                callback.with_producer(self, &())
+                callback.callback(self, &())
             }
         }
 

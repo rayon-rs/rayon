@@ -82,14 +82,14 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
         {
             type Output = CB::Output;
 
-            fn with_producer<'p, P>(self,
-                                    base: P,
-                                    shared: &'p P::Shared)
-                                    -> CB::Output
+            fn callback<'p, P>(self,
+                               base: P,
+                               shared: &'p P::Shared)
+                               -> CB::Output
                 where P: Producer<'p, Item=ITEM>
             {
                 let producer = MapProducer { base: base, phantoms: PhantomType::new() };
-                self.callback.with_producer(producer, &(shared, &self.map_op))
+                self.callback.callback(producer, &(shared, &self.map_op))
             }
         }
     }

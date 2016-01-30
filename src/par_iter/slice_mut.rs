@@ -58,7 +58,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.with_producer(SliceMutProducer { slice: self.slice }, &())
+        callback.callback(SliceMutProducer { slice: self.slice }, &())
     }
 }
 
