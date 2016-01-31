@@ -41,17 +41,17 @@ pub struct NBodyBenchmark {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Body {
-    position: Vector,
-    velocity: Vector,
-    velocity2: Vector,
+pub struct Body {
+    pub position: Vector,
+    pub velocity: Vector,
+    pub velocity2: Vector,
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Vector {
-    x: f64,
-    y: f64,
-    z: f64,
+pub struct Vector {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 
 impl NBodyBenchmark {
@@ -89,7 +89,7 @@ impl NBodyBenchmark {
         }
     }
 
-    pub fn tick_par(&mut self) {
+    pub fn tick_par(&mut self) -> &[Body] {
         let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
             (&self.bodies.0, &mut self.bodies.1)
         } else {
@@ -110,9 +110,11 @@ impl NBodyBenchmark {
                   });
 
         self.time += 1;
+
+        out_bodies
     }
 
-    pub fn tick_seq(&mut self) {
+    pub fn tick_seq(&mut self) -> &[Body] {
         let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
             (&self.bodies.0, &mut self.bodies.1)
         } else {
@@ -130,6 +132,8 @@ impl NBodyBenchmark {
         }
 
         self.time += 1;
+
+        out_bodies
     }
 }
 
