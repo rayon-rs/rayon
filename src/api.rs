@@ -5,13 +5,63 @@ use job::{Code, CodeImpl, Job};
 use std::sync::Arc;
 use thread_pool::{self, Registry, WorkerThread};
 
-/// Initializes the Rayon threadpool. You don't normally need to do
-/// this, as it happens automatically, but it is handy for
-/// benchmarking purposes since it avoids initialization overhead in
-/// the actual operations.
-pub fn initialize() {
-    let registry = thread_pool::get_registry();
-    registry.wait_until_primed();
+/// Custom error type for the rayon thread pool configuration.
+#[derive(Debug,PartialEq)]
+pub enum InitResult {
+    /// Error if number of threads is set to zero.
+    NumberOfThreadsZero,
+    /// Error if thread pool is initialized multiple times and the number of threads
+    /// is not equal for all configurations.
+    NumberOfThreadsNotEqual
+}
+
+/// Contains the rayon thread pool configuration.
+#[derive(Debug)]
+pub struct Configuration {
+    /// The number of threads in the rayon thread pool. Must not be zero.
+    pub num_threads: Option<usize>
+}
+
+impl Configuration {
+    /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
+    pub fn new() -> Configuration {
+        Configuration { num_threads: None }
+    }
+
+    /// Set the number of threads to be used in the rayon threadpool.
+    /// The argument `num_threads` must not be zero. If you do not call this function,
+    /// rayon will select a suitable default (currently, the default is one thread per
+    /// CPU respectively core).
+    pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
+        self.num_threads = Some(num_threads);
+        self
+    }
+
+    /// Initializes the global thread pool. Returns `Ok(())` if the configuration is valid.
+    /// The initialisation happens exactly once. Every subsequent call to initialize has
+    /// no effect.
+    /// If the number of threads is zero `Err(NumberOfThreadsZero)` is returned.
+    /// If the configuration is initialized more than one time and the number of threads
+    /// is not equall for every configuration then `Err(NumberOfThreadsNotEqual)` is returned.
+    pub fn initialize(self) -> Result<(), InitResult> {
+        if let Some(value) = self.num_threads {
+            if value == 0 {
+                return Err(InitResult::NumberOfThreadsZero);
+            }
+        }
+
+        let registry = thread_pool::get_registry(self.num_threads);
+
+        if let Some(value) = self.num_threads {
+            if value != registry.num_threads() {
+                return Err(InitResult::NumberOfThreadsNotEqual);
+            }
+        }
+
+        registry.wait_until_primed();
+
+        Ok(())
+    }
 }
 
 /// This is a debugging API not really intended for end users. It will
@@ -85,7 +135,7 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
     let mut latch_b = LockLatch::new();
     let mut job_b = Job::new(&mut code_b, &mut latch_b);
 
-    thread_pool::get_registry().inject(&[&mut job_a, &mut job_b]);
+    thread_pool::get_registry(None).inject(&[&mut job_a, &mut job_b]);
 
     latch_a.wait();
     latch_b.wait();
@@ -98,10 +148,20 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    pub fn new() -> ThreadPool {
-        ThreadPool {
-            registry: Registry::new()
+    /// Constructs a new thread pool.
+    /// Expects a valid configuration: if the number of threads is not explicitly set via `set_num_threads()`,
+    /// the current number of cores (CPUs) is used as determined via `num_cpus::get()`.
+    /// This function returns `Error(NumberOfThreadsZero)` if the number of threads is zero
+    /// otherwise it returns `Ok(Threadpool)`.
+    pub fn new(configuration: Configuration) -> Result<ThreadPool,InitResult> {
+        if let Some(value) = configuration.num_threads {
+            if value == 0 {
+                return Err(InitResult::NumberOfThreadsZero);
+            }
         }
+        Ok(ThreadPool {
+            registry: Registry::new(configuration.num_threads)
+        })
     }
 
     /// Executes `op` within the threadpool. Any attempts to `join`
