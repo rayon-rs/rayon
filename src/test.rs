@@ -35,7 +35,7 @@ fn sort() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..6*1024).map(|_| rng.next_u32()).collect();
 
-    let result = Configuration::new().set_bench().initialize();
+    let result = Configuration::new().initialize();
 
     match result {
         Ok(_) => {
@@ -56,7 +56,7 @@ fn sort_in_pool() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..12*1024).map(|_| rng.next_u32()).collect();
 
-    let result = ThreadPool::new(None);
+    let result = ThreadPool::new(Configuration::new());
 
     match result {
         Ok(pool) => {
@@ -75,7 +75,7 @@ fn sort_in_pool() {
 
 #[test]
 fn error_in_pool() {
-    let result = ThreadPool::new(Some(0));
+    let result = ThreadPool::new(Configuration::new().set_num_threads(0));
 
     match result {
         Ok(_) => panic!("expected Err(), but got Ok()"),

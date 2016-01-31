@@ -113,7 +113,7 @@ fn main() {
     let mut par_time = 0;
     let mut seq_time = 0;
 
-    let result = rayon::Configuration::new().set_bench().initialize();
+    let result = rayon::Configuration::new().initialize();
 
     match result {
         Ok(_) => println!("Rayon initialization successfull"),
