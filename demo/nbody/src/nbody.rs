@@ -31,6 +31,7 @@
 
 use rayon::par_iter::*;
 use rand::{Rand, Rng};
+use std::f64::consts::PI;
 use std::ops;
 
 const INITIAL_VELOCITY: f64 = 8.0; // set to 0.0 to turn off.
@@ -207,7 +208,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
             } else if dist_sqrd < align {
                 let thresh_delta = align - repel;
                 let adjusted_percent = (percent - repel) / thresh_delta;
-                let q = (0.5 - (adjusted_percent * 3.14159265 * 2.0).cos() * 0.5 + 0.5) * 100.9;
+                let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
 
                 // normalize vel2 and multiply by factor
                 let vel2_length = body.velocity2.length();
@@ -224,7 +225,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
             if dist_sqrd > attract { // attract
                 let thresh_delta2 = 1.0 - attract;
                 let adjusted_percent2 = (percent - attract) / thresh_delta2;
-                let c = (1.0 - ((adjusted_percent2 * 3.14159265 * 2.0).cos() * 0.5 + 0.5)) * attract_power;
+                let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
 
                 // normalize the distance vector
                 let d = (r / length) * c;

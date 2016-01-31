@@ -36,15 +36,16 @@ pub fn visualize_benchmarks(num_bodies: usize) {
         screen.clear();
         for body in bodies {
             // Project 3d point onto 2d screen. I really ought to be using OpenGL.
-            let b_z = 3000.0;
+            let b_z = -3000.0;
             let a_z = body.position.z;
-            let x = (body.position.x + 200.0) * b_z / a_z;
-            let y = (body.position.y + 100.0) * b_z / a_z;
+            let x = (body.position.x) * b_z / a_z;
+            let y = (body.position.y) * b_z / a_z;
+            let size = 10.0 * b_z / a_z;
             screen.fill_rect(Some(sdl::Rect {
-                x: x as i16,
-                y: y as i16,
-                w: 10,
-                h: 10,
+                x: (x as i16) + 400,
+                y: (y as i16) + 300,
+                w: size as u16,
+                h: size as u16,
             }), color_rng.gen::<sdl::video::Color>());
         }
 
