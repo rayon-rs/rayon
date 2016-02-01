@@ -32,6 +32,11 @@ pub fn visualize_benchmarks(num_bodies: usize) {
             benchmark.tick_seq()
         };
 
+        // FIXME -- it'd be interesting to do this in parallel with
+        // the actual construction of the next frame. I presume though
+        // that this ought to be done on the main thread (I guess
+        // that's a bit unclear).  That would be a use case for a
+        // variant on join as described in #20.
         let mut color_rng = rand::XorShiftRng::from_seed([0, 1, 2, 3]);
         screen.clear();
         for body in bodies {
