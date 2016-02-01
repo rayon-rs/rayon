@@ -16,7 +16,7 @@ pub enum InitResult {
 }
 
 /// Contains the rayon thread pool configuration.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool. Must not be zero.
     pub num_threads: Option<usize>
@@ -44,15 +44,17 @@ impl Configuration {
     /// If the configuration is initialized more than one time and the number of threads
     /// is not equall for every configuration then `Err(NumberOfThreadsNotEqual)` is returned.
     pub fn initialize(self) -> Result<(), InitResult> {
-        if let Some(value) = self.num_threads {
+        let num_threads = self.num_threads;
+
+        if let Some(value) = num_threads {
             if value == 0 {
                 return Err(InitResult::NumberOfThreadsZero);
             }
         }
 
-        let registry = thread_pool::get_registry(self.num_threads);
+        let registry = thread_pool::get_registry_with_config(self);
 
-        if let Some(value) = self.num_threads {
+        if let Some(value) = num_threads {
             if value != registry.num_threads() {
                 return Err(InitResult::NumberOfThreadsNotEqual);
             }
@@ -135,7 +137,7 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
     let mut latch_b = LockLatch::new();
     let mut job_b = Job::new(&mut code_b, &mut latch_b);
 
-    thread_pool::get_registry(None).inject(&[&mut job_a, &mut job_b]);
+    thread_pool::get_registry().inject(&[&mut job_a, &mut job_b]);
 
     latch_a.wait();
     latch_b.wait();

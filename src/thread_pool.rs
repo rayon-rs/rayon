@@ -1,3 +1,4 @@
+use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::Job;
@@ -35,14 +36,28 @@ unsafe impl Sync for Registry { }
 static mut THE_REGISTRY: Option<&'static Registry> = None;
 static THE_REGISTRY_SET: Once = ONCE_INIT;
 
-/// Starts the worker threads (if that has not already happened) and
-/// returns the registry.
-pub fn get_registry(num_threads: Option<usize>) -> &'static Registry {
-    THE_REGISTRY_SET.call_once(|| {
-        let registry = leak(Registry::new(num_threads));
-        unsafe { THE_REGISTRY = Some(registry); }
-    });
+/// Starts the worker threads (if that has not already happened). If
+/// initialization has not already occurred, use the default
+/// configuration.
+pub fn get_registry() -> &'static Registry {
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()) });
     unsafe { THE_REGISTRY.unwrap() }
+}
+
+/// Starts the worker threads (if that has not already happened) with
+/// the given configuration.
+pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config) });
+    unsafe { THE_REGISTRY.unwrap() }
+}
+
+/// Initializes the global registry with the given configuration.
+/// Meant to be called from within the `THE_REGISTRY_SET` once
+/// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
+/// an unsynchronized fashion.
+unsafe fn init_registry(config: Configuration) {
+    let registry = leak(Registry::new(config.num_threads));
+    THE_REGISTRY = Some(registry);
 }
 
 impl Registry {
