@@ -56,7 +56,7 @@ pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
 unsafe fn init_registry(config: Configuration) {
-    let registry = leak(Registry::new(config.num_threads));
+    let registry = leak(Registry::new(config.num_threads()));
     THE_REGISTRY = Some(registry);
 }
 

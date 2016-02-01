@@ -19,13 +19,19 @@ pub enum InitResult {
 #[derive(Clone, Debug)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool. Must not be zero.
-    pub num_threads: Option<usize>
+    num_threads: Option<usize>
 }
 
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
         Configuration { num_threads: None }
+    }
+
+    /// Get the number of threads that will be used for the thread
+    /// pool. See `set_num_threads` for more information.
+    pub fn num_threads(&self) -> Option<usize> {
+        self.num_threads
     }
 
     /// Set the number of threads to be used in the rayon threadpool.
