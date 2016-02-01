@@ -7,7 +7,7 @@ use thread_pool::{self, Registry, WorkerThread};
 
 /// Custom error type for the rayon thread pool configuration.
 #[derive(Debug,PartialEq)]
-pub enum InitResult {
+pub enum InitError {
     /// Error if number of threads is set to zero.
     NumberOfThreadsZero,
     /// Error if thread pool is initialized multiple times and the number of threads
@@ -35,41 +35,62 @@ impl Configuration {
     }
 
     /// Set the number of threads to be used in the rayon threadpool.
-    /// The argument `num_threads` must not be zero. If you do not call this function,
-    /// rayon will select a suitable default (currently, the default is one thread per
-    /// CPU respectively core).
+    /// The argument `num_threads` must not be zero. If you do not
+    /// call this function, rayon will select a suitable default
+    /// (currently, the default is one thread per CPU core).
     pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
         self.num_threads = Some(num_threads);
         self
     }
 
-    /// Initializes the global thread pool. Returns `Ok(())` if the configuration is valid.
-    /// The initialisation happens exactly once. Every subsequent call to initialize has
-    /// no effect.
-    /// If the number of threads is zero `Err(NumberOfThreadsZero)` is returned.
-    /// If the configuration is initialized more than one time and the number of threads
-    /// is not equall for every configuration then `Err(NumberOfThreadsNotEqual)` is returned.
-    pub fn initialize(self) -> Result<(), InitResult> {
-        let num_threads = self.num_threads;
-
-        if let Some(value) = num_threads {
+    /// Checks whether the configuration is valid.
+    fn validate(&self) -> Result<(), InitError> {
+        if let Some(value) = self.num_threads {
             if value == 0 {
-                return Err(InitResult::NumberOfThreadsZero);
+                return Err(InitError::NumberOfThreadsZero);
             }
         }
-
-        let registry = thread_pool::get_registry_with_config(self);
-
-        if let Some(value) = num_threads {
-            if value != registry.num_threads() {
-                return Err(InitResult::NumberOfThreadsNotEqual);
-            }
-        }
-
-        registry.wait_until_primed();
 
         Ok(())
     }
+}
+
+/// Initializes the global thread pool. This initialization is
+/// **optional**.  If you do not call this function, the thread pool
+/// will be automatically initialized with the default
+/// configuration. In fact, calling `initialize` is not recommended,
+/// except for in two scenarios:
+///
+/// - You wish to change the default configuration.
+/// - You are running a benchmark, in which case initializing may
+///   yield slightly more consistent results, since the worker threads
+///   will already be ready to go even in the first iteration.  But
+///   this cost is minimal.
+///
+/// Initialization of the global thread pool happens exactly
+/// once. Once started, the configuration cannot be
+/// changed. Therefore, if you call `initialize` a second time, it
+/// will simply check that the global thread pool already has the
+/// configuration you requested, rather than making changes.
+///
+/// An `Ok` result indicates that the thread pool is running with the
+/// given configuration. Otherwise, a suitable error is returned.
+pub fn initialize(config: Configuration) -> Result<(), InitError> {
+    try!(config.validate());
+
+    let num_threads = config.num_threads;
+
+    let registry = thread_pool::get_registry_with_config(config);
+
+    if let Some(value) = num_threads {
+        if value != registry.num_threads() {
+            return Err(InitError::NumberOfThreadsNotEqual);
+        }
+    }
+
+    registry.wait_until_primed();
+
+    Ok(())
 }
 
 /// This is a debugging API not really intended for end users. It will
@@ -161,12 +182,8 @@ impl ThreadPool {
     /// the current number of cores (CPUs) is used as determined via `num_cpus::get()`.
     /// This function returns `Error(NumberOfThreadsZero)` if the number of threads is zero
     /// otherwise it returns `Ok(Threadpool)`.
-    pub fn new(configuration: Configuration) -> Result<ThreadPool,InitResult> {
-        if let Some(value) = configuration.num_threads {
-            if value == 0 {
-                return Err(InitResult::NumberOfThreadsZero);
-            }
-        }
+    pub fn new(configuration: Configuration) -> Result<ThreadPool,InitError> {
+        try!(configuration.validate());
         Ok(ThreadPool {
             registry: Registry::new(configuration.num_threads)
         })

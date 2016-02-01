@@ -35,7 +35,7 @@ fn sort() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..6*1024).map(|_| rng.next_u32()).collect();
 
-    let result = Configuration::new().initialize();
+    let result = initialize(Configuration::new());
 
     match result {
         Ok(_) => {
@@ -46,8 +46,8 @@ fn sort() {
 
             assert_eq!(data, sorted_data);
         },
-        Err(InitResult::NumberOfThreadsZero) => panic!("expected InitOk, but got NumberOfThreadsZero"),
-        Err(InitResult::NumberOfThreadsNotEqual) => panic!("expected InitOk, but got NumberOfThreadsNotEqual")
+        Err(InitError::NumberOfThreadsZero) => panic!("expected InitOk, but got NumberOfThreadsZero"),
+        Err(InitError::NumberOfThreadsNotEqual) => panic!("expected InitOk, but got NumberOfThreadsNotEqual")
     }
 }
 
@@ -79,7 +79,7 @@ fn error_in_pool() {
 
     match result {
         Ok(_) => panic!("expected Err(), but got Ok()"),
-        Err(error) => assert_eq!(error, InitResult::NumberOfThreadsZero)
+        Err(error) => assert_eq!(error, InitError::NumberOfThreadsZero)
     }
 }
 
