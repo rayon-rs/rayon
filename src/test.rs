@@ -46,8 +46,7 @@ fn sort() {
 
             assert_eq!(data, sorted_data);
         },
-        Err(InitError::NumberOfThreadsZero) => panic!("expected InitOk, but got NumberOfThreadsZero"),
-        Err(InitError::NumberOfThreadsNotEqual) => panic!("expected InitOk, but got NumberOfThreadsNotEqual")
+        Err(e) => panic!("expected InitOk, but got {:?}", e),
     }
 }
 

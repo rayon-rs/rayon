@@ -10,9 +10,10 @@ use thread_pool::{self, Registry, WorkerThread};
 pub enum InitError {
     /// Error if number of threads is set to zero.
     NumberOfThreadsZero,
-    /// Error if thread pool is initialized multiple times and the number of threads
-    /// is not equal for all configurations.
-    NumberOfThreadsNotEqual
+
+    /// Error if the gloal thread pool is initialized multiple times
+    /// and the configuration is not equal for all configurations.
+    GlobalPoolAlreadyInitialized,
 }
 
 /// Contains the rayon thread pool configuration.
@@ -84,7 +85,7 @@ pub fn initialize(config: Configuration) -> Result<(), InitError> {
 
     if let Some(value) = num_threads {
         if value != registry.num_threads() {
-            return Err(InitError::NumberOfThreadsNotEqual);
+            return Err(InitError::GlobalPoolAlreadyInitialized);
         }
     }
 
@@ -177,11 +178,9 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    /// Constructs a new thread pool.
-    /// Expects a valid configuration: if the number of threads is not explicitly set via `set_num_threads()`,
-    /// the current number of cores (CPUs) is used as determined via `num_cpus::get()`.
-    /// This function returns `Error(NumberOfThreadsZero)` if the number of threads is zero
-    /// otherwise it returns `Ok(Threadpool)`.
+    /// Constructs a new thread pool with the given configuration. If
+    /// the configuration is not valid, returns a suitable `Err`
+    /// result.  See `InitError` for more details.
     pub fn new(configuration: Configuration) -> Result<ThreadPool,InitError> {
         try!(configuration.validate());
         Ok(ThreadPool {

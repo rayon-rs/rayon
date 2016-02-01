@@ -10,5 +10,5 @@ fn main() {
     assert_eq!(result2, Ok(()));
 
     let result3 = initialize(Configuration::new().set_num_threads(3));
-    assert_eq!(result3, Err(InitError::NumberOfThreadsNotEqual));
+    assert_eq!(result3, Err(InitError::GlobalPoolAlreadyInitialized));
 }
