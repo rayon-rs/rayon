@@ -114,3 +114,9 @@ fn coerce_to_box_error() {
      // check that coercion succeeds
     let _: Box<Error> = From::from(InitError::NumberOfThreadsZero);
 }
+
+#[test]
+#[should_panic]
+fn panic() {
+    join(|| {}, || panic!("should panic"));
+}

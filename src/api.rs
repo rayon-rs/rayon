@@ -167,7 +167,7 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         }
 
         // now result_b should be initialized
-        (result_a, result_b.unwrap())
+        (result_a, result_b.expect("job function panicked"))
     }
 }
 
@@ -195,7 +195,7 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
     latch_a.wait();
     latch_b.wait();
 
-    (result_a.unwrap(), result_b.unwrap())
+    (result_a.expect("job function panicked"), result_b.expect("job function panicked"))
 }
 
 pub struct ThreadPool {
@@ -225,7 +225,7 @@ impl ThreadPool {
             let mut job_a = Job::new(&mut code_a, &mut latch_a);
             self.registry.inject(&[&mut job_a]);
             latch_a.wait();
-            result_a.unwrap()
+            result_a.expect("job function panicked")
         }
     }
 }

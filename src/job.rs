@@ -23,9 +23,19 @@ impl<L:Latch> Job<L> {
         }
     }
 
+    #[allow(unused_variables)]
     pub unsafe fn execute(&mut self) {
+        // Use a guard here to ensure that the latch is always set, even if the
+        // function panics. The panic will be propagated since the Option is
+        // still None when it is unwrapped.
+        struct LatchGuard<L:Latch>(*mut L);
+        impl<L:Latch> Drop for LatchGuard<L> {
+            fn drop(&mut self) {
+                unsafe { (*self.0).set(); }
+            }
+        }
+        let guard = LatchGuard(self.latch);
         (*self.code).execute();
-        (*self.latch).set();
     }
 }
 
