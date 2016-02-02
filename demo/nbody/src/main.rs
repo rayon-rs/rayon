@@ -4,14 +4,12 @@ extern crate cgmath;
 extern crate docopt;
 #[macro_use]
 extern crate glium;
-extern crate pbr;
 extern crate rand;
 extern crate rayon;
 extern crate rustc_serialize;
 extern crate time;
 
 use docopt::Docopt;
-use pbr::ProgressBar;
 use rand::{SeedableRng, XorShiftRng};
 use std::fmt;
 
@@ -103,14 +101,14 @@ fn run_benchmarks(run_par: bool, run_seq: bool, bodies: usize, ticks: usize) {
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let par_start = time::precise_time_ns();
 
-        let mut progress = ProgressBar::new(ticks);
         for _ in 0..ticks {
-            progress.inc();
             benchmark.tick_par();
         }
-        progress.finish();
 
-        Some(time::precise_time_ns() - par_start)
+        let par_time = time::precise_time_ns() - par_start;
+        println!("Parallel time   : {}", par_time);
+
+        Some(par_time)
     } else {
         None
     };
@@ -120,20 +118,17 @@ fn run_benchmarks(run_par: bool, run_seq: bool, bodies: usize, ticks: usize) {
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let seq_start = time::precise_time_ns();
 
-        let mut progress = ProgressBar::new(ticks);
         for _ in 0..ticks {
-            progress.inc();
             benchmark.tick_seq();
         }
-        progress.finish();
 
-        Some(time::precise_time_ns() - seq_start)
+        let seq_time = time::precise_time_ns() - seq_start;
+        println!("Sequential time : {}", seq_time);
+
+        Some(seq_time)
     } else {
         None
     };
-
-    if let Some(t) = par_time { println!("Parallel time   : {}", t); }
-    if let Some(t) = seq_time { println!("Sequential time : {}", t); }
 
     if let (Some(pt), Some(st)) = (par_time, seq_time) {
         println!("Parallel speedup: {}", (st as f32) / (pt as f32));
