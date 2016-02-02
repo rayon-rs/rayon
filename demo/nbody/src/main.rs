@@ -11,7 +11,6 @@ extern crate time;
 
 use docopt::Docopt;
 use rand::{SeedableRng, XorShiftRng};
-use std::fmt;
 
 mod nbody;
 mod visualize;
@@ -42,15 +41,6 @@ pub enum ExecutionMode {
     Seq,
 }
 
-impl fmt::Display for ExecutionMode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ExecutionMode::Par => writeln!(f, "par"),
-            ExecutionMode::Seq => writeln!(f, "seq"),
-        }
-    }
-}
-
 #[derive(RustcDecodable)]
 pub struct Args {
     cmd_bench: bool,
@@ -60,23 +50,6 @@ pub struct Args {
     flag_mode: ExecutionMode,
     flag_bodies: usize,
     flag_ticks: usize,
-}
-
-impl fmt::Display for Args {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(f, "Configuration:"));
-
-        if self.cmd_bench       { try!(writeln!(f, "  bench")); }
-        if self.cmd_visualize   { try!(writeln!(f, "  visualize")); }
-        if self.flag_no_par     { try!(writeln!(f, "  --no-par")); }
-        if self.flag_no_seq     { try!(writeln!(f, "  --no-seq")); }
-
-        try!(writeln!(f, "  --mode {}", self.flag_mode));
-        try!(writeln!(f, "  --bodies {}", self.flag_bodies));
-        try!(writeln!(f, "  --ticks {}", self.flag_ticks));
-
-        Ok(())
-    }
 }
 
 fn main() {
