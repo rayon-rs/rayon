@@ -21,23 +21,28 @@ use self::visualize::visualize_benchmarks;
 use self::nbody::NBodyBenchmark;
 
 const USAGE: &'static str = "
-Usage: nbody [--no-par | --no-seq] [--visualize --bodies N --ticks N]
+Usage: nbody bench [--no-par | --no-seq] [--visualize --bodies N --ticks N]
+       nbody visualize [--bodies N]
        nbody (--help | --version)
+
+Commands:
+    bench              Run the benchmark and print the timings.
+    visualize          Show the graphical visualizer.
 
 Options:
     -h, --help         Show this message.
     --no-par           Skip parallel execution.
     --no-seq           Skip sequential execution.
-    --visualize        Show the graphical visualizer rather than running a benchmark.
     --bodies N         Use N bodies [default: 4000].
     --ticks N          Simulate for N ticks [default: 100].
 ";
 
 #[derive(RustcDecodable)]
 struct Args {
+    cmd_benchmark: bool,
+    cmd_visualize: bool,
     flag_no_par: bool,
     flag_no_seq: bool,
-    flag_visualize: bool,
     flag_bodies: usize,
     flag_ticks: usize,
 }
@@ -46,9 +51,10 @@ impl fmt::Display for Args {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(writeln!(f, "Configuration:"));
 
+        if self.cmd_benchmark   { try!(writeln!(f, "  bench")); }
+        if self.cmd_visualize   { try!(writeln!(f, "  visualize")); }
         if self.flag_no_par     { try!(writeln!(f, "  --no-par")); }
         if self.flag_no_seq     { try!(writeln!(f, "  --no-seq")); }
-        if self.flag_visualize  { try!(writeln!(f, "  --visualize")); }
 
         try!(writeln!(f, "  --bodies {}", self.flag_bodies));
         try!(writeln!(f, "  --ticks {}", self.flag_ticks));
@@ -63,13 +69,13 @@ fn main() {
             .and_then(|d| d.decode())
             .unwrap_or_else(|e| e.exit());
 
-    println!("{}", args);
-
-    if args.flag_visualize {
-        visualize_benchmarks(args.flag_bodies);
-    } else {
+    if args.cmd_benchmark {
         run_benchmarks(!args.flag_no_par, !args.flag_no_seq,
                        args.flag_bodies, args.flag_ticks);
+    }
+
+    if args.cmd_visualize {
+        visualize_benchmarks(args.flag_bodies);
     }
 }
 
