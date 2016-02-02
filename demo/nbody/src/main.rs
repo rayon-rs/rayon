@@ -1,114 +1,116 @@
  #![feature(augmented_assignments)]
 
 extern crate cgmath;
+extern crate docopt;
+extern crate pbr;
 extern crate rand;
 extern crate rayon;
+extern crate rustc_serialize;
 extern crate sdl;
 extern crate time;
 
+use docopt::Docopt;
+use pbr::ProgressBar;
 use rand::{SeedableRng, XorShiftRng};
-use std::env;
-use std::str::FromStr;
+use std::fmt;
 
 mod nbody;
 mod visualize;
 use self::visualize::visualize_benchmarks;
 use self::nbody::NBodyBenchmark;
 
-const DEFAULT_NUM_BODIES: usize = 4000;
-const DEFAULT_TICKS: usize = 100;
+const USAGE: &'static str = "
+Usage: nbody [--no-par | --no-seq] [--visualize --bodies N --ticks N]
+       nbody (--help | --version)
 
-fn main() {
-    let mut num_bodies = DEFAULT_NUM_BODIES;
-    let mut ticks = DEFAULT_TICKS;
-    let mut run_par = true;
-    let mut run_seq = true;
-    let mut visualize = false;
+Options:
+    -h, --help         Show this message.
+    --no-par           Skip parallel execution.
+    --no-seq           Skip sequential execution.
+    --visualize        Show the graphical visualizer rather than running a benchmark.
+    --bodies N         Use N bodies [default: 4000].
+    --ticks N          Simulate for N ticks [default: 100].
+";
 
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
-        if arg == "--no-par" {
-            run_par = false;
-        } else if arg == "--no-seq" {
-            run_seq = false;
-        } else if arg == "--visualize" {
-            visualize = true;
-        } else if arg == "--ticks" {
-            if let Some(ticks_arg) = args.next() {
-                match usize::from_str(&ticks_arg) {
-                    Ok(v) => ticks = v,
-                    Err(_) => {
-                        println!("invalid argument `{}`, expected integral number of ticks",
-                                 ticks_arg);
-                    }
-                }
-            } else {
-                println!("missing argument to --ticks");
-            }
-        } else if arg == "--bodies" {
-            if let Some(bodies_arg) = args.next() {
-                match usize::from_str(&bodies_arg) {
-                    Ok(v) => num_bodies = v,
-                    Err(_) => {
-                        println!("invalid argument `{}`, expected integral number of bodies", arg);
-                    }
-                }
-            } else {
-                println!("missing argument to --bodies");
-            }
-        } else if arg == "--help" {
-            println!("Usage:");
-            println!(" --no-par      skip parallel execution");
-            println!(" --no-seq      skip sequential execution");
-            println!(" --bodies N    use N bodies (default: {})", DEFAULT_NUM_BODIES);
-            println!(" --ticks N     simulate for N ticks (default: {})", DEFAULT_TICKS);
-            return;
-        } else {
-            println!("Illegal argument `{}`. Try --help.", arg);
-            return;
-        }
-    }
+#[derive(RustcDecodable)]
+struct Args {
+    flag_no_par: bool,
+    flag_no_seq: bool,
+    flag_visualize: bool,
+    flag_bodies: usize,
+    flag_ticks: usize,
+}
 
-    if visualize {
-        visualize_benchmarks(num_bodies);
-    } else {
-        run_benchmarks(run_par, run_seq, num_bodies, ticks);
+impl fmt::Display for Args {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(writeln!(f, "Configuration:"));
+
+        if self.flag_no_par     { try!(writeln!(f, "  --no-par")); }
+        if self.flag_no_seq     { try!(writeln!(f, "  --no-seq")); }
+        if self.flag_visualize  { try!(writeln!(f, "  --visualize")); }
+
+        try!(writeln!(f, "  --bodies {}", self.flag_bodies));
+        try!(writeln!(f, "  --ticks {}", self.flag_ticks));
+
+        Ok(())
     }
 }
 
-fn run_benchmarks(run_par: bool,
-                  run_seq: bool,
-                  num_bodies: usize,
-                  ticks: usize) {
-    println!("Configuration:");
-    if !run_par { println!("  --no-par"); }
-    if !run_seq { println!("  --no-seq"); }
-    println!("  --bodies {}", num_bodies);
-    println!("  --ticks {}", ticks);
+fn main() {
+    let args: Args =
+        Docopt::new(USAGE)
+            .and_then(|d| d.decode())
+            .unwrap_or_else(|e| e.exit());
 
-    let par_time = {
+    println!("{}", args);
+
+    if args.flag_visualize {
+        visualize_benchmarks(args.flag_bodies);
+    } else {
+        run_benchmarks(!args.flag_no_par, !args.flag_no_seq,
+                       args.flag_bodies, args.flag_ticks);
+    }
+}
+
+fn run_benchmarks(run_par: bool, run_seq: bool, bodies: usize, ticks: usize) {
+    let par_time = if run_par {
         let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-        let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
+        let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let par_start = time::precise_time_ns();
+
+        let mut progress = ProgressBar::new(ticks);
         for _ in 0..ticks {
+            progress.inc();
             benchmark.tick_par();
         }
-        time::precise_time_ns() - par_start
+        progress.finish();
+
+        Some(time::precise_time_ns() - par_start)
+    } else {
+        None
     };
 
-    let seq_time = {
+    let seq_time = if run_seq {
         let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-        let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
+        let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let seq_start = time::precise_time_ns();
+
+        let mut progress = ProgressBar::new(ticks);
         for _ in 0..ticks {
+            progress.inc();
             benchmark.tick_seq();
         }
-        time::precise_time_ns() - seq_start
+        progress.finish();
+
+        Some(time::precise_time_ns() - seq_start)
+    } else {
+        None
     };
 
-    if run_par { println!("Parallel time   : {}", par_time); }
-    if run_seq { println!("Sequential time : {}", seq_time); }
-    if run_par && run_seq {
-        println!("Parallel speedup: {}", (seq_time as f64) / (par_time as f64));
+    if let Some(t) = par_time { println!("Parallel time   : {}", t); }
+    if let Some(t) = seq_time { println!("Sequential time : {}", t); }
+
+    if let (Some(pt), Some(st)) = (par_time, seq_time) {
+        println!("Parallel speedup: {}", (st as f32) / (pt as f32));
     }
 }
