@@ -39,7 +39,7 @@ Options:
 
 #[derive(RustcDecodable)]
 struct Args {
-    cmd_benchmark: bool,
+    cmd_bench: bool,
     cmd_visualize: bool,
     flag_no_par: bool,
     flag_no_seq: bool,
@@ -51,7 +51,7 @@ impl fmt::Display for Args {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(writeln!(f, "Configuration:"));
 
-        if self.cmd_benchmark   { try!(writeln!(f, "  bench")); }
+        if self.cmd_bench       { try!(writeln!(f, "  bench")); }
         if self.cmd_visualize   { try!(writeln!(f, "  visualize")); }
         if self.flag_no_par     { try!(writeln!(f, "  --no-par")); }
         if self.flag_no_seq     { try!(writeln!(f, "  --no-seq")); }
