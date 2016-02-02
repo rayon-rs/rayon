@@ -18,9 +18,9 @@ use self::visualize::visualize_benchmarks;
 use self::nbody::NBodyBenchmark;
 
 const USAGE: &'static str = "
-Usage: nbody bench [--no-par | --no-seq] [--visualize --bodies N --ticks N]
+Usage: nbody bench [--no-par | --no-seq] [--bodies N --ticks N]
        nbody visualize [--mode MODE --bodies N]
-       nbody (--help | --version)
+       nbody --help
 
 Commands:
     bench              Run the benchmark and print the timings.
