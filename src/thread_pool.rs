@@ -8,7 +8,6 @@ use log::Event::*;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use util::leak;
 use num_cpus;
@@ -19,10 +18,10 @@ pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     state: Mutex<RegistryState>,
     work_available: Condvar,
-    terminate: AtomicBool,
 }
 
 struct RegistryState {
+    terminate: bool,
     threads_at_work: usize,
     injected_jobs: Vec<*mut Job<LockLatch>>,
 }
@@ -60,6 +59,12 @@ unsafe fn init_registry(config: Configuration) {
     THE_REGISTRY = Some(registry);
 }
 
+enum Work {
+    None,
+    Job(*mut Job<LockLatch>),
+    Terminate,
+}
+
 impl Registry {
     pub fn new(num_threads: Option<usize>) -> Arc<Registry> {
         let limit_value = match num_threads {
@@ -71,7 +76,6 @@ impl Registry {
                                           .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
-            terminate: AtomicBool::new(false),
         });
 
         for index in 0 .. limit_value {
@@ -112,11 +116,14 @@ impl Registry {
     pub unsafe fn inject(&self, injected_jobs: &[*mut Job<LockLatch>]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
+        if state.terminate {
+            panic!("attempted to inject a job after thread pool shut down");
+        }
         state.injected_jobs.extend(injected_jobs);
         self.work_available.notify_all();
     }
 
-    fn wait_for_work(&self, _worker: usize, was_active: bool) -> Option<*mut Job<LockLatch>> {
+    fn wait_for_work(&self, _worker: usize, was_active: bool) -> Work {
         log!(WaitForWork { worker: _worker, was_active: was_active });
 
         let mut state = self.state.lock().unwrap();
@@ -126,6 +133,11 @@ impl Registry {
         }
 
         loop {
+            // Check if we need to terminate
+            if state.terminate {
+                return Work::Terminate;
+            }
+
             // Otherwise, if anything was injected from outside,
             // return that.  Note that this gives preference to
             // injected items over stealing from others, which is a
@@ -133,13 +145,13 @@ impl Registry {
             if let Some(job) = state.injected_jobs.pop() {
                 state.threads_at_work += 1;
                 self.work_available.notify_all();
-                return Some(job);
+                return Work::Job(job);
             }
 
             // If any of the threads are running a job, we should spin
             // up, since they may generate subworkitems.
             if state.threads_at_work > 0 {
-                return None;
+                return Work::None;
             }
 
             state = self.work_available.wait(state).unwrap();
@@ -147,7 +159,9 @@ impl Registry {
     }
 
     pub fn terminate(&self) {
-        self.terminate.store(true, Ordering::SeqCst);
+        let mut state = self.state.lock().unwrap();
+        state.terminate = true;
+        self.work_available.notify_all();
     }
 }
 
@@ -156,6 +170,7 @@ impl RegistryState {
         RegistryState {
             threads_at_work: 0,
             injected_jobs: Vec::new(),
+            terminate: false,
         }
     }
 }
@@ -250,6 +265,7 @@ impl WorkerThread {
 
 ///////////////////////////////////////////////////////////////////////////
 
+#[allow(unused_variables)]
 unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
         registry: registry.clone(),
@@ -260,12 +276,30 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     // let registry know we are ready to do work
     registry.thread_infos[index].primed.set();
 
+    // If a worker thread panics, bring down the entire thread pool
+    struct PanicGuard;
+    impl Drop for PanicGuard {
+        fn drop(&mut self) {
+            unsafe {
+                (*WorkerThread::current()).registry.terminate();
+            }
+        }
+    }
+    let guard = PanicGuard;
+
     let mut was_active = false;
-    while !registry.terminate.load(Ordering::SeqCst) {
-        if let Some(injected_job) = registry.wait_for_work(index, was_active) {
-            (*injected_job).execute();
-            was_active = true;
-        } else if let Some(stolen_job) = steal_work(&registry, index) {
+    loop {
+        match registry.wait_for_work(index, was_active) {
+            Work::Job(injected_job) => {
+                (*injected_job).execute();
+                was_active = true;
+                continue;
+            }
+            Work::Terminate => break,
+            Work::None => {},
+        }
+
+        if let Some(stolen_job) = steal_work(&registry, index) {
             log!(StoleWork { worker: index, job: stolen_job });
             registry.start_working(index);
             (*stolen_job).execute();
