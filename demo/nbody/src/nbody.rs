@@ -68,7 +68,7 @@ impl NBodyBenchmark {
                 let velocity2 = Vector3 {
                     x: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
                     y: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
-                    z: f64::rand(rng) * INITIAL_VELOCITY
+                    z: f64::rand(rng) * INITIAL_VELOCITY,
                 };
 
                 Body { position: position, velocity: velocity, velocity2: velocity2 }
@@ -137,7 +137,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
     let center = Point3 {
         x: (time / 22.0).cos() * -4200.0,
         y: (time / 14.0).sin() * 9200.0,
-        z: (time / 27.0).sin() * 6000.0
+        z: (time / 27.0).sin() * 6000.0,
     };
 
     // pull to center
