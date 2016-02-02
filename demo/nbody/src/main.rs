@@ -2,11 +2,12 @@
 
 extern crate cgmath;
 extern crate docopt;
+#[macro_use]
+extern crate glium;
 extern crate pbr;
 extern crate rand;
 extern crate rayon;
 extern crate rustc_serialize;
-extern crate sdl;
 extern crate time;
 
 use docopt::Docopt;
