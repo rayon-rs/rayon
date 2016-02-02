@@ -8,6 +8,7 @@ use glium::index::PrimitiveType;
 use rand::{self, Rng, SeedableRng, XorShiftRng};
 
 use nbody::NBodyBenchmark;
+use ExecutionMode;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -68,7 +69,7 @@ struct Instance {
 
 implement_vertex!(Instance, color, world_position);
 
-pub fn visualize_benchmarks(num_bodies: usize) {
+pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
     let display = WindowBuilder::new()
         .with_dimensions(800, 600)
         .with_title("nbody demo".to_string())
@@ -131,7 +132,10 @@ pub fn visualize_benchmarks(num_bodies: usize) {
 
     'main: loop {
         {
-            let bodies = benchmark.tick_par();
+            let bodies = match mode {
+                ExecutionMode::Par => benchmark.tick_par(),
+                ExecutionMode::Seq => benchmark.tick_seq(),
+            };
 
             let mut mapping = instance_buffer.map();
             for (body, instance) in bodies.iter().zip(mapping.iter_mut()) {
