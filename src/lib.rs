@@ -15,7 +15,9 @@ pub mod par_iter;
 mod thread_pool;
 mod util;
 
-pub use api::initialize;
+pub use api::Configuration;
+pub use api::InitError;
 pub use api::dump_stats;
+pub use api::initialize;
 pub use api::join;
 pub use api::ThreadPool;

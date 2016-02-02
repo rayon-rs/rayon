@@ -112,7 +112,9 @@ fn main() {
     let mut par_time = 0;
     let mut seq_time = 0;
 
-    rayon::initialize();
+    // Just unwrap as nobody else ought to be initializing the
+    // thread-pool by this time.
+    rayon::initialize(rayon::Configuration::new()).unwrap();
 
     for _ in 0 .. reps {
         let data: Vec<_> = (0..kilo*1024).map(|_| rng.next_u32()).collect();

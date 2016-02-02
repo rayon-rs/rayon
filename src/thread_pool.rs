@@ -1,16 +1,17 @@
+use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::Job;
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
-use num_cpus;
 use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use util::leak;
+use num_cpus;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -35,28 +36,45 @@ unsafe impl Sync for Registry { }
 static mut THE_REGISTRY: Option<&'static Registry> = None;
 static THE_REGISTRY_SET: Once = ONCE_INIT;
 
-/// Starts the worker threads (if that has not already happened) and
-/// returns the registry.
+/// Starts the worker threads (if that has not already happened). If
+/// initialization has not already occurred, use the default
+/// configuration.
 pub fn get_registry() -> &'static Registry {
-    THE_REGISTRY_SET.call_once(|| {
-        let registry = leak(Registry::new());
-        unsafe { THE_REGISTRY = Some(registry); }
-    });
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()) });
     unsafe { THE_REGISTRY.unwrap() }
 }
 
+/// Starts the worker threads (if that has not already happened) with
+/// the given configuration.
+pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config) });
+    unsafe { THE_REGISTRY.unwrap() }
+}
+
+/// Initializes the global registry with the given configuration.
+/// Meant to be called from within the `THE_REGISTRY_SET` once
+/// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
+/// an unsynchronized fashion.
+unsafe fn init_registry(config: Configuration) {
+    let registry = leak(Registry::new(config.num_threads()));
+    THE_REGISTRY = Some(registry);
+}
+
 impl Registry {
-    pub fn new() -> Arc<Registry> {
-        let num_threads = num_cpus::get();
+    pub fn new(num_threads: Option<usize>) -> Arc<Registry> {
+        let limit_value = match num_threads {
+            Some(value) => value,
+            None => num_cpus::get()
+        };
         let registry = Arc::new(Registry {
-            thread_infos: (0..num_threads).map(|_| ThreadInfo::new())
+            thread_infos: (0..limit_value).map(|_| ThreadInfo::new())
                                           .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
             terminate: AtomicBool::new(false),
         });
 
-        for index in 0 .. num_threads {
+        for index in 0 .. limit_value {
             let registry = registry.clone();
             thread::spawn(move || unsafe { main_loop(registry, index) });
         }
@@ -64,7 +82,7 @@ impl Registry {
         registry
     }
 
-    fn num_threads(&self) -> usize {
+    pub fn num_threads(&self) -> usize {
         self.thread_infos.len()
     }
 
@@ -280,4 +298,3 @@ pub struct JobRef {
 
 unsafe impl Send for JobRef { }
 unsafe impl Sync for JobRef { }
-
