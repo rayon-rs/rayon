@@ -1,7 +1,7 @@
 //! Benchmark Fibonacci numbers, F(n) = F(n-1) + F(n-2)
 //!
 //! Recursion is a horrible way to compute this -- roughly O(2ⁿ).
-//! 
+//!
 //! It's potentially interesting for rayon::join, because the splits are
 //! unequal.  F(n-1) has roughly twice as much work to do as F(n-2).  The
 //! imbalance might make it more likely to leave idle threads ready to steal
@@ -18,6 +18,9 @@
 extern crate rayon;
 extern crate test;
 
+use rayon::Configuration;
+
+const INIT_FAILED: &'static str = "Rayon failed to initialize";
 const N: u32 = 32;
 const FN: u32 = 2178309;
 
@@ -40,7 +43,8 @@ fn fibonacci_recursive(b: &mut test::Bencher) {
 /// Compute the Fibonacci number recursively, using rayon::join.
 /// The larger branch F(N-1) is computed first.
 fn fibonacci_join_1_2(b: &mut test::Bencher) {
-    rayon::initialize();
+    rayon::initialize(Configuration::new())
+                     .expect(INIT_FAILED);
 
     fn fib(n: u32) -> u32 {
         if n < 2 { return n; }
@@ -59,7 +63,8 @@ fn fibonacci_join_1_2(b: &mut test::Bencher) {
 /// Compute the Fibonacci number recursively, using rayon::join.
 /// The smaller branch F(N-2) is computed first.
 fn fibonacci_join_2_1(b: &mut test::Bencher) {
-    rayon::initialize();
+    rayon::initialize(Configuration::new())
+                     .expect(INIT_FAILED);
 
     fn fib(n: u32) -> u32 {
         if n < 2 { return n; }
