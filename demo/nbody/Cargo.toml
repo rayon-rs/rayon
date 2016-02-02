@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 
 [dependencies]
+cgmath = { version = "0.7", features = ["unstable"] }
 rand = "0.3"
 rayon = { path = "../../" }
 time = "0.1"

@@ -29,10 +29,10 @@
 //
 // [1]: https://github.com/IntelLabs/RiverTrail/blob/master/examples/nbody-webgl/NBody.js
 
+use cgmath::{EuclideanVector, Point3, Vector, Vector3};
 use rayon::par_iter::*;
 use rand::{Rand, Rng};
 use std::f64::consts::PI;
-use std::ops;
 
 const INITIAL_VELOCITY: f64 = 8.0; // set to 0.0 to turn off.
 
@@ -43,16 +43,9 @@ pub struct NBodyBenchmark {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Body {
-    pub position: Vector,
-    pub velocity: Vector,
-    pub velocity2: Vector,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Vector {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    pub position: Point3<f64>,
+    pub velocity: Vector3<f64>,
+    pub velocity2: Vector3<f64>,
 }
 
 impl NBodyBenchmark {
@@ -60,19 +53,19 @@ impl NBodyBenchmark {
         let bodies0: Vec<_> =
             (0..num_bodies)
             .map(|_| {
-                let position = Vector {
+                let position = Point3 {
                     x: f64::rand(rng).floor() * 40_000.0,
                     y: f64::rand(rng).floor() * 20_000.0,
                     z: (f64::rand(rng).floor() - 0.25) * 50_000.0,
                 };
 
-                let velocity = Vector {
+                let velocity = Vector3 {
                     x: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
                     y: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
                     z: f64::rand(rng) * INITIAL_VELOCITY + 10.0,
                 };
 
-                let velocity2 = Vector {
+                let velocity2 = Vector3 {
                     x: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
                     y: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
                     z: f64::rand(rng) * INITIAL_VELOCITY
@@ -139,9 +132,9 @@ impl NBodyBenchmark {
 }
 
 /// Compute next velocity of `prev`
-fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) {
+fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Vector3<f64>) {
     let time = time as f64;
-    let center = Vector {
+    let center = Point3 {
         x: (time / 22.0).cos() * -4200.0,
         y: (time / 14.0).sin() * 9200.0,
         z: (time / 27.0).sin() * 6000.0
@@ -168,8 +161,8 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
 
     let zone_sqrd = 3.0 * (zone * zone);
 
-    let mut acc = ZERO;
-    let mut acc2 = ZERO;
+    let mut acc = Vector3::zero();
+    let mut acc2 = Vector3::zero();
 
     let dir_to_center = center - prev.position;
     let dist_to_center = dir_to_center.length();
@@ -183,7 +176,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
         };
 
         let diff = (dir_to_center / dist_to_center) * velc;
-        acc.increment(diff);
+        acc += diff;
     }
 
     // TODO -- parallelize this loop too? would be easy enough, it's just a reduction
@@ -192,9 +185,9 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
         let r = body.position - prev.position;
 
         // make sure we are not testing the particle against its own position
-        let are_same = r.is_zero();
+        let are_same = r == Vector3::zero();
 
-        let dist_sqrd = r.length_squared();
+        let dist_sqrd = r.length2();
 
         if dist_sqrd < zone_sqrd && !are_same {
             let length = dist_sqrd.sqrt();
@@ -203,8 +196,8 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
             if dist_sqrd < repel {
                 let f = (repel / percent - 1.0) * 0.025;
                 let normal = (r / length) * f;
-                acc.increment(normal);
-                acc2.increment(normal);
+                acc += normal;
+                acc2 += normal;
             } else if dist_sqrd < align {
                 let thresh_delta = align - repel;
                 let adjusted_percent = (percent - repel) / thresh_delta;
@@ -218,8 +211,8 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
                 let vel_length = prev.velocity.length();
                 let vel = (prev.velocity / vel_length) * q;
 
-                acc.increment(vel2);
-                acc2.increment(vel);
+                acc += vel2;
+                acc2 += vel;
             }
 
             if dist_sqrd > attract { // attract
@@ -230,22 +223,22 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
                 // normalize the distance vector
                 let d = (r / length) * c;
 
-                acc.increment(d);
-                acc2.decrement(d);
+                acc += d;
+                acc2 -= d;
             }
         }
     }
 
     // Speed limits
     if time > 500.0 {
-        let acc_squared = acc.length_squared();
+        let acc_squared = acc.length2();
         if acc_squared > speed_limit {
-            acc.scale(0.015);
+            acc *= 0.015;
         }
 
-        let acc_squared2 = acc2.length_squared();
+        let acc_squared2 = acc2.length2();
         if acc_squared2 > speed_limit {
-            acc2.scale(0.015);
+            acc2 *= 0.015;
         }
     }
 
@@ -253,90 +246,16 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector, Vector) 
     let mut new2 = prev.velocity2 + acc2;
 
     if time < 500.0 {
-        let acs = new2.length_squared();
+        let acs = new2.length2();
         if acs > speed_limit {
-            new2.scale(0.15);
+            new2 *= 0.15;
         }
 
-        let acs2 = new.length_squared();
+        let acs2 = new.length2();
         if acs2 > speed_limit {
-            new.scale(0.15);
+            new *= 0.15;
         }
     }
 
     (new, new2)
-}
-
-const ZERO: Vector = Vector { x: 0.0, y: 0.0, z: 0.0 };
-
-impl Vector {
-    fn length_squared(&self) -> f64 {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
-
-    fn length(&self) -> f64 {
-        self.length_squared().sqrt()
-    }
-
-    fn increment(&mut self, v: Vector) {
-        self.x += v.x;
-        self.y += v.y;
-        self.z += v.z;
-    }
-
-    fn decrement(&mut self, v: Vector) {
-        self.x -= v.x;
-        self.y -= v.y;
-        self.z -= v.z;
-    }
-
-    fn scale(&mut self, scale: f64) {
-        self.x *= scale;
-        self.y *= scale;
-        self.z *= scale;
-    }
-
-    fn is_zero(&self) -> bool {
-        self.x == 0.0 && self.y == 0.0 && self.z == 0.0
-    }
-}
-
-impl ops::Div<f64> for Vector {
-    type Output = Vector;
-
-    fn div(self, rhs: f64) -> Vector {
-        Vector { x: self.x / rhs,
-                 y: self.y / rhs,
-                 z: self.z / rhs }
-    }
-}
-
-impl ops::Mul<f64> for Vector {
-    type Output = Vector;
-
-    fn mul(self, rhs: f64) -> Vector {
-        Vector { x: self.x * rhs,
-                 y: self.y * rhs,
-                 z: self.z * rhs }
-    }
-}
-
-impl ops::Sub<Vector> for Vector {
-    type Output = Vector;
-
-    fn sub(self, rhs: Vector) -> Vector {
-        Vector { x: self.x - rhs.x,
-                 y: self.y - rhs.y,
-                 z: self.z - rhs.z }
-    }
-}
-
-impl ops::Add<Vector> for Vector {
-    type Output = Vector;
-
-    fn add(self, rhs: Vector) -> Vector {
-        Vector { x: self.x + rhs.x,
-                 y: self.y + rhs.y,
-                 z: self.z + rhs.z }
-    }
 }

@@ -1,3 +1,6 @@
+ #![feature(augmented_assignments)]
+
+extern crate cgmath;
 extern crate rand;
 extern crate rayon;
 extern crate sdl;
