@@ -4,7 +4,10 @@ version = "0.1.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 
 [dependencies]
+cgmath = { version = "0.7", features = ["unstable"] }
+docopt = "0.6"
+glium = "0.13"
 rand = "0.3"
 rayon = { path = "../../" }
+rustc-serialize = "0.3"
 time = "0.1"
-sdl = "0.3.6"

@@ -1,111 +1,109 @@
+ #![feature(augmented_assignments)]
+
+extern crate cgmath;
+extern crate docopt;
+#[macro_use]
+extern crate glium;
 extern crate rand;
 extern crate rayon;
-extern crate sdl;
+extern crate rustc_serialize;
 extern crate time;
 
+use docopt::Docopt;
 use rand::{SeedableRng, XorShiftRng};
-use std::env;
-use std::str::FromStr;
 
 mod nbody;
 mod visualize;
 use self::visualize::visualize_benchmarks;
 use self::nbody::NBodyBenchmark;
 
-const DEFAULT_NUM_BODIES: usize = 4000;
-const DEFAULT_TICKS: usize = 100;
+const USAGE: &'static str = "
+Usage: nbody bench [--no-par | --no-seq] [--bodies N --ticks N]
+       nbody visualize [--mode MODE --bodies N]
+       nbody --help
+
+Commands:
+    bench              Run the benchmark and print the timings.
+    visualize          Show the graphical visualizer.
+
+Options:
+    -h, --help         Show this message.
+    --no-par           Skip parallel execution in the benchmark.
+    --no-seq           Skip sequential execution in the benchmark.
+    --mode MODE        Execution mode for the visualizer [default: par].
+    --bodies N         Use N bodies [default: 4000].
+    --ticks N          Simulate for N ticks [default: 100].
+";
+
+#[derive(Copy, Clone, RustcDecodable)]
+pub enum ExecutionMode {
+    Par,
+    Seq,
+}
+
+#[derive(RustcDecodable)]
+pub struct Args {
+    cmd_bench: bool,
+    cmd_visualize: bool,
+    flag_no_par: bool,
+    flag_no_seq: bool,
+    flag_mode: ExecutionMode,
+    flag_bodies: usize,
+    flag_ticks: usize,
+}
 
 fn main() {
-    let mut num_bodies = DEFAULT_NUM_BODIES;
-    let mut ticks = DEFAULT_TICKS;
-    let mut run_par = true;
-    let mut run_seq = true;
-    let mut visualize = false;
+    let args: Args =
+        Docopt::new(USAGE)
+            .and_then(|d| d.decode())
+            .unwrap_or_else(|e| e.exit());
 
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
-        if arg == "--no-par" {
-            run_par = false;
-        } else if arg == "--no-seq" {
-            run_seq = false;
-        } else if arg == "--visualize" {
-            visualize = true;
-        } else if arg == "--ticks" {
-            if let Some(ticks_arg) = args.next() {
-                match usize::from_str(&ticks_arg) {
-                    Ok(v) => ticks = v,
-                    Err(_) => {
-                        println!("invalid argument `{}`, expected integral number of ticks",
-                                 ticks_arg);
-                    }
-                }
-            } else {
-                println!("missing argument to --ticks");
-            }
-        } else if arg == "--bodies" {
-            if let Some(bodies_arg) = args.next() {
-                match usize::from_str(&bodies_arg) {
-                    Ok(v) => num_bodies = v,
-                    Err(_) => {
-                        println!("invalid argument `{}`, expected integral number of bodies", arg);
-                    }
-                }
-            } else {
-                println!("missing argument to --bodies");
-            }
-        } else if arg == "--help" {
-            println!("Usage:");
-            println!(" --no-par      skip parallel execution");
-            println!(" --no-seq      skip sequential execution");
-            println!(" --bodies N    use N bodies (default: {})", DEFAULT_NUM_BODIES);
-            println!(" --ticks N     simulate for N ticks (default: {})", DEFAULT_TICKS);
-            return;
-        } else {
-            println!("Illegal argument `{}`. Try --help.", arg);
-            return;
-        }
+    if args.cmd_bench {
+        run_benchmarks(!args.flag_no_par, !args.flag_no_seq,
+                       args.flag_bodies, args.flag_ticks);
     }
 
-    if visualize {
-        visualize_benchmarks(num_bodies);
-    } else {
-        run_benchmarks(run_par, run_seq, num_bodies, ticks);
+    if args.cmd_visualize {
+        visualize_benchmarks(args.flag_bodies, args.flag_mode);
     }
 }
 
-fn run_benchmarks(run_par: bool,
-                  run_seq: bool,
-                  num_bodies: usize,
-                  ticks: usize) {
-    println!("Configuration:");
-    if !run_par { println!("  --no-par"); }
-    if !run_seq { println!("  --no-seq"); }
-    println!("  --bodies {}", num_bodies);
-    println!("  --ticks {}", ticks);
-
-    let par_time = {
+fn run_benchmarks(run_par: bool, run_seq: bool, bodies: usize, ticks: usize) {
+    let par_time = if run_par {
         let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-        let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
+        let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let par_start = time::precise_time_ns();
+
         for _ in 0..ticks {
             benchmark.tick_par();
         }
-        time::precise_time_ns() - par_start
+
+        let par_time = time::precise_time_ns() - par_start;
+        println!("Parallel time   : {}", par_time);
+
+        Some(par_time)
+    } else {
+        None
     };
 
-    let seq_time = {
+    let seq_time = if run_seq {
         let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-        let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rng);
+        let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let seq_start = time::precise_time_ns();
+
         for _ in 0..ticks {
             benchmark.tick_seq();
         }
-        time::precise_time_ns() - seq_start
+
+        let seq_time = time::precise_time_ns() - seq_start;
+        println!("Sequential time : {}", seq_time);
+
+        Some(seq_time)
+    } else {
+        None
     };
 
-    if run_par { println!("Parallel time   : {}", par_time); }
-    if run_seq { println!("Sequential time : {}", seq_time); }
-    if run_par && run_seq {
-        println!("Parallel speedup: {}", (seq_time as f64) / (par_time as f64));
+    if let (Some(pt), Some(st)) = (par_time, seq_time) {
+        println!("Parallel speedup: {}", (st as f32) / (pt as f32));
     }
 }
