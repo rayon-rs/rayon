@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
 use thread_pool::{self, Registry, WorkerThread};
+use std::{thread, mem};
 
 /// Custom error type for the rayon thread pool configuration.
 #[derive(Debug,PartialEq)]
@@ -154,8 +155,28 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         let mut job_b = Job::new(&mut code_b, &mut latch_b);
         (*worker_thread).push(&mut job_b);
 
+        // If another thread stole our job when we panic, we must halt unwinding
+        // until that thread is finished using it.
+        struct PanicGuard<'a>(&'a mut SpinLatch);
+        impl<'a> Drop for PanicGuard<'a> {
+            fn drop(&mut self) {
+                unsafe {
+                    if !(*WorkerThread::current()).pop() {
+                        while !self.0.probe() {
+                            thread::yield_now();
+                        }
+                    }
+                }
+            }
+        }
+
         // execute task a; hopefully b gets stolen
-        let result_a = oper_a();
+        let result_a;
+        {
+            let guard = PanicGuard(&mut latch_b);
+            result_a = oper_a();
+            mem::forget(guard);
+        }
 
         // if b was not stolen, do it ourselves, else wait for the thief to finish
         if (*worker_thread).pop() {

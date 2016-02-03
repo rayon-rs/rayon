@@ -117,7 +117,8 @@ impl Registry {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         if state.terminate {
-            panic!("attempted to inject a job after thread pool shut down");
+            drop(state);
+            panic!("rayon thread pool is contaminated by a previous panic; recovery is currently unimplemented");
         }
         state.injected_jobs.extend(injected_jobs);
         self.work_available.notify_all();
@@ -133,11 +134,6 @@ impl Registry {
         }
 
         loop {
-            // Check if we need to terminate
-            if state.terminate {
-                return Work::Terminate;
-            }
-
             // Otherwise, if anything was injected from outside,
             // return that.  Note that this gives preference to
             // injected items over stealing from others, which is a
@@ -146,6 +142,13 @@ impl Registry {
                 state.threads_at_work += 1;
                 self.work_available.notify_all();
                 return Work::Job(job);
+            }
+
+            // Check if we need to terminate. Note that we only do this after
+            // all injected jobs are processed, because there might be threads
+            // waiting for an injected job to complete.
+            if state.terminate {
+                return Work::Terminate;
             }
 
             // If any of the threads are running a job, we should spin

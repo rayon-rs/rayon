@@ -97,6 +97,19 @@ fn negative_tests_compile_fail() {
 }
 
 #[test]
+fn negative_tests_run_fail() {
+    let mode = "run-fail";
+    let mut config = compiletest::default_config();
+    let cfg_mode = mode.parse().ok().expect("Invalid mode");
+
+    config.mode = cfg_mode;
+    config.src_base = PathBuf::from("neg-tests-run");
+    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
+
+    compiletest::run_tests(&config);
+}
+
+#[test]
 fn positive_test_run_pass() {
     let mode = "run-pass";
     let mut config = compiletest::default_config();
@@ -113,10 +126,4 @@ fn positive_test_run_pass() {
 fn coerce_to_box_error() {
      // check that coercion succeeds
     let _: Box<Error> = From::from(InitError::NumberOfThreadsZero);
-}
-
-#[test]
-#[should_panic]
-fn panic() {
-    join(|| {}, || panic!("should panic"));
 }
