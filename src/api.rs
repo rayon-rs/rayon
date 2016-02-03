@@ -3,6 +3,8 @@ use latch::{LockLatch, SpinLatch};
 use log::Event::*;
 use job::{Code, CodeImpl, Job};
 use std::sync::Arc;
+use std::error::Error;
+use std::fmt;
 use thread_pool::{self, Registry, WorkerThread};
 
 /// Custom error type for the rayon thread pool configuration.
@@ -14,6 +16,29 @@ pub enum InitError {
     /// Error if the gloal thread pool is initialized multiple times
     /// and the configuration is not equal for all configurations.
     GlobalPoolAlreadyInitialized,
+}
+
+impl fmt::Display for InitError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            InitError::NumberOfThreadsZero =>
+                write!(f, "The number of threads was set to zero but must be greater than zero."),
+            InitError::GlobalPoolAlreadyInitialized =>
+                write!(f, "The gobal thread pool has already been initialized with a different \
+                           configuration. Only one valid configuration is allowed.")
+        }
+    }
+}
+
+impl Error for InitError {
+    fn description(&self) -> &str {
+        match *self {
+            InitError::NumberOfThreadsZero =>
+                "number of threads set to zero",
+            InitError::GlobalPoolAlreadyInitialized =>
+                "global thread pool has already been initialized"
+        }
+    }
 }
 
 /// Contains the rayon thread pool configuration.
