@@ -5,6 +5,7 @@ extern crate compiletest_rs as compiletest;
 use api::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::path::PathBuf;
+use std::error::Error;
 
 fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -106,4 +107,10 @@ fn positive_test_run_pass() {
     config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
 
     compiletest::run_tests(&config);
+}
+
+#[test]
+fn coerce_to_box_error() {
+     // check that coercion succeeds
+    let _: Box<Error> = From::from(InitError::NumberOfThreadsZero);
 }
