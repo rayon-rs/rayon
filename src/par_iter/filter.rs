@@ -30,7 +30,7 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
     }
 }
 
-unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
+impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
     where M: BoundedParallelIterator,
           FILTER_OP: Fn(&M::Item) -> bool + Sync
 {
@@ -79,16 +79,16 @@ impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'c, C, FILTER_OP>
         self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
+    fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(&shared.0, index);
         (FilterConsumer::new(left), FilterConsumer::new(right))
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
+    fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
         self.base.start(&shared.0)
     }
 
-    unsafe fn consume(&mut self,
+    fn consume(&mut self,
                       shared: &Self::Shared,
                       state: C::SeqState,
                       item: Self::Item)
@@ -101,11 +101,11 @@ impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'c, C, FILTER_OP>
         }
     }
 
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
+    fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
         self.base.complete(&shared.0, state)
     }
 
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
+    fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
         C::reduce(&shared.0, left, right)
     }
 }

@@ -34,7 +34,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
@@ -47,7 +47,7 @@ unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data,
     }
 }
 
-unsafe impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
     fn len(&mut self) -> usize {
         self.slice.len()
     }
@@ -76,12 +76,12 @@ impl<'p, 'data, T: 'data + Sync> Producer<'p> for SliceProducer<'data, T>
         len as f64
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
         (SliceProducer { slice: left }, SliceProducer { slice: right })
     }
 
-    unsafe fn produce(&mut self, _: &()) -> &'data T {
+    fn produce(&mut self, _: &()) -> &'data T {
         let (head, tail) = self.slice.split_first().unwrap();
         self.slice = tail;
         head

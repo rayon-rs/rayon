@@ -31,7 +31,7 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     }
 }
 
-unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
     where M: BoundedParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
@@ -50,7 +50,7 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
     }
 }
 
-unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     where M: ExactParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
@@ -119,13 +119,13 @@ impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
         self.base.cost(&shared.0, len) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (MapProducer { base: left, phantoms: PhantomType::new() },
          MapProducer { base: right, phantoms: PhantomType::new() })
     }
 
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> R {
+    fn produce(&mut self, shared: &Self::Shared) -> R {
         let item = self.base.produce(&shared.0);
         (shared.1)(item)
     }
@@ -165,16 +165,16 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
         self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
+    fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(&shared.0, index);
         (MapConsumer::new(left), MapConsumer::new(right))
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
+    fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
         self.base.start(&shared.0)
     }
 
-    unsafe fn consume(&mut self,
+    fn consume(&mut self,
                       shared: &Self::Shared,
                       state: C::SeqState,
                       item: Self::Item)
@@ -184,11 +184,11 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
         self.base.consume(&shared.0, state, mapped_item)
     }
 
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
+    fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
         self.base.complete(&shared.0, state)
     }
 
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
+    fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
         C::reduce(&shared.0, left, right)
     }
 }

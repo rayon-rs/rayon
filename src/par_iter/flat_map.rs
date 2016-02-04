@@ -75,15 +75,15 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
         f64::INFINITY
     }
 
-    unsafe fn split_at(self, _shared: &Self::Shared, _index: usize) -> (Self, Self) {
+    fn split_at(self, _shared: &Self::Shared, _index: usize) -> (Self, Self) {
         (FlatMapConsumer::new(self.base.split()), FlatMapConsumer::new(self.base.split()))
     }
 
-    unsafe fn start(&mut self, _shared: &Self::Shared) -> Option<C::Result> {
+    fn start(&mut self, _shared: &Self::Shared) -> Option<C::Result> {
         None
     }
 
-    unsafe fn consume(&mut self,
+    fn consume(&mut self,
                       shared: &Self::Shared,
                       previous: Option<C::Result>,
                       item: Self::Item)
@@ -100,13 +100,13 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
         }
     }
 
-    unsafe fn complete(self, _shared: &Self::Shared, state: Option<C::Result>) -> C::Result {
+    fn complete(self, _shared: &Self::Shared, state: Option<C::Result>) -> C::Result {
         // should have processed at least one item -- but is this
         // really a fair assumption?
         state.unwrap()
     }
 
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
+    fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
         C::reduce(&shared.0, left, right)
     }
 }

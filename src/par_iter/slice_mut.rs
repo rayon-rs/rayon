@@ -35,7 +35,7 @@ impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
     }
 }
 
-unsafe impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
@@ -48,7 +48,7 @@ unsafe impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'da
     }
 }
 
-unsafe impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data, T> {
     fn len(&mut self) -> usize {
         self.slice.len()
     }
@@ -77,12 +77,12 @@ impl<'p, 'data, T: 'data + Send> Producer<'p> for SliceMutProducer<'data, T>
         len as f64
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at_mut(index);
         (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
     }
 
-    unsafe fn produce(&mut self, _: &()) -> &'data mut T {
+    fn produce(&mut self, _: &()) -> &'data mut T {
         let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
         let (head, tail) = slice.split_first_mut().unwrap();
         self.slice = tail;

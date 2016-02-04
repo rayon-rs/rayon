@@ -28,7 +28,7 @@ impl<M> ParallelIterator for Weight<M>
     }
 }
 
-unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
+impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
@@ -43,7 +43,7 @@ unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     }
 }
 
-unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
+impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
     fn len(&mut self) -> usize {
         self.base.len()
     }
@@ -90,13 +90,13 @@ impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
         self.base.cost(&shared.0, len) * shared.1
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (WeightProducer { base: left, phantoms: PhantomType::new() },
          WeightProducer { base: right, phantoms: PhantomType::new() })
     }
 
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> P::Item {
+    fn produce(&mut self, shared: &Self::Shared) -> P::Item {
         self.base.produce(&shared.0)
     }
 }
@@ -131,16 +131,16 @@ impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
         self.base.cost(&shared.0, cost) * shared.1
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
+    fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(&shared.0, index);
         (WeightConsumer::new(left), WeightConsumer::new(right))
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
+    fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
         self.base.start(&shared.0)
     }
 
-    unsafe fn consume(&mut self,
+    fn consume(&mut self,
                       shared: &Self::Shared,
                       state: C::SeqState,
                       item: Self::Item)
@@ -149,11 +149,11 @@ impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
         self.base.consume(&shared.0, state, item)
     }
 
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
+    fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
         self.base.complete(&shared.0, state)
     }
 
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
+    fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
         C::reduce(&shared.0, left, right)
     }
 }
