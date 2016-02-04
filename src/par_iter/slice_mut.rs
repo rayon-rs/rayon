@@ -29,7 +29,7 @@ impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
-                                                                      shared: &'c C::Shared)
+                                                                      shared: &C::Shared)
                                                                       -> C::Result {
         bridge(self, consumer, &shared)
     }
@@ -42,7 +42,7 @@ unsafe impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'da
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
-                                                   shared: &'c C::Shared)
+                                                   shared: &C::Shared)
                                                    -> C::Result {
         bridge(self, consumer, &shared)
     }

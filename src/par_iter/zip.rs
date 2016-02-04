@@ -21,7 +21,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
-                                                                      shared: &'c C::Shared)
+                                                                      shared: &C::Shared)
                                                                       -> C::Result {
         bridge(self, consumer, &shared)
     }
@@ -36,7 +36,7 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
-                                                   shared: &'c C::Shared)
+                                                   shared: &C::Shared)
                                                    -> C::Result {
         bridge(self, consumer, &shared)
     }

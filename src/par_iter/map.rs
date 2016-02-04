@@ -21,13 +21,14 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
 {
     type Item = R;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
-        let shared1 = (shared, &self.map_op);
-        self.base.drive_unindexed(consumer1, &shared1)
+    fn drive_unindexed<'c, C>(self,
+                              consumer: C,
+                              shared: &C::Shared)
+                              -> C::Result
+        where C: UnindexedConsumer<'c, Item=Self::Item>
+    {
+        let consumer1 = MapConsumer::new(consumer, &self.map_op);
+        self.base.drive_unindexed(consumer1, shared)
     }
 }
 
@@ -42,11 +43,10 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
-                                                   shared: &'c C::Shared)
+                                                   shared: &C::Shared)
                                                    -> C::Result {
-        let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
-        let shared1 = (shared, &self.map_op);
-        self.base.drive(consumer1, &shared1)
+        let consumer1 = MapConsumer::new(consumer, &self.map_op);
+        self.base.drive(consumer1, shared)
     }
 }
 
@@ -88,7 +88,9 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
                                -> CB::Output
                 where P: Producer<'p, Item=ITEM>
             {
-                let producer = MapProducer { base: base, phantoms: PhantomType::new() };
+                let producer = MapProducer { base: base,
+                                             map_op: &self.map_op,
+                                             phantoms: PhantomType::new() };
                 self.callback.callback(producer, &(shared, &self.map_op))
             }
         }
@@ -97,18 +99,20 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct MapProducer<'p, P, MAP_OP, R>
-    where P: Producer<'p>,
-          MAP_OP: Fn(P::Item) -> R + Sync,
-          R: Send,
-{
-    base: P,
-    phantoms: PhantomType<(&'p (), R, MAP_OP)>,
-}
-
-impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
+pub struct MapProducer<'m, 'p, P, MAP_OP, R>
     where P: Producer<'p>,
           MAP_OP: Fn(P::Item) -> R + Sync + 'm,
+          R: Send,
+          'p: 'm,
+{
+    base: P,
+    map_op: &'m MAP_OP,
+    phantoms: PhantomType<(&'p (), R)>,
+}
+
+impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'m, 'p, P, MAP_OP, R>
+    where P: Producer<'p>,
+          MAP_OP: Fn(P::Item) -> R + Sync,
           R: Send,
           'p: 'm
 {
@@ -121,8 +125,8 @@ impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
 
     unsafe fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (MapProducer { base: left, phantoms: PhantomType::new() },
-         MapProducer { base: right, phantoms: PhantomType::new() })
+        (MapProducer { base: left, map_op: self.map_op, phantoms: PhantomType::new() },
+         MapProducer { base: right, map_op: self.map_op, phantoms: PhantomType::new() })
     }
 
     unsafe fn produce(&mut self, shared: &Self::Shared) -> R {
@@ -134,44 +138,44 @@ impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct MapConsumer<'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+struct MapConsumer<'m, 'c, ITEM, C, MAP_OP>
+    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm, 'c: 'm
 {
     base: C,
+    map_op: &'m MAP_OP,
     phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
 }
 
-impl<'c, ITEM, C, MAP_OP> MapConsumer<'c, ITEM, C, MAP_OP>
+impl<'m, 'c, ITEM, C, MAP_OP> MapConsumer<'m, 'c, ITEM, C, MAP_OP>
     where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
 {
-    fn new(base: C) -> MapConsumer<'c, ITEM, C, MAP_OP> {
-        MapConsumer { base: base, phantoms: PhantomType::new() }
+    fn new(base: C, map_op: &'m MAP_OP) -> MapConsumer<'m, 'c, ITEM, C, MAP_OP> {
+        MapConsumer { base: base, map_op: map_op, phantoms: PhantomType::new() }
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
+impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
     where C: Consumer<'c>,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
           ITEM: 'm,
           MAP_OP: 'm,
-          'c: 'm,
 {
     type Item = ITEM;
-    type Shared = (&'c C::Shared, &'m MAP_OP);
+    type Shared = C::Shared;
     type SeqState = C::SeqState;
     type Result = C::Result;
 
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
+        self.base.cost(shared, cost) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.0, index);
-        (MapConsumer::new(left), MapConsumer::new(right))
+        let (left, right) = self.base.split_at(shared, index);
+        (MapConsumer::new(left, self.map_op), MapConsumer::new(right, self.map_op))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.0)
+        self.base.start(shared)
     }
 
     unsafe fn consume(&mut self,
@@ -180,20 +184,21 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
                       item: Self::Item)
                       -> C::SeqState
     {
-        let mapped_item = (shared.1)(item);
-        self.base.consume(&shared.0, state, mapped_item)
+        let mapped_item = (self.map_op)(item);
+        self.base.consume(shared, state, mapped_item)
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.0, state)
+        self.base.complete(shared, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+        C::reduce(shared, left, right)
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> UnindexedConsumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
+impl<'m, 'c, ITEM, C, MAP_OP> UnindexedConsumer<'m>
+    for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
     where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
           ITEM: 'm,
@@ -201,6 +206,6 @@ impl<'m, 'c, ITEM, C, MAP_OP> UnindexedConsumer<'m> for MapConsumer<'c, ITEM, C,
           'c: 'm,
 {
     fn split(&self) -> Self {
-        MapConsumer::new(self.base.split())
+        MapConsumer::new(self.base.split(), &self.map_op)
     }
 }

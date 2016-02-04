@@ -23,11 +23,10 @@ impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
-                                                                      shared: &'c C::Shared)
+                                                                      shared: &C::Shared)
                                                                       -> C::Result {
-        let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
-        let shared = (shared, &self.filter_op);
-        self.base.drive_unindexed(consumer, &shared)
+        let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
+        self.base.drive_unindexed(consumer, shared)
     }
 }
 
@@ -42,52 +41,57 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
-                                                   shared: &'c C::Shared)
+                                                   shared: &C::Shared)
                                                    -> C::Result {
-        let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
-        let shared = (shared, &self.filter_op);
-        self.base.drive(consumer, &shared)
+        let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
+        self.base.drive(consumer, shared)
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
+struct FilterMapConsumer<'f, 'c: 'f, ITEM, C, FILTER_OP>
+    where C: Consumer<'c>,
+          FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync + 'f,
+          ITEM: 'f,
 {
     base: C,
-    phantoms: PhantomType<(&'c (), ITEM, FILTER_OP)>,
+    filter_op: &'f FILTER_OP,
+    phantoms: PhantomType<(&'c (), ITEM)>,
 }
 
-impl<'c, ITEM, C, FILTER_OP> FilterMapConsumer<'c, ITEM, C, FILTER_OP>
+impl<'f, 'c, ITEM, C, FILTER_OP> FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
     where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
 {
-    fn new(base: C) -> FilterMapConsumer<'c, ITEM, C, FILTER_OP> {
-        FilterMapConsumer { base: base, phantoms: PhantomType::new() }
+    fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
+        FilterMapConsumer { base: base,
+                            filter_op: filter_op,
+                            phantoms: PhantomType::new() }
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f, 'c: 'f
+impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
+    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f
 {
     type Item = ITEM;
-    type Shared = (&'c C::Shared, &'f FILTER_OP);
+    type Shared = C::Shared;
     type SeqState = C::SeqState;
     type Result = C::Result;
 
     /// Cost to process `items` number of items.
     fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
+        self.base.cost(shared, cost) * FUNC_ADJUSTMENT
     }
 
     unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.0, index);
-        (FilterMapConsumer::new(left), FilterMapConsumer::new(right))
+        let (left, right) = self.base.split_at(shared, index);
+        (FilterMapConsumer::new(left, self.filter_op),
+         FilterMapConsumer::new(right, self.filter_op))
     }
 
     unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.0)
+        self.base.start(shared)
     }
 
     unsafe fn consume(&mut self,
@@ -96,27 +100,30 @@ impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'c, ITEM, C,
                       item: Self::Item)
                       -> C::SeqState
     {
-        if let Some(mapped_item) = (shared.1)(item) {
-            self.base.consume(&shared.0, state, mapped_item)
+        if let Some(mapped_item) = (self.filter_op)(item) {
+            self.base.consume(shared, state, mapped_item)
         } else {
             state
         }
     }
 
     unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.0, state)
+        self.base.complete(shared, state)
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+        C::reduce(shared, left, right)
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> UnindexedConsumer<'f> for FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: UnindexedConsumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f, 'c: 'f
+impl<'f, 'c, ITEM, C, FILTER_OP> UnindexedConsumer<'f>
+    for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
+    where C: UnindexedConsumer<'c>,
+          FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
+          ITEM: 'f
 {
     fn split(&self) -> Self {
-        FilterMapConsumer::new(self.base.split())
+        FilterMapConsumer::new(self.base.split(), &self.filter_op)
     }
 }
 

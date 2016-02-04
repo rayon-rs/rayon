@@ -210,7 +210,7 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
-                                                                      shared: &'c C::Shared)
+                                                                      shared: &C::Shared)
                                                                       -> C::Result;
 }
 
@@ -241,7 +241,7 @@ pub unsafe trait BoundedParallelIterator: ParallelIterator {
     #[doc(hidden)]
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
-                                                   shared: &'c C::Shared)
+                                                   shared: &C::Shared)
                                                    -> C::Result;
 
 }

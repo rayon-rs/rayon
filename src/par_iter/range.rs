@@ -22,7 +22,7 @@ macro_rules! range_impl {
 
             fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                               consumer: C,
-                                                                              shared: &'c C::Shared)
+                                                                              shared: &C::Shared)
                                                                               -> C::Result {
                 bridge(self, consumer, &shared)
             }
@@ -35,7 +35,7 @@ macro_rules! range_impl {
 
             fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                            consumer: C,
-                                                           shared: &'c C::Shared)
+                                                           shared: &C::Shared)
                                                            -> C::Result {
                 bridge(self, consumer, &shared)
             }

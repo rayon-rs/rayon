@@ -23,38 +23,19 @@ impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
-                                                                      shared: &'c C::Shared)
+                                                                      shared: &C::Shared)
                                                                       -> C::Result {
-        let consumer = FlatMapConsumer { base: consumer, phantoms: PhantomType::new() };
-        self.base.drive_unindexed(consumer, &(shared, &self.map_op))
+        let consumer = FlatMapConsumer { base: consumer,
+                                         map_op: &self.map_op,
+                                         phantoms: PhantomType::new() };
+        self.base.drive_unindexed(consumer, shared)
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> PI + Sync,
-          PI: ParallelIterator<Item=C::Item>,
-          C::Item: Send,
-{
-    base: C,
-    phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
-}
-
-impl<'c, ITEM, C, MAP_OP, PI> FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> PI + Sync,
-          PI: ParallelIterator<Item=C::Item>,
-          C::Item: Send,
-{
-    fn new(base: C) -> FlatMapConsumer<'c, ITEM, C, MAP_OP, PI> {
-        FlatMapConsumer { base: base, phantoms: PhantomType::new() }
-    }
-}
-
-impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
+struct FlatMapConsumer<'m, 'c, ITEM, C, MAP_OP, PI>
     where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
           PI: ParallelIterator<Item=C::Item>,
@@ -62,8 +43,31 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
           ITEM: 'm,
           'c: 'm,
 {
+    base: C,
+    map_op: &'m MAP_OP,
+    phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
+}
+
+impl<'m, 'c, ITEM, C, MAP_OP, PI> FlatMapConsumer<'m, 'c, ITEM, C, MAP_OP, PI>
+    where C: UnindexedConsumer<'c>,
+          MAP_OP: Fn(ITEM) -> PI + Sync,
+          PI: ParallelIterator<Item=C::Item>,
+          C::Item: Send,
+{
+    fn new(base: C, map_op: &'m MAP_OP) -> Self {
+        FlatMapConsumer { base: base, map_op: map_op, phantoms: PhantomType::new() }
+    }
+}
+
+impl<'m, 'c, ITEM, C, MAP_OP, PI> Consumer<'m>
+    for FlatMapConsumer<'m, 'c, ITEM, C, MAP_OP, PI>
+    where C: UnindexedConsumer<'c>,
+          MAP_OP: Fn(ITEM) -> PI + Sync,
+          PI: ParallelIterator<Item=C::Item>,
+          C::Item: Send,
+{
     type Item = ITEM;
-    type Shared = (&'c C::Shared, &'m MAP_OP);
+    type Shared = C::Shared;
     type SeqState = Option<C::Result>;
     type Result = C::Result;
 
@@ -76,7 +80,8 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
     }
 
     unsafe fn split_at(self, _shared: &Self::Shared, _index: usize) -> (Self, Self) {
-        (FlatMapConsumer::new(self.base.split()), FlatMapConsumer::new(self.base.split()))
+        (FlatMapConsumer::new(self.base.split(), self.map_op),
+         FlatMapConsumer::new(self.base.split(), self.map_op))
     }
 
     unsafe fn start(&mut self, _shared: &Self::Shared) -> Option<C::Result> {
@@ -84,18 +89,18 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
     }
 
     unsafe fn consume(&mut self,
-                      shared: &Self::Shared,
+                      shared: &C::Shared,
                       previous: Option<C::Result>,
                       item: Self::Item)
                       -> Option<C::Result>
     {
-        let par_iter = (shared.1)(item).into_par_iter();
-        let result = par_iter.drive_unindexed(self.base.split(), &shared.0);
+        let par_iter = (self.map_op)(item).into_par_iter();
+        let result = par_iter.drive_unindexed(self.base.split(), shared);
 
         // We expect that `previous` is `None`, because we drive
         // the cost up so high, but just in case.
         match previous {
-            Some(previous) => Some(C::reduce(&shared.0, result, previous)),
+            Some(previous) => Some(C::reduce(shared, result, previous)),
             None => Some(result),
         }
     }
@@ -107,11 +112,12 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
     }
 
     unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+        C::reduce(shared, left, right)
     }
 }
 
-impl<'c, 'm, ITEM, C, MAP_OP, PI> UnindexedConsumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
+impl<'c, 'm, ITEM, C, MAP_OP, PI> UnindexedConsumer<'m>
+    for FlatMapConsumer<'m, 'c, ITEM, C, MAP_OP, PI>
     where C: UnindexedConsumer<'c>,
           MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
           PI: ParallelIterator<Item=C::Item>,
@@ -120,7 +126,7 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> UnindexedConsumer<'m> for FlatMapConsumer<'c, 
           'c: 'm,
 {
     fn split(&self) -> Self {
-        FlatMapConsumer::new(self.base.split())
+        FlatMapConsumer::new(self.base.split(), self.map_op)
     }
 }
 

@@ -28,7 +28,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
 
     fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
                                                                       consumer: C,
-                                                                      shared: &'c C::Shared)
+                                                                      shared: &C::Shared)
                                                                       -> C::Result {
         bridge(self, consumer, &shared)
     }
@@ -41,7 +41,7 @@ unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data,
 
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
                                                    consumer: C,
-                                                   shared: &'c C::Shared)
+                                                   shared: &C::Shared)
                                                    -> C::Result {
         bridge(self, consumer, &shared)
     }

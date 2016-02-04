@@ -75,7 +75,7 @@ pub trait UnindexedConsumer<'c>: Consumer<'c> {
 
 pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
                              consumer: C,
-                             consumer_shared: &'c C::Shared)
+                             consumer_shared: &C::Shared)
                              -> C::Result
     where PAR_ITER: IndexedParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
 {
@@ -84,13 +84,16 @@ pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
                                                  consumer: consumer,
                                                  consumer_shared: consumer_shared });
 
-    struct Callback<'c, C> where C: Consumer<'c> {
+    struct Callback<'s, 'c: 's, C> where C: Consumer<'c> {
         len: usize,
         consumer: C,
-        consumer_shared: &'c C::Shared,
+        consumer_shared: &'s C::Shared,
     }
 
-    impl<'c, C> ProducerCallback<C::Item> for Callback<'c, C> where C: Consumer<'c> {
+    impl<'s, 'c, C> ProducerCallback<C::Item>
+        for Callback<'s, 'c, C>
+        where C: Consumer<'c>
+    {
         type Output = C::Result;
         fn callback<'p, P>(mut self,
                            mut producer: P,
@@ -112,7 +115,7 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
                                        mut producer: P,
                                        producer_shared: &'p P::Shared,
                                        mut consumer: C,
-                                       consumer_shared: &'c C::Shared)
+                                       consumer_shared: &C::Shared)
                                        -> C::Result
     where P: Producer<'p>, C: Consumer<'c, Item=P::Item>
 {
