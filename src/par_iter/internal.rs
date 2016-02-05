@@ -9,26 +9,25 @@ use super::len::*;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
-    fn callback<'p, P>(self, producer: P, shared: &'p P::Shared) -> Self::Output
-        where P: Producer<'p, Item=ITEM>;
+    fn callback<'p, P>(self, producer: P) -> Self::Output
+        where P: Producer<Item=ITEM>;
 }
 
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer<'produce>: Send {
+pub trait Producer: Send {
     type Item;
-    type Shared: Sync + 'produce;
 
     /// Cost to produce `len` items, where `len` must be `N`.
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64;
+    fn cost(&mut self, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
     fn split_at(self, index: usize) -> (Self, Self);
 
     /// Unless a panic occurs, expects to be called *exactly N times*.
-    fn produce(&mut self, shared: &Self::Shared) -> Self::Item;
+    fn produce(&mut self) -> Self::Item;
 }
 
 /// A consumer which consumes items that are fed to it.
@@ -94,28 +93,22 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
         where C: Consumer<ITEM>
     {
         type Output = C::Result;
-        fn callback<'p, P>(mut self,
-                           mut producer: P,
-                           producer_shared: &'p P::Shared)
-                           -> C::Result
-            where P: Producer<'p, Item=ITEM>
+        fn callback<P>(mut self, mut producer: P) -> C::Result
+            where P: Producer<Item=ITEM>
         {
-            let producer_cost = producer.cost(&producer_shared, self.len);
+            let producer_cost = producer.cost(self.len);
             let cost = self.consumer.cost(producer_cost);
-            bridge_producer_consumer(self.len, cost,
-                                     producer, producer_shared,
-                                     self.consumer)
+            bridge_producer_consumer(self.len, cost, producer, self.consumer)
         }
     }
 }
 
-fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
-                                       cost: f64,
-                                       mut producer: P,
-                                       producer_shared: &'p P::Shared,
-                                       consumer: C)
-                                       -> C::Result
-    where P: Producer<'p>, C: Consumer<P::Item>
+fn bridge_producer_consumer<P,C>(len: usize,
+                                 cost: f64,
+                                 mut producer: P,
+                                 consumer: C)
+                                 -> C::Result
+    where P: Producer, C: Consumer<P::Item>
 {
     if len > 1 && cost > THRESHOLD {
         let mid = len / 2;
@@ -123,18 +116,25 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
         let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
         let (left_result, right_result) =
             join(|| bridge_producer_consumer(mid, cost / 2.0,
-                                             left_producer, producer_shared,
-                                             left_consumer),
+                                             left_producer, left_consumer),
                  || bridge_producer_consumer(len - mid, cost / 2.0,
-                                             right_producer, producer_shared,
-                                             right_consumer));
+                                             right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {
         let mut folder = consumer.fold();
         for _ in 0..len {
-            let item = producer.produce(producer_shared);
+            let item = producer.produce();
             folder = folder.consume(item);
         }
         folder.complete()
     }
 }
+
+/// Utility type for consumers that don't need a "reduce" step. Just
+/// reduces unit to unit.
+pub struct NoopReducer;
+
+impl Reducer<()> for NoopReducer {
+    fn reduce(self, _left: (), _right: ()) { }
+}
+

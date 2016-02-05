@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use super::util::PhantomType;
 use std::cmp::min;
 
 pub struct ZipIter<A: IndexedParallelIterator, B: IndexedParallelIterator> {
@@ -70,35 +69,31 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
         {
             type Output = CB::Output;
 
-            fn callback<'a, A>(self, a_producer: A, a_shared: &'a A::Shared) -> Self::Output
-                where A: Producer<'a, Item=A_ITEM>
+            fn callback<A>(self, a_producer: A) -> Self::Output
+                where A: Producer<Item=A_ITEM>
             {
                 return self.b.with_producer(CallbackB {
                     a_producer: a_producer,
-                    a_shared: a_shared,
                     callback: self.callback,
                 });
             }
         }
 
-        struct CallbackB<'p, CB, A> where A: Producer<'p> {
+        struct CallbackB<CB, A> {
             a_producer: A,
-            a_shared: &'p A::Shared,
             callback: CB
         }
 
-        impl<'a, CB, A, B_ITEM> ProducerCallback<B_ITEM> for CallbackB<'a, CB, A>
-            where A: Producer<'a>,
+        impl<CB, A, B_ITEM> ProducerCallback<B_ITEM> for CallbackB<CB, A>
+            where A: Producer,
                   CB: ProducerCallback<(A::Item, B_ITEM)>,
         {
             type Output = CB::Output;
 
-            fn callback<'b, B>(self, b_producer: B, b_shared: &'b B::Shared) -> Self::Output
-                where B: Producer<'b, Item=B_ITEM>
+            fn callback<B>(self, b_producer: B) -> Self::Output
+                where B: Producer<Item=B_ITEM>
             {
-                self.callback.callback(ZipProducer { p: self.a_producer, q: b_producer,
-                                                     phantoms: PhantomType::new() },
-                                       &(self.a_shared, b_shared))
+                self.callback.callback(ZipProducer { p: self.a_producer, q: b_producer })
             }
         }
 
@@ -107,33 +102,29 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct ZipProducer<'a, 'b, A: Producer<'a>, B: Producer<'b>> {
+pub struct ZipProducer<A: Producer, B: Producer> {
     p: A,
     q: B,
-    phantoms: PhantomType<(&'a (), &'b ())>,
 }
 
-impl<'z, 'a, 'b, A: Producer<'a>, B: Producer<'b>> Producer<'z> for ZipProducer<'a, 'b, A, B>
-    where 'a: 'z, 'b: 'z
-{
+impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
     type Item = (A::Item, B::Item);
-    type Shared = (&'a A::Shared, &'b B::Shared);
 
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+    fn cost(&mut self, len: usize) -> f64 {
         // Rather unclear that this should be `+`. It might be that max is better?
-        self.p.cost(&shared.0, len) + self.q.cost(&shared.1, len)
+        self.p.cost(len) + self.q.cost(len)
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (p_left, p_right) = self.p.split_at(index);
         let (q_left, q_right) = self.q.split_at(index);
-        (ZipProducer { p: p_left, q: q_left, phantoms: PhantomType::new() },
-         ZipProducer { p: p_right, q: q_right, phantoms: PhantomType::new() })
+        (ZipProducer { p: p_left, q: q_left },
+         ZipProducer { p: p_right, q: q_right, })
     }
 
-    fn produce(&mut self, shared: &(&A::Shared, &B::Shared)) -> (A::Item, B::Item) {
-        let p = self.p.produce(shared.0);
-        let q = self.q.produce(shared.1);
+    fn produce(&mut self) -> (A::Item, B::Item) {
+        let p = self.p.produce();
+        let q = self.q.produce();
         (p, q)
     }
 }

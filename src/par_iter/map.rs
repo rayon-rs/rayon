@@ -1,7 +1,6 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
-use super::util::PhantomType;
 
 pub struct Map<M, MAP_OP> {
     base: M,
@@ -78,16 +77,12 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
         {
             type Output = CB::Output;
 
-            fn callback<'p, P>(self,
-                               base: P,
-                               shared: &'p P::Shared)
-                               -> CB::Output
-                where P: Producer<'p, Item=ITEM>
+            fn callback<P>(self, base: P) -> CB::Output
+                where P: Producer<Item=ITEM>
             {
                 let producer = MapProducer { base: base,
-                                             map_op: &self.map_op,
-                                             phantoms: PhantomType::new() };
-                self.callback.callback(producer, &(shared, &self.map_op))
+                                             map_op: &self.map_op };
+                self.callback.callback(producer)
             }
         }
     }
@@ -95,39 +90,31 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct MapProducer<'m, 'p, P, MAP_OP, R>
-    where P: Producer<'p>,
-          MAP_OP: Fn(P::Item) -> R + Sync + 'm,
-          R: Send,
-          'p: 'm,
-{
+pub struct MapProducer<'m, P, MAP_OP: 'm> {
     base: P,
     map_op: &'m MAP_OP,
-    phantoms: PhantomType<(&'p (), R)>,
 }
 
-impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'m, 'p, P, MAP_OP, R>
-    where P: Producer<'p>,
+impl<'m, P, MAP_OP, R> Producer for MapProducer<'m, P, MAP_OP>
+    where P: Producer,
           MAP_OP: Fn(P::Item) -> R + Sync,
           R: Send,
-          'p: 'm
 {
     type Item = R;
-    type Shared = (&'p P::Shared, &'m MAP_OP);
 
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
-        self.base.cost(&shared.0, len) * FUNC_ADJUSTMENT
+    fn cost(&mut self, len: usize) -> f64 {
+        self.base.cost(len) * FUNC_ADJUSTMENT
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (MapProducer { base: left, map_op: self.map_op, phantoms: PhantomType::new() },
-         MapProducer { base: right, map_op: self.map_op, phantoms: PhantomType::new() })
+        (MapProducer { base: left, map_op: self.map_op, },
+         MapProducer { base: right, map_op: self.map_op, })
     }
 
-    fn produce(&mut self, shared: &Self::Shared) -> R {
-        let item = self.base.produce(&shared.0);
-        (shared.1)(item)
+    fn produce(&mut self) -> R {
+        let item = self.base.produce();
+        (self.map_op)(item)
     }
 }
 

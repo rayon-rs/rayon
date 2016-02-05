@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use super::util::*;
 
 pub struct Weight<M> {
     base: M,
@@ -61,13 +60,11 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
         {
             type Output = CB::Output;
 
-            fn callback<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
-                where P: Producer<'p, Item=ITEM>
+            fn callback<'p, P>(self, base: P) -> Self::Output
+                where P: Producer<Item=ITEM>
             {
                 self.callback.callback(WeightProducer { base: base,
-                                                        weight: self.weight,
-                                                        phantoms: PhantomType::new() },
-                                       shared)
+                                                        weight: self.weight })
             }
         }
     }
@@ -75,32 +72,26 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct WeightProducer<'p, P> {
+pub struct WeightProducer<P> {
     base: P,
     weight: f64,
-    phantoms: PhantomType<&'p ()>
 }
 
-impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
+impl<P: Producer> Producer for WeightProducer<P> {
     type Item = P::Item;
-    type Shared = P::Shared;
 
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
-        self.base.cost(shared, len) * self.weight
+    fn cost(&mut self, len: usize) -> f64 {
+        self.base.cost(len) * self.weight
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (WeightProducer { base: left,
-                          weight: self.weight,
-                          phantoms: PhantomType::new() },
-         WeightProducer { base: right,
-                          weight: self.weight,
-                          phantoms: PhantomType::new() })
+        (WeightProducer { base: left, weight: self.weight },
+         WeightProducer { base: right, weight: self.weight })
     }
 
-    fn produce(&mut self, shared: &Self::Shared) -> P::Item {
-        self.base.produce(shared)
+    fn produce(&mut self) -> P::Item {
+        self.base.produce()
     }
 }
 

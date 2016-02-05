@@ -55,7 +55,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.callback(SliceProducer { slice: self.slice }, &())
+        callback.callback(SliceProducer { slice: self.slice })
     }
 }
 
@@ -65,12 +65,11 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
     slice: &'data [T]
 }
 
-impl<'p, 'data, T: 'data + Sync> Producer<'p> for SliceProducer<'data, T>
+impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
 {
     type Item = &'data T;
-    type Shared = ();
 
-    fn cost(&mut self, _shared: &Self::Shared, len: usize) -> f64 {
+    fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
 
@@ -79,7 +78,7 @@ impl<'p, 'data, T: 'data + Sync> Producer<'p> for SliceProducer<'data, T>
         (SliceProducer { slice: left }, SliceProducer { slice: right })
     }
 
-    fn produce(&mut self, _: &()) -> &'data T {
+    fn produce(&mut self) -> &'data T {
         let (head, tail) = self.slice.split_first().unwrap();
         self.slice = tail;
         head

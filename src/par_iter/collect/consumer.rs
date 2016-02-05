@@ -1,6 +1,5 @@
 use super::super::len::*;
 use super::super::internal::*;
-use super::super::util::NoopReducer;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

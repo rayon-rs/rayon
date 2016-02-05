@@ -56,7 +56,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.callback(SliceMutProducer { slice: self.slice }, &())
+        callback.callback(SliceMutProducer { slice: self.slice })
     }
 }
 
@@ -66,12 +66,11 @@ pub struct SliceMutProducer<'data, T: 'data + Send> {
     slice: &'data mut [T]
 }
 
-impl<'p, 'data, T: 'data + Send> Producer<'p> for SliceMutProducer<'data, T>
+impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
 {
     type Item = &'data mut T;
-    type Shared = ();
 
-    fn cost(&mut self, _: &Self::Shared, len: usize) -> f64 {
+    fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
 
@@ -80,7 +79,7 @@ impl<'p, 'data, T: 'data + Send> Producer<'p> for SliceMutProducer<'data, T>
         (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
     }
 
-    fn produce(&mut self, _: &()) -> &'data mut T {
+    fn produce(&mut self) -> &'data mut T {
         let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
         let (head, tail) = slice.split_first_mut().unwrap();
         self.slice = tail;

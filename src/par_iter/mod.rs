@@ -40,7 +40,6 @@ pub mod map;
 pub mod weight;
 pub mod zip;
 pub mod range;
-mod util;
 
 #[cfg(test)]
 mod test;

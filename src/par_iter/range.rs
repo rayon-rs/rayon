@@ -49,15 +49,14 @@ macro_rules! range_impl {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {
-                callback.callback(self, &())
+                callback.callback(self)
             }
         }
 
-        impl<'p> Producer<'p> for RangeIter<$t> {
+        impl Producer for RangeIter<$t> {
             type Item = $t;
-            type Shared = ();
 
-            fn cost(&mut self, _: &Self::Shared, len: usize) -> f64 {
+            fn cost(&mut self, len: usize) -> f64 {
                 len as f64
             }
 
@@ -71,7 +70,7 @@ macro_rules! range_impl {
                 (RangeIter { range: left }, RangeIter { range: right })
             }
 
-            fn produce(&mut self, _: &()) -> $t {
+            fn produce(&mut self) -> $t {
                 self.range.next().unwrap()
             }
         }

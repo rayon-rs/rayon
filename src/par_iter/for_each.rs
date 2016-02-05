@@ -1,7 +1,6 @@
 use super::ParallelIterator;
 use super::len::*;
 use super::internal::*;
-use super::util::*;
 
 pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
     where PAR_ITER: ParallelIterator<Item=T>,
