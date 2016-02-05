@@ -21,7 +21,7 @@ macro_rules! range_impl {
             type Item = $t;
 
             fn drive_unindexed<C>(self, consumer: C) -> C::Result
-                where C: UnindexedConsumer<Item=Self::Item>
+                where C: UnindexedConsumer<Self::Item>
             {
                 bridge(self, consumer)
             }
@@ -33,7 +33,7 @@ macro_rules! range_impl {
             }
 
             fn drive<C>(self, consumer: C) -> C::Result
-                where C: Consumer<Item=Self::Item>
+                where C: Consumer<Self::Item>
             {
                 bridge(self, consumer)
             }

@@ -28,8 +28,7 @@ impl<T> PhantomType<T> {
 /// Utility type for consumers that don't need a "reduce" step.
 pub struct NoopReducer;
 
-impl Reducer for NoopReducer {
-    type Result = ();
+impl Reducer<()> for NoopReducer {
     fn reduce(self, _left: (), _right: ()) { }
 }
 

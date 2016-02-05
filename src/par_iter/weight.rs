@@ -19,7 +19,7 @@ impl<M> ParallelIterator for Weight<M>
     type Item = M::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Item=Self::Item>
+        where C: UnindexedConsumer<Self::Item>
     {
         let consumer1 = WeightConsumer::new(consumer, self.weight);
         self.base.drive_unindexed(consumer1)
@@ -32,7 +32,7 @@ impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     }
 
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Item=Self::Item>
+        where C: Consumer<Self::Item>
     {
         let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer, self.weight);
         self.base.drive(consumer1)
@@ -107,25 +107,20 @@ impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct WeightConsumer<C>
-    where C: Consumer,
-{
+struct WeightConsumer<C> {
     base: C,
     weight: f64,
 }
 
-impl<C> WeightConsumer<C>
-    where C: Consumer,
-{
+impl<C> WeightConsumer<C> {
     fn new(base: C, weight: f64) -> WeightConsumer<C> {
         WeightConsumer { base: base, weight: weight }
     }
 }
 
-impl<C> Consumer for WeightConsumer<C>
-    where C: Consumer,
+impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
+    where C: Consumer<ITEM>,
 {
-    type Item = C::Item;
     type Folder = C::Folder;
     type Reducer = C::Reducer;
     type Result = C::Result;
@@ -146,8 +141,8 @@ impl<C> Consumer for WeightConsumer<C>
     }
 }
 
-impl<C> UnindexedConsumer for WeightConsumer<C>
-    where C: UnindexedConsumer
+impl<C, ITEM> UnindexedConsumer<ITEM> for WeightConsumer<C>
+    where C: UnindexedConsumer<ITEM>
 {
     fn split(&self) -> Self {
         WeightConsumer::new(self.base.split(), self.weight)

@@ -8,21 +8,18 @@ pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
           OP: Fn(T) + Sync,
           T: Send,
 {
-    let consumer: ForEachConsumer<OP, T> =
-        ForEachConsumer { op: op, phantoms: PhantomType::new() };
+    let consumer = ForEachConsumer { op: op };
     pi.drive_unindexed(consumer)
 }
 
-struct ForEachConsumer<'f, OP: 'f, ITEM> {
+struct ForEachConsumer<'f, OP: 'f> {
     op: &'f OP,
-    phantoms: PhantomType<ITEM>
 }
 
-impl<'f, OP, ITEM> Consumer for ForEachConsumer<'f, OP, ITEM>
+impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
     where OP: Fn(ITEM) + Sync,
 {
-    type Item = ITEM;
-    type Folder = ForEachConsumer<'f, OP, ITEM>;
+    type Folder = ForEachConsumer<'f, OP>;
     type Reducer = NoopReducer;
     type Result = ();
 
@@ -40,10 +37,9 @@ impl<'f, OP, ITEM> Consumer for ForEachConsumer<'f, OP, ITEM>
     }
 }
 
-impl<'f, OP, ITEM> Folder for ForEachConsumer<'f, OP, ITEM>
+impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
     where OP: Fn(ITEM) + Sync,
 {
-    type Item = ITEM;
     type Result = ();
 
     fn consume(self, item: ITEM) -> Self {
@@ -55,11 +51,11 @@ impl<'f, OP, ITEM> Folder for ForEachConsumer<'f, OP, ITEM>
     }
 }
 
-impl<'f, OP, ITEM> UnindexedConsumer for ForEachConsumer<'f, OP, ITEM>
+impl<'f, OP, ITEM> UnindexedConsumer<ITEM> for ForEachConsumer<'f, OP>
     where OP: Fn(ITEM) + Sync,
 {
     fn split(&self) -> Self {
-        ForEachConsumer { op: self.op, phantoms: PhantomType::new() }
+        ForEachConsumer { op: self.op }
     }
 
     fn reducer(&self) -> NoopReducer {

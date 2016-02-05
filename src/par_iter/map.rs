@@ -22,7 +22,7 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     type Item = R;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Item=Self::Item>
+        where C: UnindexedConsumer<Self::Item>
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive_unindexed(consumer1)
@@ -39,7 +39,7 @@ impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
     }
 
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Item=Self::Item>
+        where C: Consumer<Self::Item>
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive(consumer1)
@@ -134,28 +134,24 @@ impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'m, 'p, P, MAP_OP, R>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct MapConsumer<'m, ITEM, C, MAP_OP>
-    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm,
-{
+struct MapConsumer<'m, C, MAP_OP: 'm> {
     base: C,
     map_op: &'m MAP_OP,
-    phantoms: PhantomType<ITEM>,
 }
 
-impl<'m, ITEM, C, MAP_OP> MapConsumer<'m, ITEM, C, MAP_OP>
-    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, C, MAP_OP> MapConsumer<'m, C, MAP_OP>
 {
-    fn new(base: C, map_op: &'m MAP_OP) -> MapConsumer<'m, ITEM, C, MAP_OP> {
-        MapConsumer { base: base, map_op: map_op, phantoms: PhantomType::new() }
+    fn new(base: C, map_op: &'m MAP_OP) -> Self {
+        MapConsumer { base: base, map_op: map_op, }
     }
 }
 
-impl<'m, ITEM, C, MAP_OP> Consumer for MapConsumer<'m, ITEM, C, MAP_OP>
-    where C: Consumer,
-          MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
+    for MapConsumer<'m, C, MAP_OP>
+    where C: Consumer<MAPPED_ITEM>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
 {
-    type Item = ITEM;
-    type Folder = MapFolder<'m, ITEM, C::Folder, MAP_OP>;
+    type Folder = MapFolder<'m, C::Folder, MAP_OP>;
     type Reducer = C::Reducer;
     type Result = C::Result;
 
@@ -174,15 +170,14 @@ impl<'m, ITEM, C, MAP_OP> Consumer for MapConsumer<'m, ITEM, C, MAP_OP>
         MapFolder {
             base: self.base.fold(),
             map_op: self.map_op,
-            phantoms: self.phantoms
         }
     }
 }
 
-impl<'m, ITEM, C, MAP_OP> UnindexedConsumer
-    for MapConsumer<'m, ITEM, C, MAP_OP>
-    where C: UnindexedConsumer,
-          MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
+    for MapConsumer<'m, C, MAP_OP>
+    where C: UnindexedConsumer<MAPPED_ITEM>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
 {
     fn split(&self) -> Self {
         MapConsumer::new(self.base.split(), &self.map_op)
@@ -193,25 +188,23 @@ impl<'m, ITEM, C, MAP_OP> UnindexedConsumer
     }
 }
 
-struct MapFolder<'m, ITEM, C, MAP_OP>
-    where C: Folder, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm,
+struct MapFolder<'m, C, MAP_OP: 'm>
 {
     base: C,
     map_op: &'m MAP_OP,
-    phantoms: PhantomType<ITEM>,
 }
 
-impl<'m, ITEM, C, MAP_OP> Folder for MapFolder<'m, ITEM, C, MAP_OP>
-    where C: Folder, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm,
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM> for MapFolder<'m, C, MAP_OP>
+    where C: Folder<MAPPED_ITEM>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
 {
-    type Item = ITEM;
     type Result = C::Result;
 
-    fn consume(self, item: Self::Item) -> Self {
+    fn consume(self, item: ITEM) -> Self {
         let map_op = self.map_op;
         let mapped_item = map_op(item);
         let base = self.base.consume(mapped_item);
-        MapFolder { base: base, map_op: map_op, phantoms: self.phantoms }
+        MapFolder { base: base, map_op: map_op }
     }
 
     fn complete(self) -> C::Result {

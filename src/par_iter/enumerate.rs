@@ -18,7 +18,7 @@ impl<M> ParallelIterator for Enumerate<M>
     type Item = (usize, M::Item);
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Item=Self::Item>
+        where C: UnindexedConsumer<Self::Item>
     {
         bridge(self, consumer)
     }
@@ -31,7 +31,7 @@ impl<M> BoundedParallelIterator for Enumerate<M>
         self.len()
     }
 
-    fn drive<C: Consumer<Item=Self::Item>>(self, consumer: C) -> C::Result {
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
 }

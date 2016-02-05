@@ -6,7 +6,6 @@
 use join;
 use super::IndexedParallelIterator;
 use super::len::*;
-use super::util::PhantomType;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
@@ -33,10 +32,9 @@ pub trait Producer<'produce>: Send {
 }
 
 /// A consumer which consumes items that are fed to it.
-pub trait Consumer: Send {
-    type Item;
-    type Folder: Folder<Item=Self::Item, Result=Self::Result>;
-    type Reducer: Reducer<Result=Self::Result>;
+pub trait Consumer<Item>: Send {
+    type Folder: Folder<Item, Result=Self::Result>;
+    type Reducer: Reducer<Self::Result>;
     type Result: Send;
 
     /// If it costs `producer_cost` to produce the items we will
@@ -55,56 +53,52 @@ pub trait Consumer: Send {
 
 }
 
-pub trait Folder {
-    type Item;
+pub trait Folder<Item> {
     type Result;
 
     /// Consume next item and return new sequential state.
-    fn consume(self, item: Self::Item) -> Self;
+    fn consume(self, item: Item) -> Self;
 
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
 }
 
-pub trait Reducer {
-    type Result;
+pub trait Reducer<Result> {
 
     /// Reduce two final results into one; this is executed after a
     /// split.
-    fn reduce(self, left: Self::Result, right: Self::Result) -> Self::Result;
+    fn reduce(self, left: Result, right: Result) -> Result;
 }
 
 /// A stateless consumer can be freely copied.
-pub trait UnindexedConsumer: Consumer {
+pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
     fn split(&self) -> Self;
     fn reducer(&self) -> Self::Reducer;
 }
 
-pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
+pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
                              consumer: C)
                              -> C::Result
-    where PAR_ITER: IndexedParallelIterator, C: Consumer<Item=PAR_ITER::Item>
+    where PAR_ITER: IndexedParallelIterator, C: Consumer<PAR_ITER::Item>
 {
     let len = par_iter.len();
     return par_iter.with_producer(Callback { len: len,
-                                             consumer: consumer,
-                                             phantoms: PhantomType::new() });
+                                             consumer: consumer, });
 
-    struct Callback<'c, C> {
+    struct Callback<C> {
         len: usize,
         consumer: C,
-        phantoms: PhantomType<&'c ()>
     }
 
-    impl<'c, C> ProducerCallback<C::Item> for Callback<'c, C>
-        where C: Consumer
+    impl<C, ITEM> ProducerCallback<ITEM> for Callback<C>
+        where C: Consumer<ITEM>
     {
         type Output = C::Result;
         fn callback<'p, P>(mut self,
                            mut producer: P,
                            producer_shared: &'p P::Shared)
                            -> C::Result
-            where P: Producer<'p, Item=C::Item>
+            where P: Producer<'p, Item=ITEM>
         {
             let producer_cost = producer.cost(&producer_shared, self.len);
             let cost = self.consumer.cost(producer_cost);
@@ -121,7 +115,7 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
                                        producer_shared: &'p P::Shared,
                                        consumer: C)
                                        -> C::Result
-    where P: Producer<'p>, C: Consumer<Item=P::Item>
+    where P: Producer<'p>, C: Consumer<P::Item>
 {
     if len > 1 && cost > THRESHOLD {
         let mid = len / 2;

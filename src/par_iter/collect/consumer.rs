@@ -40,8 +40,7 @@ impl<'c, ITEM: Send> CollectConsumer<'c, ITEM> {
     }
 }
 
-impl<'c, ITEM: Send> Consumer for CollectConsumer<'c, ITEM> {
-    type Item = ITEM;
+impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
     type Folder = CollectFolder<'c, ITEM>;
     type Reducer = NoopReducer;
     type Result = ();
@@ -73,8 +72,7 @@ impl<'c, ITEM: Send> Consumer for CollectConsumer<'c, ITEM> {
     }
 }
 
-impl<'c, ITEM: Send> Folder for CollectFolder<'c, ITEM> {
-    type Item = ITEM;
+impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
     type Result = ();
 
     fn consume(mut self, item: ITEM) -> CollectFolder<'c, ITEM> {

@@ -20,7 +20,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     type Item = (A::Item, B::Item);
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Item=Self::Item>
+        where C: UnindexedConsumer<Self::Item>
     {
         bridge(self, consumer)
     }
@@ -34,7 +34,7 @@ impl<A,B> BoundedParallelIterator for ZipIter<A,B>
     }
 
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Item=Self::Item>
+        where C: Consumer<Self::Item>
     {
         bridge(self, consumer)
     }
