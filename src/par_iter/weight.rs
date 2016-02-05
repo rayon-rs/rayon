@@ -18,8 +18,8 @@ impl<M> ParallelIterator for Weight<M>
 {
     type Item = M::Item;
 
-    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<'c, Item=Self::Item>
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Item=Self::Item>
     {
         let consumer1 = WeightConsumer::new(consumer, self.weight);
         self.base.drive_unindexed(consumer1)
@@ -31,8 +31,8 @@ unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
         self.base.upper_bound()
     }
 
-    fn drive<'c, C>(self, consumer: C) -> C::Result
-        where C: Consumer<'c, Item=Self::Item>
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Item=Self::Item>
     {
         let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer, self.weight);
         self.base.drive(consumer1)
@@ -107,24 +107,23 @@ impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct WeightConsumer<'w, 'c, C>
-    where C: Consumer<'c>, 'c: 'w
+struct WeightConsumer<C>
+    where C: Consumer,
 {
     base: C,
     weight: f64,
-    phantoms: PhantomType<&'w &'c ()>
 }
 
-impl<'w, 'c, C> WeightConsumer<'w, 'c, C>
-    where C: Consumer<'c>, 'c: 'w
+impl<C> WeightConsumer<C>
+    where C: Consumer,
 {
-    fn new(base: C, weight: f64) -> WeightConsumer<'w, 'c, C> {
-        WeightConsumer { base: base, weight: weight, phantoms: PhantomType::new() }
+    fn new(base: C, weight: f64) -> WeightConsumer<C> {
+        WeightConsumer { base: base, weight: weight }
     }
 }
 
-impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
-    where C: Consumer<'c>, 'c: 'w
+impl<C> Consumer for WeightConsumer<C>
+    where C: Consumer,
 {
     type Item = C::Item;
     type SeqState = C::SeqState;
@@ -161,8 +160,8 @@ impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
     }
 }
 
-impl<'w, 'c, C> UnindexedConsumer<'w> for WeightConsumer<'w, 'c, C>
-    where C: UnindexedConsumer<'c>, 'c: 'w
+impl<C> UnindexedConsumer for WeightConsumer<C>
+    where C: UnindexedConsumer
 {
     fn split(&self) -> Self {
         WeightConsumer::new(self.base.split(), self.weight)

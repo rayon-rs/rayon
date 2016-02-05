@@ -32,9 +32,9 @@ pub trait Producer<'produce>: Send {
     unsafe fn produce(&mut self, shared: &Self::Shared) -> Self::Item;
 }
 
-/// A consumer which consumes items within the lifetime `'consume`.
-pub trait Consumer<'consume>: Send {
-    type Item: 'consume;
+/// A consumer which consumes items that are fed to it.
+pub trait Consumer: Send {
+    type Item;
     type SeqState;
     type Result: Send;
 
@@ -65,14 +65,14 @@ pub trait Consumer<'consume>: Send {
 }
 
 /// A stateless consumer can be freely copied.
-pub trait UnindexedConsumer<'c>: Consumer<'c> {
+pub trait UnindexedConsumer: Consumer {
     fn split(&self) -> Self;
 }
 
 pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
                              consumer: C)
                              -> C::Result
-    where PAR_ITER: IndexedParallelIterator, C: Consumer<'c, Item=PAR_ITER::Item>
+    where PAR_ITER: IndexedParallelIterator, C: Consumer<Item=PAR_ITER::Item>
 {
     let len = par_iter.len();
     return par_iter.with_producer(Callback { len: len,
@@ -86,7 +86,7 @@ pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
     }
 
     impl<'c, C> ProducerCallback<C::Item> for Callback<'c, C>
-        where C: Consumer<'c>
+        where C: Consumer
     {
         type Output = C::Result;
         fn callback<'p, P>(mut self,
@@ -110,7 +110,7 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
                                        producer_shared: &'p P::Shared,
                                        mut consumer: C)
                                        -> C::Result
-    where P: Producer<'p>, C: Consumer<'c, Item=P::Item>
+    where P: Producer<'p>, C: Consumer<Item=P::Item>
 {
     unsafe { // asserting that we call the `op` methods in correct pattern
         if len > 1 && cost > THRESHOLD {

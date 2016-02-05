@@ -59,7 +59,7 @@ struct CollectConsumer<ITEM: Send> {
 
 unsafe impl<ITEM: Send> Send for CollectConsumer<ITEM> { }
 
-impl<'c, ITEM: Send + 'c> Consumer<'c> for CollectConsumer<ITEM> {
+impl<ITEM: Send> Consumer for CollectConsumer<ITEM> {
     type Item = ITEM;
     type SeqState = DropInitialized<ITEM>;
     type Result = ();

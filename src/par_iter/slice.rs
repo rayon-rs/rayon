@@ -26,8 +26,8 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
 impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
 
-    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<'c, Item=Self::Item>
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Item=Self::Item>
     {
         bridge(self, consumer)
     }
@@ -38,8 +38,8 @@ unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data,
         ExactParallelIterator::len(self)
     }
 
-    fn drive<'c, C>(self, consumer: C) -> C::Result
-        where C: Consumer<'c, Item=Self::Item>
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Item=Self::Item>
     {
         bridge(self, consumer)
     }

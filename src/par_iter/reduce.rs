@@ -55,9 +55,9 @@ impl<'r, REDUCE_OP, ITEM> Clone for ReduceConsumer<'r, REDUCE_OP, ITEM> {
     fn clone(&self) -> Self { *self }
 }
 
-impl<'r, REDUCE_OP, ITEM> Consumer<'r> for ReduceConsumer<'r, REDUCE_OP, ITEM>
-    where REDUCE_OP: ReduceOp<ITEM> + 'r,
-          ITEM: Send + 'r,
+impl<'r, REDUCE_OP, ITEM> Consumer for ReduceConsumer<'r, REDUCE_OP, ITEM>
+    where REDUCE_OP: ReduceOp<ITEM>,
+          ITEM: Send,
 {
     type Item = ITEM;
     type SeqState = ITEM;
@@ -95,9 +95,9 @@ impl<'r, REDUCE_OP, ITEM> Consumer<'r> for ReduceConsumer<'r, REDUCE_OP, ITEM>
     }
 }
 
-impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<'r> for ReduceConsumer<'r, REDUCE_OP, ITEM>
-    where REDUCE_OP: ReduceOp<ITEM> + 'r,
-          ITEM: Send + 'r,
+impl<'r, REDUCE_OP, ITEM> UnindexedConsumer for ReduceConsumer<'r, REDUCE_OP, ITEM>
+    where REDUCE_OP: ReduceOp<ITEM>,
+          ITEM: Send,
 {
     fn split(&self) -> Self {
         ReduceConsumer { reduce_op: self.reduce_op,

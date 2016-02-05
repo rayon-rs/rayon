@@ -21,8 +21,8 @@ impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
 {
     type Item = R;
 
-    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<'c, Item=Self::Item>
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Item=Self::Item>
     {
         let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
         self.base.drive_unindexed(consumer)
@@ -38,7 +38,9 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
         self.base.upper_bound()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self, consumer: C) -> C::Result {
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Item=Self::Item>
+    {
         let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
         self.base.drive(consumer)
     }
@@ -47,18 +49,18 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterMapConsumer<'f, 'c: 'f, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>,
+struct FilterMapConsumer<'f, ITEM, C, FILTER_OP>
+    where C: Consumer,
           FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync + 'f,
           ITEM: 'f,
 {
     base: C,
     filter_op: &'f FILTER_OP,
-    phantoms: PhantomType<(&'c (), ITEM)>,
+    phantoms: PhantomType<ITEM>,
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
+impl<'f, ITEM, C, FILTER_OP> FilterMapConsumer<'f, ITEM, C, FILTER_OP>
+    where C: Consumer, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
 {
     fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
         FilterMapConsumer { base: base,
@@ -67,8 +69,8 @@ impl<'f, 'c, ITEM, C, FILTER_OP> FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f
+impl<'f, ITEM, C, FILTER_OP> Consumer for FilterMapConsumer<'f, ITEM, C, FILTER_OP>
+    where C: Consumer, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f
 {
     type Item = ITEM;
     type SeqState = C::SeqState;
@@ -110,9 +112,9 @@ impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'f, 'c, ITEM
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> UnindexedConsumer<'f>
-    for FilterMapConsumer<'f, 'c, ITEM, C, FILTER_OP>
-    where C: UnindexedConsumer<'c>,
+impl<'f, ITEM, C, FILTER_OP> UnindexedConsumer
+    for FilterMapConsumer<'f, ITEM, C, FILTER_OP>
+    where C: UnindexedConsumer,
           FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
           ITEM: 'f
 {

@@ -21,8 +21,8 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
 {
     type Item = R;
 
-    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<'c, Item=Self::Item>
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Item=Self::Item>
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive_unindexed(consumer1)
@@ -38,8 +38,8 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
         self.base.upper_bound()
     }
 
-    fn drive<'c, C>(self, consumer: C) -> C::Result
-        where C: Consumer<'c, Item=Self::Item>
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Item=Self::Item>
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive(consumer1)
@@ -134,27 +134,25 @@ impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'m, 'p, P, MAP_OP, R>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct MapConsumer<'m, 'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm, 'c: 'm
+struct MapConsumer<'m, ITEM, C, MAP_OP>
+    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm,
 {
     base: C,
     map_op: &'m MAP_OP,
-    phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
+    phantoms: PhantomType<ITEM>,
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> MapConsumer<'m, 'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, ITEM, C, MAP_OP> MapConsumer<'m, ITEM, C, MAP_OP>
+    where C: Consumer, MAP_OP: Fn(ITEM) -> C::Item + Sync,
 {
-    fn new(base: C, map_op: &'m MAP_OP) -> MapConsumer<'m, 'c, ITEM, C, MAP_OP> {
+    fn new(base: C, map_op: &'m MAP_OP) -> MapConsumer<'m, ITEM, C, MAP_OP> {
         MapConsumer { base: base, map_op: map_op, phantoms: PhantomType::new() }
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>,
+impl<'m, ITEM, C, MAP_OP> Consumer for MapConsumer<'m, ITEM, C, MAP_OP>
+    where C: Consumer,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
-          ITEM: 'm,
-          MAP_OP: 'm,
 {
     type Item = ITEM;
     type SeqState = C::SeqState;
@@ -191,13 +189,10 @@ impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'m, 'c, ITEM, C, MAP_
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> UnindexedConsumer<'m>
-    for MapConsumer<'m, 'c, ITEM, C, MAP_OP>
-    where C: UnindexedConsumer<'c>,
+impl<'m, ITEM, C, MAP_OP> UnindexedConsumer
+    for MapConsumer<'m, ITEM, C, MAP_OP>
+    where C: UnindexedConsumer,
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
-          ITEM: 'm,
-          MAP_OP: 'm,
-          'c: 'm,
 {
     fn split(&self) -> Self {
         MapConsumer::new(self.base.split(), &self.map_op)

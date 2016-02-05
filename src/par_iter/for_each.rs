@@ -18,8 +18,8 @@ struct ForEachConsumer<'f, OP: 'f, ITEM> {
     phantoms: PhantomType<ITEM>
 }
 
-impl<'f, OP, ITEM> Consumer<'f> for ForEachConsumer<'f, OP, ITEM>
-    where OP: Fn(ITEM) + Sync, ITEM: 'f,
+impl<'f, OP, ITEM> Consumer for ForEachConsumer<'f, OP, ITEM>
+    where OP: Fn(ITEM) + Sync,
 {
     type Item = ITEM;
     type SeqState = ();
@@ -48,8 +48,8 @@ impl<'f, OP, ITEM> Consumer<'f> for ForEachConsumer<'f, OP, ITEM>
     }
 }
 
-impl<'c, OP, ITEM> UnindexedConsumer<'c> for ForEachConsumer<'c, OP, ITEM>
-    where OP: Fn(ITEM) + Sync + 'c, ITEM: 'c,
+impl<'f, OP, ITEM> UnindexedConsumer for ForEachConsumer<'f, OP, ITEM>
+    where OP: Fn(ITEM) + Sync,
 {
     fn split(&self) -> Self {
         ForEachConsumer { op: self.op, phantoms: PhantomType::new() }

@@ -1,7 +1,6 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
-use super::util::PhantomType;
 
 pub struct Filter<M, FILTER_OP> {
     base: M,
@@ -20,8 +19,8 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
 {
     type Item = M::Item;
 
-    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<'c, Item=Self::Item>
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Item=Self::Item>
     {
         let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
         self.base.drive_unindexed(consumer1)
@@ -36,8 +35,8 @@ unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
         self.base.upper_bound()
     }
 
-    fn drive<'c, C>(self, consumer: C) -> C::Result
-        where C: Consumer<'c, Item=Self::Item>
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Item=Self::Item>
     {
         let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
         self.base.drive(consumer1)
@@ -47,24 +46,23 @@ unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterConsumer<'f, 'c: 'f, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync + 'f
+struct FilterConsumer<'f, C, FILTER_OP>
+    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync + 'f
 {
     base: C,
     filter_op: &'f FILTER_OP,
-    phantoms: PhantomType<&'c ()>,
 }
 
-impl<'f, 'c, C, FILTER_OP> FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync
+impl<'f, C, FILTER_OP> FilterConsumer<'f, C, FILTER_OP>
+    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync
 {
     fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
-        FilterConsumer { base: base, filter_op: filter_op, phantoms: PhantomType::new() }
+        FilterConsumer { base: base, filter_op: filter_op }
     }
 }
 
-impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync,
+impl<'f, C, FILTER_OP: 'f> Consumer for FilterConsumer<'f, C, FILTER_OP>
+    where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
 {
     type Item = C::Item;
     type SeqState = C::SeqState;
@@ -106,9 +104,9 @@ impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'f, 'c, C, FILTER
     }
 }
 
-impl<'f, 'c, C, FILTER_OP: 'f> UnindexedConsumer<'f>
-    for FilterConsumer<'f, 'c, C, FILTER_OP>
-    where C: UnindexedConsumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f,
+impl<'f, C, FILTER_OP: 'f> UnindexedConsumer
+    for FilterConsumer<'f, C, FILTER_OP>
+    where C: UnindexedConsumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
 {
     fn split(&self) -> Self {
         FilterConsumer::new(self.base.split(), &self.filter_op)
