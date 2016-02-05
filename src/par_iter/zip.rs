@@ -19,11 +19,10 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 {
     type Item = (A::Item, B::Item);
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &C::Shared)
-                                                                      -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<'c, Item=Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
@@ -34,11 +33,10 @@ unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
         self.len()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &C::Shared)
-                                                   -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive<'c, C>(self, consumer: C) -> C::Result
+        where C: Consumer<'c, Item=Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 

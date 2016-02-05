@@ -38,79 +38,70 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
-    let consumer: ReduceConsumer<PAR_ITER::Item, REDUCE_OP> =
-        ReduceConsumer { data: PhantomType::new() };
-    pi.drive_unindexed(consumer, reduce_op)
+    let consumer: ReduceConsumer<REDUCE_OP, PAR_ITER::Item> =
+        ReduceConsumer { reduce_op: reduce_op, phantoms: PhantomType::new() };
+    pi.drive_unindexed(consumer)
 }
 
-struct ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-{
-    data: PhantomType<(ITEM, REDUCE_OP)>
+struct ReduceConsumer<'r, REDUCE_OP: 'r, ITEM: 'r> {
+    reduce_op: &'r REDUCE_OP,
+    phantoms: PhantomType<ITEM>
 }
 
-impl<ITEM, REDUCE_OP> Copy for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-{
+impl<'r, REDUCE_OP, ITEM> Copy for ReduceConsumer<'r, REDUCE_OP, ITEM> {
 }
 
-impl<ITEM, REDUCE_OP> Clone for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-{
+impl<'r, REDUCE_OP, ITEM> Clone for ReduceConsumer<'r, REDUCE_OP, ITEM> {
     fn clone(&self) -> Self { *self }
 }
 
-impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM> + 'c,
-          ITEM: Send + 'c,
+impl<'r, REDUCE_OP, ITEM> Consumer<'r> for ReduceConsumer<'r, REDUCE_OP, ITEM>
+    where REDUCE_OP: ReduceOp<ITEM> + 'r,
+          ITEM: Send + 'r,
 {
     type Item = ITEM;
-    type Shared = REDUCE_OP;
     type SeqState = ITEM;
     type Result = ITEM;
 
-    fn cost(&mut self, _shared: &Self::Shared, cost: f64) -> f64 {
+    fn cost(&mut self, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
         cost * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
+    unsafe fn split_at(self, _index: usize) -> (Self, Self) {
         (self, self)
     }
 
-    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> ITEM {
-        reduce_op.start_value()
+    unsafe fn start(&mut self) -> ITEM {
+        self.reduce_op.start_value()
     }
 
     unsafe fn consume(&mut self,
-                      reduce_op: &REDUCE_OP,
                       prev_value: ITEM,
                       item: ITEM)
                       -> ITEM {
-        reduce_op.reduce(prev_value, item)
+        self.reduce_op.reduce(prev_value, item)
     }
 
     unsafe fn complete(self,
-                       _reduce_op: &REDUCE_OP,
                        state: ITEM)
                        -> ITEM {
         state
     }
 
-    unsafe fn reduce(reduce_op: &REDUCE_OP,
-                     a: ITEM,
-                     b: ITEM)
-                     -> ITEM {
-        reduce_op.reduce(a, b)
+    unsafe fn reduce(_a: ITEM, _b: ITEM) -> ITEM {
+        // reduce_op.reduce(a, b)
+        unimplemented!()
     }
 }
 
-impl<'c, ITEM, REDUCE_OP> UnindexedConsumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM> + 'c,
-          ITEM: Send + 'c,
+impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<'r> for ReduceConsumer<'r, REDUCE_OP, ITEM>
+    where REDUCE_OP: ReduceOp<ITEM> + 'r,
+          ITEM: Send + 'r,
 {
     fn split(&self) -> Self {
-        ReduceConsumer { data: PhantomType::new() }
+        ReduceConsumer { reduce_op: self.reduce_op,
+                         phantoms: PhantomType::new() }
     }
 }
 

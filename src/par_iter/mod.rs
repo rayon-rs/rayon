@@ -208,10 +208,8 @@ pub trait ParallelIterator: Sized {
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
     #[doc(hidden)]
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &C::Shared)
-                                                                      -> C::Result;
+    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<'c, Item=Self::Item>;
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {
@@ -240,8 +238,7 @@ pub unsafe trait BoundedParallelIterator: ParallelIterator {
     /// iterator. You should not need to call this directly.
     #[doc(hidden)]
     fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &C::Shared)
+                                                   consumer: C)
                                                    -> C::Result;
 
 }

@@ -21,14 +21,13 @@ impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
 {
     type Item = PI::Item;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &C::Shared)
-                                                                      -> C::Result {
+    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<'c, Item=Self::Item>
+    {
         let consumer = FlatMapConsumer { base: consumer,
                                          map_op: &self.map_op,
                                          phantoms: PhantomType::new() };
-        self.base.drive_unindexed(consumer, shared)
+        self.base.drive_unindexed(consumer)
     }
 }
 
@@ -67,11 +66,10 @@ impl<'m, 'c, ITEM, C, MAP_OP, PI> Consumer<'m>
           C::Item: Send,
 {
     type Item = ITEM;
-    type Shared = C::Shared;
     type SeqState = Option<C::Result>;
     type Result = C::Result;
 
-    fn cost(&mut self, _shared: &Self::Shared, _cost: f64) -> f64 {
+    fn cost(&mut self, _cost: f64) -> f64 {
         // We have no idea how many items we will produce, so ramp up
         // the cost, so as to encourage the producer to do a
         // fine-grained divison. This is not necessarily a good
@@ -79,40 +77,39 @@ impl<'m, 'c, ITEM, C, MAP_OP, PI> Consumer<'m>
         f64::INFINITY
     }
 
-    unsafe fn split_at(self, _shared: &Self::Shared, _index: usize) -> (Self, Self) {
+    unsafe fn split_at(self, _index: usize) -> (Self, Self) {
         (FlatMapConsumer::new(self.base.split(), self.map_op),
          FlatMapConsumer::new(self.base.split(), self.map_op))
     }
 
-    unsafe fn start(&mut self, _shared: &Self::Shared) -> Option<C::Result> {
+    unsafe fn start(&mut self) -> Option<C::Result> {
         None
     }
 
     unsafe fn consume(&mut self,
-                      shared: &C::Shared,
                       previous: Option<C::Result>,
                       item: Self::Item)
                       -> Option<C::Result>
     {
         let par_iter = (self.map_op)(item).into_par_iter();
-        let result = par_iter.drive_unindexed(self.base.split(), shared);
+        let result = par_iter.drive_unindexed(self.base.split());
 
         // We expect that `previous` is `None`, because we drive
         // the cost up so high, but just in case.
         match previous {
-            Some(previous) => Some(C::reduce(shared, result, previous)),
+            Some(previous) => Some(C::reduce(result, previous)),
             None => Some(result),
         }
     }
 
-    unsafe fn complete(self, _shared: &Self::Shared, state: Option<C::Result>) -> C::Result {
+    unsafe fn complete(self, state: Option<C::Result>) -> C::Result {
         // should have processed at least one item -- but is this
         // really a fair assumption?
         state.unwrap()
     }
 
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(shared, left, right)
+    unsafe fn reduce(left: C::Result, right: C::Result) -> C::Result {
+        C::reduce(left, right)
     }
 }
 

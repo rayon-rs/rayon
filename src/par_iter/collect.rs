@@ -17,7 +17,7 @@ pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
     v.reserve(len); // reserve enough space
     let target = v.as_mut_ptr(); // get a raw ptr
     let consumer = CollectConsumer { target: target, len: len };
-    pi.drive(consumer, &());
+    pi.drive(consumer);
 
     unsafe {
         // TODO -- drops are not quite right here!
@@ -61,26 +61,24 @@ unsafe impl<ITEM: Send> Send for CollectConsumer<ITEM> { }
 
 impl<'c, ITEM: Send + 'c> Consumer<'c> for CollectConsumer<ITEM> {
     type Item = ITEM;
-    type Shared = ();
     type SeqState = DropInitialized<ITEM>;
     type Result = ();
 
-    fn cost(&mut self, _: &Self::Shared, cost: f64) -> f64 {
+    fn cost(&mut self, cost: f64) -> f64 {
         cost * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, _: &Self::Shared, index: usize) -> (Self, Self) {
+    unsafe fn split_at(self, index: usize) -> (Self, Self) {
         assert!(index < self.len);
         (CollectConsumer { target: self.target, len: index },
          CollectConsumer { target: self.target.offset(index as isize), len: self.len - index })
     }
 
-    unsafe fn start(&mut self, _reduce_op: &()) -> DropInitialized<ITEM> {
+    unsafe fn start(&mut self) -> DropInitialized<ITEM> {
         DropInitialized::new(self.target)
     }
 
     unsafe fn consume(&mut self,
-                      _: &(),
                       mut p: DropInitialized<ITEM>,
                       item: ITEM)
                       -> DropInitialized<ITEM> {
@@ -90,11 +88,10 @@ impl<'c, ITEM: Send + 'c> Consumer<'c> for CollectConsumer<ITEM> {
     }
 
     unsafe fn complete(self,
-                       _: &(),
                        p: DropInitialized<ITEM>) {
         mem::forget(p); // fully initialized, so don't run the destructor
     }
 
-    unsafe fn reduce(_: &(), _: (), _: ()) {
+    unsafe fn reduce(_: (), _: ()) {
     }
 }

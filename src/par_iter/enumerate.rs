@@ -17,11 +17,10 @@ impl<M> ParallelIterator for Enumerate<M>
 {
     type Item = (usize, M::Item);
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                       consumer: C,
-                                                                       shared: &C::Shared)
-                                                                       -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive_unindexed<'c, C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<'c, Item=Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
@@ -32,11 +31,9 @@ unsafe impl<M> BoundedParallelIterator for Enumerate<M>
         self.len()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &C::Shared)
+    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self, consumer: C)
                                                    -> C::Result {
-        bridge(self, consumer, &shared)
+        bridge(self, consumer)
     }
 }
 
