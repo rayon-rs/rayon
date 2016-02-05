@@ -126,33 +126,23 @@ impl<C> Consumer for WeightConsumer<C>
     where C: Consumer,
 {
     type Item = C::Item;
-    type SeqState = C::SeqState;
+    type Folder = C::Folder;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
     fn cost(&mut self, cost: f64) -> f64 {
         self.base.cost(cost) * self.weight
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
         (WeightConsumer::new(left, self.weight),
-         WeightConsumer::new(right, self.weight))
+         WeightConsumer::new(right, self.weight),
+         reducer)
     }
 
-    fn start(&mut self) -> C::SeqState {
-        self.base.start()
-    }
-
-    fn consume(&mut self, state: C::SeqState, item: Self::Item) -> C::SeqState {
-        self.base.consume(state, item)
-    }
-
-    fn complete(self, state: C::SeqState) -> C::Result {
-        self.base.complete(state)
-    }
-
-    fn reduce(left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(left, right)
+    fn fold(self) -> C::Folder {
+        self.base.fold()
     }
 }
 
@@ -161,5 +151,9 @@ impl<C> UnindexedConsumer for WeightConsumer<C>
 {
     fn split(&self) -> Self {
         WeightConsumer::new(self.base.split(), self.weight)
+    }
+
+    fn reducer(&self) -> Self::Reducer {
+        self.base.reducer()
     }
 }

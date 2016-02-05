@@ -35,7 +35,8 @@ pub trait Producer<'produce>: Send {
 /// A consumer which consumes items that are fed to it.
 pub trait Consumer: Send {
     type Item;
-    type SeqState;
+    type Folder: Folder<Item=Self::Item, Result=Self::Result>;
+    type Reducer: Reducer<Result=Self::Result>;
     type Result: Send;
 
     /// If it costs `producer_cost` to produce the items we will
@@ -43,30 +44,40 @@ pub trait Consumer: Send {
     fn cost(&mut self, producer_cost: f64) -> f64;
 
     /// Divide the consumer into two consumers, one processing items
-    /// `0..index` and one processing items from `index..`.
-    fn split_at(self, index: usize) -> (Self, Self);
+    /// `0..index` and one processing items from `index..`. Also
+    /// produces a reducer that can be used to reduce the results at
+    /// the end.
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer);
 
-    /// Start processing items. This can return some sequential state
-    /// that will be threaded through as items are consumed.
-    fn start(&mut self) -> Self::SeqState;
+    /// Convert the consumer into a folder that can consume items
+    /// sequentially, eventually producing a final result.
+    fn fold(self) -> Self::Folder;
+
+}
+
+pub trait Folder {
+    type Item;
+    type Result;
 
     /// Consume next item and return new sequential state.
-    fn consume(&mut self,
-                      state: Self::SeqState,
-                      item: Self::Item)
-                      -> Self::SeqState;
+    fn consume(self, item: Self::Item) -> Self;
 
     /// Finish consuming items, produce final result.
-    fn complete(self, state: Self::SeqState) -> Self::Result;
+    fn complete(self) -> Self::Result;
+}
+
+pub trait Reducer {
+    type Result;
 
     /// Reduce two final results into one; this is executed after a
     /// split.
-    fn reduce(left: Self::Result, right: Self::Result) -> Self::Result;
+    fn reduce(self, left: Self::Result, right: Self::Result) -> Self::Result;
 }
 
 /// A stateless consumer can be freely copied.
 pub trait UnindexedConsumer: Consumer {
     fn split(&self) -> Self;
+    fn reducer(&self) -> Self::Reducer;
 }
 
 pub fn bridge<'c,PAR_ITER,C>(mut par_iter: PAR_ITER,
@@ -108,14 +119,14 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
                                        cost: f64,
                                        mut producer: P,
                                        producer_shared: &'p P::Shared,
-                                       mut consumer: C)
+                                       consumer: C)
                                        -> C::Result
     where P: Producer<'p>, C: Consumer<Item=P::Item>
 {
     if len > 1 && cost > THRESHOLD {
         let mid = len / 2;
         let (left_producer, right_producer) = producer.split_at(mid);
-        let (left_consumer, right_consumer) = consumer.split_at(mid);
+        let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
         let (left_result, right_result) =
             join(|| bridge_producer_consumer(mid, cost / 2.0,
                                              left_producer, producer_shared,
@@ -123,13 +134,13 @@ fn bridge_producer_consumer<'p,'c,P,C>(len: usize,
                  || bridge_producer_consumer(len - mid, cost / 2.0,
                                              right_producer, producer_shared,
                                              right_consumer));
-        C::reduce(left_result, right_result)
+        reducer.reduce(left_result, right_result)
     } else {
-        let mut consumer_state = consumer.start();
+        let mut folder = consumer.fold();
         for _ in 0..len {
             let item = producer.produce(producer_shared);
-            consumer_state = consumer.consume(consumer_state, item);
+            folder = folder.consume(item);
         }
-        consumer.complete(consumer_state)
+        folder.complete()
     }
 }

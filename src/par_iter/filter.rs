@@ -65,7 +65,8 @@ impl<'f, C, FILTER_OP: 'f> Consumer for FilterConsumer<'f, C, FILTER_OP>
     where C: Consumer, FILTER_OP: Fn(&C::Item) -> bool + Sync,
 {
     type Item = C::Item;
-    type SeqState = C::SeqState;
+    type Folder = FilterFolder<'f, C::Folder, FILTER_OP>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
     /// Cost to process `items` number of items.
@@ -73,30 +74,43 @@ impl<'f, C, FILTER_OP: 'f> Consumer for FilterConsumer<'f, C, FILTER_OP>
         self.base.cost(cost) * FUNC_ADJUSTMENT
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
+    fn split_at(self, index: usize) -> (Self, Self, C::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
         (FilterConsumer::new(left, self.filter_op),
-         FilterConsumer::new(right, self.filter_op))
+         FilterConsumer::new(right, self.filter_op),
+         reducer)
     }
 
-    fn start(&mut self) -> C::SeqState {
-        self.base.start()
+    fn fold(self) -> Self::Folder {
+        FilterFolder { base: self.base.fold(), filter_op: self.filter_op, }
     }
+}
 
-    fn consume(&mut self, state: C::SeqState, item: Self::Item) -> C::SeqState {
-        if (self.filter_op)(&item) {
-            self.base.consume(state, item)
+struct FilterFolder<'f, C, FILTER_OP>
+    where C: Folder, FILTER_OP: Fn(&C::Item) -> bool + 'f
+{
+    base: C,
+    filter_op: &'f FILTER_OP,
+}
+
+impl<'f, C, FILTER_OP> Folder for FilterFolder<'f, C, FILTER_OP>
+    where C: Folder, FILTER_OP: Fn(&C::Item) -> bool + 'f
+{
+    type Item = C::Item;
+    type Result = C::Result;
+
+    fn consume(self, item: Self::Item) -> Self {
+        let filter_op = self.filter_op;
+        if filter_op(&item) {
+            let base = self.base.consume(item);
+            FilterFolder { base: base, filter_op: filter_op }
         } else {
-            state
+            self
         }
     }
 
-    fn complete(self, state: C::SeqState) -> C::Result {
-        self.base.complete(state)
-    }
-
-    fn reduce(left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(left, right)
+    fn complete(self) -> Self::Result {
+        self.base.complete()
     }
 }
 
@@ -106,6 +120,10 @@ impl<'f, C, FILTER_OP: 'f> UnindexedConsumer
 {
     fn split(&self) -> Self {
         FilterConsumer::new(self.base.split(), &self.filter_op)
+    }
+
+    fn reducer(&self) -> Self::Reducer {
+        self.base.reducer()
     }
 }
 

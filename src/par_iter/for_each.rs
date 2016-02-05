@@ -22,7 +22,8 @@ impl<'f, OP, ITEM> Consumer for ForEachConsumer<'f, OP, ITEM>
     where OP: Fn(ITEM) + Sync,
 {
     type Item = ITEM;
-    type SeqState = ();
+    type Folder = ForEachConsumer<'f, OP, ITEM>;
+    type Reducer = NoopReducer;
     type Result = ();
 
     fn cost(&mut self, cost: f64) -> f64 {
@@ -30,21 +31,27 @@ impl<'f, OP, ITEM> Consumer for ForEachConsumer<'f, OP, ITEM>
         cost * FUNC_ADJUSTMENT
     }
 
-    fn split_at(self, _index: usize) -> (Self, Self) {
-        (self.split(), self.split())
+    fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {
+        (self.split(), self.split(), NoopReducer)
     }
 
-    fn start(&mut self) {
+    fn fold(self) -> Self {
+        self
     }
+}
 
-    fn consume(&mut self, _prev_value: (), item: ITEM) {
+impl<'f, OP, ITEM> Folder for ForEachConsumer<'f, OP, ITEM>
+    where OP: Fn(ITEM) + Sync,
+{
+    type Item = ITEM;
+    type Result = ();
+
+    fn consume(self, item: ITEM) -> Self {
         (self.op)(item);
+        self
     }
 
-    fn complete(self, _state: ()) {
-    }
-
-    fn reduce(_: (), _: ()) {
+    fn complete(self) {
     }
 }
 
@@ -53,5 +60,9 @@ impl<'f, OP, ITEM> UnindexedConsumer for ForEachConsumer<'f, OP, ITEM>
 {
     fn split(&self) -> Self {
         ForEachConsumer { op: self.op, phantoms: PhantomType::new() }
+    }
+
+    fn reducer(&self) -> NoopReducer {
+        NoopReducer
     }
 }

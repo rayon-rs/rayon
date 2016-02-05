@@ -39,7 +39,6 @@ struct FlatMapConsumer<'m, ITEM, C, MAP_OP, PI>
           MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
           PI: ParallelIterator<Item=C::Item>,
           C::Item: Send,
-          ITEM: 'm,
 {
     base: C,
     map_op: &'m MAP_OP,
@@ -65,7 +64,8 @@ impl<'m, ITEM, C, MAP_OP, PI> Consumer
           C::Item: Send,
 {
     type Item = ITEM;
-    type SeqState = Option<C::Result>;
+    type Folder = FlatMapFolder<'m, ITEM, C, MAP_OP, PI>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
     fn cost(&mut self, _cost: f64) -> f64 {
@@ -76,39 +76,19 @@ impl<'m, ITEM, C, MAP_OP, PI> Consumer
         f64::INFINITY
     }
 
-    fn split_at(self, _index: usize) -> (Self, Self) {
+    fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {
         (FlatMapConsumer::new(self.base.split(), self.map_op),
-         FlatMapConsumer::new(self.base.split(), self.map_op))
+         FlatMapConsumer::new(self.base.split(), self.map_op),
+         self.base.reducer())
     }
 
-    fn start(&mut self) -> Option<C::Result> {
-        None
-    }
-
-    fn consume(&mut self,
-                      previous: Option<C::Result>,
-                      item: Self::Item)
-                      -> Option<C::Result>
-    {
-        let par_iter = (self.map_op)(item).into_par_iter();
-        let result = par_iter.drive_unindexed(self.base.split());
-
-        // We expect that `previous` is `None`, because we drive
-        // the cost up so high, but just in case.
-        match previous {
-            Some(previous) => Some(C::reduce(result, previous)),
-            None => Some(result),
+    fn fold(self) -> FlatMapFolder<'m, ITEM, C, MAP_OP, PI> {
+        FlatMapFolder {
+            base: self.base,
+            map_op: self.map_op,
+            previous: None,
+            phantoms: self.phantoms
         }
-    }
-
-    fn complete(self, state: Option<C::Result>) -> C::Result {
-        // should have processed at least one item -- but is this
-        // really a fair assumption?
-        state.unwrap()
-    }
-
-    fn reduce(left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(left, right)
     }
 }
 
@@ -118,10 +98,62 @@ impl<'m, ITEM, C, MAP_OP, PI> UnindexedConsumer
           MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
           PI: ParallelIterator<Item=C::Item>,
           C::Item: Send,
-          ITEM: 'm,
 {
     fn split(&self) -> Self {
         FlatMapConsumer::new(self.base.split(), self.map_op)
     }
+
+    fn reducer(&self) -> Self::Reducer {
+        self.base.reducer()
+    }
 }
 
+
+struct FlatMapFolder<'m, ITEM, C, MAP_OP, PI>
+    where C: UnindexedConsumer,
+          MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
+          PI: ParallelIterator<Item=C::Item>,
+          C::Item: Send,
+{
+    base: C,
+    map_op: &'m MAP_OP,
+    previous: Option<C::Result>,
+    phantoms: PhantomType<ITEM>,
+}
+
+impl<'m, ITEM, C, MAP_OP, PI> Folder for FlatMapFolder<'m, ITEM, C, MAP_OP, PI>
+    where C: UnindexedConsumer,
+          MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
+          PI: ParallelIterator<Item=C::Item>,
+          C::Item: Send,
+{
+    type Item = ITEM;
+    type Result = C::Result;
+
+    fn consume(self, item: Self::Item) -> Self {
+        let map_op = self.map_op;
+        let par_iter = map_op(item).into_par_iter();
+        let result = par_iter.drive_unindexed(self.base.split());
+
+        // We expect that `previous` is `None`, because we drive
+        // the cost up so high, but just in case.
+        let previous = match self.previous {
+            None => Some(result),
+            Some(previous) => {
+                let reducer = self.base.reducer();
+                Some(reducer.reduce(result, previous))
+            }
+        };
+
+        FlatMapFolder { base: self.base,
+                        map_op: map_op,
+                        previous: previous,
+                        phantoms: self.phantoms }
+    }
+
+    fn complete(self) -> Self::Result {
+        // should have processed at least one item -- but is this
+        // really a fair assumption?
+        self.previous.unwrap()
+    }
+}

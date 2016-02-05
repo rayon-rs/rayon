@@ -1,3 +1,4 @@
+use super::internal::Reducer;
 use std::marker::PhantomData;
 
 /// A little structure used to mark some type. This is often used when
@@ -23,3 +24,12 @@ impl<T> PhantomType<T> {
         PhantomType { data: PhantomData }
     }
 }
+
+/// Utility type for consumers that don't need a "reduce" step.
+pub struct NoopReducer;
+
+impl Reducer for NoopReducer {
+    type Result = ();
+    fn reduce(self, _left: (), _right: ()) { }
+}
+

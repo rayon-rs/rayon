@@ -155,33 +155,27 @@ impl<'m, ITEM, C, MAP_OP> Consumer for MapConsumer<'m, ITEM, C, MAP_OP>
           MAP_OP: Fn(ITEM) -> C::Item + Sync,
 {
     type Item = ITEM;
-    type SeqState = C::SeqState;
+    type Folder = MapFolder<'m, ITEM, C::Folder, MAP_OP>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
     fn cost(&mut self, cost: f64) -> f64 {
         self.base.cost(cost) * FUNC_ADJUSTMENT
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(index);
-        (MapConsumer::new(left, self.map_op), MapConsumer::new(right, self.map_op))
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (MapConsumer::new(left, self.map_op),
+         MapConsumer::new(right, self.map_op),
+         reducer)
     }
 
-    fn start(&mut self) -> C::SeqState {
-        self.base.start()
-    }
-
-    fn consume(&mut self, state: C::SeqState, item: Self::Item) -> C::SeqState {
-        let mapped_item = (self.map_op)(item);
-        self.base.consume(state, mapped_item)
-    }
-
-    fn complete(self, state: C::SeqState) -> C::Result {
-        self.base.complete(state)
-    }
-
-    fn reduce(left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(left, right)
+    fn fold(self) -> Self::Folder {
+        MapFolder {
+            base: self.base.fold(),
+            map_op: self.map_op,
+            phantoms: self.phantoms
+        }
     }
 }
 
@@ -193,4 +187,35 @@ impl<'m, ITEM, C, MAP_OP> UnindexedConsumer
     fn split(&self) -> Self {
         MapConsumer::new(self.base.split(), &self.map_op)
     }
+
+    fn reducer(&self) -> Self::Reducer {
+        self.base.reducer()
+    }
 }
+
+struct MapFolder<'m, ITEM, C, MAP_OP>
+    where C: Folder, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm,
+{
+    base: C,
+    map_op: &'m MAP_OP,
+    phantoms: PhantomType<ITEM>,
+}
+
+impl<'m, ITEM, C, MAP_OP> Folder for MapFolder<'m, ITEM, C, MAP_OP>
+    where C: Folder, MAP_OP: Fn(ITEM) -> C::Item + Sync + 'm,
+{
+    type Item = ITEM;
+    type Result = C::Result;
+
+    fn consume(self, item: Self::Item) -> Self {
+        let map_op = self.map_op;
+        let mapped_item = map_op(item);
+        let base = self.base.consume(mapped_item);
+        MapFolder { base: base, map_op: map_op, phantoms: self.phantoms }
+    }
+
+    fn complete(self) -> C::Result {
+        self.base.complete()
+    }
+}
+
