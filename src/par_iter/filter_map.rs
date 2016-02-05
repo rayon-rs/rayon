@@ -53,8 +53,7 @@ struct FilterMapConsumer<'f, C, FILTER_OP: 'f> {
     filter_op: &'f FILTER_OP,
 }
 
-impl<'f, C, FILTER_OP> FilterMapConsumer<'f, C, FILTER_OP>
-{
+impl<'f, C, FILTER_OP: 'f> FilterMapConsumer<'f, C, FILTER_OP> {
     fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
         FilterMapConsumer { base: base,
                             filter_op: filter_op }
@@ -64,7 +63,7 @@ impl<'f, C, FILTER_OP> FilterMapConsumer<'f, C, FILTER_OP>
 impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
     for FilterMapConsumer<'f, C, FILTER_OP>
     where C: Consumer<MAPPED_ITEM>,
-          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync,
+          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f,
 {
     type Folder = FilterMapFolder<'f, C::Folder, FILTER_OP>;
     type Reducer = C::Reducer;
@@ -92,7 +91,7 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
 impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
     for FilterMapConsumer<'f, C, FILTER_OP>
     where C: UnindexedConsumer<MAPPED_ITEM>,
-          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync,
+          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f,
 {
     fn split(&self) -> Self {
         FilterMapConsumer::new(self.base.split(), &self.filter_op)
