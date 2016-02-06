@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use std::mem;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {
     slice: &'data mut [T]
@@ -68,8 +67,6 @@ pub struct SliceMutProducer<'data, T: 'data + Send> {
 
 impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
 {
-    type Item = &'data mut T;
-
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -78,11 +75,13 @@ impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
         let (left, right) = self.slice.split_at_mut(index);
         (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
     }
+}
 
-    fn produce(&mut self) -> &'data mut T {
-        let slice = mem::replace(&mut self.slice, &mut []); // FIXME rust-lang/rust#10520
-        let (head, tail) = slice.split_first_mut().unwrap();
-        self.slice = tail;
-        head
+impl<'data, T: 'data + Send> IntoIterator for SliceMutProducer<'data, T> {
+    type Item = &'data mut T;
+    type IntoIter = ::std::slice::IterMut<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.into_iter()
     }
 }

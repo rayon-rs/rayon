@@ -1,6 +1,7 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
+use std::iter;
 
 pub struct Map<M, MAP_OP> {
     base: M,
@@ -95,13 +96,11 @@ pub struct MapProducer<'m, P, MAP_OP: 'm> {
     map_op: &'m MAP_OP,
 }
 
-impl<'m, P, MAP_OP, R> Producer for MapProducer<'m, P, MAP_OP>
+impl<'m, P, MAP_OP, RET> Producer for MapProducer<'m, P, MAP_OP>
     where P: Producer,
-          MAP_OP: Fn(P::Item) -> R + Sync,
-          R: Send,
+          MAP_OP: Fn(P::Item) -> RET + Sync,
+          RET: Send,
 {
-    type Item = R;
-
     fn cost(&mut self, len: usize) -> f64 {
         self.base.cost(len) * FUNC_ADJUSTMENT
     }
@@ -111,12 +110,21 @@ impl<'m, P, MAP_OP, R> Producer for MapProducer<'m, P, MAP_OP>
         (MapProducer { base: left, map_op: self.map_op, },
          MapProducer { base: right, map_op: self.map_op, })
     }
+}
 
-    fn produce(&mut self) -> R {
-        let item = self.base.produce();
-        (self.map_op)(item)
+impl<'m, P, MAP_OP, RET> IntoIterator for MapProducer<'m, P, MAP_OP>
+    where P: Producer,
+          MAP_OP: Fn(P::Item) -> RET + Sync,
+          RET: Send,
+{
+    type Item = RET;
+    type IntoIter = iter::Map<P::IntoIter, &'m MAP_OP>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.base.into_iter().map(self.map_op)
     }
 }
+
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation

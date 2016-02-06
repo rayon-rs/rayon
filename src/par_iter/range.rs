@@ -54,8 +54,6 @@ macro_rules! range_impl {
         }
 
         impl Producer for RangeIter<$t> {
-            type Item = $t;
-
             fn cost(&mut self, len: usize) -> f64 {
                 len as f64
             }
@@ -69,9 +67,14 @@ macro_rules! range_impl {
                 let right = mid .. self.range.end;
                 (RangeIter { range: left }, RangeIter { range: right })
             }
+        }
 
-            fn produce(&mut self) -> $t {
-                self.range.next().unwrap()
+        impl IntoIterator for RangeIter<$t> {
+            type Item = $t;
+            type IntoIter = Range<$t>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.range
             }
         }
     }

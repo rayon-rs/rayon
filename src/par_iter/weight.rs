@@ -78,8 +78,6 @@ pub struct WeightProducer<P> {
 }
 
 impl<P: Producer> Producer for WeightProducer<P> {
-    type Item = P::Item;
-
     fn cost(&mut self, len: usize) -> f64 {
         self.base.cost(len) * self.weight
     }
@@ -89,9 +87,14 @@ impl<P: Producer> Producer for WeightProducer<P> {
         (WeightProducer { base: left, weight: self.weight },
          WeightProducer { base: right, weight: self.weight })
     }
+}
 
-    fn produce(&mut self) -> P::Item {
-        self.base.produce()
+impl<P: Producer> IntoIterator for WeightProducer<P> {
+    type Item = P::Item;
+    type IntoIter = P::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.base.into_iter()
     }
 }
 

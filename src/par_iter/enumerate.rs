@@ -1,5 +1,6 @@
 use super::*;
 use super::internal::*;
+use std::iter;
 
 pub struct Enumerate<M> {
     base: M,
@@ -81,8 +82,6 @@ pub struct EnumerateProducer<P> {
 impl<P> Producer for EnumerateProducer<P>
     where P: Producer
 {
-    type Item = (usize, P::Item);
-
     fn cost(&mut self, items: usize) -> f64 {
         self.base.cost(items) // enumerating is basically free
     }
@@ -94,11 +93,13 @@ impl<P> Producer for EnumerateProducer<P>
          EnumerateProducer { base: right,
                              offset: self.offset + index })
     }
+}
 
-    fn produce(&mut self) -> (usize, P::Item) {
-        let item = self.base.produce();
-        let index = self.offset;
-        self.offset += 1;
-        (index, item)
+impl<P> IntoIterator for EnumerateProducer<P> where P: Producer {
+    type Item = (usize, P::Item);
+    type IntoIter = iter::Enumerate<P::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.base.into_iter().enumerate()
     }
 }

@@ -65,10 +65,7 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
     slice: &'data [T]
 }
 
-impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
-{
-    type Item = &'data T;
-
+impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -77,10 +74,13 @@ impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T>
         let (left, right) = self.slice.split_at(index);
         (SliceProducer { slice: left }, SliceProducer { slice: right })
     }
+}
 
-    fn produce(&mut self) -> &'data T {
-        let (head, tail) = self.slice.split_first().unwrap();
-        self.slice = tail;
-        head
+impl<'data, T: 'data + Sync> IntoIterator for SliceProducer<'data, T> {
+    type Item = &'data T;
+    type IntoIter = ::std::slice::Iter<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.into_iter()
     }
 }

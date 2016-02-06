@@ -1,6 +1,7 @@
 use super::*;
 use super::internal::*;
 use std::cmp::min;
+use std::iter;
 
 pub struct ZipIter<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
@@ -93,7 +94,7 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
             fn callback<B>(self, b_producer: B) -> Self::Output
                 where B: Producer<Item=B_ITEM>
             {
-                self.callback.callback(ZipProducer { p: self.a_producer, q: b_producer })
+                self.callback.callback(ZipProducer { a: self.a_producer, b: b_producer })
             }
         }
 
@@ -103,28 +104,29 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct ZipProducer<A: Producer, B: Producer> {
-    p: A,
-    q: B,
+    a: A,
+    b: B,
 }
 
 impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
-    type Item = (A::Item, B::Item);
-
     fn cost(&mut self, len: usize) -> f64 {
         // Rather unclear that this should be `+`. It might be that max is better?
-        self.p.cost(len) + self.q.cost(len)
+        self.a.cost(len) + self.b.cost(len)
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let (p_left, p_right) = self.p.split_at(index);
-        let (q_left, q_right) = self.q.split_at(index);
-        (ZipProducer { p: p_left, q: q_left },
-         ZipProducer { p: p_right, q: q_right, })
+        let (a_left, a_right) = self.a.split_at(index);
+        let (b_left, b_right) = self.b.split_at(index);
+        (ZipProducer { a: a_left, b: b_left },
+         ZipProducer { a: a_right, b: b_right, })
     }
+}
 
-    fn produce(&mut self) -> (A::Item, B::Item) {
-        let p = self.p.produce();
-        let q = self.q.produce();
-        (p, q)
+impl<A: Producer, B: Producer> IntoIterator for ZipProducer<A, B> {
+    type Item = (A::Item, B::Item);
+    type IntoIter = iter::Zip<A::IntoIter, B::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.a.into_iter().zip(self.b)
     }
 }

@@ -16,18 +16,13 @@ pub trait ProducerCallback<ITEM> {
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer: Send {
-    type Item;
-
+pub trait Producer: IntoIterator + Send {
     /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
     fn split_at(self, index: usize) -> (Self, Self);
-
-    /// Unless a panic occurs, expects to be called *exactly N times*.
-    fn produce(&mut self) -> Self::Item;
 }
 
 /// A consumer which consumes items that are fed to it.
@@ -105,7 +100,7 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
 
 fn bridge_producer_consumer<P,C>(len: usize,
                                  cost: f64,
-                                 mut producer: P,
+                                 producer: P,
                                  consumer: C)
                                  -> C::Result
     where P: Producer, C: Consumer<P::Item>
@@ -122,8 +117,7 @@ fn bridge_producer_consumer<P,C>(len: usize,
         reducer.reduce(left_result, right_result)
     } else {
         let mut folder = consumer.fold();
-        for _ in 0..len {
-            let item = producer.produce();
+        for item in producer {
             folder = folder.consume(item);
         }
         folder.complete()
