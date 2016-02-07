@@ -67,7 +67,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
          self.base.reducer())
     }
 
-    fn fold(self) -> Self::Folder {
+    fn into_folder(self) -> Self::Folder {
         FlatMapFolder {
             base: self.base,
             map_op: self.map_op,

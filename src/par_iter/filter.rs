@@ -76,8 +76,8 @@ impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER
          reducer)
     }
 
-    fn fold(self) -> Self::Folder {
-        FilterFolder { base: self.base.fold(), filter_op: self.filter_op, }
+    fn into_folder(self) -> Self::Folder {
+        FilterFolder { base: self.base.into_folder(), filter_op: self.filter_op, }
     }
 }
 

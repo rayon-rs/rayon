@@ -43,7 +43,7 @@ pub trait Consumer<Item>: Send {
 
     /// Convert the consumer into a folder that can consume items
     /// sequentially, eventually producing a final result.
-    fn fold(self) -> Self::Folder;
+    fn into_folder(self) -> Self::Folder;
 
 }
 
@@ -116,7 +116,7 @@ fn bridge_producer_consumer<P,C>(len: usize,
                                              right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {
-        let mut folder = consumer.fold();
+        let mut folder = consumer.into_folder();
         for item in producer {
             folder = folder.consume(item);
         }

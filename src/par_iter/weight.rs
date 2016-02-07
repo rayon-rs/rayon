@@ -130,8 +130,8 @@ impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
          reducer)
     }
 
-    fn fold(self) -> C::Folder {
-        self.base.fold()
+    fn into_folder(self) -> C::Folder {
+        self.base.into_folder()
     }
 }
 

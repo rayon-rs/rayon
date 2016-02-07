@@ -81,8 +81,8 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
          reducer)
     }
 
-    fn fold(self) -> Self::Folder {
-        let base = self.base.fold();
+    fn into_folder(self) -> Self::Folder {
+        let base = self.base.into_folder();
         FilterMapFolder { base: base,
                           filter_op: self.filter_op }
     }

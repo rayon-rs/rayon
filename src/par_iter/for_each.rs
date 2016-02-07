@@ -31,7 +31,7 @@ impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
         (self.split(), self.split(), NoopReducer)
     }
 
-    fn fold(self) -> Self {
+    fn into_folder(self) -> Self {
         self
     }
 }

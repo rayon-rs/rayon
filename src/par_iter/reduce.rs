@@ -69,7 +69,7 @@ impl<'r, REDUCE_OP, ITEM> Consumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
         (self, self, self)
     }
 
-    fn fold(self) -> ReduceFolder<'r, REDUCE_OP, ITEM> {
+    fn into_folder(self) -> ReduceFolder<'r, REDUCE_OP, ITEM> {
         ReduceFolder { reduce_op: self.reduce_op,
                        item: self.reduce_op.start_value() }
     }

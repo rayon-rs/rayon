@@ -161,9 +161,9 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
          reducer)
     }
 
-    fn fold(self) -> Self::Folder {
+    fn into_folder(self) -> Self::Folder {
         MapFolder {
-            base: self.base.fold(),
+            base: self.base.into_folder(),
             map_op: self.map_op,
         }
     }

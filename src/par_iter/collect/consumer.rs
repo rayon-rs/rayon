@@ -66,7 +66,7 @@ impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
         }
     }
 
-    fn fold(self) -> CollectFolder<'c, ITEM> {
+    fn into_folder(self) -> CollectFolder<'c, ITEM> {
         CollectFolder { consumer: self, offset: 0 }
     }
 }
