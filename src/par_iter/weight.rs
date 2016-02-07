@@ -60,7 +60,7 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
         {
             type Output = CB::Output;
 
-            fn callback<'p, P>(self, base: P) -> Self::Output
+            fn callback<P>(self, base: P) -> Self::Output
                 where P: Producer<Item=ITEM>
             {
                 self.callback.callback(WeightProducer { base: base,

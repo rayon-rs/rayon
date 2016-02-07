@@ -9,7 +9,7 @@ use super::len::*;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
-    fn callback<'p, P>(self, producer: P) -> Self::Output
+    fn callback<P>(self, producer: P) -> Self::Output
         where P: Producer<Item=ITEM>;
 }
 
