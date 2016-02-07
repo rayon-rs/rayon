@@ -97,8 +97,8 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
         FilterMapConsumer::new(self.base.split_off(), &self.filter_op)
     }
 
-    fn reducer(&self) -> Self::Reducer {
-        self.base.reducer()
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }
 

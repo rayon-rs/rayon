@@ -142,7 +142,7 @@ impl<C, ITEM> UnindexedConsumer<ITEM> for WeightConsumer<C>
         WeightConsumer::new(self.base.split_off(), self.weight)
     }
 
-    fn reducer(&self) -> Self::Reducer {
-        self.base.reducer()
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

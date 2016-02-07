@@ -90,8 +90,8 @@ impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM>
         FilterConsumer::new(self.base.split_off(), &self.filter_op)
     }
 
-    fn reducer(&self) -> Self::Reducer {
-        self.base.reducer()
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }
 

@@ -178,8 +178,8 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
         MapConsumer::new(self.base.split_off(), &self.map_op)
     }
 
-    fn reducer(&self) -> Self::Reducer {
-        self.base.reducer()
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }
 

@@ -83,7 +83,7 @@ impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<ITEM> for ReduceConsumer<'r, REDUCE_
         ReduceConsumer { reduce_op: self.reduce_op }
     }
 
-    fn reducer(&self) -> Self::Reducer {
+    fn to_reducer(&self) -> Self::Reducer {
         *self
     }
 }

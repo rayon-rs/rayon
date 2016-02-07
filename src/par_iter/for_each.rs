@@ -57,7 +57,7 @@ impl<'f, OP, ITEM> UnindexedConsumer<ITEM> for ForEachConsumer<'f, OP>
         ForEachConsumer { op: self.op }
     }
 
-    fn reducer(&self) -> NoopReducer {
+    fn to_reducer(&self) -> NoopReducer {
         NoopReducer
     }
 }

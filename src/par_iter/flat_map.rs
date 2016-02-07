@@ -64,7 +64,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {
         (FlatMapConsumer::new(self.base.split_off(), self.map_op),
          FlatMapConsumer::new(self.base.split_off(), self.map_op),
-         self.base.reducer())
+         self.base.to_reducer())
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -86,8 +86,8 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
         FlatMapConsumer::new(self.base.split_off(), self.map_op)
     }
 
-    fn reducer(&self) -> Self::Reducer {
-        self.base.reducer()
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }
 
@@ -116,7 +116,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
         let previous = match self.previous {
             None => Some(result),
             Some(previous) => {
-                let reducer = self.base.reducer();
+                let reducer = self.base.to_reducer();
                 Some(reducer.reduce(result, previous))
             }
         };

@@ -58,7 +58,6 @@ pub trait Folder<Item> {
 }
 
 pub trait Reducer<Result> {
-
     /// Reduce two final results into one; this is executed after a
     /// split.
     fn reduce(self, left: Result, right: Result) -> Result;
@@ -67,7 +66,7 @@ pub trait Reducer<Result> {
 /// A stateless consumer can be freely copied.
 pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
     fn split_off(&self) -> Self;
-    fn reducer(&self) -> Self::Reducer;
+    fn to_reducer(&self) -> Self::Reducer;
 }
 
 pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
