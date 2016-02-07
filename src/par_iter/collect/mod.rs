@@ -11,7 +11,7 @@ pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
           T: Send,
 {
     let len = pi.len();
-    assert!(len < (isize::MAX) as usize);
+    assert!(len < isize::MAX as usize);
 
     v.truncate(0); // clear any old data
     v.reserve(len); // reserve enough space
