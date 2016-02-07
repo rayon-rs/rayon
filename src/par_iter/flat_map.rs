@@ -62,8 +62,8 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {
-        (FlatMapConsumer::new(self.base.split(), self.map_op),
-         FlatMapConsumer::new(self.base.split(), self.map_op),
+        (FlatMapConsumer::new(self.base.split_off(), self.map_op),
+         FlatMapConsumer::new(self.base.split_off(), self.map_op),
          self.base.reducer())
     }
 
@@ -82,8 +82,8 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
           MAPPED_ITEM: ParallelIterator,
 {
-    fn split(&self) -> Self {
-        FlatMapConsumer::new(self.base.split(), self.map_op)
+    fn split_off(&self) -> Self {
+        FlatMapConsumer::new(self.base.split_off(), self.map_op)
     }
 
     fn reducer(&self) -> Self::Reducer {
@@ -109,7 +109,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
     fn consume(self, item: ITEM) -> Self {
         let map_op = self.map_op;
         let par_iter = map_op(item).into_par_iter();
-        let result = par_iter.drive_unindexed(self.base.split());
+        let result = par_iter.drive_unindexed(self.base.split_off());
 
         // We expect that `previous` is `None`, because we drive
         // the cost up so high, but just in case.

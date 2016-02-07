@@ -28,7 +28,7 @@ impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {
-        (self.split(), self.split(), NoopReducer)
+        (self.split_off(), self.split_off(), NoopReducer)
     }
 
     fn into_folder(self) -> Self {
@@ -53,7 +53,7 @@ impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
 impl<'f, OP, ITEM> UnindexedConsumer<ITEM> for ForEachConsumer<'f, OP>
     where OP: Fn(ITEM) + Sync,
 {
-    fn split(&self) -> Self {
+    fn split_off(&self) -> Self {
         ForEachConsumer { op: self.op }
     }
 

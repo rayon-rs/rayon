@@ -86,8 +86,8 @@ impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM>
     for FilterConsumer<'f, C, FILTER_OP>
     where C: UnindexedConsumer<ITEM>, FILTER_OP: Fn(&ITEM) -> bool + Sync,
 {
-    fn split(&self) -> Self {
-        FilterConsumer::new(self.base.split(), &self.filter_op)
+    fn split_off(&self) -> Self {
+        FilterConsumer::new(self.base.split_off(), &self.filter_op)
     }
 
     fn reducer(&self) -> Self::Reducer {

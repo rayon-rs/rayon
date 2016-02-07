@@ -66,7 +66,7 @@ pub trait Reducer<Result> {
 
 /// A stateless consumer can be freely copied.
 pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
-    fn split(&self) -> Self;
+    fn split_off(&self) -> Self;
     fn reducer(&self) -> Self::Reducer;
 }
 

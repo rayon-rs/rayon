@@ -174,8 +174,8 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
     where C: UnindexedConsumer<MAPPED_ITEM>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
 {
-    fn split(&self) -> Self {
-        MapConsumer::new(self.base.split(), &self.map_op)
+    fn split_off(&self) -> Self {
+        MapConsumer::new(self.base.split_off(), &self.map_op)
     }
 
     fn reducer(&self) -> Self::Reducer {

@@ -93,8 +93,8 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
     where C: UnindexedConsumer<MAPPED_ITEM>,
           FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f,
 {
-    fn split(&self) -> Self {
-        FilterMapConsumer::new(self.base.split(), &self.filter_op)
+    fn split_off(&self) -> Self {
+        FilterMapConsumer::new(self.base.split_off(), &self.filter_op)
     }
 
     fn reducer(&self) -> Self::Reducer {
