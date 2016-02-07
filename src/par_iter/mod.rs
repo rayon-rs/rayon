@@ -20,7 +20,7 @@ use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
 use self::map::Map;
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
-                   SUM, MUL, MIN, MAX};
+                   ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
@@ -142,7 +142,29 @@ pub trait ParallelIterator: Sized {
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
     {
-        reduce(self.map(Some), &ReduceWithOp::new(op))
+        reduce(self.map(Some), &ReduceWithOp::new(&op))
+    }
+
+    /// Reduces the items in the iterator into one item using `op`.
+    /// The argument `identity` represents an "identity" value which
+    /// may be inserted into the sequence as needed to create
+    /// opportunities for parallel execution. So, for example, if you
+    /// are doing a summation, then `identity` ought to be something
+    /// that represents the zero for your type (but consider just
+    /// calling `sum()` in that case).
+    ///
+    /// Example `vectors.par_iter().reduce_with_identity(Vector::zero(), Vector::add)`.
+    ///
+    /// Note: unlike in a sequential iterator, the order in which `op`
+    /// will be applied to reduce the result is not specified. So `op`
+    /// should be commutative and associative or else the results will
+    /// be non-deterministic. And of course `identity` should be a
+    /// true identity.
+    fn reduce_with_identity<OP>(self, identity: Self::Item, op: OP) -> Self::Item
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
+              Self::Item: Clone + Sync,
+    {
+        reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
     }
 
     /// Sums up the items in the iterator.
