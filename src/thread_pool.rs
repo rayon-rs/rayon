@@ -118,7 +118,7 @@ impl Registry {
         let mut state = self.state.lock().unwrap();
         if state.terminate {
             drop(state);
-            panic!("rayon thread pool is contaminated by a previous panic; recovery is currently unimplemented");
+            panic!("rayon thread pool is contaminated by a previous panic; recovery is only available on nightly compilers");
         }
         state.injected_jobs.extend(injected_jobs);
         self.work_available.notify_all();

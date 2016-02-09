@@ -6,6 +6,12 @@ script:
   - cargo build
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
+    cargo build --features nightly
+  - |
+    [ $TRAVIS_RUST_VERSION != nightly ] ||
     cargo test
+  - |
+    [ $TRAVIS_RUST_VERSION != nightly ] ||
+    cargo test --features nightly
   - cd demo/quicksort
   - cargo build

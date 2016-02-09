@@ -1,5 +1,16 @@
 use latch::Latch;
 use std::mem;
+#[cfg(feature = "nightly")]
+use std::any::Any;
+#[cfg(feature = "nightly")]
+use std::panic::{self, AssertRecoverSafe};
+
+enum JobResult<T> {
+    None,
+    Ok(T),
+    #[cfg(feature = "nightly")]
+    Panic(Box<Any + Send>),
+}
 
 /// A `Job` is used to advertise work for other threads that they may
 /// want to steal. In accordance with time honored tradition, jobs are
@@ -13,7 +24,7 @@ pub trait Job<L:Latch> {
 pub struct JobImpl<L:Latch,F,R> {
     pub latch: L,
     func: Option<F>,
-    result: Option<R>,
+    result: JobResult<R>,
 }
 
 impl<L:Latch,F,R> JobImpl<L,F,R>
@@ -23,7 +34,7 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
         JobImpl {
             latch: latch,
             func: Some(func),
-            result: None,
+            result: JobResult::None,
         }
     }
 
@@ -35,8 +46,37 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
         self.func.unwrap()()
     }
 
+    #[cfg(not(feature = "nightly"))]
     pub fn into_result(self) -> R {
-        self.result.expect("job function panicked")
+        match self.result {
+            JobResult::None => panic!("job function panicked"),
+            JobResult::Ok(x) => x,
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    pub fn into_result(self) -> R {
+        match self.result {
+            JobResult::None => unreachable!(),
+            JobResult::Ok(x) => x,
+            JobResult::Panic(x) => panic::propagate(x),
+        }
+    }
+
+    #[cfg(not(feature = "nightly"))]
+    fn run_result(func: F) -> JobResult<R> {
+        JobResult::Ok(func())
+    }
+
+    #[cfg(feature = "nightly")]
+    fn run_result(func: F) -> JobResult<R> {
+        // RecoverSafe is a bit ugly to deal with...
+        // Ideally this would just be panic::recover(func)
+        let mut wrapper = AssertRecoverSafe::new(Some(func));
+        match panic::recover(move || (*wrapper).take().unwrap()()) {
+            Ok(x) => JobResult::Ok(x),
+            Err(x) => JobResult::Panic(x),
+        }
     }
 }
 
@@ -45,8 +85,7 @@ impl<L:Latch,F,R> Job<L> for JobImpl<L,F,R>
 {
     unsafe fn execute(&mut self) {
         // Use a guard here to ensure that the latch is always set, even if the
-        // function panics. The panic will be propagated since the Option is
-        // still None when it is unwrapped.
+        // function panics.
         struct PanicGuard<'a,L:Latch + 'a>(&'a L);
         impl<'a,L:Latch> Drop for PanicGuard<'a,L> {
             fn drop(&mut self) {
@@ -55,6 +94,6 @@ impl<L:Latch,F,R> Job<L> for JobImpl<L,F,R>
         }
         let _guard = PanicGuard(&self.latch);
         let func = self.func.take().unwrap();
-        self.result = Some(func());
+        self.result = Self::run_result(func);
     }
 }
