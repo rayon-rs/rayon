@@ -1,7 +1,7 @@
 use latch::{LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
-use job::{Code, CodeImpl, Job};
+use job::JobImpl;
 use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
@@ -144,20 +144,15 @@ pub fn join<A,B,RA,RB>(oper_a: A,
 
         log!(Join { worker: (*worker_thread).index() });
 
-        // create a home where we will write result of task b
-        let mut result_b = None;
-
         // create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough
-        let mut code_b = CodeImpl::new(oper_b, &mut result_b);
-        let mut latch_b = SpinLatch::new();
-        let mut job_b = Job::new(&mut code_b, &mut latch_b);
-        (*worker_thread).push(&mut job_b);
+        let mut job_b = JobImpl::new(oper_b, SpinLatch::new());
+        (*worker_thread).push(job_b.as_static());
 
         // If another thread stole our job when we panic, we must halt unwinding
         // until that thread is finished using it.
-        struct PanicGuard<'a>(&'a mut SpinLatch);
+        struct PanicGuard<'a>(&'a SpinLatch);
         impl<'a> Drop for PanicGuard<'a> {
             fn drop(&mut self) {
                 unsafe {
@@ -173,26 +168,28 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         // execute task a; hopefully b gets stolen
         let result_a;
         {
-            let guard = PanicGuard(&mut latch_b);
+            let guard = PanicGuard(&job_b.latch);
             result_a = oper_a();
             mem::forget(guard);
         }
 
         // if b was not stolen, do it ourselves, else wait for the thief to finish
+        let result_b;
         if (*worker_thread).pop() {
             log!(PoppedJob { worker: (*worker_thread).index() });
-            code_b.execute(); // not stolen, let's do it!
+            result_b = job_b.run_inline(); // not stolen, let's do it!
         } else {
             log!(LostJob { worker: (*worker_thread).index() });
-            (*worker_thread).steal_until(&latch_b); // stolen, wait for them to finish
+            (*worker_thread).steal_until(&job_b.latch); // stolen, wait for them to finish
+            result_b = job_b.into_result();
         }
 
         // now result_b should be initialized
-        (result_a, result_b.expect("job function panicked"))
+        (result_a, result_b)
     }
 }
 
-#[inline(never)] // cold path
+#[cold] // cold path
 unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
                                  oper_b: B)
                                  -> (RA, RB)
@@ -201,22 +198,15 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
           RA: Send,
           RB: Send,
 {
-    let mut result_a = None;
-    let mut code_a = CodeImpl::new(oper_a, &mut result_a);
-    let mut latch_a = LockLatch::new();
-    let mut job_a = Job::new(&mut code_a, &mut latch_a);
+    let mut job_a = JobImpl::new(oper_a, LockLatch::new());
+    let mut job_b = JobImpl::new(oper_b, LockLatch::new());
 
-    let mut result_b = None;
-    let mut code_b = CodeImpl::new(oper_b, &mut result_b);
-    let mut latch_b = LockLatch::new();
-    let mut job_b = Job::new(&mut code_b, &mut latch_b);
+    thread_pool::get_registry().inject(&[job_a.as_static(), job_b.as_static()]);
 
-    thread_pool::get_registry().inject(&[&mut job_a, &mut job_b]);
+    job_a.latch.wait();
+    job_b.latch.wait();
 
-    latch_a.wait();
-    latch_b.wait();
-
-    (result_a.expect("job function panicked"), result_b.expect("job function panicked"))
+    (job_a.into_result(), job_b.into_result())
 }
 
 pub struct ThreadPool {
@@ -240,13 +230,10 @@ impl ThreadPool {
         where OP: FnOnce() -> R + Send
     {
         unsafe {
-            let mut result_a = None;
-            let mut code_a = CodeImpl::new(op, &mut result_a);
-            let mut latch_a = LockLatch::new();
-            let mut job_a = Job::new(&mut code_a, &mut latch_a);
-            self.registry.inject(&[&mut job_a]);
-            latch_a.wait();
-            result_a.expect("job function panicked")
+            let mut job_a = JobImpl::new(op, LockLatch::new());
+            self.registry.inject(&[job_a.as_static()]);
+            job_a.latch.wait();
+            job_a.into_result()
         }
     }
 }

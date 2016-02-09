@@ -113,7 +113,7 @@ impl Registry {
         self.work_available.notify_all();
     }
 
-    pub unsafe fn inject(&self, injected_jobs: &[*mut Job<LockLatch>]) {
+    pub unsafe fn inject(&self, injected_jobs: &[*mut (Job<LockLatch> + 'static)]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         if state.terminate {
@@ -255,6 +255,7 @@ impl WorkerThread {
         self.thread_info().worker.pop().is_some()
     }
 
+    #[cold]
     pub unsafe fn steal_until(&self, latch: &SpinLatch) {
         while !latch.probe() {
             if let Some(job) = steal_work(&self.registry, self.index) {
@@ -268,7 +269,6 @@ impl WorkerThread {
 
 ///////////////////////////////////////////////////////////////////////////
 
-#[allow(unused_variables)]
 unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
         registry: registry.clone(),
@@ -288,7 +288,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
             }
         }
     }
-    let guard = PanicGuard;
+    let _guard = PanicGuard;
 
     let mut was_active = false;
     loop {
@@ -303,7 +303,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
         }
 
         if let Some(stolen_job) = steal_work(&registry, index) {
-            log!(StoleWork { worker: index, job: stolen_job });
+            log!(StoleWork { worker: index });
             registry.start_working(index);
             (*stolen_job).execute();
             was_active = true;
