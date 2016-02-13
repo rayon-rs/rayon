@@ -104,6 +104,58 @@ pub fn check_increment() {
 }
 
 #[test]
+pub fn check_move() {
+    let a = vec![vec![1, 2, 3]];
+    let ptr = a[0].as_ptr();
+
+    let mut b = vec![];
+    a.into_par_iter().collect_into(&mut b);
+
+    // a simple move means the inner vec will be completely unchanged
+    assert_eq!(ptr, b[0].as_ptr());
+}
+
+#[test]
+pub fn check_drops() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let c = AtomicUsize::new(0);
+    let a = vec![DropCounter(&c); 10];
+
+    let mut b = vec![];
+    a.clone().into_par_iter().collect_into(&mut b);
+    assert_eq!(c.load(Ordering::Relaxed), 0);
+
+    b.into_par_iter();
+    assert_eq!(c.load(Ordering::Relaxed), 10);
+
+    a.into_par_iter().with_producer(Partial);
+    assert_eq!(c.load(Ordering::Relaxed), 20);
+
+
+    #[derive(Clone)]
+    struct DropCounter<'a>(&'a AtomicUsize);
+    impl<'a> Drop for DropCounter<'a> {
+        fn drop(&mut self) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    struct Partial;
+    impl<'a> ProducerCallback<DropCounter<'a>> for Partial {
+        type Output = ();
+        fn callback<'p, P>(self, producer: P, shared: &'p P::Shared)
+            where P: Producer<'p, Item=DropCounter<'a>>
+        {
+            unsafe {
+                let (mut a, _) = producer.split_at(5);
+                a.produce(shared);
+            }
+        }
+    }
+}
+
+#[test]
 pub fn check_slice_exact_and_bounded() {
     let a = vec![1, 2, 3];
     is_bounded(a.par_iter());
@@ -117,6 +169,14 @@ pub fn check_slice_mut_exact_and_bounded() {
     is_bounded(a.par_iter_mut());
     is_exact(a.par_iter_mut());
     is_indexed(a.par_iter_mut());
+}
+
+#[test]
+pub fn check_vec_exact_and_bounded() {
+    let a = vec![1, 2, 3];
+    is_bounded(a.clone().into_par_iter());
+    is_exact(a.clone().into_par_iter());
+    is_indexed(a.clone().into_par_iter());
 }
 
 #[test]
