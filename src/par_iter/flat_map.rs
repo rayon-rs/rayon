@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use super::util::PhantomType;
 use std::f64;
 
 pub struct FlatMap<M, MAP_OP> {
@@ -21,53 +20,40 @@ impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
 {
     type Item = PI::Item;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        let consumer = FlatMapConsumer { base: consumer, phantoms: PhantomType::new() };
-        self.base.drive_unindexed(consumer, &(shared, &self.map_op))
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer = FlatMapConsumer { base: consumer,
+                                         map_op: &self.map_op };
+        self.base.drive_unindexed(consumer)
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> PI + Sync,
-          PI: ParallelIterator<Item=C::Item>,
-          C::Item: Send,
-{
+struct FlatMapConsumer<'m, C, MAP_OP: 'm> {
     base: C,
-    phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
+    map_op: &'m MAP_OP,
 }
 
-impl<'c, ITEM, C, MAP_OP, PI> FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> PI + Sync,
-          PI: ParallelIterator<Item=C::Item>,
-          C::Item: Send,
-{
-    fn new(base: C) -> FlatMapConsumer<'c, ITEM, C, MAP_OP, PI> {
-        FlatMapConsumer { base: base, phantoms: PhantomType::new() }
+impl<'m, C, MAP_OP> FlatMapConsumer<'m, C, MAP_OP> {
+    fn new(base: C, map_op: &'m MAP_OP) -> Self {
+        FlatMapConsumer { base: base, map_op: map_op }
     }
 }
 
-impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
-          PI: ParallelIterator<Item=C::Item>,
-          C::Item: Send,
-          ITEM: 'm,
-          'c: 'm,
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
+    for FlatMapConsumer<'m, C, MAP_OP>
+    where C: UnindexedConsumer<MAPPED_ITEM::Item>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+          MAPPED_ITEM: ParallelIterator,
 {
-    type Item = ITEM;
-    type Shared = (&'c C::Shared, &'m MAP_OP);
-    type SeqState = Option<C::Result>;
+    type Folder = FlatMapFolder<'m, C, MAP_OP, C::Result>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn cost(&mut self, _shared: &Self::Shared, _cost: f64) -> f64 {
+    fn cost(&mut self, _cost: f64) -> f64 {
         // We have no idea how many items we will produce, so ramp up
         // the cost, so as to encourage the producer to do a
         // fine-grained divison. This is not necessarily a good
@@ -75,52 +61,74 @@ impl<'c, 'm, ITEM, C, MAP_OP, PI> Consumer<'m> for FlatMapConsumer<'c, ITEM, C, 
         f64::INFINITY
     }
 
-    unsafe fn split_at(self, _shared: &Self::Shared, _index: usize) -> (Self, Self) {
-        (FlatMapConsumer::new(self.base.split()), FlatMapConsumer::new(self.base.split()))
+    fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {
+        (FlatMapConsumer::new(self.base.split_off(), self.map_op),
+         FlatMapConsumer::new(self.base.split_off(), self.map_op),
+         self.base.to_reducer())
     }
 
-    unsafe fn start(&mut self, _shared: &Self::Shared) -> Option<C::Result> {
-        None
+    fn into_folder(self) -> Self::Folder {
+        FlatMapFolder {
+            base: self.base,
+            map_op: self.map_op,
+            previous: None,
+        }
+    }
+}
+
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
+    for FlatMapConsumer<'m, C, MAP_OP>
+    where C: UnindexedConsumer<MAPPED_ITEM::Item>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+          MAPPED_ITEM: ParallelIterator,
+{
+    fn split_off(&self) -> Self {
+        FlatMapConsumer::new(self.base.split_off(), self.map_op)
     }
 
-    unsafe fn consume(&mut self,
-                      shared: &Self::Shared,
-                      previous: Option<C::Result>,
-                      item: Self::Item)
-                      -> Option<C::Result>
-    {
-        let par_iter = (shared.1)(item).into_par_iter();
-        let result = par_iter.drive_unindexed(self.base.split(), &shared.0);
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+
+struct FlatMapFolder<'m, C, MAP_OP: 'm, R> {
+    base: C,
+    map_op: &'m MAP_OP,
+    previous: Option<R>,
+}
+
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
+    for FlatMapFolder<'m, C, MAP_OP, C::Result>
+    where C: UnindexedConsumer<MAPPED_ITEM::Item>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+          MAPPED_ITEM: ParallelIterator,
+{
+    type Result = C::Result;
+
+    fn consume(self, item: ITEM) -> Self {
+        let map_op = self.map_op;
+        let par_iter = map_op(item).into_par_iter();
+        let result = par_iter.drive_unindexed(self.base.split_off());
 
         // We expect that `previous` is `None`, because we drive
         // the cost up so high, but just in case.
-        match previous {
-            Some(previous) => Some(C::reduce(&shared.0, result, previous)),
+        let previous = match self.previous {
             None => Some(result),
-        }
+            Some(previous) => {
+                let reducer = self.base.to_reducer();
+                Some(reducer.reduce(result, previous))
+            }
+        };
+
+        FlatMapFolder { base: self.base,
+                        map_op: map_op,
+                        previous: previous }
     }
 
-    unsafe fn complete(self, _shared: &Self::Shared, state: Option<C::Result>) -> C::Result {
+    fn complete(self) -> Self::Result {
         // should have processed at least one item -- but is this
         // really a fair assumption?
-        state.unwrap()
-    }
-
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+        self.previous.unwrap()
     }
 }
-
-impl<'c, 'm, ITEM, C, MAP_OP, PI> UnindexedConsumer<'m> for FlatMapConsumer<'c, ITEM, C, MAP_OP, PI>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> PI + Sync + 'm,
-          PI: ParallelIterator<Item=C::Item>,
-          C::Item: Send,
-          ITEM: 'm,
-          'c: 'm,
-{
-    fn split(&self) -> Self {
-        FlatMapConsumer::new(self.base.split())
-    }
-}
-

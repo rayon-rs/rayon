@@ -2,7 +2,6 @@ use std;
 use super::ParallelIterator;
 use super::len::*;
 use super::internal::*;
-use super::util::PhantomType;
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
@@ -38,79 +37,82 @@ pub fn reduce<PAR_ITER,REDUCE_OP,T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
           REDUCE_OP: ReduceOp<T>,
           T: Send,
 {
-    let consumer: ReduceConsumer<PAR_ITER::Item, REDUCE_OP> =
-        ReduceConsumer { data: PhantomType::new() };
-    pi.drive_unindexed(consumer, reduce_op)
+    let consumer = ReduceConsumer { reduce_op: reduce_op };
+    pi.drive_unindexed(consumer)
 }
 
-struct ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-{
-    data: PhantomType<(ITEM, REDUCE_OP)>
+struct ReduceConsumer<'r, REDUCE_OP: 'r> {
+    reduce_op: &'r REDUCE_OP,
 }
 
-impl<ITEM, REDUCE_OP> Copy for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-{
+impl<'r, REDUCE_OP> Copy for ReduceConsumer<'r, REDUCE_OP> {
 }
 
-impl<ITEM, REDUCE_OP> Clone for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-{
+impl<'r, REDUCE_OP> Clone for ReduceConsumer<'r, REDUCE_OP> {
     fn clone(&self) -> Self { *self }
 }
 
-impl<'c, ITEM, REDUCE_OP> Consumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM> + 'c,
-          ITEM: Send + 'c,
+impl<'r, REDUCE_OP, ITEM> Consumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
+          ITEM: Send,
 {
-    type Item = ITEM;
-    type Shared = REDUCE_OP;
-    type SeqState = ITEM;
+    type Folder = ReduceFolder<'r, REDUCE_OP, ITEM>;
+    type Reducer = Self;
     type Result = ITEM;
 
-    fn cost(&mut self, _shared: &Self::Shared, cost: f64) -> f64 {
+    fn cost(&mut self, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
         cost * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
-        (self, self)
+    fn split_at(self, _index: usize) -> (Self, Self, Self) {
+        (self, self, self)
     }
 
-    unsafe fn start(&mut self, reduce_op: &REDUCE_OP) -> ITEM {
-        reduce_op.start_value()
-    }
-
-    unsafe fn consume(&mut self,
-                      reduce_op: &REDUCE_OP,
-                      prev_value: ITEM,
-                      item: ITEM)
-                      -> ITEM {
-        reduce_op.reduce(prev_value, item)
-    }
-
-    unsafe fn complete(self,
-                       _reduce_op: &REDUCE_OP,
-                       state: ITEM)
-                       -> ITEM {
-        state
-    }
-
-    unsafe fn reduce(reduce_op: &REDUCE_OP,
-                     a: ITEM,
-                     b: ITEM)
-                     -> ITEM {
-        reduce_op.reduce(a, b)
+    fn into_folder(self) -> ReduceFolder<'r, REDUCE_OP, ITEM> {
+        ReduceFolder { reduce_op: self.reduce_op,
+                       item: self.reduce_op.start_value() }
     }
 }
 
-impl<'c, ITEM, REDUCE_OP> UnindexedConsumer<'c> for ReduceConsumer<ITEM, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM> + 'c,
-          ITEM: Send + 'c,
+impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
+          ITEM: Send,
 {
-    fn split(&self) -> Self {
-        ReduceConsumer { data: PhantomType::new() }
+    fn split_off(&self) -> Self {
+        ReduceConsumer { reduce_op: self.reduce_op }
+    }
+
+    fn to_reducer(&self) -> Self::Reducer {
+        *self
+    }
+}
+
+impl<'r, REDUCE_OP, ITEM> Reducer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
+    where REDUCE_OP: ReduceOp<ITEM>,
+{
+    fn reduce(self, left: ITEM, right: ITEM) -> ITEM {
+        self.reduce_op.reduce(left, right)
+    }
+}
+
+pub struct ReduceFolder<'r, REDUCE_OP: 'r, ITEM> {
+    reduce_op: &'r REDUCE_OP,
+    item: ITEM,
+}
+
+impl<'r, REDUCE_OP, ITEM> Folder<ITEM> for ReduceFolder<'r, REDUCE_OP, ITEM>
+    where REDUCE_OP: ReduceOp<ITEM>,
+{
+    type Result = ITEM;
+
+    fn consume(self, item: ITEM) -> Self {
+        let item = self.reduce_op.reduce(self.item, item);
+        ReduceFolder { reduce_op: self.reduce_op, item: item }
+    }
+
+    fn complete(self) -> ITEM {
+        self.item
     }
 }
 
@@ -268,3 +270,4 @@ impl<ITEM,OP> ReduceOp<Option<ITEM>> for ReduceWithOp<OP>
         }
     }
 }
+

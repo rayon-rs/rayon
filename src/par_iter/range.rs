@@ -20,28 +20,26 @@ macro_rules! range_impl {
         impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
 
-            fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                              consumer: C,
-                                                                              shared: &'c C::Shared)
-                                                                              -> C::Result {
-                bridge(self, consumer, &shared)
+            fn drive_unindexed<C>(self, consumer: C) -> C::Result
+                where C: UnindexedConsumer<Self::Item>
+            {
+                bridge(self, consumer)
             }
         }
 
-        unsafe impl BoundedParallelIterator for RangeIter<$t> {
+        impl BoundedParallelIterator for RangeIter<$t> {
             fn upper_bound(&mut self) -> usize {
                 ExactParallelIterator::len(self)
             }
 
-            fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                           consumer: C,
-                                                           shared: &'c C::Shared)
-                                                           -> C::Result {
-                bridge(self, consumer, &shared)
+            fn drive<C>(self, consumer: C) -> C::Result
+                where C: Consumer<Self::Item>
+            {
+                bridge(self, consumer)
             }
         }
 
-        unsafe impl ExactParallelIterator for RangeIter<$t> {
+        impl ExactParallelIterator for RangeIter<$t> {
             fn len(&mut self) -> usize {
                 self.range.len() as usize
             }
@@ -51,19 +49,16 @@ macro_rules! range_impl {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {
-                callback.callback(self, &())
+                callback.callback(self)
             }
         }
 
-        impl<'p> Producer<'p> for RangeIter<$t> {
-            type Item = $t;
-            type Shared = ();
-
-            fn cost(&mut self, _: &Self::Shared, len: usize) -> f64 {
+        impl Producer for RangeIter<$t> {
+            fn cost(&mut self, len: usize) -> f64 {
                 len as f64
             }
 
-            unsafe fn split_at(self, index: usize) -> (Self, Self) {
+            fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
                 // For signed $t, the length and requested index could be greater than $t::MAX, and
                 // then `index as $t` could wrap to negative, so wrapping_add is necessary.
@@ -72,9 +67,14 @@ macro_rules! range_impl {
                 let right = mid .. self.range.end;
                 (RangeIter { range: left }, RangeIter { range: right })
             }
+        }
 
-            unsafe fn produce(&mut self, _: &()) -> $t {
-                self.range.next().unwrap()
+        impl IntoIterator for RangeIter<$t> {
+            type Item = $t;
+            type IntoIter = Range<$t>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.range
             }
         }
     }

@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use super::util::*;
 
 pub struct Weight<M> {
     base: M,
@@ -18,32 +17,28 @@ impl<M> ParallelIterator for Weight<M>
 {
     type Item = M::Item;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
-        let shared1 = (shared, self.weight);
-        self.base.drive_unindexed(consumer1, &shared1)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer1 = WeightConsumer::new(consumer, self.weight);
+        self.base.drive_unindexed(consumer1)
     }
 }
 
-unsafe impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
+impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer);
-        let shared1 = (shared, self.weight);
-        self.base.drive(consumer1, &shared1)
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Self::Item>
+    {
+        let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer, self.weight);
+        self.base.drive(consumer1)
     }
 }
 
-unsafe impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
+impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
     fn len(&mut self) -> usize {
         self.base.len()
     }
@@ -65,11 +60,11 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
         {
             type Output = CB::Output;
 
-            fn callback<'p, P>(self, base: P, shared: &'p P::Shared) -> Self::Output
-                where P: Producer<'p, Item=ITEM>
+            fn callback<P>(self, base: P) -> Self::Output
+                where P: Producer<Item=ITEM>
             {
-                self.callback.callback(WeightProducer { base: base, phantoms: PhantomType::new() },
-                                       &(shared, self.weight))
+                self.callback.callback(WeightProducer { base: base,
+                                                        weight: self.weight })
             }
         }
     }
@@ -77,91 +72,77 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct WeightProducer<'p, P> {
+pub struct WeightProducer<P> {
     base: P,
-    phantoms: PhantomType<&'p ()>
+    weight: f64,
 }
 
-impl<'w, 'p: 'w, P: Producer<'p>> Producer<'w> for WeightProducer<'p, P> {
-    type Item = P::Item;
-    type Shared = (&'p P::Shared, f64);
-
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
-        self.base.cost(&shared.0, len) * shared.1
+impl<P: Producer> Producer for WeightProducer<P> {
+    fn cost(&mut self, len: usize) -> f64 {
+        self.base.cost(len) * self.weight
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (WeightProducer { base: left, phantoms: PhantomType::new() },
-         WeightProducer { base: right, phantoms: PhantomType::new() })
+        (WeightProducer { base: left, weight: self.weight },
+         WeightProducer { base: right, weight: self.weight })
     }
+}
 
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> P::Item {
-        self.base.produce(&shared.0)
+impl<P: Producer> IntoIterator for WeightProducer<P> {
+    type Item = P::Item;
+    type IntoIter = P::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.base.into_iter()
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct WeightConsumer<'w, 'c, C>
-    where C: Consumer<'c>, 'c: 'w
-{
+struct WeightConsumer<C> {
     base: C,
-    phantoms: PhantomType<&'w &'c ()>
+    weight: f64,
 }
 
-impl<'w, 'c, C> WeightConsumer<'w, 'c, C>
-    where C: Consumer<'c>, 'c: 'w
-{
-    fn new(base: C) -> WeightConsumer<'w, 'c, C> {
-        WeightConsumer { base: base, phantoms: PhantomType::new() }
+impl<C> WeightConsumer<C> {
+    fn new(base: C, weight: f64) -> WeightConsumer<C> {
+        WeightConsumer { base: base, weight: weight }
     }
 }
 
-impl<'w, 'c, C> Consumer<'w> for WeightConsumer<'w, 'c, C>
-    where C: Consumer<'c>, 'c: 'w
+impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
+    where C: Consumer<ITEM>,
 {
-    type Item = C::Item;
-    type Shared = (&'c C::Shared, f64);
-    type SeqState = C::SeqState;
+    type Folder = C::Folder;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.0, cost) * shared.1
+    fn cost(&mut self, cost: f64) -> f64 {
+        self.base.cost(cost) * self.weight
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.0, index);
-        (WeightConsumer::new(left), WeightConsumer::new(right))
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (WeightConsumer::new(left, self.weight),
+         WeightConsumer::new(right, self.weight),
+         reducer)
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.0)
-    }
-
-    unsafe fn consume(&mut self,
-                      shared: &Self::Shared,
-                      state: C::SeqState,
-                      item: Self::Item)
-                      -> C::SeqState
-    {
-        self.base.consume(&shared.0, state, item)
-    }
-
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.0, state)
-    }
-
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+    fn into_folder(self) -> C::Folder {
+        self.base.into_folder()
     }
 }
 
-impl<'w, 'c, C> UnindexedConsumer<'w> for WeightConsumer<'w, 'c, C>
-    where C: UnindexedConsumer<'c>, 'c: 'w
+impl<C, ITEM> UnindexedConsumer<ITEM> for WeightConsumer<C>
+    where C: UnindexedConsumer<ITEM>
 {
-    fn split(&self) -> Self {
-        WeightConsumer::new(self.base.split())
+    fn split_off(&self) -> Self {
+        WeightConsumer::new(self.base.split_off(), self.weight)
+    }
+
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

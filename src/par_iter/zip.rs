@@ -1,7 +1,7 @@
 use super::*;
 use super::internal::*;
-use super::util::PhantomType;
 use std::cmp::min;
+use std::iter;
 
 pub struct ZipIter<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
@@ -19,30 +19,28 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
 {
     type Item = (A::Item, B::Item);
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
-unsafe impl<A,B> BoundedParallelIterator for ZipIter<A,B>
+impl<A,B> BoundedParallelIterator for ZipIter<A,B>
     where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
-unsafe impl<A,B> ExactParallelIterator for ZipIter<A,B>
+impl<A,B> ExactParallelIterator for ZipIter<A,B>
     where A: IndexedParallelIterator, B: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
@@ -72,35 +70,31 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
         {
             type Output = CB::Output;
 
-            fn callback<'a, A>(self, a_producer: A, a_shared: &'a A::Shared) -> Self::Output
-                where A: Producer<'a, Item=A_ITEM>
+            fn callback<A>(self, a_producer: A) -> Self::Output
+                where A: Producer<Item=A_ITEM>
             {
                 return self.b.with_producer(CallbackB {
                     a_producer: a_producer,
-                    a_shared: a_shared,
                     callback: self.callback,
                 });
             }
         }
 
-        struct CallbackB<'p, CB, A> where A: Producer<'p> {
+        struct CallbackB<CB, A> {
             a_producer: A,
-            a_shared: &'p A::Shared,
             callback: CB
         }
 
-        impl<'a, CB, A, B_ITEM> ProducerCallback<B_ITEM> for CallbackB<'a, CB, A>
-            where A: Producer<'a>,
+        impl<CB, A, B_ITEM> ProducerCallback<B_ITEM> for CallbackB<CB, A>
+            where A: Producer,
                   CB: ProducerCallback<(A::Item, B_ITEM)>,
         {
             type Output = CB::Output;
 
-            fn callback<'b, B>(self, b_producer: B, b_shared: &'b B::Shared) -> Self::Output
-                where B: Producer<'b, Item=B_ITEM>
+            fn callback<B>(self, b_producer: B) -> Self::Output
+                where B: Producer<Item=B_ITEM>
             {
-                self.callback.callback(ZipProducer { p: self.a_producer, q: b_producer,
-                                                     phantoms: PhantomType::new() },
-                                       &(self.a_shared, b_shared))
+                self.callback.callback(ZipProducer { a: self.a_producer, b: b_producer })
             }
         }
 
@@ -109,33 +103,30 @@ impl<A,B> IndexedParallelIterator for ZipIter<A,B>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct ZipProducer<'a, 'b, A: Producer<'a>, B: Producer<'b>> {
-    p: A,
-    q: B,
-    phantoms: PhantomType<(&'a (), &'b ())>,
+pub struct ZipProducer<A: Producer, B: Producer> {
+    a: A,
+    b: B,
 }
 
-impl<'z, 'a, 'b, A: Producer<'a>, B: Producer<'b>> Producer<'z> for ZipProducer<'a, 'b, A, B>
-    where 'a: 'z, 'b: 'z
-{
-    type Item = (A::Item, B::Item);
-    type Shared = (&'a A::Shared, &'b B::Shared);
-
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
+impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
+    fn cost(&mut self, len: usize) -> f64 {
         // Rather unclear that this should be `+`. It might be that max is better?
-        self.p.cost(&shared.0, len) + self.q.cost(&shared.1, len)
+        self.a.cost(len) + self.b.cost(len)
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
-        let (p_left, p_right) = self.p.split_at(index);
-        let (q_left, q_right) = self.q.split_at(index);
-        (ZipProducer { p: p_left, q: q_left, phantoms: PhantomType::new() },
-         ZipProducer { p: p_right, q: q_right, phantoms: PhantomType::new() })
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let (a_left, a_right) = self.a.split_at(index);
+        let (b_left, b_right) = self.b.split_at(index);
+        (ZipProducer { a: a_left, b: b_left },
+         ZipProducer { a: a_right, b: b_right, })
     }
+}
 
-    unsafe fn produce(&mut self, shared: &(&A::Shared, &B::Shared)) -> (A::Item, B::Item) {
-        let p = self.p.produce(shared.0);
-        let q = self.q.produce(shared.1);
-        (p, q)
+impl<A: Producer, B: Producer> IntoIterator for ZipProducer<A, B> {
+    type Item = (A::Item, B::Item);
+    type IntoIter = iter::Zip<A::IntoIter, B::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.a.into_iter().zip(self.b)
     }
 }

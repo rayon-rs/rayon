@@ -1,7 +1,7 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
-use super::util::PhantomType;
+use std::iter;
 
 pub struct Map<M, MAP_OP> {
     base: M,
@@ -21,17 +21,15 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
 {
     type Item = R;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
-        let shared1 = (shared, &self.map_op);
-        self.base.drive_unindexed(consumer1, &shared1)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer1 = MapConsumer::new(consumer, &self.map_op);
+        self.base.drive_unindexed(consumer1)
     }
 }
 
-unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
     where M: BoundedParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
@@ -40,17 +38,15 @@ unsafe impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
         self.base.upper_bound()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        let consumer1: MapConsumer<M::Item, C, MAP_OP> = MapConsumer::new(consumer);
-        let shared1 = (shared, &self.map_op);
-        self.base.drive(consumer1, &shared1)
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Self::Item>
+    {
+        let consumer1 = MapConsumer::new(consumer, &self.map_op);
+        self.base.drive(consumer1)
     }
 }
 
-unsafe impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
     where M: ExactParallelIterator,
           MAP_OP: Fn(M::Item) -> R + Sync,
           R: Send,
@@ -82,14 +78,12 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
         {
             type Output = CB::Output;
 
-            fn callback<'p, P>(self,
-                               base: P,
-                               shared: &'p P::Shared)
-                               -> CB::Output
-                where P: Producer<'p, Item=ITEM>
+            fn callback<P>(self, base: P) -> CB::Output
+                where P: Producer<Item=ITEM>
             {
-                let producer = MapProducer { base: base, phantoms: PhantomType::new() };
-                self.callback.callback(producer, &(shared, &self.map_op))
+                let producer = MapProducer { base: base,
+                                             map_op: &self.map_op };
+                self.callback.callback(producer)
             }
         }
     }
@@ -97,110 +91,119 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct MapProducer<'p, P, MAP_OP, R>
-    where P: Producer<'p>,
-          MAP_OP: Fn(P::Item) -> R + Sync,
-          R: Send,
-{
+pub struct MapProducer<'m, P, MAP_OP: 'm> {
     base: P,
-    phantoms: PhantomType<(&'p (), R, MAP_OP)>,
+    map_op: &'m MAP_OP,
 }
 
-impl<'m, 'p, P, MAP_OP, R> Producer<'m> for MapProducer<'p, P, MAP_OP, R>
-    where P: Producer<'p>,
-          MAP_OP: Fn(P::Item) -> R + Sync + 'm,
-          R: Send,
-          'p: 'm
+impl<'m, P, MAP_OP, RET> Producer for MapProducer<'m, P, MAP_OP>
+    where P: Producer,
+          MAP_OP: Fn(P::Item) -> RET + Sync,
+          RET: Send,
 {
-    type Item = R;
-    type Shared = (&'p P::Shared, &'m MAP_OP);
-
-    fn cost(&mut self, shared: &Self::Shared, len: usize) -> f64 {
-        self.base.cost(&shared.0, len) * FUNC_ADJUSTMENT
+    fn cost(&mut self, len: usize) -> f64 {
+        self.base.cost(len) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (MapProducer { base: left, phantoms: PhantomType::new() },
-         MapProducer { base: right, phantoms: PhantomType::new() })
-    }
-
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> R {
-        let item = self.base.produce(&shared.0);
-        (shared.1)(item)
+        (MapProducer { base: left, map_op: self.map_op, },
+         MapProducer { base: right, map_op: self.map_op, })
     }
 }
+
+impl<'m, P, MAP_OP, RET> IntoIterator for MapProducer<'m, P, MAP_OP>
+    where P: Producer,
+          MAP_OP: Fn(P::Item) -> RET + Sync,
+          RET: Send,
+{
+    type Item = RET;
+    type IntoIter = iter::Map<P::IntoIter, &'m MAP_OP>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.base.into_iter().map(self.map_op)
+    }
+}
+
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct MapConsumer<'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
-{
+struct MapConsumer<'m, C, MAP_OP: 'm> {
     base: C,
-    phantoms: PhantomType<(&'c (), ITEM, MAP_OP)>,
+    map_op: &'m MAP_OP,
 }
 
-impl<'c, ITEM, C, MAP_OP> MapConsumer<'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>, MAP_OP: Fn(ITEM) -> C::Item + Sync,
+impl<'m, C, MAP_OP> MapConsumer<'m, C, MAP_OP>
 {
-    fn new(base: C) -> MapConsumer<'c, ITEM, C, MAP_OP> {
-        MapConsumer { base: base, phantoms: PhantomType::new() }
+    fn new(base: C, map_op: &'m MAP_OP) -> Self {
+        MapConsumer { base: base, map_op: map_op, }
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> Consumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
-    where C: Consumer<'c>,
-          MAP_OP: Fn(ITEM) -> C::Item + Sync,
-          ITEM: 'm,
-          MAP_OP: 'm,
-          'c: 'm,
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
+    for MapConsumer<'m, C, MAP_OP>
+    where C: Consumer<MAPPED_ITEM>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
 {
-    type Item = ITEM;
-    type Shared = (&'c C::Shared, &'m MAP_OP);
-    type SeqState = C::SeqState;
+    type Folder = MapFolder<'m, C::Folder, MAP_OP>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
+    fn cost(&mut self, cost: f64) -> f64 {
+        self.base.cost(cost) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.0, index);
-        (MapConsumer::new(left), MapConsumer::new(right))
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (MapConsumer::new(left, self.map_op),
+         MapConsumer::new(right, self.map_op),
+         reducer)
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.0)
-    }
-
-    unsafe fn consume(&mut self,
-                      shared: &Self::Shared,
-                      state: C::SeqState,
-                      item: Self::Item)
-                      -> C::SeqState
-    {
-        let mapped_item = (shared.1)(item);
-        self.base.consume(&shared.0, state, mapped_item)
-    }
-
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.0, state)
-    }
-
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+    fn into_folder(self) -> Self::Folder {
+        MapFolder {
+            base: self.base.into_folder(),
+            map_op: self.map_op,
+        }
     }
 }
 
-impl<'m, 'c, ITEM, C, MAP_OP> UnindexedConsumer<'m> for MapConsumer<'c, ITEM, C, MAP_OP>
-    where C: UnindexedConsumer<'c>,
-          MAP_OP: Fn(ITEM) -> C::Item + Sync,
-          ITEM: 'm,
-          MAP_OP: 'm,
-          'c: 'm,
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
+    for MapConsumer<'m, C, MAP_OP>
+    where C: UnindexedConsumer<MAPPED_ITEM>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
 {
-    fn split(&self) -> Self {
-        MapConsumer::new(self.base.split())
+    fn split_off(&self) -> Self {
+        MapConsumer::new(self.base.split_off(), &self.map_op)
+    }
+
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }
+
+struct MapFolder<'m, C, MAP_OP: 'm>
+{
+    base: C,
+    map_op: &'m MAP_OP,
+}
+
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM> for MapFolder<'m, C, MAP_OP>
+    where C: Folder<MAPPED_ITEM>,
+          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+{
+    type Result = C::Result;
+
+    fn consume(self, item: ITEM) -> Self {
+        let map_op = self.map_op;
+        let mapped_item = map_op(item);
+        let base = self.base.consume(mapped_item);
+        MapFolder { base: base, map_op: map_op }
+    }
+
+    fn complete(self) -> C::Result {
+        self.base.complete()
+    }
+}
+

@@ -1,6 +1,7 @@
 use super::*;
 use super::internal::*;
-use super::util::PhantomType;
+use std::iter;
+use std::ops::RangeFrom;
 
 pub struct Enumerate<M> {
     base: M,
@@ -17,30 +18,26 @@ impl<M> ParallelIterator for Enumerate<M>
 {
     type Item = (usize, M::Item);
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                       consumer: C,
-                                                                       shared: &'c C::Shared)
-                                                                       -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
-unsafe impl<M> BoundedParallelIterator for Enumerate<M>
+impl<M> BoundedParallelIterator for Enumerate<M>
     where M: IndexedParallelIterator,
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
     }
 }
 
-unsafe impl<M> ExactParallelIterator for Enumerate<M>
+impl<M> ExactParallelIterator for Enumerate<M>
     where M: IndexedParallelIterator,
 {
     fn len(&mut self) -> usize {
@@ -64,16 +61,12 @@ impl<M> IndexedParallelIterator for Enumerate<M>
             where CB: ProducerCallback<(usize, ITEM)>
         {
             type Output = CB::Output;
-            fn callback<'produce, P>(self,
-                                     base: P,
-                                     shared: &'produce P::Shared)
-                                     -> CB::Output
-                where P: Producer<'produce, Item=ITEM>
+            fn callback<P>(self, base: P) -> CB::Output
+                where P: Producer<Item=ITEM>
             {
                 let producer = EnumerateProducer { base: base,
-                                                   offset: 0,
-                                                   phantoms: PhantomType::new() };
-                self.callback.callback(producer, shared)
+                                                   offset: 0 };
+                self.callback.callback(producer)
             }
         }
     }
@@ -82,38 +75,32 @@ impl<M> IndexedParallelIterator for Enumerate<M>
 ///////////////////////////////////////////////////////////////////////////
 // Producer implementation
 
-pub struct EnumerateProducer<'p, P>
-    where P: Producer<'p>,
-{
+pub struct EnumerateProducer<P> {
     base: P,
     offset: usize,
-    phantoms: PhantomType<&'p ()>,
 }
 
-impl<'p, P> Producer<'p> for EnumerateProducer<'p, P>
-    where P: Producer<'p>
+impl<P> Producer for EnumerateProducer<P>
+    where P: Producer
 {
-    type Item = (usize, P::Item);
-    type Shared = P::Shared;
-
-    fn cost(&mut self, shared: &Self::Shared, items: usize) -> f64 {
-        self.base.cost(shared, items) // enumerating is basically free
+    fn cost(&mut self, items: usize) -> f64 {
+        self.base.cost(items) // enumerating is basically free
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (EnumerateProducer { base: left,
-                             offset: self.offset,
-                             phantoms: PhantomType::new() },
+                             offset: self.offset },
          EnumerateProducer { base: right,
-                             offset: self.offset + index,
-                             phantoms: PhantomType::new() })
+                             offset: self.offset + index })
     }
+}
 
-    unsafe fn produce(&mut self, shared: &Self::Shared) -> (usize, P::Item) {
-        let item = self.base.produce(shared);
-        let index = self.offset;
-        self.offset += 1;
-        (index, item)
+impl<P> IntoIterator for EnumerateProducer<P> where P: Producer {
+    type Item = (usize, P::Item);
+    type IntoIter = iter::Zip<RangeFrom<usize>, P::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (self.offset..).zip(self.base)
     }
 }

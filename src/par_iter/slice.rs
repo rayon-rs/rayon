@@ -26,28 +26,26 @@ impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
 impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
     type Item = &'data T;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
-unsafe impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        bridge(self, consumer, &shared)
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Self::Item>
+    {
+        bridge(self, consumer)
     }
 }
 
-unsafe impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
     fn len(&mut self) -> usize {
         self.slice.len()
     }
@@ -57,7 +55,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.callback(SliceProducer { slice: self.slice }, &())
+        callback.callback(SliceProducer { slice: self.slice })
     }
 }
 
@@ -67,23 +65,22 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
     slice: &'data [T]
 }
 
-impl<'p, 'data, T: 'data + Sync> Producer<'p> for SliceProducer<'data, T>
-{
-    type Item = &'data T;
-    type Shared = ();
-
-    fn cost(&mut self, _shared: &Self::Shared, len: usize) -> f64 {
+impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
+    fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
 
-    unsafe fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
         (SliceProducer { slice: left }, SliceProducer { slice: right })
     }
+}
 
-    unsafe fn produce(&mut self, _: &()) -> &'data T {
-        let (head, tail) = self.slice.split_first().unwrap();
-        self.slice = tail;
-        head
+impl<'data, T: 'data + Sync> IntoIterator for SliceProducer<'data, T> {
+    type Item = &'data T;
+    type IntoIter = ::std::slice::Iter<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.into_iter()
     }
 }

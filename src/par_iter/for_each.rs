@@ -1,63 +1,63 @@
 use super::ParallelIterator;
 use super::len::*;
 use super::internal::*;
-use super::util::*;
 
 pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
     where PAR_ITER: ParallelIterator<Item=T>,
           OP: Fn(T) + Sync,
           T: Send,
 {
-    let consumer: ForEachConsumer<PAR_ITER::Item, OP> = ForEachConsumer { data: PhantomType::new() };
-    pi.drive_unindexed(consumer, op)
+    let consumer = ForEachConsumer { op: op };
+    pi.drive_unindexed(consumer)
 }
 
-struct ForEachConsumer<ITEM, OP>
+struct ForEachConsumer<'f, OP: 'f> {
+    op: &'f OP,
+}
+
+impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
     where OP: Fn(ITEM) + Sync,
 {
-    data: PhantomType<(ITEM, OP)>
-}
-
-impl<'c, ITEM, OP> Consumer<'c> for ForEachConsumer<ITEM, OP>
-    where OP: Fn(ITEM) + Sync + 'c, ITEM: 'c,
-{
-    type Item = ITEM;
-    type Shared = OP;
-    type SeqState = ();
+    type Folder = ForEachConsumer<'f, OP>;
+    type Reducer = NoopReducer;
     type Result = ();
 
-    fn cost(&mut self, _shared: &Self::Shared, cost: f64) -> f64 {
+    fn cost(&mut self, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
         cost * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, _: &Self::Shared, _index: usize) -> (Self, Self) {
-        (self.split(), self.split())
+    fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {
+        (self.split_off(), self.split_off(), NoopReducer)
     }
 
-    unsafe fn start(&mut self, _reduce_op: &OP) {
-    }
-
-    unsafe fn consume(&mut self,
-                      op: &OP,
-                      _prev_value: (),
-                      item: ITEM) {
-        op(item);
-    }
-
-    unsafe fn complete(self,
-                       _op: &OP,
-                       _state: ()) {
-    }
-
-    unsafe fn reduce(_reduce_op: &OP, _: (), _: ()) {
+    fn into_folder(self) -> Self {
+        self
     }
 }
 
-impl<'c, ITEM, OP> UnindexedConsumer<'c> for ForEachConsumer<ITEM, OP>
-    where OP: Fn(ITEM) + Sync + 'c, ITEM: 'c,
+impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
+    where OP: Fn(ITEM) + Sync,
 {
-    fn split(&self) -> Self {
-        ForEachConsumer { data: PhantomType::new() }
+    type Result = ();
+
+    fn consume(self, item: ITEM) -> Self {
+        (self.op)(item);
+        self
+    }
+
+    fn complete(self) {
+    }
+}
+
+impl<'f, OP, ITEM> UnindexedConsumer<ITEM> for ForEachConsumer<'f, OP>
+    where OP: Fn(ITEM) + Sync,
+{
+    fn split_off(&self) -> Self {
+        ForEachConsumer { op: self.op }
+    }
+
+    fn to_reducer(&self) -> NoopReducer {
+        NoopReducer
     }
 }

@@ -1,7 +1,6 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
-use super::util::PhantomType;
 
 pub struct Filter<M, FILTER_OP> {
     base: M,
@@ -20,17 +19,15 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
 {
     type Item = M::Item;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        let consumer1: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
-        let shared1 = (shared, &self.filter_op);
-        self.base.drive_unindexed(consumer1, &shared1)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
+        self.base.drive_unindexed(consumer1)
     }
 }
 
-unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
+impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
     where M: BoundedParallelIterator,
           FILTER_OP: Fn(&M::Item) -> bool + Sync
 {
@@ -38,83 +35,87 @@ unsafe impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
         self.base.upper_bound()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        let consumer1: FilterConsumer<C, FILTER_OP> = FilterConsumer::new(consumer);
-        let shared1 = (shared, &self.filter_op);
-        self.base.drive(consumer1, &shared1)
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Self::Item>
+    {
+        let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
+        self.base.drive(consumer1)
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterConsumer<'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync
-{
+struct FilterConsumer<'f, C, FILTER_OP: 'f> {
     base: C,
-    filter_op: PhantomType<(&'c (), FILTER_OP)>,
+    filter_op: &'f FILTER_OP,
 }
 
-impl<'c, C, FILTER_OP> FilterConsumer<'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync
-{
-    fn new(base: C) -> FilterConsumer<'c, C, FILTER_OP> {
-        FilterConsumer { base: base, filter_op: PhantomType::new() }
+impl<'f, C, FILTER_OP> FilterConsumer<'f, C, FILTER_OP> {
+    fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
+        FilterConsumer { base: base, filter_op: filter_op }
     }
 }
 
-impl<'f, 'c, C, FILTER_OP: 'f> Consumer<'f> for FilterConsumer<'c, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f,
+impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER_OP>
+    where C: Consumer<ITEM>, FILTER_OP: Fn(&ITEM) -> bool + Sync,
 {
-    type Item = C::Item;
-    type Shared = (&'c C::Shared, &'f FILTER_OP);
-    type SeqState = C::SeqState;
+    type Folder = FilterFolder<'f, C::Folder, FILTER_OP>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
     /// Cost to process `items` number of items.
-    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
+    fn cost(&mut self, cost: f64) -> f64 {
+        self.base.cost(cost) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.0, index);
-        (FilterConsumer::new(left), FilterConsumer::new(right))
+    fn split_at(self, index: usize) -> (Self, Self, C::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (FilterConsumer::new(left, self.filter_op),
+         FilterConsumer::new(right, self.filter_op),
+         reducer)
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.0)
+    fn into_folder(self) -> Self::Folder {
+        FilterFolder { base: self.base.into_folder(), filter_op: self.filter_op, }
+    }
+}
+
+
+impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM>
+    for FilterConsumer<'f, C, FILTER_OP>
+    where C: UnindexedConsumer<ITEM>, FILTER_OP: Fn(&ITEM) -> bool + Sync,
+{
+    fn split_off(&self) -> Self {
+        FilterConsumer::new(self.base.split_off(), &self.filter_op)
     }
 
-    unsafe fn consume(&mut self,
-                      shared: &Self::Shared,
-                      state: C::SeqState,
-                      item: Self::Item)
-                      -> C::SeqState
-    {
-        if (shared.1)(&item) {
-            self.base.consume(&shared.0, state, item)
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+struct FilterFolder<'f, C, FILTER_OP: 'f> {
+    base: C,
+    filter_op: &'f FILTER_OP,
+}
+
+impl<'f, C, FILTER_OP, ITEM> Folder<ITEM> for FilterFolder<'f, C, FILTER_OP>
+    where C: Folder<ITEM>, FILTER_OP: Fn(&ITEM) -> bool + 'f
+{
+    type Result = C::Result;
+
+    fn consume(self, item: ITEM) -> Self {
+        let filter_op = self.filter_op;
+        if filter_op(&item) {
+            let base = self.base.consume(item);
+            FilterFolder { base: base, filter_op: filter_op }
         } else {
-            state
+            self
         }
     }
 
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.0, state)
-    }
-
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+    fn complete(self) -> Self::Result {
+        self.base.complete()
     }
 }
-
-impl<'f, 'c, C, FILTER_OP: 'f> UnindexedConsumer<'f> for FilterConsumer<'c, C, FILTER_OP>
-    where C: UnindexedConsumer<'c>, FILTER_OP: Fn(&C::Item) -> bool + Sync, 'c: 'f,
-{
-    fn split(&self) -> Self {
-        FilterConsumer::new(self.base.split())
-    }
-}
-

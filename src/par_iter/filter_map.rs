@@ -1,7 +1,6 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
-use super::util::PhantomType;
 
 pub struct FilterMap<M, FILTER_OP> {
     base: M,
@@ -21,17 +20,15 @@ impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
 {
     type Item = R;
 
-    fn drive_unindexed<'c, C: UnindexedConsumer<'c, Item=Self::Item>>(self,
-                                                                      consumer: C,
-                                                                      shared: &'c C::Shared)
-                                                                      -> C::Result {
-        let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
-        let shared = (shared, &self.filter_op);
-        self.base.drive_unindexed(consumer, &shared)
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
+        self.base.drive_unindexed(consumer)
     }
 }
 
-unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
+impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
     where M: BoundedParallelIterator,
           FILTER_OP: Fn(M::Item) -> Option<R> + Sync,
           R: Send,
@@ -40,83 +37,95 @@ unsafe impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
         self.base.upper_bound()
     }
 
-    fn drive<'c, C: Consumer<'c, Item=Self::Item>>(self,
-                                                   consumer: C,
-                                                   shared: &'c C::Shared)
-                                                   -> C::Result {
-        let consumer: FilterMapConsumer<M::Item, C, FILTER_OP> = FilterMapConsumer::new(consumer);
-        let shared = (shared, &self.filter_op);
-        self.base.drive(consumer, &shared)
+    fn drive<C>(self, consumer: C) -> C::Result
+        where C: Consumer<Self::Item>
+    {
+        let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
+        self.base.drive(consumer)
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
-{
+struct FilterMapConsumer<'f, C, FILTER_OP: 'f> {
     base: C,
-    phantoms: PhantomType<(&'c (), ITEM, FILTER_OP)>,
+    filter_op: &'f FILTER_OP,
 }
 
-impl<'c, ITEM, C, FILTER_OP> FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync,
-{
-    fn new(base: C) -> FilterMapConsumer<'c, ITEM, C, FILTER_OP> {
-        FilterMapConsumer { base: base, phantoms: PhantomType::new() }
+impl<'f, C, FILTER_OP: 'f> FilterMapConsumer<'f, C, FILTER_OP> {
+    fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
+        FilterMapConsumer { base: base,
+                            filter_op: filter_op }
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> Consumer<'f> for FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: Consumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f, 'c: 'f
+impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
+    for FilterMapConsumer<'f, C, FILTER_OP>
+    where C: Consumer<MAPPED_ITEM>,
+          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f,
 {
-    type Item = ITEM;
-    type Shared = (&'c C::Shared, &'f FILTER_OP);
-    type SeqState = C::SeqState;
+    type Folder = FilterMapFolder<'f, C::Folder, FILTER_OP>;
+    type Reducer = C::Reducer;
     type Result = C::Result;
 
     /// Cost to process `items` number of items.
-    fn cost(&mut self, shared: &Self::Shared, cost: f64) -> f64 {
-        self.base.cost(&shared.0, cost) * FUNC_ADJUSTMENT
+    fn cost(&mut self, cost: f64) -> f64 {
+        self.base.cost(cost) * FUNC_ADJUSTMENT
     }
 
-    unsafe fn split_at(self, shared: &Self::Shared, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.split_at(&shared.0, index);
-        (FilterMapConsumer::new(left), FilterMapConsumer::new(right))
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (FilterMapConsumer::new(left, self.filter_op),
+         FilterMapConsumer::new(right, self.filter_op),
+         reducer)
     }
 
-    unsafe fn start(&mut self, shared: &Self::Shared) -> C::SeqState {
-        self.base.start(&shared.0)
-    }
-
-    unsafe fn consume(&mut self,
-                      shared: &Self::Shared,
-                      state: C::SeqState,
-                      item: Self::Item)
-                      -> C::SeqState
-    {
-        if let Some(mapped_item) = (shared.1)(item) {
-            self.base.consume(&shared.0, state, mapped_item)
-        } else {
-            state
-        }
-    }
-
-    unsafe fn complete(self, shared: &Self::Shared, state: C::SeqState) -> C::Result {
-        self.base.complete(&shared.0, state)
-    }
-
-    unsafe fn reduce(shared: &Self::Shared, left: C::Result, right: C::Result) -> C::Result {
-        C::reduce(&shared.0, left, right)
+    fn into_folder(self) -> Self::Folder {
+        let base = self.base.into_folder();
+        FilterMapFolder { base: base,
+                          filter_op: self.filter_op }
     }
 }
 
-impl<'f, 'c, ITEM, C, FILTER_OP> UnindexedConsumer<'f> for FilterMapConsumer<'c, ITEM, C, FILTER_OP>
-    where C: UnindexedConsumer<'c>, FILTER_OP: Fn(ITEM) -> Option<C::Item> + Sync, ITEM: 'f, FILTER_OP: 'f, 'c: 'f
+impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
+    for FilterMapConsumer<'f, C, FILTER_OP>
+    where C: UnindexedConsumer<MAPPED_ITEM>,
+          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f,
 {
-    fn split(&self) -> Self {
-        FilterMapConsumer::new(self.base.split())
+    fn split_off(&self) -> Self {
+        FilterMapConsumer::new(self.base.split_off(), &self.filter_op)
+    }
+
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+struct FilterMapFolder<'f, C, FILTER_OP: 'f> {
+    base: C,
+    filter_op: &'f FILTER_OP,
+}
+
+impl<'f, ITEM, C_ITEM, C, FILTER_OP> Folder<ITEM> for FilterMapFolder<'f, C, FILTER_OP>
+    where C: Folder<C_ITEM>,
+          FILTER_OP: Fn(ITEM) -> Option<C_ITEM> + Sync + 'f,
+{
+    type Result = C::Result;
+
+    fn consume(self, item: ITEM) -> Self {
+        let filter_op = self.filter_op;
+        if let Some(mapped_item) = filter_op(item) {
+            let base = self.base.consume(mapped_item);
+            FilterMapFolder { base: base,
+                              filter_op: filter_op }
+        } else {
+            self
+        }
+    }
+
+    fn complete(self) -> C::Result {
+        self.base.complete()
     }
 }
 
