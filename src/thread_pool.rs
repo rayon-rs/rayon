@@ -23,7 +23,7 @@ pub struct Registry {
 struct RegistryState {
     terminate: bool,
     threads_at_work: usize,
-    injected_jobs: Vec<*mut Job<LockLatch>>,
+    injected_jobs: Vec<Job>,
 }
 
 unsafe impl Send for Registry { }
@@ -61,7 +61,7 @@ unsafe fn init_registry(config: Configuration) {
 
 enum Work {
     None,
-    Job(*mut Job<LockLatch>),
+    Job(Job),
     Terminate,
 }
 
@@ -113,11 +113,17 @@ impl Registry {
         self.work_available.notify_all();
     }
 
-    pub unsafe fn inject(&self, injected_jobs: &[*mut (Job<LockLatch> + 'static)]) {
+    pub unsafe fn inject(&self, injected_jobs: &[Job]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         if state.terminate {
             drop(state);
+            // We can only reach this point if these conditions are met:
+            // 1) This must be the global thread pool
+            // 2) The only way to terminate the global thread pool is if a
+            //    worker thread panics.
+            // 3) A worker thread can only panic if a job panicked and was not
+            //    caught by panic::recover.
             panic!("rayon thread pool is contaminated by a previous panic; recovery is only available on nightly compilers");
         }
         state.injected_jobs.extend(injected_jobs);
@@ -182,8 +188,8 @@ struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
     primed: LockLatch,
-    worker: Worker<JobRef>,
-    stealer: Stealer<JobRef>,
+    worker: Worker<Job>,
+    stealer: Stealer<Job>,
 }
 
 impl ThreadInfo {
@@ -244,8 +250,8 @@ impl WorkerThread {
     }
 
     #[inline]
-    pub unsafe fn push(&self, job: *mut Job<SpinLatch>) {
-        self.thread_info().worker.push(JobRef { ptr: job });
+    pub unsafe fn push(&self, job: Job) {
+        self.thread_info().worker.push(job);
     }
 
     /// Pop `job` from top of stack, returning `false` if it has been
@@ -259,7 +265,7 @@ impl WorkerThread {
     pub unsafe fn steal_until(&self, latch: &SpinLatch) {
         while !latch.probe() {
             if let Some(job) = steal_work(&self.registry, self.index) {
-                (*job).execute();
+                (job.execute)(job.data);
             } else {
                 thread::yield_now();
             }
@@ -294,7 +300,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     loop {
         match registry.wait_for_work(index, was_active) {
             Work::Job(injected_job) => {
-                (*injected_job).execute();
+                (injected_job.execute)(injected_job.data);
                 was_active = true;
                 continue;
             }
@@ -305,7 +311,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
         if let Some(stolen_job) = steal_work(&registry, index) {
             log!(StoleWork { worker: index });
             registry.start_working(index);
-            (*stolen_job).execute();
+            (stolen_job.execute)(stolen_job.data);
             was_active = true;
         } else {
             was_active = false;
@@ -313,7 +319,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     }
 }
 
-unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job<SpinLatch>> {
+unsafe fn steal_work(registry: &Registry, index: usize) -> Option<Job> {
     let num_threads = registry.num_threads();
     let start = rand::random::<usize>() % num_threads;
     (start .. num_threads)
@@ -322,16 +328,7 @@ unsafe fn steal_work(registry: &Registry, index: usize) -> Option<*mut Job<SpinL
         .flat_map(|i| match registry.thread_infos[i].stealer.steal() {
             Stolen::Empty => None,
             Stolen::Abort => None, // loop?
-            Stolen::Data(v) => Some(v.ptr),
+            Stolen::Data(v) => Some(v),
         })
         .next()
 }
-
-///////////////////////////////////////////////////////////////////////////
-
-pub struct JobRef {
-    pub ptr: *mut Job<SpinLatch>
-}
-
-unsafe impl Send for JobRef { }
-unsafe impl Sync for JobRef { }

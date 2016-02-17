@@ -1,5 +1,4 @@
 use latch::Latch;
-use std::mem;
 #[cfg(feature = "nightly")]
 use std::any::Any;
 #[cfg(feature = "nightly")]
@@ -17,9 +16,19 @@ enum JobResult<T> {
 /// arranged in a deque, so that thieves can take from the top of the
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
-pub trait Job<L:Latch> {
-    unsafe fn execute(&mut self);
+///
+/// Note that we don't use a trait here due to `&mut` aliasing issues. A thief
+/// needs an `&mut` to access the func and result fields, while the original
+/// thread uses a `&` to access the latch. We solve this by simply using a raw
+/// pointer which allows us to get an &mut for func and result while getting a
+/// `&` for the latch.
+#[derive(Copy, Clone)]
+pub struct Job {
+    pub execute: unsafe fn(*mut ()),
+    pub data: *mut (),
 }
+unsafe impl Send for Job { }
+unsafe impl Sync for Job { }
 
 pub struct JobImpl<L:Latch,F,R> {
     pub latch: L,
@@ -38,8 +47,29 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
         }
     }
 
-    pub unsafe fn as_static(&mut self) -> *mut Job<L> {
-        mem::transmute(self as *mut Job<L>)
+    pub unsafe fn as_job(&mut self) -> Job {
+        unsafe fn execute<L:Latch,F,R>(data: *mut ())
+            where F: FnOnce() -> R
+        {
+            let job = data as *mut JobImpl<L,F,R>;
+
+            // Use a guard here to ensure that the latch is always set, even if
+            // the function panics.
+            struct PanicGuard<'a,L:Latch + 'a>(&'a L);
+            impl<'a,L:Latch> Drop for PanicGuard<'a,L> {
+                fn drop(&mut self) {
+                    self.0.set();
+                }
+            }
+            let _guard = PanicGuard(&(*job).latch);
+            let func = (*job).func.take().unwrap();
+            (*job).result = JobImpl::<L,F,R>::run_result(func);
+        }
+
+        Job {
+            execute: execute::<L,F,R>,
+            data: self as *mut _ as *mut (),
+        }
     }
 
     pub fn run_inline(self) -> R {
@@ -70,30 +100,14 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
 
     #[cfg(feature = "nightly")]
     fn run_result(func: F) -> JobResult<R> {
-        // RecoverSafe is a bit ugly to deal with...
-        // Ideally this would just be panic::recover(func)
+        // We assert that func is recover-safe since it doesn't touch any of
+        // our data and we will be propagating the panic back to the user at
+        // the join() call.
+        // FIXME(rust-lang/rust#31728) Use into_inner() instead
         let mut wrapper = AssertRecoverSafe::new(Some(func));
         match panic::recover(move || (*wrapper).take().unwrap()()) {
             Ok(x) => JobResult::Ok(x),
             Err(x) => JobResult::Panic(x),
         }
-    }
-}
-
-impl<L:Latch,F,R> Job<L> for JobImpl<L,F,R>
-    where F: FnOnce() -> R
-{
-    unsafe fn execute(&mut self) {
-        // Use a guard here to ensure that the latch is always set, even if the
-        // function panics.
-        struct PanicGuard<'a,L:Latch + 'a>(&'a L);
-        impl<'a,L:Latch> Drop for PanicGuard<'a,L> {
-            fn drop(&mut self) {
-                self.0.set();
-            }
-        }
-        let _guard = PanicGuard(&self.latch);
-        let func = self.func.take().unwrap();
-        self.result = Self::run_result(func);
     }
 }
