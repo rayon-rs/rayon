@@ -20,6 +20,7 @@ impl SpinLatch {
     }
 
     /// Test if latch is set.
+    #[inline]
     pub fn probe(&self) -> bool {
         self.b.load(Ordering::Acquire)
     }
@@ -27,6 +28,7 @@ impl SpinLatch {
 
 impl Latch for SpinLatch {
     /// Set the latch to true, releasing all threads who are waiting.
+    #[inline]
     fn set(&self) {
         self.b.store(true, Ordering::Release);
     }
@@ -59,6 +61,7 @@ impl LockLatch {
 
 impl Latch for LockLatch {
     /// Set the latch to true, releasing all threads who are waiting.
+    #[inline]
     fn set(&self) {
         let mut guard = self.m.lock().unwrap();
         *guard = true;

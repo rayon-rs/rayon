@@ -1,7 +1,5 @@
 //! Debug Logging
 
-use job::Job;
-use latch::SpinLatch;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 
 #[allow(dead_code)]
@@ -10,7 +8,7 @@ pub enum Event {
     StartWorking { index: usize },
     InjectJobs { count: usize },
     WaitForWork { worker: usize, was_active: bool },
-    StoleWork { worker: usize, job: *mut Job<SpinLatch> },
+    StoleWork { worker: usize },
     Join { worker: usize },
     PoppedJob { worker: usize },
     LostJob { worker: usize },
