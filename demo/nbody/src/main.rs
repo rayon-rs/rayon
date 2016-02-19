@@ -80,7 +80,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = time::precise_time_ns() - par_start;
-        println!("Parallel time   : {}", par_time);
+        println!("Parallel time    : {}", par_time);
 
         Some(par_time)
     } else {
@@ -97,7 +97,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = time::precise_time_ns() - par_start;
-        println!("ParReduce time  : {}", par_time);
+        println!("ParReduce time   : {}", par_time);
 
         Some(par_time)
     } else {
@@ -114,7 +114,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let seq_time = time::precise_time_ns() - seq_start;
-        println!("Sequential time : {}", seq_time);
+        println!("Sequential time  : {}", seq_time);
 
         Some(seq_time)
     } else {
@@ -122,10 +122,10 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     };
 
     if let (Some(pt), Some(st)) = (par_time, seq_time) {
-        println!("Parallel speedup: {}", (st as f32) / (pt as f32));
+        println!("Parallel speedup : {}", (st as f32) / (pt as f32));
     }
 
     if let (Some(pt), Some(st)) = (par_reduce_time, seq_time) {
-        println!("Parallel reduce speedup: {}", (st as f32) / (pt as f32));
+        println!("ParReduce speedup: {}", (st as f32) / (pt as f32));
     }
 }
