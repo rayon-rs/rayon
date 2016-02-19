@@ -96,6 +96,31 @@ impl NBodyBenchmark {
                   .weight(200.0)
                   .zip(&in_bodies[..])
                   .for_each(|(out, prev)| {
+                      let (vel, vel2) = next_velocity(time, prev, in_bodies);
+                      out.velocity = vel;
+                      out.velocity2 = vel2;
+
+                      let next_velocity = vel - vel2;
+                      out.position = prev.position + next_velocity;
+                  });
+
+        self.time += 1;
+
+        out_bodies
+    }
+
+    pub fn tick_reduce(&mut self) -> &[Body] {
+        let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
+            (&self.bodies.0, &mut self.bodies.1)
+        } else {
+            (&self.bodies.1, &mut self.bodies.0)
+        };
+
+        let time = self.time;
+        out_bodies.par_iter_mut()
+                  .weight(200.0)
+                  .zip(&in_bodies[..])
+                  .for_each(|(out, prev)| {
                       let (vel, vel2) = next_velocity_par(time, prev, in_bodies);
                       out.velocity = vel;
                       out.velocity2 = vel2;
