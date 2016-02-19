@@ -32,7 +32,6 @@
 use cgmath::{EuclideanVector, Point3, Vector, Vector3};
 use rayon::par_iter::*;
 use rand::{Rand, Rng};
-use std::f64::NEG_INFINITY;
 use std::f64::consts::PI;
 
 const INITIAL_VELOCITY: f64 = 8.0; // set to 0.0 to turn off.
@@ -345,64 +344,61 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
         acc += diff;
     }
 
-    let (diff, diff2) =
-        bodies.par_iter()
-              .map(|body| {
-                  let r = body.position - prev.position;
+    let zero: Vector3<f64> = Vector3::zero();
+    let (diff, diff2) = bodies
+        .par_iter()
+        .fold(
+            (zero, zero),
+            |(mut diff, mut diff2), body| {
+                let r = body.position - prev.position;
 
-                  let mut diff = Vector3::zero();
-                  let mut diff2 = Vector3::zero();
+                // make sure we are not testing the particle against its own position
+                let are_same = r == Vector3::zero();
 
-                  // make sure we are not testing the particle against its own position
-                  let are_same = r == Vector3::zero();
+                let dist_sqrd = r.length2();
 
-                  let dist_sqrd = r.length2();
+                if dist_sqrd < zone_sqrd && !are_same {
+                    let length = dist_sqrd.sqrt();
+                    let percent = dist_sqrd / zone_sqrd;
 
-                  if dist_sqrd < zone_sqrd && !are_same {
-                      let length = dist_sqrd.sqrt();
-                      let percent = dist_sqrd / zone_sqrd;
+                    if dist_sqrd < repel {
+                        let f = (repel / percent - 1.0) * 0.025;
+                        let normal = (r / length) * f;
+                        diff += normal;
+                        diff2 += normal;
+                    } else if dist_sqrd < align {
+                        let thresh_delta = align - repel;
+                        let adjusted_percent = (percent - repel) / thresh_delta;
+                        let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
 
-                      if dist_sqrd < repel {
-                          let f = (repel / percent - 1.0) * 0.025;
-                          let normal = (r / length) * f;
-                          diff += normal;
-                          diff2 += normal;
-                      } else if dist_sqrd < align {
-                          let thresh_delta = align - repel;
-                          let adjusted_percent = (percent - repel) / thresh_delta;
-                          let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
+                        // normalize vel2 and multiply by factor
+                        let vel2_length = body.velocity2.length();
+                        let vel2 = (body.velocity2 / vel2_length) * q;
 
-                          // normalize vel2 and multiply by factor
-                          let vel2_length = body.velocity2.length();
-                          let vel2 = (body.velocity2 / vel2_length) * q;
+                        // normalize own velocity
+                        let vel_length = prev.velocity.length();
+                        let vel = (prev.velocity / vel_length) * q;
 
-                          // normalize own velocity
-                          let vel_length = prev.velocity.length();
-                          let vel = (prev.velocity / vel_length) * q;
+                        diff += vel2;
+                        diff2 += vel;
+                    }
 
-                          diff += vel2;
-                          diff2 += vel;
-                      }
+                    if dist_sqrd > attract { // attract
+                        let thresh_delta2 = 1.0 - attract;
+                        let adjusted_percent2 = (percent - attract) / thresh_delta2;
+                        let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
 
-                      if dist_sqrd > attract { // attract
-                          let thresh_delta2 = 1.0 - attract;
-                          let adjusted_percent2 = (percent - attract) / thresh_delta2;
-                          let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
+                        // normalize the distance vector
+                        let d = (r / length) * c;
 
-                          // normalize the distance vector
-                          let d = (r / length) * c;
+                        diff += d;
+                        diff2 -= d;
+                    }
+                }
 
-                          diff += d;
-                          diff2 -= d;
-                      }
-                  }
-
-                  (diff, diff2)
-              })
-              .weight(NEG_INFINITY)
-              .reduce_with_identity(
-                  (Vector3::zero(), Vector3::zero()),
-                  |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b));
+                (diff, diff2)
+            },
+            |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b));
 
     acc += diff;
     acc2 += diff2;

@@ -33,6 +33,7 @@ pub mod flat_map;
 pub mod internal;
 pub mod len;
 pub mod for_each;
+pub mod fold;
 pub mod reduce;
 pub mod slice;
 pub mod slice_mut;
@@ -165,6 +166,18 @@ pub trait ParallelIterator: Sized {
               Self::Item: Clone + Sync,
     {
         reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
+    }
+
+    fn fold<I,FOLD_OP,REDUCE_OP>(self,
+                                 identity: I,
+                                 fold_op: FOLD_OP,
+                                 reduce_op: REDUCE_OP)
+                                 -> I
+        where FOLD_OP: Fn(I, Self::Item) -> I + Sync,
+              REDUCE_OP: Fn(I, I) -> I + Sync,
+              I: Clone + Sync + Send,
+    {
+        fold::fold(self, &identity, &fold_op, &reduce_op)
     }
 
     /// Sums up the items in the iterator.
