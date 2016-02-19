@@ -134,6 +134,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
         {
             let bodies = match mode {
                 ExecutionMode::Par => benchmark.tick_par(),
+                ExecutionMode::ParReduce => benchmark.tick_par_reduce(),
                 ExecutionMode::Seq => benchmark.tick_seq(),
             };
 

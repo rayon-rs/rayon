@@ -109,7 +109,7 @@ impl NBodyBenchmark {
         out_bodies
     }
 
-    pub fn tick_reduce(&mut self) -> &[Body] {
+    pub fn tick_par_reduce(&mut self) -> &[Body] {
         let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
             (&self.bodies.0, &mut self.bodies.1)
         } else {
