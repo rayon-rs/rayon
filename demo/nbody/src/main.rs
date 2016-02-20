@@ -80,7 +80,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = time::precise_time_ns() - par_start;
-        println!("Parallel time    : {}", par_time);
+        println!("Parallel time    : {} ns", par_time);
 
         Some(par_time)
     } else {
@@ -97,7 +97,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = time::precise_time_ns() - par_start;
-        println!("ParReduce time   : {}", par_time);
+        println!("ParReduce time   : {} ns", par_time);
 
         Some(par_time)
     } else {
@@ -114,7 +114,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let seq_time = time::precise_time_ns() - seq_start;
-        println!("Sequential time  : {}", seq_time);
+        println!("Sequential time  : {} ns", seq_time);
 
         Some(seq_time)
     } else {
