@@ -33,6 +33,7 @@ pub mod flat_map;
 pub mod internal;
 pub mod len;
 pub mod for_each;
+#[cfg(feature = "unstable")]
 pub mod fold;
 pub mod reduce;
 pub mod slice;
@@ -168,6 +169,7 @@ pub trait ParallelIterator: Sized {
         reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
     }
 
+    #[cfg(feature = "unstable")]
     fn fold<I,FOLD_OP,REDUCE_OP>(self,
                                  identity: I,
                                  fold_op: FOLD_OP,
