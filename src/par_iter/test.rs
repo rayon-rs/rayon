@@ -217,6 +217,30 @@ pub fn check_zip() {
 }
 
 #[test]
+pub fn check_zip_into_par_iter() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter_mut()
+     .zip(&b) // here we rely on &b iterating over &usize
+     .for_each(|(a, &b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_zip_into_mut_par_iter() {
+    let a: Vec<usize> = (0..1024).rev().collect();
+    let mut b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter()
+     .zip(&mut b)
+     .for_each(|(&a, b)| *b += a);
+
+    assert!(b.iter().all(|&x| x == b.len() - 1));
+}
+
+#[test]
 pub fn check_zip_range() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
 

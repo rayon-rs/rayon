@@ -14,6 +14,15 @@ impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
     }
 }
 
+impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
+    type Item = &'data T;
+    type Iter = SliceIter<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        SliceIter { slice: self }
+    }
+}
+
 impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
     type Item = T;
     type Iter = SliceIter<'data, T>;
