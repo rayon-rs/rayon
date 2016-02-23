@@ -12,6 +12,7 @@ mod api;
 mod latch;
 mod job;
 pub mod par_iter;
+pub mod prelude;
 #[cfg(test)] mod test;
 mod thread_pool;
 mod util;

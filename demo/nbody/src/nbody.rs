@@ -30,7 +30,7 @@
 // [1]: https://github.com/IntelLabs/RiverTrail/blob/master/examples/nbody-webgl/NBody.js
 
 use cgmath::{EuclideanVector, Point3, Vector, Vector3};
-use rayon::par_iter::*;
+use rayon::prelude::*;
 use rand::{Rand, Rng};
 use std::f64::consts::PI;
 
