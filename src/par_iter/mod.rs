@@ -169,6 +169,56 @@ pub trait ParallelIterator: Sized {
         reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
     }
 
+    /// A variant on the typical `map/reduce` pattern. Parallel fold
+    /// is similar to sequential fold except that the sequence of
+    /// items may be subdivided before it is folded. The resulting
+    /// values are then reduced together using `reduce_op`.  Typically
+    /// `fold_op` and `reduce_op` will be doing the same conceptual
+    /// operation, but on different types, or with a different twist.
+    ///
+    /// Here is how to visualize what is happening. Imagine an input
+    /// sequence with 7 values as shown:
+    ///
+    /// ```
+    /// [ 0 1 2 3 4 5 6 ]
+    ///   |     | |   |
+    ///   +--X--+ +-Y-+ // <-- fold_op
+    ///      |      |
+    ///      +---Z--+   // <-- reduce_op
+    /// ```
+    ///
+    /// These values will be first divided into contiguous chunks of
+    /// some size (the precise sizes will depend on how many cores are
+    /// present and how active they are). These are folded using
+    /// `fold_op`. Here, the chunk `[0, 1, 2, 3]` was folded into `X`
+    /// and the chunk `[4, 5, 6]` was folded into `Y`. Note that `X`
+    /// and `Y` may, in general, have different types than the
+    /// original input sequence. Now the results from these folds are
+    /// themselves *reduced* using `reduce_op` (again, in some
+    /// unspecified order). So now `X` and `Y` are reduced to `Z`,
+    /// which is the final result. Note that `reduce_op` must consume
+    /// and produce values of the same type.
+    ///
+    /// Note that `fold` can always be expressed using map/reduce. For
+    /// example, a call `self.fold(identity, fold_op, reduce_op)` could
+    /// also be expressed as follows:
+    ///
+    /// ```
+    /// self.map(|elem| fold_op(identity.clone(), elem))
+    ///     .reduce_with_identity(identity, reduce_op)
+    /// ```
+    ///
+    /// This is equivalent to an execution of `fold` where the
+    /// subsequences that were folded sequentially would up being of
+    /// length 1.  However, this would rarely happen in practice,
+    /// typically the subsequences would be larger, and hence a call
+    /// to `fold` *can* be more efficient than map/reduce,
+    /// particularly if the `fold_op` is more efficient when applied
+    /// to a large sequence.
+    ///
+    /// **This method is marked as unstable** because it is
+    /// particularly likely to change its name and/or signature, or go
+    /// away entirely.
     #[cfg(feature = "unstable")]
     fn fold<I,FOLD_OP,REDUCE_OP>(self,
                                  identity: I,
