@@ -3,7 +3,7 @@
 //! The `ParallelIterator` module makes it easy to write parallel
 //! programs using an iterator-style interface. To get access to all
 //! the methods you want, the easiest is to write `use
-//! rayon::par_iter::*;` at the top of your module, which will import
+//! rayon::prelude::*;` at the top of your module, which will import
 //! the various traits and methods you need.
 //!
 //! The submodules of this module mostly just contain implementaton

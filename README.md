@@ -36,7 +36,7 @@ example, to compute the sum of the squares of a sequence of integers,
 one might write:
 
 ```rust
-use rayon::par_iter::*;
+use rayon::prelude::*;
 fn sum_of_squares(input: &[i32]) -> i32 {
     input.par_iter()
          .map(|&i| i * i)
@@ -47,7 +47,7 @@ fn sum_of_squares(input: &[i32]) -> i32 {
 Or, to increment all the integers in a slice, you could write:
 
 ```rust
-use rayon::par_iter::*;
+use rayon::prelude::*;
 fn increment_all(input: &mut [i32]) {
     input.par_iter_mut()
          .for_each(|p| *p += 1);
@@ -55,7 +55,7 @@ fn increment_all(input: &mut [i32]) {
 ```
 
 To use parallel iterators, first import the traits by adding something
-like `use rayon::par_iter::*` to your module. You can then call
+like `use rayon::prelude::*` to your module. You can then call
 `par_iter` and `par_iter_mut` to get a parallel iterator.  Like a
 [regular iterator][], parallel iterators work by first constructing a
 computation and then executing it. See the

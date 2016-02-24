@@ -8,7 +8,7 @@ extern crate rayon;
 extern crate test;
 
 use num::Integer;
-use rayon::par_iter::*;
+use rayon::prelude::*;
 use rayon::Configuration;
 use std::f64::INFINITY;
 use std::ops::Add;
