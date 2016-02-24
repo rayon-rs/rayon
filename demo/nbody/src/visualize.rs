@@ -69,7 +69,7 @@ struct Instance {
 
 implement_vertex!(Instance, color, world_position);
 
-pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
+pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
     let display = WindowBuilder::new()
         .with_dimensions(800, 600)
         .with_title("nbody demo".to_string())
@@ -134,6 +134,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
         {
             let bodies = match mode {
                 ExecutionMode::Par => benchmark.tick_par(),
+                ExecutionMode::ParReduce => benchmark.tick_par_reduce(),
                 ExecutionMode::Seq => benchmark.tick_seq(),
             };
 
@@ -177,6 +178,15 @@ pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
             match event {
                 Event::Closed => break 'main,
                 Event::KeyboardInput(ElementState::Pressed, _, Some(Key::Escape)) => break 'main,
+                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::P)) => {
+                    mode = ExecutionMode::Par;
+                }
+                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::S)) => {
+                    mode = ExecutionMode::Seq;
+                }
+                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::R)) => {
+                    mode = ExecutionMode::ParReduce;
+                }
                 _ => ()
             }
         }

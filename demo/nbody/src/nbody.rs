@@ -108,6 +108,31 @@ impl NBodyBenchmark {
         out_bodies
     }
 
+    pub fn tick_par_reduce(&mut self) -> &[Body] {
+        let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
+            (&self.bodies.0, &mut self.bodies.1)
+        } else {
+            (&self.bodies.1, &mut self.bodies.0)
+        };
+
+        let time = self.time;
+        out_bodies.par_iter_mut()
+                  .weight(200.0)
+                  .zip(&in_bodies[..])
+                  .for_each(|(out, prev)| {
+                      let (vel, vel2) = next_velocity_par(time, prev, in_bodies);
+                      out.velocity = vel;
+                      out.velocity2 = vel2;
+
+                      let next_velocity = vel - vel2;
+                      out.position = prev.position + next_velocity;
+                  });
+
+        self.time += 1;
+
+        out_bodies
+    }
+
     pub fn tick_seq(&mut self) -> &[Body] {
         let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
             (&self.bodies.0, &mut self.bodies.1)
@@ -181,53 +206,202 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
 
     // TODO -- parallelize this loop too? would be easy enough, it's just a reduction
     // Just have to factor things so that `tick_seq` doesn't do it in parallel.
-    for body in bodies {
-        let r = body.position - prev.position;
+    let zero: Vector3<f64> = Vector3::zero();
+    let (diff, diff2) = bodies
+        .iter()
+        .fold(
+            (zero, zero),
+            |(mut diff, mut diff2), body| {
+                let r = body.position - prev.position;
 
-        // make sure we are not testing the particle against its own position
-        let are_same = r == Vector3::zero();
+                // make sure we are not testing the particle against its own position
+                let are_same = r == Vector3::zero();
 
-        let dist_sqrd = r.length2();
+                let dist_sqrd = r.length2();
 
-        if dist_sqrd < zone_sqrd && !are_same {
-            let length = dist_sqrd.sqrt();
-            let percent = dist_sqrd / zone_sqrd;
+                if dist_sqrd < zone_sqrd && !are_same {
+                    let length = dist_sqrd.sqrt();
+                    let percent = dist_sqrd / zone_sqrd;
 
-            if dist_sqrd < repel {
-                let f = (repel / percent - 1.0) * 0.025;
-                let normal = (r / length) * f;
-                acc += normal;
-                acc2 += normal;
-            } else if dist_sqrd < align {
-                let thresh_delta = align - repel;
-                let adjusted_percent = (percent - repel) / thresh_delta;
-                let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
+                    if dist_sqrd < repel {
+                        let f = (repel / percent - 1.0) * 0.025;
+                        let normal = (r / length) * f;
+                        diff += normal;
+                        diff2 += normal;
+                    } else if dist_sqrd < align {
+                        let thresh_delta = align - repel;
+                        let adjusted_percent = (percent - repel) / thresh_delta;
+                        let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
 
-                // normalize vel2 and multiply by factor
-                let vel2_length = body.velocity2.length();
-                let vel2 = (body.velocity2 / vel2_length) * q;
+                        // normalize vel2 and multiply by factor
+                        let vel2_length = body.velocity2.length();
+                        let vel2 = (body.velocity2 / vel2_length) * q;
 
-                // normalize own velocity
-                let vel_length = prev.velocity.length();
-                let vel = (prev.velocity / vel_length) * q;
+                        // normalize own velocity
+                        let vel_length = prev.velocity.length();
+                        let vel = (prev.velocity / vel_length) * q;
 
-                acc += vel2;
-                acc2 += vel;
-            }
+                        diff += vel2;
+                        diff2 += vel;
+                    }
 
-            if dist_sqrd > attract { // attract
-                let thresh_delta2 = 1.0 - attract;
-                let adjusted_percent2 = (percent - attract) / thresh_delta2;
-                let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
+                    if dist_sqrd > attract { // attract
+                        let thresh_delta2 = 1.0 - attract;
+                        let adjusted_percent2 = (percent - attract) / thresh_delta2;
+                        let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
 
-                // normalize the distance vector
-                let d = (r / length) * c;
+                        // normalize the distance vector
+                        let d = (r / length) * c;
 
-                acc += d;
-                acc2 -= d;
-            }
+                        diff += d;
+                        diff2 -= d;
+                    }
+                }
+
+                (diff, diff2)
+            });
+
+    acc += diff;
+    acc2 += diff2;
+
+    // Speed limits
+    if time > 500.0 {
+        let acc_squared = acc.length2();
+        if acc_squared > speed_limit {
+            acc *= 0.015;
+        }
+
+        let acc_squared2 = acc2.length2();
+        if acc_squared2 > speed_limit {
+            acc2 *= 0.015;
         }
     }
+
+    let mut new = prev.velocity + acc;
+    let mut new2 = prev.velocity2 + acc2;
+
+    if time < 500.0 {
+        let acs = new2.length2();
+        if acs > speed_limit {
+            new2 *= 0.15;
+        }
+
+        let acs2 = new.length2();
+        if acs2 > speed_limit {
+            new *= 0.15;
+        }
+    }
+
+    (new, new2)
+}
+
+/// Compute next velocity of `prev`
+fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
+                     -> (Vector3<f64>, Vector3<f64>) {
+    let time = time as f64;
+    let center = Point3 {
+        x: (time / 22.0).cos() * -4200.0,
+        y: (time / 14.0).sin() * 9200.0,
+        z: (time / 27.0).sin() * 6000.0,
+    };
+
+    // pull to center
+    let max_distance = 3400.0;
+    let pull_strength = 0.042;
+
+    // zones
+    let zone = 400.0;
+    let repel = 100.0;
+    let align = 300.0;
+    let attract = 100.0;
+
+    let (speed_limit, attract_power);
+    if time < 500.0 {
+        speed_limit = 2000.0;
+        attract_power = 100.9;
+    } else {
+        speed_limit = 0.2;
+        attract_power = 20.9;
+    }
+
+    let zone_sqrd = 3.0 * (zone * zone);
+
+    let mut acc = Vector3::zero();
+    let mut acc2 = Vector3::zero();
+
+    let dir_to_center = center - prev.position;
+    let dist_to_center = dir_to_center.length();
+
+    // orient to center
+    if dist_to_center > max_distance {
+        let velc = if time < 200.0 {
+            0.2
+        } else {
+            (dist_to_center - max_distance) * pull_strength
+        };
+
+        let diff = (dir_to_center / dist_to_center) * velc;
+        acc += diff;
+    }
+
+    let zero: Vector3<f64> = Vector3::zero();
+    let (diff, diff2) = bodies
+        .par_iter()
+        .fold(
+            (zero, zero),
+            |(mut diff, mut diff2), body| {
+                let r = body.position - prev.position;
+
+                // make sure we are not testing the particle against its own position
+                let are_same = r == Vector3::zero();
+
+                let dist_sqrd = r.length2();
+
+                if dist_sqrd < zone_sqrd && !are_same {
+                    let length = dist_sqrd.sqrt();
+                    let percent = dist_sqrd / zone_sqrd;
+
+                    if dist_sqrd < repel {
+                        let f = (repel / percent - 1.0) * 0.025;
+                        let normal = (r / length) * f;
+                        diff += normal;
+                        diff2 += normal;
+                    } else if dist_sqrd < align {
+                        let thresh_delta = align - repel;
+                        let adjusted_percent = (percent - repel) / thresh_delta;
+                        let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
+
+                        // normalize vel2 and multiply by factor
+                        let vel2_length = body.velocity2.length();
+                        let vel2 = (body.velocity2 / vel2_length) * q;
+
+                        // normalize own velocity
+                        let vel_length = prev.velocity.length();
+                        let vel = (prev.velocity / vel_length) * q;
+
+                        diff += vel2;
+                        diff2 += vel;
+                    }
+
+                    if dist_sqrd > attract { // attract
+                        let thresh_delta2 = 1.0 - attract;
+                        let adjusted_percent2 = (percent - attract) / thresh_delta2;
+                        let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
+
+                        // normalize the distance vector
+                        let d = (r / length) * c;
+
+                        diff += d;
+                        diff2 -= d;
+                    }
+                }
+
+                (diff, diff2)
+            },
+            |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b));
+
+    acc += diff;
+    acc2 += diff2;
 
     // Speed limits
     if time > 500.0 {

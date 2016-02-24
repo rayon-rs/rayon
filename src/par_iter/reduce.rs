@@ -239,20 +239,20 @@ max_rule!(usize, std::usize::MIN, std::cmp::max);
 max_rule!(f32, std::f32::NEG_INFINITY, f32::max);
 max_rule!(f64, std::f64::NEG_INFINITY, f64::max);
 
-pub struct ReduceWithOp<OP> {
-    op: OP
+pub struct ReduceWithOp<'r, OP: 'r> {
+    op: &'r OP
 }
 
-impl<OP> ReduceWithOp<OP> {
-    pub fn new(op: OP) -> ReduceWithOp<OP> {
+impl<'r, OP> ReduceWithOp<'r, OP> {
+    pub fn new(op: &'r OP) -> ReduceWithOp<'r, OP> {
         ReduceWithOp {
             op: op
         }
     }
 }
 
-impl<ITEM,OP> ReduceOp<Option<ITEM>> for ReduceWithOp<OP>
-    where OP: Fn(ITEM, ITEM) -> ITEM + Sync
+impl<'r, ITEM,OP> ReduceOp<Option<ITEM>> for ReduceWithOp<'r, OP>
+    where OP: Fn(ITEM, ITEM) -> ITEM + Sync + 'r
 {
     fn start_value(&self) -> Option<ITEM> {
         None
@@ -268,6 +268,33 @@ impl<ITEM,OP> ReduceOp<Option<ITEM>> for ReduceWithOp<OP>
         } else {
             value2
         }
+    }
+}
+
+pub struct ReduceWithIdentityOp<'r, ITEM: 'r, OP: 'r> {
+    identity: &'r ITEM,
+    op: &'r OP,
+}
+
+impl<'r, ITEM, OP> ReduceWithIdentityOp<'r, ITEM, OP> {
+    pub fn new(identity: &'r ITEM, op: &'r OP) -> ReduceWithIdentityOp<'r, ITEM, OP> {
+        ReduceWithIdentityOp {
+            identity: identity,
+            op: op,
+        }
+    }
+}
+
+impl<'r, ITEM, OP> ReduceOp<ITEM> for ReduceWithIdentityOp<'r, ITEM, OP>
+    where OP: Fn(ITEM, ITEM) -> ITEM + Sync,
+          ITEM: 'r + Clone + Sync,
+{
+    fn start_value(&self) -> ITEM {
+        self.identity.clone()
+    }
+
+    fn reduce(&self, value1: ITEM, value2: ITEM) -> ITEM {
+        (self.op)(value1, value2)
     }
 }
 

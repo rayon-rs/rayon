@@ -17,3 +17,7 @@ num = "0.1.30"
 
 [features]
 nightly = []
+
+# Unstable APIs that have not yet
+# proven their utility.
+unstable = []
