@@ -1,4 +1,6 @@
-# Release 0.3 (not yet released)
+# Release 0.4 (not yet released)
+
+# Release 0.3
 
 - Expanded `par_iter` APIs now available:
   - `into_par_iter` is now supported on vectors (taking ownership of the elements)
