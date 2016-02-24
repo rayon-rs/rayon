@@ -323,3 +323,51 @@ pub fn check_flat_map_nested_ranges() {
     assert_eq!(v, w);
 }
 
+#[test]
+pub fn check_chunks() {
+    let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
+    let par_sum_product_pairs =
+         a.par_chunks(2)
+          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
+          .sum();
+    let seq_sum_product_pairs =
+         a.chunks(2)
+          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
+          .fold(0, |i, j| i+j);
+    assert_eq!(par_sum_product_pairs, 12345);
+    assert_eq!(par_sum_product_pairs, seq_sum_product_pairs);
+
+    let par_sum_product_triples: i32 =
+         a.par_chunks(3)
+          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
+          .sum();
+    let seq_sum_product_triples =
+         a.chunks(3)
+          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
+          .fold(0, |i, j| i+j);
+    assert_eq!(par_sum_product_triples, 5_0 + 12_00 + 2_000_0000 + 1);
+    assert_eq!(par_sum_product_triples, seq_sum_product_triples);
+}
+
+#[test]
+pub fn check_chunks_mut() {
+    let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let mut b: Vec<i32> = a.clone();
+    a.par_chunks_mut(2)
+        .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
+    b.chunks_mut(2)
+        .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
+        .count();
+    assert_eq!(a, &[3, 2, 7, 4, 11, 6, 15, 8, 19, 10]);
+    assert_eq!(a, b);
+
+    let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let mut b: Vec<i32> = a.clone();
+    a.par_chunks_mut(3)
+        .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
+    b.chunks_mut(3)
+        .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
+        .count();
+    assert_eq!(a, &[6, 2, 3, 15, 5, 6, 24, 8, 9, 10]);
+    assert_eq!(a, b);
+}
