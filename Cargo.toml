@@ -5,6 +5,7 @@ authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 description = "Simple work-stealing parallelism for Rust"
 license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
+documentation = "http://nikomatsakis.github.io/rayon/rayon/"
 
 [dependencies]
 rand = "0.3"
