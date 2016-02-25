@@ -106,7 +106,7 @@ impl<'data, T: Send + 'data> BoundedParallelIterator for ChunksMutIter<'data, T>
 
 impl<'data, T: Send + 'data> ExactParallelIterator for ChunksMutIter<'data, T> {
     fn len(&mut self) -> usize {
-        self.slice.len()
+        (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
     }
 }
 
@@ -156,7 +156,7 @@ impl<'data, T: 'data + Send> Producer for SliceChunksMutProducer<'data, T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = (index + self.chunk_size - 1) / self.chunk_size;
+        let elem_index = index * self.chunk_size;
         let (left, right) = self.slice.split_at_mut(elem_index);
         (SliceChunksMutProducer { chunk_size: self.chunk_size, slice: left },
          SliceChunksMutProducer { chunk_size: self.chunk_size, slice: right })

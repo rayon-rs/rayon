@@ -106,7 +106,7 @@ impl<'data, T: Sync + 'data> BoundedParallelIterator for ChunksIter<'data, T> {
 
 impl<'data, T: Sync + 'data> ExactParallelIterator for ChunksIter<'data, T> {
     fn len(&mut self) -> usize {
-        self.slice.len()
+        (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
     }
 }
 
@@ -155,7 +155,7 @@ impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = (index + self.chunk_size - 1) / self.chunk_size;
+        let elem_index = index * self.chunk_size;
         let (left, right) = self.slice.split_at(elem_index);
         (SliceChunksProducer { chunk_size: self.chunk_size, slice: left },
          SliceChunksProducer { chunk_size: self.chunk_size, slice: right })
