@@ -147,8 +147,8 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         // create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough
-        let mut job_b = JobImpl::new(oper_b, SpinLatch::new());
-        (*worker_thread).push(job_b.as_job());
+        let job_b = JobImpl::new(oper_b, SpinLatch::new());
+        (*worker_thread).push(job_b.as_job_ref());
 
         // If another thread stole our job when we panic, we must halt unwinding
         // until that thread is finished using it.
@@ -198,10 +198,10 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
           RA: Send,
           RB: Send,
 {
-    let mut job_a = JobImpl::new(oper_a, LockLatch::new());
-    let mut job_b = JobImpl::new(oper_b, LockLatch::new());
+    let job_a = JobImpl::new(oper_a, LockLatch::new());
+    let job_b = JobImpl::new(oper_b, LockLatch::new());
 
-    thread_pool::get_registry().inject(&[job_a.as_job(), job_b.as_job()]);
+    thread_pool::get_registry().inject(&[job_a.as_job_ref(), job_b.as_job_ref()]);
 
     job_a.latch.wait();
     job_b.latch.wait();
@@ -230,8 +230,8 @@ impl ThreadPool {
         where OP: FnOnce() -> R + Send
     {
         unsafe {
-            let mut job_a = JobImpl::new(op, LockLatch::new());
-            self.registry.inject(&[job_a.as_job()]);
+            let job_a = JobImpl::new(op, LockLatch::new());
+            self.registry.inject(&[job_a.as_job_ref()]);
             job_a.latch.wait();
             job_a.into_result()
         }
