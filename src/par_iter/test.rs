@@ -17,6 +17,17 @@ pub fn execute() {
 }
 
 #[test]
+pub fn execute_cloned() {
+    let a: Vec<i32> = (0..1024).collect();
+    let mut b: Vec<i32> = vec![];
+    a.par_iter()
+     .cloned()
+     .collect_into(&mut b);
+    let c: Vec<i32> = (0..1024).collect();
+    assert_eq!(b, c);
+}
+
+#[test]
 pub fn execute_range() {
     let a = 0i32..1024;
     let mut b = vec![];

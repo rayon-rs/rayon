@@ -109,6 +109,14 @@ pub trait ParallelIterator: Sized {
         Map::new(self, map_op)
     }
 
+    /// Creates an iterator which clones all of its elements.  This may be
+    /// useful when you have an iterator over `&T`, but you need `T`.
+    fn cloned<'a, T>(self) -> Map<Self, fn(&T) -> T>
+        where T: 'a + Clone, Self: ParallelIterator<Item=&'a T>
+    {
+        Map::new(self, Clone::clone)
+    }
+
     /// Applies `map_op` to each item of his iterator, producing a new
     /// iterator with the results.
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
