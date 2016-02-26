@@ -101,7 +101,7 @@ pub trait ParallelIterator: Sized {
         for_each::for_each(self, &op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
+    /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MAP_OP>
         where MAP_OP: Fn(Self::Item) -> R
@@ -109,24 +109,24 @@ pub trait ParallelIterator: Sized {
         Map::new(self, map_op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
-    /// iterator with the results.
+    /// Applies `filter_op` to each item of this iterator, producing a new
+    /// iterator with only the items that gave `true` results.
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
         where FILTER_OP: Fn(&Self::Item) -> bool
     {
         Filter::new(self, filter_op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
-    /// iterator with the results.
+    /// Applies `filter_op` to each item of this iterator to get an `Option`,
+    /// producing a new iterator with only the items from `Some` results.
     fn filter_map<FILTER_OP,R>(self, filter_op: FILTER_OP) -> FilterMap<Self, FILTER_OP>
         where FILTER_OP: Fn(Self::Item) -> Option<R>
     {
         FilterMap::new(self, filter_op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
-    /// iterator with the results.
+    /// Applies `map_op` to each item of this iterator to get nested iterators,
+    /// producing a new iterator that flattens these back into one.
     fn flat_map<MAP_OP,PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
         where MAP_OP: Fn(Self::Item) -> PI, PI: ParallelIterator
     {
