@@ -18,7 +18,7 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
-use self::map::{Map, MapOp, MapFn, MapCloned};
+use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
@@ -145,6 +145,15 @@ pub trait ParallelIterator: Sized {
         where T: 'a + Clone, Self: ParallelIterator<Item=&'a T>
     {
         Map::new(self, MapCloned)
+    }
+
+    /// Applies `inspect_op` to a reference to each item of this iterator,
+    /// producing a new iterator passing through the original items.  This is
+    /// often useful for debugging to see what's happening in iterator stages.
+    fn inspect<INSPECT_OP>(self, inspect_op: INSPECT_OP) -> Map<Self, MapInspect<INSPECT_OP>>
+        where INSPECT_OP: Fn(&Self::Item)
+    {
+        Map::new(self, MapInspect(inspect_op))
     }
 
     /// Applies `filter_op` to each item of this iterator, producing a new

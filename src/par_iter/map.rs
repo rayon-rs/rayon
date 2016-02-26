@@ -30,6 +30,19 @@ impl<'a, T> MapOp<&'a T> for MapCloned
     }
 }
 
+pub struct MapInspect<F>(pub F);
+
+impl<F, In> MapOp<In> for MapInspect<F>
+    where F: Fn(&In) + Sync,
+          In: Send,
+{
+    type Output = In;
+    fn map(&self, value: In) -> In {
+        (self.0)(&value);
+        value
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Map<M, MAP_OP> {

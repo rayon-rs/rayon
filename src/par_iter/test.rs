@@ -153,6 +153,19 @@ pub fn check_increment() {
 }
 
 #[test]
+pub fn check_inspect() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let a = AtomicUsize::new(0);
+    let b = (0_usize..1024).into_par_iter()
+        .weight_max()
+        .inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); })
+        .sum();
+
+    assert_eq!(a.load(Ordering::Relaxed), b);
+}
+
+#[test]
 pub fn check_move() {
     let a = vec![vec![1, 2, 3]];
     let ptr = a[0].as_ptr();
