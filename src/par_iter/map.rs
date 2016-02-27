@@ -19,6 +19,17 @@ impl<F, In, Out> MapOp<In> for MapFn<F>
     }
 }
 
+pub struct MapCloned;
+
+impl<'a, T> MapOp<&'a T> for MapCloned
+    where T: Clone + Send,
+{
+    type Output = T;
+    fn map(&self, value: &'a T) -> T {
+        value.clone()
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Map<M, MAP_OP> {
