@@ -9,3 +9,6 @@ pub use par_iter::ParallelIterator;
 pub use par_iter::BoundedParallelIterator;
 pub use par_iter::ExactParallelIterator;
 pub use par_iter::IndexedParallelIterator;
+
+pub use par_iter::ToParallelChunks;
+pub use par_iter::ToParallelChunksMut;

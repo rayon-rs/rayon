@@ -68,6 +68,36 @@ pub trait IntoParallelRefMutIterator<'data> {
     fn par_iter_mut(&'data mut self) -> Self::Iter;
 }
 
+pub trait ToParallelChunks<'data> {
+    type Iter: ParallelIterator<Item=&'data [Self::Item]>;
+    type Item: Sync + 'data;
+
+    /// Returns a parallel iterator over at most `size` elements of
+    /// `self` at a time. The chunks do not overlap.
+    ///
+    /// The policy for how a collection is divided into chunks is not
+    /// dictated here (e.g. a B-tree-like collection may by necessity
+    /// produce many chunks with fewer than `size` elements), but an
+    /// implementation should strive to maximize chunk size when
+    /// possible.
+    fn par_chunks(&'data self, size: usize) -> Self::Iter;
+}
+
+pub trait ToParallelChunksMut<'data> {
+    type Iter: ParallelIterator<Item=&'data mut [Self::Item]>;
+    type Item: Send + 'data;
+
+    /// Returns a parallel iterator over at most `size` elements of
+    /// `self` at a time. The chunks are mutable and do not overlap.
+    ///
+    /// The policy for how a collection is divided into chunks is not
+    /// dictated here (e.g. a B-tree-like collection may by necessity
+    /// produce many chunks with fewer than `size` elements), but an
+    /// implementation should strive to maximize chunk size when
+    /// possible.
+    fn par_chunks_mut(&'data mut self, size: usize) -> Self::Iter;
+}
+
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
@@ -101,7 +131,7 @@ pub trait ParallelIterator: Sized {
         for_each::for_each(self, &op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
+    /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MAP_OP>
         where MAP_OP: Fn(Self::Item) -> R
@@ -117,24 +147,24 @@ pub trait ParallelIterator: Sized {
         Map::new(self, Clone::clone)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
-    /// iterator with the results.
+    /// Applies `filter_op` to each item of this iterator, producing a new
+    /// iterator with only the items that gave `true` results.
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
         where FILTER_OP: Fn(&Self::Item) -> bool
     {
         Filter::new(self, filter_op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
-    /// iterator with the results.
+    /// Applies `filter_op` to each item of this iterator to get an `Option`,
+    /// producing a new iterator with only the items from `Some` results.
     fn filter_map<FILTER_OP,R>(self, filter_op: FILTER_OP) -> FilterMap<Self, FILTER_OP>
         where FILTER_OP: Fn(Self::Item) -> Option<R>
     {
         FilterMap::new(self, filter_op)
     }
 
-    /// Applies `map_op` to each item of his iterator, producing a new
-    /// iterator with the results.
+    /// Applies `map_op` to each item of this iterator to get nested iterators,
+    /// producing a new iterator that flattens these back into one.
     fn flat_map<MAP_OP,PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
         where MAP_OP: Fn(Self::Item) -> PI, PI: ParallelIterator
     {

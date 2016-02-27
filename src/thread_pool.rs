@@ -1,7 +1,7 @@
 use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
-use job::Job;
+use job::JobRef;
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
@@ -9,6 +9,8 @@ use rand;
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::thread;
+use std::collections::VecDeque;
+use std::mem;
 use util::leak;
 use num_cpus;
 
@@ -23,7 +25,7 @@ pub struct Registry {
 struct RegistryState {
     terminate: bool,
     threads_at_work: usize,
-    injected_jobs: Vec<Job>,
+    injected_jobs: VecDeque<JobRef>,
 }
 
 unsafe impl Send for Registry { }
@@ -61,7 +63,7 @@ unsafe fn init_registry(config: Configuration) {
 
 enum Work {
     None,
-    Job(Job),
+    Job(JobRef),
     Terminate,
 }
 
@@ -113,7 +115,7 @@ impl Registry {
         self.work_available.notify_all();
     }
 
-    pub unsafe fn inject(&self, injected_jobs: &[Job]) {
+    pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
         if state.terminate {
@@ -140,21 +142,19 @@ impl Registry {
         }
 
         loop {
+            // Check if we need to terminate.
+            if state.terminate {
+                return Work::Terminate;
+            }
+
             // Otherwise, if anything was injected from outside,
             // return that.  Note that this gives preference to
             // injected items over stealing from others, which is a
             // bit dubious, but then so is the opposite.
-            if let Some(job) = state.injected_jobs.pop() {
+            if let Some(job) = state.injected_jobs.pop_front() {
                 state.threads_at_work += 1;
                 self.work_available.notify_all();
                 return Work::Job(job);
-            }
-
-            // Check if we need to terminate. Note that we only do this after
-            // all injected jobs are processed, because there might be threads
-            // waiting for an injected job to complete.
-            if state.terminate {
-                return Work::Terminate;
             }
 
             // If any of the threads are running a job, we should spin
@@ -170,6 +170,11 @@ impl Registry {
     pub fn terminate(&self) {
         let mut state = self.state.lock().unwrap();
         state.terminate = true;
+        for job in state.injected_jobs.drain(..) {
+            unsafe {
+                (*job.0).abort();
+            }
+        }
         self.work_available.notify_all();
     }
 }
@@ -178,7 +183,7 @@ impl RegistryState {
     pub fn new() -> RegistryState {
         RegistryState {
             threads_at_work: 0,
-            injected_jobs: Vec::new(),
+            injected_jobs: VecDeque::new(),
             terminate: false,
         }
     }
@@ -188,8 +193,8 @@ struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
     primed: LockLatch,
-    worker: Worker<Job>,
-    stealer: Stealer<Job>,
+    worker: Worker<JobRef>,
+    stealer: Stealer<JobRef>,
 }
 
 impl ThreadInfo {
@@ -250,7 +255,7 @@ impl WorkerThread {
     }
 
     #[inline]
-    pub unsafe fn push(&self, job: Job) {
+    pub unsafe fn push(&self, job: JobRef) {
         self.thread_info().worker.push(job);
     }
 
@@ -263,13 +268,26 @@ impl WorkerThread {
 
     #[cold]
     pub unsafe fn steal_until(&self, latch: &SpinLatch) {
+        // If another thread stole our job when we panic, we must halt unwinding
+        // until that thread is finished using it.
+        struct PanicGuard<'a>(&'a SpinLatch);
+        impl<'a> Drop for PanicGuard<'a> {
+            fn drop(&mut self) {
+                while !self.0.probe() {
+                    thread::yield_now();
+                }
+            }
+        }
+
+        let guard = PanicGuard(&latch);
         while !latch.probe() {
             if let Some(job) = steal_work(&self.registry, self.index) {
-                (job.execute)(job.data);
+                (*job.0).execute();
             } else {
                 thread::yield_now();
             }
         }
+        mem::forget(guard);
     }
 }
 
@@ -300,7 +318,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     loop {
         match registry.wait_for_work(index, was_active) {
             Work::Job(injected_job) => {
-                (injected_job.execute)(injected_job.data);
+                (*injected_job.0).execute();
                 was_active = true;
                 continue;
             }
@@ -311,7 +329,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
         if let Some(stolen_job) = steal_work(&registry, index) {
             log!(StoleWork { worker: index });
             registry.start_working(index);
-            (stolen_job.execute)(stolen_job.data);
+            (*stolen_job.0).execute();
             was_active = true;
         } else {
             was_active = false;
@@ -319,7 +337,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     }
 }
 
-unsafe fn steal_work(registry: &Registry, index: usize) -> Option<Job> {
+unsafe fn steal_work(registry: &Registry, index: usize) -> Option<JobRef> {
     let num_threads = registry.num_threads();
     let start = rand::random::<usize>() % num_threads;
     (start .. num_threads)
