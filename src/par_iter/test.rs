@@ -17,6 +17,18 @@ pub fn execute() {
 }
 
 #[test]
+pub fn execute_cloned() {
+    let a: Vec<i32> = (0..1024).collect();
+    let mut b: Vec<i32> = vec![];
+    a.par_iter()
+     .weight_max()
+     .cloned()
+     .collect_into(&mut b);
+    let c: Vec<i32> = (0..1024).collect();
+    assert_eq!(b, c);
+}
+
+#[test]
 pub fn execute_range() {
     let a = 0i32..1024;
     let mut b = vec![];
@@ -138,6 +150,19 @@ pub fn check_increment() {
      .for_each(|(i, v)| *v += i);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_inspect() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let a = AtomicUsize::new(0);
+    let b = (0_usize..1024).into_par_iter()
+        .weight_max()
+        .inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); })
+        .sum();
+
+    assert_eq!(a.load(Ordering::Relaxed), b);
 }
 
 #[test]
