@@ -1,7 +1,25 @@
 use super::*;
 use super::len::*;
 use super::internal::*;
-use std::iter;
+
+pub trait MapOp<In>: Sync {
+    type Output: Send;
+    fn map(&self, value: In) -> Self::Output;
+}
+
+pub struct MapFn<F>(pub F);
+
+impl<F, In, Out> MapOp<In> for MapFn<F>
+    where F: Fn(In) -> Out + Sync,
+          Out: Send,
+{
+    type Output = Out;
+    fn map(&self, value: In) -> Out {
+        (self.0)(value)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
 
 pub struct Map<M, MAP_OP> {
     base: M,
@@ -14,12 +32,11 @@ impl<M, MAP_OP> Map<M, MAP_OP> {
     }
 }
 
-impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP> ParallelIterator for Map<M, MAP_OP>
     where M: ParallelIterator,
-          MAP_OP: Fn(M::Item) -> R + Sync,
-          R: Send,
+          MAP_OP: MapOp<M::Item>,
 {
-    type Item = R;
+    type Item = MAP_OP::Output;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -29,10 +46,9 @@ impl<M, MAP_OP, R> ParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP> BoundedParallelIterator for Map<M, MAP_OP>
     where M: BoundedParallelIterator,
-          MAP_OP: Fn(M::Item) -> R + Sync,
-          R: Send,
+          MAP_OP: MapOp<M::Item>,
 {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
@@ -46,20 +62,18 @@ impl<M, MAP_OP, R> BoundedParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP, R> ExactParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP> ExactParallelIterator for Map<M, MAP_OP>
     where M: ExactParallelIterator,
-          MAP_OP: Fn(M::Item) -> R + Sync,
-          R: Send,
+          MAP_OP: MapOp<M::Item>,
 {
     fn len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
+impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
     where M: IndexedParallelIterator,
-          MAP_OP: Fn(M::Item) -> R + Sync,
-          R: Send,
+          MAP_OP: MapOp<M::Item>,
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
@@ -71,10 +85,9 @@ impl<M, MAP_OP, R> IndexedParallelIterator for Map<M, MAP_OP>
             map_op: MAP_OP,
         }
 
-        impl<ITEM, R, MAP_OP, CB> ProducerCallback<ITEM> for Callback<CB, MAP_OP>
-            where MAP_OP: Fn(ITEM) -> R + Sync,
-                  R: Send,
-                  CB: ProducerCallback<R>
+        impl<ITEM, MAP_OP, CB> ProducerCallback<ITEM> for Callback<CB, MAP_OP>
+            where MAP_OP: MapOp<ITEM>,
+                  CB: ProducerCallback<MAP_OP::Output>
         {
             type Output = CB::Output;
 
@@ -96,10 +109,9 @@ pub struct MapProducer<'m, P, MAP_OP: 'm> {
     map_op: &'m MAP_OP,
 }
 
-impl<'m, P, MAP_OP, RET> Producer for MapProducer<'m, P, MAP_OP>
+impl<'m, P, MAP_OP> Producer for MapProducer<'m, P, MAP_OP>
     where P: Producer,
-          MAP_OP: Fn(P::Item) -> RET + Sync,
-          RET: Send,
+          MAP_OP: MapOp<P::Item>,
 {
     fn cost(&mut self, len: usize) -> f64 {
         self.base.cost(len) * FUNC_ADJUSTMENT
@@ -112,16 +124,34 @@ impl<'m, P, MAP_OP, RET> Producer for MapProducer<'m, P, MAP_OP>
     }
 }
 
-impl<'m, P, MAP_OP, RET> IntoIterator for MapProducer<'m, P, MAP_OP>
+impl<'m, P, MAP_OP> IntoIterator for MapProducer<'m, P, MAP_OP>
     where P: Producer,
-          MAP_OP: Fn(P::Item) -> RET + Sync,
-          RET: Send,
+          MAP_OP: MapOp<P::Item>,
 {
-    type Item = RET;
-    type IntoIter = iter::Map<P::IntoIter, &'m MAP_OP>;
+    type Item = MAP_OP::Output;
+    type IntoIter = MapIter<'m, P::IntoIter, MAP_OP>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.base.into_iter().map(self.map_op)
+        MapIter {
+            base: self.base.into_iter(),
+            map_op: self.map_op,
+        }
+    }
+}
+
+
+pub struct MapIter<'m, I, MAP_OP: 'm> {
+    base: I,
+    map_op: &'m MAP_OP,
+}
+
+impl<'m, I, MAP_OP> Iterator for MapIter<'m, I, MAP_OP>
+    where I: Iterator,
+          MAP_OP: MapOp<I::Item>,
+{
+    type Item = MAP_OP::Output;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.base.next().map(|value| self.map_op.map(value))
     }
 }
 
@@ -141,10 +171,9 @@ impl<'m, C, MAP_OP> MapConsumer<'m, C, MAP_OP>
     }
 }
 
-impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
-    for MapConsumer<'m, C, MAP_OP>
-    where C: Consumer<MAPPED_ITEM>,
-          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+impl<'m, ITEM, C, MAP_OP> Consumer<ITEM> for MapConsumer<'m, C, MAP_OP>
+    where C: Consumer<MAP_OP::Output>,
+          MAP_OP: MapOp<ITEM>,
 {
     type Folder = MapFolder<'m, C::Folder, MAP_OP>;
     type Reducer = C::Reducer;
@@ -169,10 +198,10 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     }
 }
 
-impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
+impl<'m, ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
     for MapConsumer<'m, C, MAP_OP>
-    where C: UnindexedConsumer<MAPPED_ITEM>,
-          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+    where C: UnindexedConsumer<MAP_OP::Output>,
+          MAP_OP: MapOp<ITEM>,
 {
     fn split_off(&self) -> Self {
         MapConsumer::new(self.base.split_off(), &self.map_op)
@@ -189,15 +218,15 @@ struct MapFolder<'m, C, MAP_OP: 'm>
     map_op: &'m MAP_OP,
 }
 
-impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM> for MapFolder<'m, C, MAP_OP>
-    where C: Folder<MAPPED_ITEM>,
-          MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
+impl<'m, ITEM, C, MAP_OP> Folder<ITEM> for MapFolder<'m, C, MAP_OP>
+    where C: Folder<MAP_OP::Output>,
+          MAP_OP: MapOp<ITEM>,
 {
     type Result = C::Result;
 
     fn consume(self, item: ITEM) -> Self {
         let map_op = self.map_op;
-        let mapped_item = map_op(item);
+        let mapped_item = map_op.map(item);
         let base = self.base.consume(mapped_item);
         MapFolder { base: base, map_op: map_op }
     }

@@ -18,7 +18,7 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
-use self::map::Map;
+use self::map::{Map, MapOp, MapFn};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
@@ -133,18 +133,18 @@ pub trait ParallelIterator: Sized {
 
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
-    fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MAP_OP>
+    fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MapFn<MAP_OP>>
         where MAP_OP: Fn(Self::Item) -> R
     {
-        Map::new(self, map_op)
+        Map::new(self, MapFn(map_op))
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
     /// useful when you have an iterator over `&T`, but you need `T`.
-    fn cloned<'a, T>(self) -> Map<Self, fn(&T) -> T>
+    fn cloned<'a, T>(self) -> Map<Self, MapFn<fn(&T) -> T>>
         where T: 'a + Clone, Self: ParallelIterator<Item=&'a T>
     {
-        Map::new(self, Clone::clone)
+        Map::new(self, MapFn(Clone::clone))
     }
 
     /// Applies `filter_op` to each item of this iterator, producing a new
