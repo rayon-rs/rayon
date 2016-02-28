@@ -127,8 +127,9 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
     }
 
     fn complete(self) -> Self::Result {
-        // should have processed at least one item -- but is this
-        // really a fair assumption?
-        self.previous.unwrap()
+        match self.previous {
+            Some(previous) => previous,
+            None => self.base.into_folder().complete(),
+        }
     }
 }

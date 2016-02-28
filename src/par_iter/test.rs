@@ -349,6 +349,26 @@ pub fn check_flat_map_nested_ranges() {
 }
 
 #[test]
+pub fn check_empty_flat_map_sum() {
+    let a: Vec<i32> = (0..1024).collect();
+    let empty = &a[..0];
+
+    // empty on the inside
+    let b = a.par_iter()
+        .flat_map(|_| empty)
+        .cloned()
+        .sum();
+    assert_eq!(b, 0);
+
+    // empty on the outside
+    let c = empty.par_iter()
+        .flat_map(|_| a.par_iter())
+        .cloned()
+        .sum();
+    assert_eq!(c, 0);
+}
+
+#[test]
 pub fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
     let par_sum_product_pairs =
