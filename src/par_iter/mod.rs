@@ -175,7 +175,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `map_op` to each item of this iterator to get nested iterators,
     /// producing a new iterator that flattens these back into one.
     fn flat_map<MAP_OP,PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
-        where MAP_OP: Fn(Self::Item) -> PI, PI: ParallelIterator
+        where MAP_OP: Fn(Self::Item) -> PI, PI: IntoParallelIterator
     {
         FlatMap::new(self, map_op)
     }

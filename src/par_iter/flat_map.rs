@@ -16,7 +16,7 @@ impl<M, MAP_OP> FlatMap<M, MAP_OP> {
 impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
     where M: ParallelIterator,
           MAP_OP: Fn(M::Item) -> PI + Sync,
-          PI: ParallelIterator,
+          PI: IntoParallelIterator,
 {
     type Item = PI::Item;
 
@@ -47,7 +47,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     for FlatMapConsumer<'m, C, MAP_OP>
     where C: UnindexedConsumer<MAPPED_ITEM::Item>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: ParallelIterator,
+          MAPPED_ITEM: IntoParallelIterator,
 {
     type Folder = FlatMapFolder<'m, C, MAP_OP, C::Result>;
     type Reducer = C::Reducer;
@@ -80,7 +80,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
     for FlatMapConsumer<'m, C, MAP_OP>
     where C: UnindexedConsumer<MAPPED_ITEM::Item>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: ParallelIterator,
+          MAPPED_ITEM: IntoParallelIterator,
 {
     fn split_off(&self) -> Self {
         FlatMapConsumer::new(self.base.split_off(), self.map_op)
@@ -102,7 +102,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
     for FlatMapFolder<'m, C, MAP_OP, C::Result>
     where C: UnindexedConsumer<MAPPED_ITEM::Item>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: ParallelIterator,
+          MAPPED_ITEM: IntoParallelIterator,
 {
     type Result = C::Result;
 
