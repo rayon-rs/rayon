@@ -190,8 +190,8 @@ serve a common purpose:
 
 1. A `Cell` offers a mutable slot with just two methods, `get` and
    `set`.  Cells can only be used for `Copy` types that are safe to
-   memcpy around, such as `i32`, `f32`, or even something bigger like
-   `(usize, usize, f64)`.
+   memcpy around, such as `i32`, `f32`, or even something bigger like a tuple of
+   `(usize, usize, f32)`.
 2. A `RefCell` is kind of like a "single-threaded read-write lock"; it
    can be used with any sort of type `T`. To gain access to the data
    inside, you call `borrow` or `borrow_mut`. Dynamic checks are done
