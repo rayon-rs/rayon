@@ -14,6 +14,7 @@ script:
     [ $TRAVIS_RUST_VERSION != nightly ] ||
     cargo test --features nightly
   - cd demo/quicksort && cargo build && cd ../../
+  - cd demo/sieve && cargo run --release && cd ../../
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
     ( cd demo/nbody && cargo run --release -- bench && cd ../../ )
