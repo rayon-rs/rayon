@@ -190,7 +190,7 @@ serve a common purpose:
 
 1. A `Cell` offers a mutable slot with just two methods, `get` and
    `set`.  Cells can only be used for `Copy` types that are safe to
-   memcpy around, such as `i32`, `f32`, or even something bigger like
+   memcpy around, such as `i32`, `f32`, or even something bigger like a tuple of
    `(usize, usize, f32)`.
 2. A `RefCell` is kind of like a "single-threaded read-write lock"; it
    can be used with any sort of type `T`. To gain access to the data
@@ -364,5 +364,3 @@ fn search(path: &Path, cost_so_far: usize, best_cost: &Arc<AtomicUsize>) {
 
 Now in this case, we really WANT to see results from other threads
 interjected into our execution!
-
-
