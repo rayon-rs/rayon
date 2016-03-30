@@ -5,7 +5,8 @@ lightweight and makes it easy to convert a sequential computation into
 a parallel one. It also guarantees data-race freedom. (You may also
 enjoy [this blog post][blog] about Rayon, which gives more background
 and details about how it works.) Rayon is
-[available on crates.io](https://crates.io/crates/rayon).
+[available on crates.io](https://crates.io/crates/rayon), and
+[API Documentation is here](http://nikomatsakis.github.io/rayon/rayon/).
 
 [blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
 
