@@ -1,5 +1,4 @@
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
-#![cfg_attr(feature = "nightly", feature(recover, std_panic, panic_propagate))]
 
 extern crate deque;
 extern crate num_cpus;

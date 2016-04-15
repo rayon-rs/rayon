@@ -2,7 +2,7 @@ use latch::Latch;
 #[cfg(feature = "nightly")]
 use std::any::Any;
 #[cfg(feature = "nightly")]
-use std::panic::{self, AssertRecoverSafe};
+use std::panic::{self, AssertUnwindSafe};
 use std::cell::UnsafeCell;
 use std::mem;
 
@@ -67,7 +67,7 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
         match self.result.into_inner() {
             JobResult::None => unreachable!(),
             JobResult::Ok(x) => x,
-            JobResult::Panic(x) => panic::propagate(x),
+            JobResult::Panic(x) => panic::resume_unwind(x),
         }
     }
 
@@ -78,11 +78,10 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
 
     #[cfg(feature = "nightly")]
     fn run_result(func: F) -> JobResult<R> {
-        // We assert that func is recover-safe since it doesn't touch any of
+        // We assert that func is unwind-safe since it doesn't touch any of
         // our data and we will be propagating the panic back to the user at
         // the join() call.
-        let wrapper = AssertRecoverSafe::new(func);
-        match panic::recover(move || wrapper.into_inner()()) {
+        match panic::catch_unwind(AssertUnwindSafe(func)) {
             Ok(x) => JobResult::Ok(x),
             Err(x) => JobResult::Panic(x),
         }
