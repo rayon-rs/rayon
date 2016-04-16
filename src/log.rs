@@ -2,7 +2,6 @@
 
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum Event {
     StartWorking { index: usize },
