@@ -134,7 +134,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MapFn<MAP_OP>>
-        where MAP_OP: Fn(Self::Item) -> R
+        where MAP_OP: Fn(Self::Item) -> R + Sync
     {
         Map::new(self, MapFn(map_op))
     }
@@ -151,7 +151,7 @@ pub trait ParallelIterator: Sized {
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
     fn inspect<INSPECT_OP>(self, inspect_op: INSPECT_OP) -> Map<Self, MapInspect<INSPECT_OP>>
-        where INSPECT_OP: Fn(&Self::Item)
+        where INSPECT_OP: Fn(&Self::Item) + Sync
     {
         Map::new(self, MapInspect(inspect_op))
     }
@@ -159,7 +159,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
-        where FILTER_OP: Fn(&Self::Item) -> bool
+        where FILTER_OP: Fn(&Self::Item) -> bool + Sync
     {
         Filter::new(self, filter_op)
     }
@@ -167,7 +167,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
     /// producing a new iterator with only the items from `Some` results.
     fn filter_map<FILTER_OP,R>(self, filter_op: FILTER_OP) -> FilterMap<Self, FILTER_OP>
-        where FILTER_OP: Fn(Self::Item) -> Option<R>
+        where FILTER_OP: Fn(Self::Item) -> Option<R> + Sync
     {
         FilterMap::new(self, filter_op)
     }
@@ -175,7 +175,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `map_op` to each item of this iterator to get nested iterators,
     /// producing a new iterator that flattens these back into one.
     fn flat_map<MAP_OP,PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
-        where MAP_OP: Fn(Self::Item) -> PI, PI: IntoParallelIterator
+        where MAP_OP: Fn(Self::Item) -> PI + Sync, PI: IntoParallelIterator
     {
         FlatMap::new(self, map_op)
     }
