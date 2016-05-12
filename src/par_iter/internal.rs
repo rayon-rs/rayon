@@ -16,7 +16,7 @@ pub trait ProducerCallback<ITEM> {
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer: IntoIterator + Send {
+pub trait Producer: IntoIterator + Send + Sized {
     /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, len: usize) -> f64;
 
@@ -26,7 +26,7 @@ pub trait Producer: IntoIterator + Send {
 }
 
 /// A consumer which consumes items that are fed to it.
-pub trait Consumer<Item>: Send {
+pub trait Consumer<Item>: Send + Sized {
     type Folder: Folder<Item, Result=Self::Result>;
     type Reducer: Reducer<Self::Result>;
     type Result: Send;
@@ -130,4 +130,3 @@ pub struct NoopReducer;
 impl Reducer<()> for NoopReducer {
     fn reduce(self, _left: (), _right: ()) { }
 }
-
