@@ -23,6 +23,7 @@ use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
+use self::threshold::Threshold;
 use self::zip::ZipIter;
 
 pub mod chain;
@@ -43,6 +44,7 @@ pub mod range;
 pub mod reduce;
 pub mod slice;
 pub mod slice_mut;
+pub mod threshold;
 pub mod vec;
 pub mod zip;
 
@@ -125,6 +127,41 @@ pub trait ToParallelChunksMut<'data> {
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
+
+    /// Fine-tune performance by suggesting a sequential cutoff
+    /// threshold. This threshold defaults to 1. If you have very
+    /// fine-grained work items, you may find that things run faster
+    /// if you raise the threshold.  The threshold can never be less
+    /// than 1.
+    ///
+    /// In general, if the threshold is set to some value N, then this
+    /// means that if Rayon has less than N items remaining, it will
+    /// not attempt to spawn another thread. So if you set the
+    /// threshold to 222, and you had 400 items total, then Rayon
+    /// would first split into threads, each processing 200 items, and
+    /// then stop.
+    ///
+    /// It is recommended that you set the sequential threshold at
+    /// the very end of your iterator pipeline (right before the final
+    /// action). So for example:
+    ///
+    /// ```notest
+    /// slice.par_iter()
+    ///      .zip(&another_slice)
+    ///      .map(some_function)
+    ///      .sequential_threshold(22) // <-- here!
+    ///      .for_each(...); // (final action)
+    /// ```
+    ///
+    /// **Warning:** the threshold behavior is only a heuristic used
+    /// to tune performance and should not be interpreted as any kind
+    /// of guarantee. Rayon may choose not to spawn more or less
+    /// threads than the threshold would suggest if it thinks this
+    /// would be profitable.
+    fn sequential_threshold(self, threshold: usize) -> Threshold<Self> {
+        assert!(threshold >= 1, "a threshold of zero is not allowed");
+        Threshold::new(self, threshold)
+    }
 
     /// This used to be used to indicate that work items were
     /// "heavier", which would control the sequential cutoff where

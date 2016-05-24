@@ -95,6 +95,14 @@ pub fn map_reduce_weighted() {
 }
 
 #[test]
+pub fn check_sequential_threshold() {
+    let a = [1, 2, 3];
+    is_bounded(a.par_iter().sequential_threshold(22));
+    is_exact(a.par_iter().sequential_threshold(22));
+    is_indexed(a.par_iter().sequential_threshold(22));
+}
+
+#[test]
 pub fn check_enumerate() {
     let a: Vec<usize> = (0..1024).rev().collect();
 

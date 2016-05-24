@@ -1,5 +1,4 @@
 use super::ParallelIterator;
-use super::len::*;
 use super::internal::*;
 
 pub fn fold<PAR_ITER,I,FOLD_OP,REDUCE_OP>(pi: PAR_ITER,
@@ -41,9 +40,8 @@ impl<'r, ITEM, I, FOLD_OP, REDUCE_OP> Consumer<ITEM>
     type Reducer = Self;
     type Result = I;
 
-    fn cost(&mut self, cost: f64) -> f64 {
-        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        cost * FUNC_ADJUSTMENT
+    fn sequential_threshold(&self) -> usize {
+        1
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, Self) {
