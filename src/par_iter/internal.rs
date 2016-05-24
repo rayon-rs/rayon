@@ -45,7 +45,6 @@ pub trait Consumer<Item>: Send + Sized {
     /// Convert the consumer into a folder that can consume items
     /// sequentially, eventually producing a final result.
     fn into_folder(self) -> Self::Folder;
-
 }
 
 pub trait Folder<Item> {
