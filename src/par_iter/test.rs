@@ -21,7 +21,6 @@ pub fn execute_cloned() {
     let a: Vec<i32> = (0..1024).collect();
     let mut b: Vec<i32> = vec![];
     a.par_iter()
-     .weight_max()
      .cloned()
      .collect_into(&mut b);
     let c: Vec<i32> = (0..1024).collect();
@@ -51,7 +50,6 @@ pub fn check_map_exact_and_bounded() {
 pub fn map_reduce() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-              .weight_max()
               .map(|&i| i + 1)
               .sum();
     let r2 = a.iter()
@@ -64,7 +62,6 @@ pub fn map_reduce() {
 pub fn map_reduce_with() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-              .weight_max()
               .map(|&i| i + 1)
               .reduce_with(|i, j| i + j);
     let r2 = a.iter()
@@ -77,7 +74,6 @@ pub fn map_reduce_with() {
 pub fn map_reduce_with_identity() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-              .weight_max()
               .map(|&i| i + 1)
               .reduce_with_identity(0, |i, j| i + j);
     let r2 = a.iter()
@@ -91,20 +87,11 @@ pub fn map_reduce_weighted() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
               .map(|&i| i + 1)
-              .weight(2.0)
               .reduce_with(|i, j| i + j);
     let r2 = a.iter()
               .map(|&i| i + 1)
               .fold(0, |a,b| a+b);
     assert_eq!(r1.unwrap(), r2);
-}
-
-#[test]
-pub fn check_weight_exact_and_bounded() {
-    let a = [1, 2, 3];
-    is_bounded(a.par_iter().weight(2.0));
-    is_exact(a.par_iter().weight(2.0));
-    is_indexed(a.par_iter().weight(2.0));
 }
 
 #[test]
@@ -158,9 +145,8 @@ pub fn check_inspect() {
 
     let a = AtomicUsize::new(0);
     let b = (0_usize..1024).into_par_iter()
-        .weight_max()
-        .inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); })
-        .sum();
+                           .inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); })
+                           .sum();
 
     assert_eq!(a.load(Ordering::Relaxed), b);
 }
@@ -373,7 +359,6 @@ pub fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
     let par_sum_product_pairs =
          a.par_chunks(2)
-          .weight_max()
           .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
           .sum();
     let seq_sum_product_pairs =
@@ -385,7 +370,6 @@ pub fn check_chunks() {
 
     let par_sum_product_triples: i32 =
          a.par_chunks(3)
-          .weight_max()
           .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
           .sum();
     let seq_sum_product_triples =
@@ -401,22 +385,20 @@ pub fn check_chunks_mut() {
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
     a.par_chunks_mut(2)
-        .weight_max()
-        .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
+     .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
     b.chunks_mut(2)
-        .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
-        .count();
+     .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
+     .count();
     assert_eq!(a, &[3, 2, 7, 4, 11, 6, 15, 8, 19, 10]);
     assert_eq!(a, b);
 
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
     a.par_chunks_mut(3)
-        .weight_max()
-        .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
+     .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
     b.chunks_mut(3)
-        .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
-        .count();
+     .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
+     .count();
     assert_eq!(a, &[6, 2, 3, 15, 5, 6, 24, 8, 9, 10]);
     assert_eq!(a, b);
 }

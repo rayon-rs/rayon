@@ -23,7 +23,6 @@ use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
-use self::weight::Weight;
 use self::zip::ZipIter;
 
 pub mod chain;
@@ -41,7 +40,6 @@ pub mod reduce;
 pub mod slice;
 pub mod slice_mut;
 pub mod map;
-pub mod weight;
 pub mod zip;
 pub mod range;
 pub mod vec;
@@ -128,26 +126,28 @@ pub trait ToParallelChunksMut<'data> {
 pub trait ParallelIterator: Sized {
     type Item: Send;
 
-    /// Indicates the relative "weight" of producing each item in this
-    /// parallel iterator. A higher weight will cause finer-grained
-    /// parallel subtasks. 1.0 indicates something very cheap and
-    /// uniform, like copying a value out of an array, or computing `x
-    /// + 1`. If your tasks are either very expensive, or very
-    /// unpredictable, you are better off with higher values. See also
-    /// `weight_max`, which is a convenient shorthand to force the
-    /// finest grained parallel execution posible. Tuning this value
-    /// should not affect correctness but can improve (or hurt)
-    /// performance.
-    fn weight(self, scale: f64) -> Weight<Self> {
-        Weight::new(self, scale)
+    /// This used to be used to indicate that work items were
+    /// "heavier", which would control the sequential cutoff where
+    /// Rayon stopped attempting to parallelize. However, in v0.5.0,
+    /// we changed the underlying model. Instead of calling weight to
+    /// make your tasks seem heavier, you can call
+    /// `sequential_threshold` to raise the threshold up and hence
+    /// group more tasks together (it defaults to 1, meaning that we
+    /// will potentially run every work item on its own thread).  Note
+    /// that the sense is inverted, so if you had a big weight, you
+    /// want a low sequential threshold.
+    #[deprecated(since = "v0.5.0", note = "weighting model has changed; see `sequential_threshold` instead")]
+    fn weight(self, _scale: f64) -> Self {
+        self
     }
 
-    /// Shorthand for `self.weight(f64::INFINITY)`. This forces the
-    /// smallest granularity of parallel execution, which makes sense
-    /// when your parallel tasks are (potentially) very expensive to
-    /// execute.
-    fn weight_max(self) -> Weight<Self> {
-        self.weight(f64::INFINITY)
+    /// This used to ensure that each item would (potentially) be
+    /// processed on a default thread. However, that behavior is now
+    /// the default. See `weight` for more background. The new method
+    /// for controlling sequential cutoff is `sequential_threshold`.
+    #[deprecated(since = "v0.5.0", note = "weight_max is now the default behavior")]
+    fn weight_max(self) -> Self {
+        self
     }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
