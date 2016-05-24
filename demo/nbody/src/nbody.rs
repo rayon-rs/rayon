@@ -92,7 +92,6 @@ impl NBodyBenchmark {
 
         let time = self.time;
         out_bodies.par_iter_mut()
-                  .weight(200.0)
                   .zip(in_bodies)
                   .for_each(|(out, prev)| {
                       let (vel, vel2) = next_velocity(time, prev, in_bodies);
@@ -117,7 +116,6 @@ impl NBodyBenchmark {
 
         let time = self.time;
         out_bodies.par_iter_mut()
-                  .weight(200.0)
                   .zip(&in_bodies[..])
                   .for_each(|(out, prev)| {
                       let (vel, vel2) = next_velocity_par(time, prev, in_bodies);
@@ -347,6 +345,7 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
     let zero: Vector3<f64> = Vector3::zero();
     let (diff, diff2) = bodies
         .par_iter()
+        .sequential_threshold(250)
         .fold(
             (zero, zero),
             |(mut diff, mut diff2), body| {
