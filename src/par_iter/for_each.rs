@@ -1,5 +1,4 @@
 use super::ParallelIterator;
-use super::len::*;
 use super::internal::*;
 
 pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
@@ -22,9 +21,8 @@ impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
     type Reducer = NoopReducer;
     type Result = ();
 
-    fn cost(&mut self, cost: f64) -> f64 {
-        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        cost * FUNC_ADJUSTMENT
+    fn sequential_threshold(&self) -> usize {
+        1
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {

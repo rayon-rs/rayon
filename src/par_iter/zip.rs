@@ -109,11 +109,6 @@ pub struct ZipProducer<A: Producer, B: Producer> {
 }
 
 impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
-    fn cost(&mut self, len: usize) -> f64 {
-        // Rather unclear that this should be `+`. It might be that max is better?
-        self.a.cost(len) + self.b.cost(len)
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (a_left, a_right) = self.a.split_at(index);
         let (b_left, b_right) = self.b.split_at(index);

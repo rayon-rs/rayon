@@ -116,10 +116,6 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
 }
 
 impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
         (SliceProducer { slice: left }, SliceProducer { slice: right })
@@ -141,10 +137,6 @@ pub struct SliceChunksProducer<'data, T: 'data + Sync> {
 }
 
 impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let elem_index = index * self.chunk_size;
         let (left, right) = self.slice.split_at(elem_index);
