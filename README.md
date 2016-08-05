@@ -1,6 +1,6 @@
 # Rayon
 
-![Build status](https://travis-ci.org/nikomatsakis/rayon.svg?branch=master)
+[![Build Status](https://travis-ci.org/nikomatsakis/rayon.svg?branch=master)](https://travis-ci.org/nikomatsakis/rayon)
 
 Rayon is a data-parallelism library for Rust. It is extremely
 lightweight and makes it easy to convert a sequential computation into
