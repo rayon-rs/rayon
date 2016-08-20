@@ -128,6 +128,52 @@ fn test_merge_sort() {
     assert_eq!(sorted, v);
 }
 
+pub fn seq_merge_sort<T: Ord + Copy>(v: &mut [T]) {
+    let n = v.len();
+    let mut buf = Vec::with_capacity(n);
+    // We always overwrite the buffer before reading to it, and we want to
+    // duplicate the behavior of parallel sort.
+    unsafe {
+        buf.set_len(n);
+    }
+    seq_sort(v, &mut buf[..]);
+}
+
+// Sort src, possibly making use of identically sized buf.
+fn seq_sort<T: Ord + Copy>(src: &mut [T], buf: &mut [T]) {
+    if src.len() <= SORT_CHUNK {
+        src.sort();
+        return;
+    }
+
+    // Sort each half into half of the buffer.
+    let mid = src.len() / 2;
+    let (bufa, bufb) = buf.split_at_mut(mid);
+    {
+        let (sa, sb) = src.split_at_mut(mid);
+        seq_sort_into(sa, bufa);
+        seq_sort_into(sb, bufb);
+    }
+
+    // Merge the buffer halves back into the original.
+    seq_merge(bufa, bufb, src);
+}
+
+// Sort src, putting the result into dest.
+fn seq_sort_into<T: Ord + Copy>(src: &mut [T], dest: &mut [T]) {
+    let mid = src.len() / 2;
+    let (s1, s2) = src.split_at_mut(mid);
+    {
+        // Sort each half.
+        let (d1, d2) = dest.split_at_mut(mid);
+        seq_sort(s1, d1);
+        seq_sort(s2, d2);
+    }
+
+    // Merge the halves into dest.
+    seq_merge(s1, s2, dest);
+}
+
 pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     let n = v.len();
     if n <= SORT_CHUNK {
@@ -148,7 +194,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     return left && right;
 }
 
-fn timed_sort(n: usize) {
+fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
     let mut v = Vec::<u32>::with_capacity(n);
     // Populate with unique, pseudorandom values.
     let mut m = 1;
@@ -158,18 +204,23 @@ fn timed_sort(n: usize) {
     }
 
     let start = Instant::now();
-    merge_sort(&mut v[..]);
+    f(&mut v[..]);
     let dur = Instant::now() - start;
     let nanos = dur.subsec_nanos() as u64 + dur.as_secs() * 1_000_000_000u64;
-    println!("sorted {} ints: {} s", n, nanos as f32 / 1e9f32);
+    println!("{}: sorted {} ints: {} s", name, n, nanos as f32 / 1e9f32);
 
     // Check correctness
     assert!(is_sorted(&mut v[..]));
+
+    return nanos
 }
 
 pub fn main() {
     // Default to gigasort: sort one gigabyte of 32-bit ints.
     let giga: usize = 250_000_000;
     let n: usize = args().nth(1).unwrap_or("".to_string()).parse().unwrap_or(giga);
-    timed_sort(n);
+    let seq = timed_sort(n, seq_merge_sort, "seq");
+    let par = timed_sort(n, merge_sort, "par");
+    let speedup = seq as f64 / par as f64;
+    println!("speedup: {:.2}x", speedup);
 }
