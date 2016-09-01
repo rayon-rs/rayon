@@ -7,7 +7,7 @@ use super::internal::*;
 /// value and a reduce function. The reduce function takes two items
 /// and computes a reduced version. The start value `S` is a kind of
 /// "zero" or "identity" value that may be intermingled as needed;
-/// idealy, `reduce(S, X)` for any item `X` yields `X`.
+/// ideally, `reduce(S, X)` for any item `X` yields `X`.
 ///
 /// Example: to sum up the values, use a `start_value` of `0` and a
 /// reduce function of `reduce(a, b) = a + b`.
@@ -297,4 +297,3 @@ impl<'r, ITEM, OP> ReduceOp<ITEM> for ReduceWithIdentityOp<'r, ITEM, OP>
         (self.op)(value1, value2)
     }
 }
-
