@@ -6,7 +6,7 @@ authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 [dependencies]
 cgmath = { version = "0.7", features = ["unstable"] }
 docopt = "0.6"
-glium = "0.13"
+glium = "0.15"
 rand = "0.3"
 rayon = { path = "../../", features = ["unstable"] }
 rustc-serialize = "0.3"

@@ -1,5 +1,3 @@
- #![feature(augmented_assignments)]
-
 extern crate cgmath;
 extern crate docopt;
 #[macro_use]
