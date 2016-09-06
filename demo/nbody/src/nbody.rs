@@ -29,7 +29,7 @@
 //
 // [1]: https://github.com/IntelLabs/RiverTrail/blob/master/examples/nbody-webgl/NBody.js
 
-use cgmath::{EuclideanVector, Point3, Vector, Vector3};
+use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use rayon::prelude::*;
 use rand::{Rand, Rng};
 use std::f64::consts::PI;
@@ -190,7 +190,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
     let mut acc2 = Vector3::zero();
 
     let dir_to_center = center - prev.position;
-    let dist_to_center = dir_to_center.length();
+    let dist_to_center = dir_to_center.magnitude();
 
     // orient to center
     if dist_to_center > max_distance {
@@ -217,7 +217,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
                 // make sure we are not testing the particle against its own position
                 let are_same = r == Vector3::zero();
 
-                let dist_sqrd = r.length2();
+                let dist_sqrd = r.magnitude2();
 
                 if dist_sqrd < zone_sqrd && !are_same {
                     let length = dist_sqrd.sqrt();
@@ -234,11 +234,11 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
                         let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
 
                         // normalize vel2 and multiply by factor
-                        let vel2_length = body.velocity2.length();
+                        let vel2_length = body.velocity2.magnitude();
                         let vel2 = (body.velocity2 / vel2_length) * q;
 
                         // normalize own velocity
-                        let vel_length = prev.velocity.length();
+                        let vel_length = prev.velocity.magnitude();
                         let vel = (prev.velocity / vel_length) * q;
 
                         diff += vel2;
@@ -266,12 +266,12 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
 
     // Speed limits
     if time > 500.0 {
-        let acc_squared = acc.length2();
+        let acc_squared = acc.magnitude2();
         if acc_squared > speed_limit {
             acc *= 0.015;
         }
 
-        let acc_squared2 = acc2.length2();
+        let acc_squared2 = acc2.magnitude2();
         if acc_squared2 > speed_limit {
             acc2 *= 0.015;
         }
@@ -281,12 +281,12 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
     let mut new2 = prev.velocity2 + acc2;
 
     if time < 500.0 {
-        let acs = new2.length2();
+        let acs = new2.magnitude2();
         if acs > speed_limit {
             new2 *= 0.15;
         }
 
-        let acs2 = new.length2();
+        let acs2 = new.magnitude2();
         if acs2 > speed_limit {
             new *= 0.15;
         }
@@ -330,7 +330,7 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
     let mut acc2 = Vector3::zero();
 
     let dir_to_center = center - prev.position;
-    let dist_to_center = dir_to_center.length();
+    let dist_to_center = dir_to_center.magnitude();
 
     // orient to center
     if dist_to_center > max_distance {
@@ -355,7 +355,7 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
                 // make sure we are not testing the particle against its own position
                 let are_same = r == Vector3::zero();
 
-                let dist_sqrd = r.length2();
+                let dist_sqrd = r.magnitude2();
 
                 if dist_sqrd < zone_sqrd && !are_same {
                     let length = dist_sqrd.sqrt();
@@ -372,11 +372,11 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
                         let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
 
                         // normalize vel2 and multiply by factor
-                        let vel2_length = body.velocity2.length();
+                        let vel2_length = body.velocity2.magnitude();
                         let vel2 = (body.velocity2 / vel2_length) * q;
 
                         // normalize own velocity
-                        let vel_length = prev.velocity.length();
+                        let vel_length = prev.velocity.magnitude();
                         let vel = (prev.velocity / vel_length) * q;
 
                         diff += vel2;
@@ -405,12 +405,12 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
 
     // Speed limits
     if time > 500.0 {
-        let acc_squared = acc.length2();
+        let acc_squared = acc.magnitude2();
         if acc_squared > speed_limit {
             acc *= 0.015;
         }
 
-        let acc_squared2 = acc2.length2();
+        let acc_squared2 = acc2.magnitude2();
         if acc_squared2 > speed_limit {
             acc2 *= 0.015;
         }
@@ -420,12 +420,12 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
     let mut new2 = prev.velocity2 + acc2;
 
     if time < 500.0 {
-        let acs = new2.length2();
+        let acs = new2.magnitude2();
         if acs > speed_limit {
             new2 *= 0.15;
         }
 
-        let acs2 = new.length2();
+        let acs2 = new.magnitude2();
         if acs2 > speed_limit {
             new *= 0.15;
         }

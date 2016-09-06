@@ -1,4 +1,4 @@
-use cgmath::{self, Angle, Vector3, Matrix4, Point, Point3, Rad};
+use cgmath::{self, Angle, Vector3, Matrix4, EuclideanSpace, Point3, Rad};
 use glium::{DisplayBuild, Program, Surface};
 use glium::{IndexBuffer, VertexBuffer};
 use glium::{DrawParameters, Depth, DepthTest};
