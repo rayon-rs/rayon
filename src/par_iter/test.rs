@@ -420,3 +420,28 @@ pub fn check_chunks_mut() {
     assert_eq!(a, &[6, 2, 3, 15, 5, 6, 24, 8, 9, 10]);
     assert_eq!(a, b);
 }
+
+#[test]
+pub fn check_options() {
+    let mut a = vec![None, Some(1), None, None, Some(2), Some(4)];
+
+    assert_eq!(7, a.par_iter().flat_map(|opt| opt).cloned().sum());
+    assert_eq!(7, a.par_iter().cloned().flat_map(|opt| opt).sum());
+
+    a.par_iter_mut().flat_map(|opt| opt)
+        .for_each(|x| *x = *x * *x);
+
+    assert_eq!(21, a.into_par_iter().flat_map(|opt| opt).sum());
+}
+
+#[test]
+pub fn check_results() {
+    let mut a = vec![Err(()), Ok(1), Err(()), Err(()), Ok(2), Ok(4)];
+
+    assert_eq!(7, a.par_iter().flat_map(|res| res).cloned().sum());
+
+    a.par_iter_mut().flat_map(|res| res)
+        .for_each(|x| *x = *x * *x);
+
+    assert_eq!(21, a.into_par_iter().flat_map(|res| res).sum());
+}
