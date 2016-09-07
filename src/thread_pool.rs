@@ -28,9 +28,6 @@ struct RegistryState {
     injected_jobs: VecDeque<JobRef>,
 }
 
-unsafe impl Send for Registry { }
-unsafe impl Sync for Registry { }
-
 ///////////////////////////////////////////////////////////////////////////
 // Initialization
 
@@ -73,16 +70,20 @@ impl Registry {
             Some(value) => value,
             None => num_cpus::get()
         };
+
+        let (workers, stealers) : (Vec<_>, Vec<_>) =
+            (0..limit_value).map(|_| deque::new()).unzip();
+
         let registry = Arc::new(Registry {
-            thread_infos: (0..limit_value).map(|_| ThreadInfo::new())
+            thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s))
                                           .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
         });
 
-        for index in 0 .. limit_value {
+        for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
-            thread::spawn(move || unsafe { main_loop(registry, index) });
+            thread::spawn(move || unsafe { main_loop(worker, registry, index) });
         }
 
         registry
@@ -193,16 +194,13 @@ struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
     primed: LockLatch,
-    worker: Worker<JobRef>,
     stealer: Stealer<JobRef>,
 }
 
 impl ThreadInfo {
-    fn new() -> ThreadInfo {
-        let (worker, stealer) = deque::new();
+    fn new(stealer: Stealer<JobRef>) -> ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
-            worker: worker,
             stealer: stealer,
         }
     }
@@ -212,6 +210,7 @@ impl ThreadInfo {
 // WorkerThread identifiers
 
 pub struct WorkerThread {
+    worker: Worker<JobRef>,
     registry: Arc<Registry>,
     index: usize
 }
@@ -250,20 +249,15 @@ impl WorkerThread {
     }
 
     #[inline]
-    fn thread_info(&self) -> &ThreadInfo {
-        &self.registry.thread_infos[self.index]
-    }
-
-    #[inline]
     pub unsafe fn push(&self, job: JobRef) {
-        self.thread_info().worker.push(job);
+        self.worker.push(job);
     }
 
     /// Pop `job` from top of stack, returning `false` if it has been
     /// stolen.
     #[inline]
     pub unsafe fn pop(&self) -> bool {
-        self.thread_info().worker.pop().is_some()
+        self.worker.pop().is_some()
     }
 
     #[cold]
@@ -293,8 +287,9 @@ impl WorkerThread {
 
 ///////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
+unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
+        worker: worker,
         registry: registry.clone(),
         index: index,
     };
