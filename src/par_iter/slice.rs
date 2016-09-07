@@ -23,15 +23,6 @@ impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IntoParallelRefIterator<'data> for [T] {
-    type Item = T;
-    type Iter = SliceIter<'data, T>;
-
-    fn par_iter(&'data self) -> Self::Iter {
-        self.into_par_iter()
-    }
-}
-
 impl<'data, T: Sync + 'data> ToParallelChunks<'data> for [T] {
     type Item = T;
     type Iter = ChunksIter<'data, T>;
