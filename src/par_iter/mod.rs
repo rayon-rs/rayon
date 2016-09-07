@@ -55,17 +55,39 @@ pub trait IntoParallelIterator {
 }
 
 pub trait IntoParallelRefIterator<'data> {
-    type Iter: ParallelIterator<Item=&'data Self::Item>;
-    type Item: Sync + 'data;
+    type Iter: ParallelIterator<Item=Self::Item>;
+    type Item: Send + 'data;
 
     fn par_iter(&'data self) -> Self::Iter;
 }
 
+impl<'data, I: 'data + ?Sized> IntoParallelRefIterator<'data> for I
+    where &'data I: IntoParallelIterator
+{
+    type Iter = <&'data I as IntoParallelIterator>::Iter;
+    type Item = <&'data I as IntoParallelIterator>::Item;
+
+    fn par_iter(&'data self) -> Self::Iter {
+        self.into_par_iter()
+    }
+}
+
 pub trait IntoParallelRefMutIterator<'data> {
-    type Iter: ParallelIterator<Item=&'data mut Self::Item>;
+    type Iter: ParallelIterator<Item=Self::Item>;
     type Item: Send + 'data;
 
     fn par_iter_mut(&'data mut self) -> Self::Iter;
+}
+
+impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
+    where &'data mut I: IntoParallelIterator
+{
+    type Iter = <&'data mut I as IntoParallelIterator>::Iter;
+    type Item = <&'data mut I as IntoParallelIterator>::Item;
+
+    fn par_iter_mut(&'data mut self) -> Self::Iter {
+        self.into_par_iter()
+    }
 }
 
 pub trait ToParallelChunks<'data> {

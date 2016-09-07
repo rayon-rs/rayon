@@ -23,15 +23,6 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
     }
 }
 
-impl<'data, T: Send + 'data> IntoParallelRefMutIterator<'data> for [T] {
-    type Item = T;
-    type Iter = SliceIterMut<'data, T>;
-
-    fn par_iter_mut(&'data mut self) -> Self::Iter {
-        self.into_par_iter()
-    }
-}
-
 impl<'data, T: Send + 'data> ToParallelChunksMut<'data> for [T] {
     type Item = T;
     type Iter = ChunksMutIter<'data, T>;
