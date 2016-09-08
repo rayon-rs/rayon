@@ -211,6 +211,7 @@ impl ThreadInfo {
 
 pub struct WorkerThread {
     worker: Worker<JobRef>,
+    stealers: Vec<Stealer<JobRef>>,
     registry: Arc<Registry>,
     index: usize
 }
@@ -275,7 +276,7 @@ impl WorkerThread {
 
         let guard = PanicGuard(&latch);
         while !latch.probe() {
-            if let Some(job) = steal_work(&self.registry, self.index) {
+            if let Some(job) = steal_work(&self.stealers) {
                 (*job.0).execute();
             } else {
                 thread::yield_now();
@@ -288,8 +289,14 @@ impl WorkerThread {
 ///////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
+    let stealers = registry.thread_infos.iter()
+        .enumerate().filter(|&(i, _)| i != index)
+        .map(|(_, ti)| ti.stealer.clone())
+        .collect();
+
     let worker_thread = WorkerThread {
         worker: worker,
+        stealers: stealers,
         registry: registry.clone(),
         index: index,
     };
@@ -321,7 +328,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
             Work::None => {},
         }
 
-        if let Some(stolen_job) = steal_work(&registry, index) {
+        if let Some(stolen_job) = steal_work(&worker_thread.stealers) {
             log!(StoleWork { worker: index });
             registry.start_working(index);
             (*stolen_job.0).execute();
@@ -332,13 +339,12 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     }
 }
 
-unsafe fn steal_work(registry: &Registry, index: usize) -> Option<JobRef> {
-    let num_threads = registry.num_threads();
-    let start = rand::random::<usize>() % num_threads;
-    (start .. num_threads)
-        .chain(0 .. start)
-        .filter(|&i| i != index)
-        .flat_map(|i| match registry.thread_infos[i].stealer.steal() {
+unsafe fn steal_work(stealers: &[Stealer<JobRef>]) -> Option<JobRef> {
+    if stealers.is_empty() { return None }
+    let start = rand::random::<usize>() % stealers.len();
+    stealers[start..].iter()
+        .chain(&stealers[..start])
+        .filter_map(|stealer| match stealer.steal() {
             Stolen::Empty => None,
             Stolen::Abort => None, // loop?
             Stolen::Data(v) => Some(v),
