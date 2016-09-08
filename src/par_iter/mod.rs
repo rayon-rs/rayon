@@ -43,6 +43,7 @@ pub mod weight;
 pub mod zip;
 pub mod range;
 pub mod vec;
+pub mod option;
 
 #[cfg(test)]
 mod test;
