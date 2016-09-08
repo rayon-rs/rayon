@@ -275,13 +275,26 @@ impl WorkerThread {
 
         let guard = PanicGuard(&latch);
         while !latch.probe() {
-            if let Some(job) = steal_work(&self.stealers) {
+            if let Some(job) = self.steal_work() {
                 (*job.0).execute();
             } else {
                 thread::yield_now();
             }
         }
         mem::forget(guard);
+    }
+
+    unsafe fn steal_work(&self) -> Option<JobRef> {
+        if self.stealers.is_empty() { return None }
+        let start = rand::random::<usize>() % self.stealers.len();
+        let (lo, hi) = self.stealers.split_at(start);
+        hi.iter().chain(lo)
+            .filter_map(|stealer| match stealer.steal() {
+                Stolen::Empty => None,
+                Stolen::Abort => None, // loop?
+                Stolen::Data(v) => Some(v),
+            })
+            .next()
     }
 }
 
@@ -324,7 +337,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
             Work::None => {},
         }
 
-        if let Some(stolen_job) = steal_work(&worker_thread.stealers) {
+        if let Some(stolen_job) = worker_thread.steal_work() {
             log!(StoleWork { worker: index });
             registry.start_working(index);
             (*stolen_job.0).execute();
@@ -333,17 +346,4 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
             was_active = false;
         }
     }
-}
-
-unsafe fn steal_work(stealers: &[Stealer<JobRef>]) -> Option<JobRef> {
-    if stealers.is_empty() { return None }
-    let start = rand::random::<usize>() % stealers.len();
-    stealers[start..].iter()
-        .chain(&stealers[..start])
-        .filter_map(|stealer| match stealer.steal() {
-            Stolen::Empty => None,
-            Stolen::Abort => None, // loop?
-            Stolen::Data(v) => Some(v),
-        })
-        .next()
 }
