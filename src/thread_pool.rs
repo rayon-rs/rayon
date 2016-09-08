@@ -212,7 +212,6 @@ impl ThreadInfo {
 pub struct WorkerThread {
     worker: Worker<JobRef>,
     stealers: Vec<Stealer<JobRef>>,
-    registry: Arc<Registry>,
     index: usize
 }
 
@@ -297,7 +296,6 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     let worker_thread = WorkerThread {
         worker: worker,
         stealers: stealers,
-        registry: registry.clone(),
         index: index,
     };
     worker_thread.set_current();
@@ -306,15 +304,13 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     registry.thread_infos[index].primed.set();
 
     // If a worker thread panics, bring down the entire thread pool
-    struct PanicGuard;
-    impl Drop for PanicGuard {
+    struct PanicGuard<'a>(&'a Registry);
+    impl<'a> Drop for PanicGuard<'a> {
         fn drop(&mut self) {
-            unsafe {
-                (*WorkerThread::current()).registry.terminate();
-            }
+            self.0.terminate();
         }
     }
-    let _guard = PanicGuard;
+    let _guard = PanicGuard(&registry);
 
     let mut was_active = false;
     loop {
