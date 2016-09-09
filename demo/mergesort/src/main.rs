@@ -57,7 +57,11 @@ fn rsort_into<T: Ord + Send + Copy>(src: &mut [T], dest: &mut [T]) {
 }
 
 // Merge sorted inputs a and b, putting result in dest.
-// TODO: Figure out how to get a and b immutable with enough template magic.
+//
+// Note: `a` and `b` have type `&mut [T]` and not `&[T]` because we do
+// not want to require a `T: Sync` bound. Using `&mut` references
+// proves to the compiler that we are not sharing `a` and `b` across
+// threads and thus we only need a `T: Send` bound.
 fn rmerge<T: Ord + Send + Copy>(a: &mut [T], b: &mut [T], dest: &mut [T]) {
     // Swap so a is always longer.
     let (a, b) = if a.len() > b.len() {
