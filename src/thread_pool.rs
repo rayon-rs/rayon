@@ -28,9 +28,6 @@ struct RegistryState {
     injected_jobs: VecDeque<JobRef>,
 }
 
-unsafe impl Send for Registry { }
-unsafe impl Sync for Registry { }
-
 ///////////////////////////////////////////////////////////////////////////
 // Initialization
 
@@ -73,16 +70,20 @@ impl Registry {
             Some(value) => value,
             None => num_cpus::get()
         };
+
+        let (workers, stealers) : (Vec<_>, Vec<_>) =
+            (0..limit_value).map(|_| deque::new()).unzip();
+
         let registry = Arc::new(Registry {
-            thread_infos: (0..limit_value).map(|_| ThreadInfo::new())
+            thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s))
                                           .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
         });
 
-        for index in 0 .. limit_value {
+        for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
-            thread::spawn(move || unsafe { main_loop(registry, index) });
+            thread::spawn(move || unsafe { main_loop(worker, registry, index) });
         }
 
         registry
@@ -193,16 +194,13 @@ struct ThreadInfo {
     // latch is set once thread has started and we are entering into
     // the main loop
     primed: LockLatch,
-    worker: Worker<JobRef>,
     stealer: Stealer<JobRef>,
 }
 
 impl ThreadInfo {
-    fn new() -> ThreadInfo {
-        let (worker, stealer) = deque::new();
+    fn new(stealer: Stealer<JobRef>) -> ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
-            worker: worker,
             stealer: stealer,
         }
     }
@@ -212,7 +210,8 @@ impl ThreadInfo {
 // WorkerThread identifiers
 
 pub struct WorkerThread {
-    registry: Arc<Registry>,
+    worker: Worker<JobRef>,
+    stealers: Vec<Stealer<JobRef>>,
     index: usize
 }
 
@@ -250,20 +249,15 @@ impl WorkerThread {
     }
 
     #[inline]
-    fn thread_info(&self) -> &ThreadInfo {
-        &self.registry.thread_infos[self.index]
-    }
-
-    #[inline]
     pub unsafe fn push(&self, job: JobRef) {
-        self.thread_info().worker.push(job);
+        self.worker.push(job);
     }
 
     /// Pop `job` from top of stack, returning `false` if it has been
     /// stolen.
     #[inline]
     pub unsafe fn pop(&self) -> bool {
-        self.thread_info().worker.pop().is_some()
+        self.worker.pop().is_some()
     }
 
     #[cold]
@@ -281,7 +275,7 @@ impl WorkerThread {
 
         let guard = PanicGuard(&latch);
         while !latch.probe() {
-            if let Some(job) = steal_work(&self.registry, self.index) {
+            if let Some(job) = self.steal_work() {
                 (*job.0).execute();
             } else {
                 thread::yield_now();
@@ -289,13 +283,32 @@ impl WorkerThread {
         }
         mem::forget(guard);
     }
+
+    unsafe fn steal_work(&self) -> Option<JobRef> {
+        if self.stealers.is_empty() { return None }
+        let start = rand::random::<usize>() % self.stealers.len();
+        let (lo, hi) = self.stealers.split_at(start);
+        hi.iter().chain(lo)
+            .filter_map(|stealer| match stealer.steal() {
+                Stolen::Empty => None,
+                Stolen::Abort => None, // loop?
+                Stolen::Data(v) => Some(v),
+            })
+            .next()
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
+unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
+    let stealers = registry.thread_infos.iter()
+        .enumerate().filter(|&(i, _)| i != index)
+        .map(|(_, ti)| ti.stealer.clone())
+        .collect();
+
     let worker_thread = WorkerThread {
-        registry: registry.clone(),
+        worker: worker,
+        stealers: stealers,
         index: index,
     };
     worker_thread.set_current();
@@ -304,15 +317,13 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
     registry.thread_infos[index].primed.set();
 
     // If a worker thread panics, bring down the entire thread pool
-    struct PanicGuard;
-    impl Drop for PanicGuard {
+    struct PanicGuard<'a>(&'a Registry);
+    impl<'a> Drop for PanicGuard<'a> {
         fn drop(&mut self) {
-            unsafe {
-                (*WorkerThread::current()).registry.terminate();
-            }
+            self.0.terminate();
         }
     }
-    let _guard = PanicGuard;
+    let _guard = PanicGuard(&registry);
 
     let mut was_active = false;
     loop {
@@ -326,7 +337,7 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
             Work::None => {},
         }
 
-        if let Some(stolen_job) = steal_work(&registry, index) {
+        if let Some(stolen_job) = worker_thread.steal_work() {
             log!(StoleWork { worker: index });
             registry.start_working(index);
             (*stolen_job.0).execute();
@@ -335,18 +346,4 @@ unsafe fn main_loop(registry: Arc<Registry>, index: usize) {
             was_active = false;
         }
     }
-}
-
-unsafe fn steal_work(registry: &Registry, index: usize) -> Option<JobRef> {
-    let num_threads = registry.num_threads();
-    let start = rand::random::<usize>() % num_threads;
-    (start .. num_threads)
-        .chain(0 .. start)
-        .filter(|&i| i != index)
-        .flat_map(|i| match registry.thread_infos[i].stealer.steal() {
-            Stolen::Empty => None,
-            Stolen::Abort => None, // loop?
-            Stolen::Data(v) => Some(v),
-        })
-        .next()
 }
