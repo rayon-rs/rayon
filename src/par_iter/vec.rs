@@ -4,7 +4,6 @@ use std;
 
 pub struct VecIter<T: Send> {
     vec: Vec<T>,
-    consumed: bool,
 }
 
 impl<T: Send> IntoParallelIterator for Vec<T> {
@@ -12,7 +11,7 @@ impl<T: Send> IntoParallelIterator for Vec<T> {
     type Iter = VecIter<T>;
 
     fn into_par_iter(self) -> Self::Iter {
-        VecIter { vec: self, consumed: false }
+        VecIter { vec: self }
     }
 }
 
@@ -48,18 +47,18 @@ impl<T: Send> IndexedParallelIterator for VecIter<T> {
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        // The producer will move or drop each item from the slice.
-        let producer = VecProducer { slice: &mut self.vec };
-        self.consumed = true;
-        callback.callback(producer)
-    }
-}
+        // The producer will move or drop each item from its slice, effectively taking ownership of
+        // them.  When we're done, the vector only needs to free its buffer.
+        unsafe {
+            // Make the vector forget about the actual items.
+            let len = self.vec.len();
+            self.vec.set_len(0);
 
-impl<T: Send> Drop for VecIter<T> {
-    fn drop(&mut self) {
-        if self.consumed {
-            // only need vec to free its buffer now
-            unsafe { self.vec.set_len(0) };
+            // Get a correct borrow, then extend it to the original length.
+            let mut slice = self.vec.as_mut_slice();
+            slice = std::slice::from_raw_parts_mut(slice.as_mut_ptr(), len);
+
+            callback.callback(VecProducer { slice: slice })
         }
     }
 }
