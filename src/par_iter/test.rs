@@ -445,3 +445,91 @@ pub fn check_results() {
 
     assert_eq!(21, a.into_par_iter().flat_map(|res| res).sum());
 }
+
+#[test]
+pub fn check_binary_heap() {
+    use std::collections::BinaryHeap;
+
+    let a: BinaryHeap<i32> = (0..10).collect();
+
+    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.into_par_iter().sum());
+}
+
+#[test]
+pub fn check_btree_map() {
+    use std::collections::BTreeMap;
+
+    let mut a: BTreeMap<i32, i32> = (0..10).map(|i| (i, -i)).collect();
+
+    assert_eq!(45, a.par_iter().map(|(&k, _)| k).sum());
+    assert_eq!(-45, a.par_iter().map(|(_, &v)| v).sum());
+
+    a.par_iter_mut().for_each(|(k, v)| *v += *k);
+
+    assert_eq!(0, a.into_par_iter().map(|(_, v)| v).sum());
+}
+
+#[test]
+pub fn check_btree_set() {
+    use std::collections::BTreeSet;
+
+    let a: BTreeSet<i32> = (0..10).collect();
+
+    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.into_par_iter().sum());
+}
+
+#[test]
+pub fn check_hash_map() {
+    use std::collections::HashMap;
+
+    let mut a: HashMap<i32, i32> = (0..10).map(|i| (i, -i)).collect();
+
+    assert_eq!(45, a.par_iter().map(|(&k, _)| k).sum());
+    assert_eq!(-45, a.par_iter().map(|(_, &v)| v).sum());
+
+    a.par_iter_mut().for_each(|(k, v)| *v += *k);
+
+    assert_eq!(0, a.into_par_iter().map(|(_, v)| v).sum());
+}
+
+#[test]
+pub fn check_hash_set() {
+    use std::collections::HashSet;
+
+    let a: HashSet<i32> = (0..10).collect();
+
+    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.into_par_iter().sum());
+}
+
+#[test]
+pub fn check_linked_list() {
+    use std::collections::LinkedList;
+
+    let mut a: LinkedList<i32> = (0..10).collect();
+
+    assert_eq!(45, a.par_iter().cloned().sum());
+
+    a.par_iter_mut().for_each(|x| *x = -*x);
+
+    assert_eq!(-45, a.into_par_iter().sum());
+}
+
+#[test]
+pub fn check_vec_deque() {
+    use std::collections::VecDeque;
+
+    let mut a: VecDeque<i32> = (0..10).collect();
+
+    // try to get it to wrap around
+    a.drain(..5);
+    a.extend(0..5);
+
+    assert_eq!(45, a.par_iter().cloned().sum());
+
+    a.par_iter_mut().for_each(|x| *x = -*x);
+
+    assert_eq!(-45, a.into_par_iter().sum());
+}

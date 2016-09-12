@@ -44,6 +44,7 @@ pub mod zip;
 pub mod range;
 pub mod vec;
 pub mod option;
+pub mod collections;
 
 #[cfg(test)]
 mod test;
