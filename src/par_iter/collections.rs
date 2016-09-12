@@ -4,21 +4,40 @@ use std::collections::{BinaryHeap, BTreeMap, BTreeSet, HashMap, HashSet, LinkedL
 use std::iter::FromIterator;
 
 // This could almost be replaced with a blanket implementation for *all*
-// `IntoIterator` types, but we'd need specialization a few like `Vec`.
+// `IntoIterator` types, but we'd need to specialize a few like `Vec`.
 macro_rules! vectorized {
-    ( impl<$($c:tt),*> IntoParallelIterator for $t:ty ) => {
+    (@impl_body) => {
+        type Item = <Self as IntoIterator>::Item;
+        type Iter = VecIter<Self::Item>;
+
+        fn into_par_iter(self) -> Self::Iter {
+            Vec::from_iter(self).into_par_iter()
+        }
+    };
+    ( impl<'a, $($c:ident),*> IntoParallelIterator for &'a mut $t:ty  ) => {
+        impl<'a, $($c),*> IntoParallelIterator for &'a mut $t
+            where &'a mut $t: IntoIterator,
+                  <&'a mut $t as IntoIterator>::Item: Send
+        {
+            vectorized!{@impl_body}
+        }
+    };
+    ( impl<'a, $($c:ident),*> IntoParallelIterator for &'a $t:ty  ) => {
+        impl<'a, $($c),*> IntoParallelIterator for &'a $t
+            where &'a $t: IntoIterator,
+                  <&'a $t as IntoIterator>::Item: Send
+        {
+            vectorized!{@impl_body}
+        }
+    };
+    ( impl<$($c:ident),*> IntoParallelIterator for $t:ty  ) => {
         impl<$($c),*> IntoParallelIterator for $t
             where $t: IntoIterator,
                   <$t as IntoIterator>::Item: Send
         {
-            type Item = <Self as IntoIterator>::Item;
-            type Iter = VecIter<Self::Item>;
-
-            fn into_par_iter(self) -> Self::Iter {
-                Vec::from_iter(self).into_par_iter()
-            }
+            vectorized!{@impl_body}
         }
-    }
+    };
 }
 
 
