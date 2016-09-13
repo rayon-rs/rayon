@@ -533,3 +533,46 @@ pub fn check_vec_deque() {
 
     assert_eq!(-45, a.into_par_iter().sum());
 }
+
+#[test]
+pub fn check_chain() {
+    let mut res = vec![];
+
+    // stays indexed in the face of madness
+    Some(0).into_par_iter()
+        .chain(Ok::<_,()>(1))
+        .chain(1..4)
+        .chain(Err("huh?"))
+        .chain(None)
+        .chain(vec![5, 8, 13])
+        .map(|x| (x as u8 + b'a') as char)
+        .chain(vec!['x', 'y', 'z'])
+        .zip((0i32..1000).into_par_iter().map(|x| -x))
+        .enumerate()
+        .map(|(a, (b, c))| (a, b, c))
+        .weight_max()
+        .collect_into(&mut res);
+
+    assert_eq!(res, vec![(0, 'a', 0),
+                         (1, 'b', -1),
+                         (2, 'b', -2),
+                         (3, 'c', -3),
+                         (4, 'd', -4),
+                         (5, 'f', -5),
+                         (6, 'i', -6),
+                         (7, 'n', -7),
+                         (8, 'x', -8),
+                         (9, 'y', -9),
+                         (10, 'z', -10)]);
+
+    // unindexed is ok too
+    let sum = Some(1i32).into_par_iter()
+        .chain((2i32..4).into_par_iter()
+                .chain(vec![5, 6, 7, 8, 9])
+                .chain(Some((10, 100)).into_par_iter()
+                       .flat_map(|(a, b)| a..b))
+                .filter(|x| x & 1 == 1))
+        .weight_max()
+        .sum();
+    assert_eq!(sum, 2500);
+}

@@ -55,7 +55,7 @@ impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
         let CollectConsumer { writes, target, len } = self;
 
         // Check that user is using the protocol correctly.
-        assert!(index < len, "out of bounds index in collect");
+        assert!(index <= len, "out of bounds index in collect");
 
         // Produce new consumers. Here we are asserting that the
         // memory range given to each consumer is disjoint.
