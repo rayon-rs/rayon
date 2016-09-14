@@ -13,6 +13,7 @@
 
 use std::f64;
 use std::ops::Fn;
+use self::chain::ChainIter;
 use self::collect::collect_into;
 use self::enumerate::Enumerate;
 use self::filter::Filter;
@@ -25,6 +26,7 @@ use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
+pub mod chain;
 pub mod collect;
 pub mod enumerate;
 pub mod filter;
@@ -361,6 +363,13 @@ pub trait ParallelIterator: Sized {
         where REDUCE_OP: ReduceOp<Self::Item>
     {
         reduce(self, reduce_op)
+    }
+
+    /// Takes two iterators and creates a new iterator over both.
+    fn chain<CHAIN>(self, chain: CHAIN) -> ChainIter<Self, CHAIN::Iter>
+        where CHAIN: IntoParallelIterator<Item=Self::Item>
+    {
+        ChainIter::new(self, chain.into_par_iter())
     }
 
     /// Internal method used to define the behavior of this parallel

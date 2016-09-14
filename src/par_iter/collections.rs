@@ -1,4 +1,7 @@
-use super::IntoParallelIterator;
+use super::{IntoParallelIterator, ParallelIterator};
+use super::chain::ChainIter;
+use super::slice::SliceIter;
+use super::slice_mut::SliceIterMut;
 use super::vec::VecIter;
 use std::collections::{BinaryHeap, BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::iter::FromIterator;
@@ -80,7 +83,23 @@ vectorized!{ impl<'a, T> IntoParallelIterator for &'a mut LinkedList<T> }
 
 
 vectorized!{ impl<T> IntoParallelIterator for VecDeque<T> }
-vectorized!{ impl<'a, T> IntoParallelIterator for &'a VecDeque<T> }
-vectorized!{ impl<'a, T> IntoParallelIterator for &'a mut VecDeque<T> }
-// TODO - we could easily write these last two directly, no temp vector,
-// with `as_slices`/`as_mut_slices` and a `chain` combinator.
+
+impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
+    type Item = &'a T;
+    type Iter = ChainIter<SliceIter<'a, T>, SliceIter<'a, T>>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let (a, b) = self.as_slices();
+        a.into_par_iter().chain(b)
+    }
+}
+
+impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
+    type Item = &'a mut T;
+    type Iter = ChainIter<SliceIterMut<'a, T>, SliceIterMut<'a, T>>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let (a, b) = self.as_mut_slices();
+        a.into_par_iter().chain(b)
+    }
+}
