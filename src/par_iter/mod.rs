@@ -217,11 +217,11 @@ pub trait ParallelIterator: Sized {
     /// Example:
     /// - `vectors.par_iter().reduce(|| Vector::zero(), Vector::add)`
     ///
-    /// **Note:** unlike in a sequential iterator, the order in which
-    /// `op` will be applied to reduce the result is not specified. So
-    /// `op` should be [commutative] and associative or else the
-    /// results will be non-deterministic. And of course `identity()`
-    /// should produce a true identity.
+    /// **Note:** unlike a sequential `fold` operation, the order in
+    /// which `op` will be applied to reduce the result is not
+    /// specified. So `op` should be [commutative] and associative or
+    /// else the results will be non-deterministic. And of course
+    /// `identity()` should produce a true identity.
     ///
     /// [commutative]: https://en.wikipedia.org/wiki/Commutative_property
     /// [associative]: https://en.wikipedia.org/wiki/Associative_property
@@ -230,6 +230,39 @@ pub trait ParallelIterator: Sized {
               IDENTITY: Fn() -> Self::Item + Sync,
     {
         reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
+    }
+
+    /// Reduces the items in the iterator into one item using `op`.
+    /// If the iterator is empty, `None` is returned; otherwise,
+    /// `Some` is returned.
+    ///
+    /// This version of `reduce` is simple but somewhat less
+    /// efficient. If possible, it is better to call `reduce()`, which
+    /// requires an identity element.
+    ///
+    /// **Note:** unlike a sequential `fold` operation, the order in
+    /// which `op` will be applied to reduce the result is not
+    /// specified. So `op` should be [commutative] and associative or
+    /// else the results will be non-deterministic.
+    fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
+    {
+        self.map(Some)
+            .reduce(|| None,
+                    |opt_a, opt_b| match (opt_a, opt_b) {
+                        (Some(a), Some(b)) => Some(op(a, b)),
+                        (Some(v), None) | (None, Some(v)) => Some(v),
+                        (None, None) => None,
+                    })
+    }
+
+    /// Deprecated. Use `reduce()` instead.
+    #[deprecated(since = "v0.5.0", note = "call `reduce` instead")]
+    fn reduce_with_identity<OP>(self, identity: Self::Item, op: OP) -> Self::Item
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
+              Self::Item: Clone + Sync,
+    {
+        self.reduce(|| identity.clone(), op)
     }
 
     /// A variant on the typical `map/reduce` pattern. Parallel fold
