@@ -1,3 +1,7 @@
+# Release 0.4.2
+
+- Updated crates.io metadata.
+
 # Release 0.4.1
 
 - New `chain` combinator for parallel iterators.
