@@ -1,94 +1,144 @@
-use super::ParallelIterator;
+use super::*;
 use super::len::*;
 use super::internal::*;
 
-pub fn fold<PAR_ITER,I,FOLD_OP,REDUCE_OP>(pi: PAR_ITER,
-                                          identity: &I,
-                                          fold_op: &FOLD_OP)
-                                          -> I
-    where PAR_ITER: ParallelIterator,
-          FOLD_OP: Fn(I, PAR_ITER::Item) -> I + Sync,
-          I: Clone + Send + Sync,
+pub fn fold<U, BASE, IDENTITY, FOLD_OP>(base: BASE,
+                                        identity: IDENTITY,
+                                        fold_op: FOLD_OP)
+                                        -> Fold<BASE, IDENTITY, FOLD_OP>
+    where BASE: ParallelIterator,
+          FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
+          IDENTITY: Fn() -> U + Sync,
+          U: Send
 {
-    let consumer = FoldConsumer { identity: identity,
-                                  fold_op: fold_op };
-    pi.drive_unindexed(consumer)
+    Fold {
+        base: base,
+        identity: identity,
+        fold_op: fold_op,
+    }
 }
 
-struct FoldConsumer<'r, I:'r, FOLD_OP: 'r> {
-    identity: &'r I,
-    fold_op: &'r FOLD_OP,
+pub struct Fold<BASE, IDENTITY, FOLD_OP> {
+    base: BASE,
+    identity: IDENTITY,
+    fold_op: FOLD_OP,
 }
 
-impl<'r, I, FOLD_OP> Copy for FoldConsumer<'r, I, FOLD_OP> {
-}
-
-impl<'r, I, FOLD_OP> Clone for FoldConsumer<'r, I, FOLD_OP> {
-    fn clone(&self) -> Self { *self }
-}
-
-impl<'r, ITEM, I, FOLD_OP> Consumer<ITEM> for FoldConsumer<'r, I, FOLD_OP>
-    where FOLD_OP: Fn(I, ITEM) -> I + Sync,
-          I: Clone + Send + Sync,
+impl<U, BASE, IDENTITY, FOLD_OP> ParallelIterator for Fold<BASE, IDENTITY, FOLD_OP>
+    where BASE: ParallelIterator,
+          FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
+          IDENTITY: Fn() -> U + Sync,
+          U: Send
 {
-    type Folder = FoldFolder<'r, I, FOLD_OP>;
-    type Reducer = Self;
-    type Result = I;
+    type Item = U;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer1 = FoldConsumer {
+            base: consumer,
+            fold_op: &self.fold_op,
+            identity: &self.identity,
+        };
+        self.base.drive_unindexed(consumer1)
+    }
+}
+
+impl<U, BASE, IDENTITY, FOLD_OP> BoundedParallelIterator for Fold<BASE, IDENTITY, FOLD_OP>
+    where BASE: BoundedParallelIterator,
+          FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
+          IDENTITY: Fn() -> U + Sync,
+          U: Send
+{
+    fn upper_bound(&mut self) -> usize {
+        self.base.upper_bound()
+    }
+
+    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let consumer1 = FoldConsumer {
+            base: consumer,
+            fold_op: &self.fold_op,
+            identity: &self.identity,
+        };
+        self.base.drive(consumer1)
+    }
+}
+
+pub struct FoldConsumer<'c, C, IDENTITY: 'c, FOLD_OP: 'c> {
+    base: C,
+    fold_op: &'c FOLD_OP,
+    identity: &'c IDENTITY,
+}
+
+impl<'r, U, T, C, IDENTITY, FOLD_OP> Consumer<T> for FoldConsumer<'r, C, IDENTITY, FOLD_OP>
+    where C: Consumer<U>,
+          FOLD_OP: Fn(U, T) -> U + Sync,
+          IDENTITY: Fn() -> U + Sync,
+          U: Send
+{
+    type Folder = FoldFolder<'r, C::Folder, U, FOLD_OP>;
+    type Reducer = C::Reducer;
+    type Result = C::Result;
 
     fn cost(&mut self, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
         cost * FUNC_ADJUSTMENT
     }
 
-    fn split_at(self, _index: usize) -> (Self, Self, Self) {
-        (self, self, self)
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (FoldConsumer { base: left, ..self }, FoldConsumer { base: right, ..self }, reducer)
     }
 
     fn into_folder(self) -> Self::Folder {
-        FoldFolder { item: self.identity.clone(),
-                     fold_op: self.fold_op }
+        FoldFolder {
+            base: self.base.into_folder(),
+            item: (self.identity)(),
+            fold_op: self.fold_op,
+        }
     }
 }
 
-impl<'r, ITEM, I, FOLD_OP> UnindexedConsumer<ITEM> for FoldConsumer<'r, I, FOLD_OP>
-    where FOLD_OP: Fn(I, ITEM) -> I + Sync,
-          I: Clone + Send + Sync,
+impl<'r, U, ITEM, C, IDENTITY, FOLD_OP> UnindexedConsumer<ITEM> for FoldConsumer<'r,
+                                                                                 C,
+                                                                                 IDENTITY,
+                                                                                 FOLD_OP>
+    where C: UnindexedConsumer<U>,
+          FOLD_OP: Fn(U, ITEM) -> U + Sync,
+          IDENTITY: Fn() -> U + Sync,
+          U: Send
 {
     fn split_off(&self) -> Self {
-        *self
+        FoldConsumer { base: self.base.split_off(), ..*self }
     }
 
     fn to_reducer(&self) -> Self::Reducer {
-        *self
+        self.base.to_reducer()
     }
 }
 
-impl<'r, I, FOLD_OP> Reducer<I> for FoldConsumer<'r, I, FOLD_OP>
-    where I: Clone + Send + Sync,
-{
-    fn reduce(self, left: I, right: I) -> I {
-        (self.reduce_op)(left, right)
-    }
-}
-
-pub struct FoldFolder<'r, I, FOLD_OP: 'r> {
+pub struct FoldFolder<'r, C, IDENTITY, FOLD_OP: 'r> {
+    base: C,
     fold_op: &'r FOLD_OP,
-    item: I,
+    item: IDENTITY,
 }
 
-impl<'r, I, FOLD_OP, ITEM> Folder<ITEM>
-    for FoldFolder<'r, I, FOLD_OP>
-    where FOLD_OP: Fn(I, ITEM) -> I + Sync,
+impl<'r, C, IDENTITY, FOLD_OP, ITEM> Folder<ITEM> for FoldFolder<'r, C, IDENTITY, FOLD_OP>
+    where C: Folder<IDENTITY>,
+          FOLD_OP: Fn(IDENTITY, ITEM) -> IDENTITY + Sync
 {
-    type Result = I;
+    type Result = C::Result;
 
     fn consume(self, item: ITEM) -> Self {
         let item = (self.fold_op)(self.item, item);
-        FoldFolder { fold_op: self.fold_op, item: item }
+        FoldFolder {
+            base: self.base,
+            fold_op: self.fold_op,
+            item: item,
+        }
     }
 
-    fn complete(self) -> I {
-        self.item
+    fn complete(self) -> C::Result {
+        self.base.consume(self.item).complete()
     }
 }
-
