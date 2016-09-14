@@ -1,4 +1,21 @@
-# Release 0.4 (not yet released)
+# Release 0.4.1
+
+- New `chain` combinator for parallel iterators.
+- `Option`, `Result`, as well as many more collection types now have
+  parallel iterators.
+- New mergesort demo.
+- Misc fixes.
+
+Thanks to @cuviper, @edre, @jdanford, @frewsxcv for their contributions!
+
+# Release 0.4
+
+- Make use of latest versions of catch-panic and various fixes to panic propagation.
+- Add new prime sieve demo.
+- Add `cloned()` and `inspect()` combinators.
+- Misc fixes for Rust RFC 1214.
+
+Thanks to @areilb1, @Amanieu, @SharplEr, and @cuviper for their contributions!
 
 # Release 0.3
 

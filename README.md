@@ -8,7 +8,7 @@ a parallel one. It also guarantees data-race freedom. (You may also
 enjoy [this blog post][blog] about Rayon, which gives more background
 and details about how it works.) Rayon is
 [available on crates.io](https://crates.io/crates/rayon), and
-[API Documentation is here](http://nikomatsakis.github.io/rayon/rayon/).
+[API Documentation is available on docs.rs](https://docs.rs/rayon/).
 
 [blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
 
@@ -367,3 +367,10 @@ fn search(path: &Path, cost_so_far: usize, best_cost: &Arc<AtomicUsize>) {
 
 Now in this case, we really WANT to see results from other threads
 interjected into our execution!
+
+## License
+
+Rayon is distributed under the terms of both the MIT license and the
+Apache License (Version 2.0). See [LICENSE-APACHE](LICENSE-APACHE) for
+[LICENSE-MIT](LICENSE-MIT) for details. Opening a pull requests is
+assumed to signal agreement with these licensing terms.
