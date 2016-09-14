@@ -66,11 +66,11 @@ pub fn map_reduce_with() {
     let r1 = a.par_iter()
               .weight_max()
               .map(|&i| i + 1)
-              .reduce_with(|i, j| i + j);
+              .reduce(|| 0, |i, j| i + j);
     let r2 = a.iter()
               .map(|&i| i + 1)
               .fold(0, |a,b| a+b);
-    assert_eq!(r1.unwrap(), r2);
+    assert_eq!(r1, r2);
 }
 
 #[test]
@@ -79,7 +79,7 @@ pub fn map_reduce_with_identity() {
     let r1 = a.par_iter()
               .weight_max()
               .map(|&i| i + 1)
-              .reduce_with_identity(0, |i, j| i + j);
+              .reduce(|| 0, |i, j| i + j);
     let r2 = a.iter()
               .map(|&i| i + 1)
               .fold(0, |a,b| a+b);
@@ -92,11 +92,11 @@ pub fn map_reduce_weighted() {
     let r1 = a.par_iter()
               .map(|&i| i + 1)
               .weight(2.0)
-              .reduce_with(|i, j| i + j);
+              .reduce(|| 0, |i, j| i + j);
     let r2 = a.iter()
               .map(|&i| i + 1)
               .fold(0, |a,b| a+b);
-    assert_eq!(r1.unwrap(), r2);
+    assert_eq!(r1, r2);
 }
 
 #[test]

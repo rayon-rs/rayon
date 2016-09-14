@@ -20,7 +20,7 @@ use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
-use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
+use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
 use self::weight::Weight;
@@ -207,37 +207,27 @@ pub trait ParallelIterator: Sized {
     }
 
     /// Reduces the items in the iterator into one item using `op`.
-    /// See also `sum`, `mul`, `min`, etc, which are slightly more
-    /// efficient. Returns `None` if the iterator is empty.
+    /// The argument `identity` should be a closure that can produce
+    /// "identity" value which may be inserted into the sequence as
+    /// needed to create opportunities for parallel execution. So, for
+    /// example, if you are doing a summation, then `identity()` ought
+    /// to produce something that represents the zero for your type
+    /// (but consider just calling `sum()` in that case).
     ///
-    /// Note: unlike in a sequential iterator, the order in which `op`
-    /// will be applied to reduce the result is not specified. So `op`
-    /// should be commutative and associative or else the results will
-    /// be non-deterministic.
-    fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
+    /// Example:
+    /// - `vectors.par_iter().reduce(|| Vector::zero(), Vector::add)`
+    ///
+    /// **Note:** unlike in a sequential iterator, the order in which
+    /// `op` will be applied to reduce the result is not specified. So
+    /// `op` should be [commutative] and associative or else the
+    /// results will be non-deterministic. And of course `identity()`
+    /// should produce a true identity.
+    ///
+    /// [commutative]: https://en.wikipedia.org/wiki/Commutative_property
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    fn reduce<OP,IDENTITY>(self, identity: IDENTITY, op: OP) -> Self::Item
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-    {
-        reduce(self.map(Some), &ReduceWithOp::new(&op))
-    }
-
-    /// Reduces the items in the iterator into one item using `op`.
-    /// The argument `identity` represents an "identity" value which
-    /// may be inserted into the sequence as needed to create
-    /// opportunities for parallel execution. So, for example, if you
-    /// are doing a summation, then `identity` ought to be something
-    /// that represents the zero for your type (but consider just
-    /// calling `sum()` in that case).
-    ///
-    /// Example `vectors.par_iter().reduce_with_identity(Vector::zero(), Vector::add)`.
-    ///
-    /// Note: unlike in a sequential iterator, the order in which `op`
-    /// will be applied to reduce the result is not specified. So `op`
-    /// should be commutative and associative or else the results will
-    /// be non-deterministic. And of course `identity` should be a
-    /// true identity.
-    fn reduce_with_identity<OP>(self, identity: Self::Item, op: OP) -> Self::Item
-        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-              Self::Item: Clone + Sync,
+              IDENTITY: Fn() -> Self::Item + Sync,
     {
         reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
     }
@@ -351,18 +341,6 @@ pub trait ParallelIterator: Sized {
         where MaxOp: ReduceOp<Self::Item>
     {
         reduce(self, MAX)
-    }
-
-    /// Reduces the items using the given "reduce operator". You may
-    /// prefer `reduce_with` for a simpler interface.
-    ///
-    /// Note that the order in items will be reduced is not specified,
-    /// so if the `reduce_op` impl is not truly commutative and
-    /// associative, then the results are not deterministic.
-    fn reduce<REDUCE_OP>(self, reduce_op: &REDUCE_OP) -> Self::Item
-        where REDUCE_OP: ReduceOp<Self::Item>
-    {
-        reduce(self, reduce_op)
     }
 
     /// Takes two iterators and creates a new iterator over both.
