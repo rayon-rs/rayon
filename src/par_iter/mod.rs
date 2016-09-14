@@ -366,9 +366,6 @@ pub trait ParallelIterator: Sized {
     }
 
     /// Takes two iterators and creates a new iterator over both.
-    ///
-    /// As with most parallel iterators, the order in which these are
-    /// combined is completely unspecified.
     fn chain<CHAIN>(self, chain: CHAIN) -> ChainIter<Self, CHAIN::Iter>
         where CHAIN: IntoParallelIterator<Item=Self::Item>
     {
