@@ -9,7 +9,7 @@ documentation = "https://docs.rs/rayon/"
 
 [dependencies]
 rand = "0.3"
-num_cpus = "0.2.10"
+num_cpus = "1.0"
 deque = "0.3.1"
 
 [dev-dependencies]
