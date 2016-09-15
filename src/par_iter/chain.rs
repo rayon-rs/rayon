@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use std::cmp::min;
 use std::iter;
 
 pub struct ChainIter<A, B>
@@ -139,12 +138,6 @@ impl<A, B> ChainProducer<A, B>
 impl<A, B> Producer for ChainProducer<A, B>
     where A: Producer, B: Producer<Item=A::Item>
 {
-    fn cost(&mut self, len: usize) -> f64 {
-        let a_len = min(self.a_len, len);
-        let b_len = len - a_len;
-        self.a.cost(a_len) + self.b.cost(b_len)
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         if index <= self.a_len {
             let a_rem = self.a_len - index;

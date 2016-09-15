@@ -1,5 +1,4 @@
 use super::*;
-use super::len::*;
 use super::internal::*;
 
 pub struct FilterMap<M, FILTER_OP> {
@@ -69,9 +68,8 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
     type Reducer = C::Reducer;
     type Result = C::Result;
 
-    /// Cost to process `items` number of items.
-    fn cost(&mut self, cost: f64) -> f64 {
-        self.base.cost(cost) * FUNC_ADJUSTMENT
+    fn sequential_threshold(&self) -> usize {
+        self.base.sequential_threshold()
     }
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {

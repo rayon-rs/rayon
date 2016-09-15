@@ -54,10 +54,6 @@ macro_rules! range_impl {
         }
 
         impl Producer for RangeIter<$t> {
-            fn cost(&mut self, len: usize) -> f64 {
-                len as f64
-            }
-
             fn split_at(self, index: usize) -> (Self, Self) {
                 assert!(index <= self.range.len());
                 // For signed $t, the length and requested index could be greater than $t::MAX, and

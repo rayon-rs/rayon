@@ -1,18 +1,18 @@
 use super::*;
 use super::internal::*;
 
-pub struct Weight<M> {
+pub struct Threshold<M> {
     base: M,
-    weight: f64,
+    threshold: usize,
 }
 
-impl<M> Weight<M> {
-    pub fn new(base: M, weight: f64) -> Weight<M> {
-        Weight { base: base, weight: weight }
+impl<M> Threshold<M> {
+    pub fn new(base: M, threshold: usize) -> Threshold<M> {
+        Threshold { base: base, threshold: threshold }
     }
 }
 
-impl<M> ParallelIterator for Weight<M>
+impl<M> ParallelIterator for Threshold<M>
     where M: ParallelIterator,
 {
     type Item = M::Item;
@@ -20,12 +20,12 @@ impl<M> ParallelIterator for Weight<M>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let consumer1 = WeightConsumer::new(consumer, self.weight);
+        let consumer1 = ThresholdConsumer::new(consumer, self.threshold);
         self.base.drive_unindexed(consumer1)
     }
 }
 
-impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
+impl<M: BoundedParallelIterator> BoundedParallelIterator for Threshold<M> {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
@@ -33,25 +33,25 @@ impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
-        let consumer1: WeightConsumer<C> = WeightConsumer::new(consumer, self.weight);
+        let consumer1: ThresholdConsumer<C> = ThresholdConsumer::new(consumer, self.threshold);
         self.base.drive(consumer1)
     }
 }
 
-impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
+impl<M: ExactParallelIterator> ExactParallelIterator for Threshold<M> {
     fn len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
+impl<M: IndexedParallelIterator> IndexedParallelIterator for Threshold<M> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Callback { weight: self.weight, callback: callback });
+        return self.base.with_producer(Callback { threshold: self.threshold, callback: callback });
 
         struct Callback<CB> {
-            weight: f64,
+            threshold: usize,
             callback: CB
         }
 
@@ -63,8 +63,8 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
             fn callback<P>(self, base: P) -> Self::Output
                 where P: Producer<Item=ITEM>
             {
-                self.callback.callback(WeightProducer { base: base,
-                                                        weight: self.weight })
+                self.callback.callback(ThresholdProducer { base: base,
+                                                        threshold: self.threshold })
             }
         }
     }
@@ -72,24 +72,20 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
 
 ///////////////////////////////////////////////////////////////////////////
 
-pub struct WeightProducer<P> {
+pub struct ThresholdProducer<P> {
     base: P,
-    weight: f64,
+    threshold: usize,
 }
 
-impl<P: Producer> Producer for WeightProducer<P> {
-    fn cost(&mut self, len: usize) -> f64 {
-        self.base.cost(len) * self.weight
-    }
-
+impl<P: Producer> Producer for ThresholdProducer<P> {
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (WeightProducer { base: left, weight: self.weight },
-         WeightProducer { base: right, weight: self.weight })
+        (ThresholdProducer { base: left, threshold: self.threshold },
+         ThresholdProducer { base: right, threshold: self.threshold })
     }
 }
 
-impl<P: Producer> IntoIterator for WeightProducer<P> {
+impl<P: Producer> IntoIterator for ThresholdProducer<P> {
     type Item = P::Item;
     type IntoIter = P::IntoIter;
 
@@ -101,32 +97,32 @@ impl<P: Producer> IntoIterator for WeightProducer<P> {
 ///////////////////////////////////////////////////////////////////////////
 // Consumer implementation
 
-struct WeightConsumer<C> {
+struct ThresholdConsumer<C> {
     base: C,
-    weight: f64,
+    threshold: usize,
 }
 
-impl<C> WeightConsumer<C> {
-    fn new(base: C, weight: f64) -> WeightConsumer<C> {
-        WeightConsumer { base: base, weight: weight }
+impl<C> ThresholdConsumer<C> {
+    fn new(base: C, threshold: usize) -> ThresholdConsumer<C> {
+        ThresholdConsumer { base: base, threshold: threshold }
     }
 }
 
-impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
+impl<C, ITEM> Consumer<ITEM> for ThresholdConsumer<C>
     where C: Consumer<ITEM>,
 {
     type Folder = C::Folder;
     type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn cost(&mut self, cost: f64) -> f64 {
-        self.base.cost(cost) * self.weight
+    fn sequential_threshold(&self) -> usize {
+        self.threshold
     }
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (WeightConsumer::new(left, self.weight),
-         WeightConsumer::new(right, self.weight),
+        (ThresholdConsumer::new(left, self.threshold),
+         ThresholdConsumer::new(right, self.threshold),
          reducer)
     }
 
@@ -135,11 +131,11 @@ impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
     }
 }
 
-impl<C, ITEM> UnindexedConsumer<ITEM> for WeightConsumer<C>
+impl<C, ITEM> UnindexedConsumer<ITEM> for ThresholdConsumer<C>
     where C: UnindexedConsumer<ITEM>
 {
     fn split_off(&self) -> Self {
-        WeightConsumer::new(self.base.split_off(), self.weight)
+        ThresholdConsumer::new(self.base.split_off(), self.threshold)
     }
 
     fn to_reducer(&self) -> Self::Reducer {

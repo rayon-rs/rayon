@@ -1,6 +1,5 @@
 use super::*;
 use super::internal::*;
-use std::f64;
 
 pub struct FlatMap<M, MAP_OP> {
     base: M,
@@ -53,12 +52,12 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn cost(&mut self, _cost: f64) -> f64 {
-        // We have no idea how many items we will produce, so ramp up
-        // the cost, so as to encourage the producer to do a
-        // fine-grained divison. This is not necessarily a good
-        // policy.
-        f64::INFINITY
+    fn sequential_threshold(&self) -> usize {
+        // When we are fed one item, we have no idea how many items we
+        // will produce from that, so return 1 so as to encourage the
+        // producer to do a fine-grained divison. This is not
+        // necessarily a good policy.
+        1
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {

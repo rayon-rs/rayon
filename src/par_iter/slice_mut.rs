@@ -115,12 +115,7 @@ pub struct SliceMutProducer<'data, T: 'data + Send> {
     slice: &'data mut [T]
 }
 
-impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
-{
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
+impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T> {
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at_mut(index);
         (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
@@ -142,10 +137,6 @@ pub struct SliceChunksMutProducer<'data, T: 'data + Send> {
 }
 
 impl<'data, T: 'data + Send> Producer for SliceChunksMutProducer<'data, T> {
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let elem_index = index * self.chunk_size;
         let (left, right) = self.slice.split_at_mut(elem_index);

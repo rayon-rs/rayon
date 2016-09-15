@@ -105,10 +105,6 @@ pub struct OptionProducer<T: Send> {
 }
 
 impl<T: Send> Producer for OptionProducer<T> {
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let none = OptionProducer { opt: None };
         if index == 0 { (none, self) } else { (self, none) }

@@ -1,4 +1,3 @@
-use super::super::len::*;
 use super::super::internal::*;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -44,8 +43,8 @@ impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
     type Reducer = NoopReducer;
     type Result = ();
 
-    fn cost(&mut self, cost: f64) -> f64 {
-        cost * FUNC_ADJUSTMENT
+    fn sequential_threshold(&self) -> usize {
+        1
     }
 
     fn split_at(self, index: usize) -> (Self, Self, NoopReducer) {

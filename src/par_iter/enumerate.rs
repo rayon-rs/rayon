@@ -83,10 +83,6 @@ pub struct EnumerateProducer<P> {
 impl<P> Producer for EnumerateProducer<P>
     where P: Producer
 {
-    fn cost(&mut self, items: usize) -> f64 {
-        self.base.cost(items) // enumerating is basically free
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (EnumerateProducer { base: left,

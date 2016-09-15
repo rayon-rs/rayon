@@ -1,5 +1,4 @@
 use super::*;
-use super::len::*;
 use super::internal::*;
 
 pub trait MapOp<In>: Sync {
@@ -137,10 +136,6 @@ impl<'m, P, MAP_OP> Producer for MapProducer<'m, P, MAP_OP>
     where P: Producer,
           MAP_OP: MapOp<P::Item>,
 {
-    fn cost(&mut self, len: usize) -> f64 {
-        self.base.cost(len) * FUNC_ADJUSTMENT
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (MapProducer { base: left, map_op: self.map_op, },
@@ -203,8 +198,8 @@ impl<'m, ITEM, C, MAP_OP> Consumer<ITEM> for MapConsumer<'m, C, MAP_OP>
     type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn cost(&mut self, cost: f64) -> f64 {
-        self.base.cost(cost) * FUNC_ADJUSTMENT
+    fn sequential_threshold(&self) -> usize {
+        self.base.sequential_threshold()
     }
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {

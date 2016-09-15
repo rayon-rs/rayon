@@ -16,3 +16,4 @@ script:
   - cd demo/quicksort && cargo build && cd ../../
   - cd demo/sieve && cargo run --release && cd ../../
   - cd demo/nbody && cargo run --release -- bench && cd ../../
+  - cd demo/mergesort && cargo run --release && cd ../../

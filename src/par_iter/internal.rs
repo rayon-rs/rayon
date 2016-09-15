@@ -4,8 +4,8 @@
 //! See `README.md` for a high-level overview.
 
 use join;
+use std::cmp::max;
 use super::IndexedParallelIterator;
-use super::len::*;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
@@ -17,9 +17,6 @@ pub trait ProducerCallback<ITEM> {
 /// not queryable through the API; the consumer is expected to track
 /// it.
 pub trait Producer: IntoIterator + Send + Sized {
-    /// Cost to produce `len` items, where `len` must be `N`.
-    fn cost(&mut self, len: usize) -> f64;
-
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
     fn split_at(self, index: usize) -> (Self, Self);
@@ -31,9 +28,13 @@ pub trait Consumer<Item>: Send + Sized {
     type Reducer: Reducer<Self::Result>;
     type Result: Send;
 
-    /// If it costs `producer_cost` to produce the items we will
-    /// consume, returns cost adjusted to account for consuming them.
-    fn cost(&mut self, producer_cost: f64) -> f64;
+    /// Threshold below which it doesn't make sense to split. If this
+    /// were e.g. 100, then if we had a thread that could produce 110
+    /// items for us, it would prefer to split to two threads of 55,
+    /// but at that point it wouldn't try to split again. For most
+    /// parallel iterators, defaults to 1 (so keep splitting as much
+    /// as you can), but can be controlled by the user.
+    fn sequential_threshold(&self) -> usize;
 
     /// Divide the consumer into two consumers, one processing items
     /// `0..index` and one processing items from `index..`. Also
@@ -44,7 +45,6 @@ pub trait Consumer<Item>: Send + Sized {
     /// Convert the consumer into a folder that can consume items
     /// sequentially, eventually producing a final result.
     fn into_folder(self) -> Self::Folder;
-
 }
 
 pub trait Folder<Item> {
@@ -87,31 +87,31 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
         where C: Consumer<ITEM>
     {
         type Output = C::Result;
-        fn callback<P>(mut self, mut producer: P) -> C::Result
+        fn callback<P>(self, producer: P) -> C::Result
             where P: Producer<Item=ITEM>
         {
-            let producer_cost = producer.cost(self.len);
-            let cost = self.consumer.cost(producer_cost);
-            bridge_producer_consumer(self.len, cost, producer, self.consumer)
+            let consumer_threshold = max(self.consumer.sequential_threshold(), 1);
+            bridge_producer_consumer(self.len, consumer_threshold, producer, self.consumer)
         }
     }
 }
 
 fn bridge_producer_consumer<P,C>(len: usize,
-                                 cost: f64,
+                                 threshold: usize,
                                  producer: P,
                                  consumer: C)
                                  -> C::Result
     where P: Producer, C: Consumer<P::Item>
 {
-    if len > 1 && cost > THRESHOLD {
+    debug_assert!(threshold >= 1);
+    if len > threshold {
         let mid = len / 2;
         let (left_producer, right_producer) = producer.split_at(mid);
         let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
         let (left_result, right_result) =
-            join(|| bridge_producer_consumer(mid, cost / 2.0,
+            join(|| bridge_producer_consumer(mid, threshold,
                                              left_producer, left_consumer),
-                 || bridge_producer_consumer(len - mid, cost / 2.0,
+                 || bridge_producer_consumer(len - mid, threshold,
                                              right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {

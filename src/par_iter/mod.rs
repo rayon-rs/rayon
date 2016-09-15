@@ -23,30 +23,30 @@ use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
-use self::weight::Weight;
+use self::threshold::Threshold;
 use self::zip::ZipIter;
 
 pub mod chain;
 pub mod collect;
+pub mod collections;
 pub mod enumerate;
+pub mod internal;
 pub mod filter;
 pub mod filter_map;
 pub mod flat_map;
-pub mod internal;
-pub mod len;
-pub mod for_each;
 #[cfg(feature = "unstable")]
 pub mod fold;
+pub mod for_each;
+pub mod len;
+pub mod map;
+pub mod option;
+pub mod range;
 pub mod reduce;
 pub mod slice;
 pub mod slice_mut;
-pub mod map;
-pub mod weight;
-pub mod zip;
-pub mod range;
+pub mod threshold;
 pub mod vec;
-pub mod option;
-pub mod collections;
+pub mod zip;
 
 #[cfg(test)]
 mod test;
@@ -128,26 +128,63 @@ pub trait ToParallelChunksMut<'data> {
 pub trait ParallelIterator: Sized {
     type Item: Send;
 
-    /// Indicates the relative "weight" of producing each item in this
-    /// parallel iterator. A higher weight will cause finer-grained
-    /// parallel subtasks. 1.0 indicates something very cheap and
-    /// uniform, like copying a value out of an array, or computing `x
-    /// + 1`. If your tasks are either very expensive, or very
-    /// unpredictable, you are better off with higher values. See also
-    /// `weight_max`, which is a convenient shorthand to force the
-    /// finest grained parallel execution posible. Tuning this value
-    /// should not affect correctness but can improve (or hurt)
-    /// performance.
-    fn weight(self, scale: f64) -> Weight<Self> {
-        Weight::new(self, scale)
+    /// Fine-tune performance by suggesting a sequential cutoff
+    /// threshold. This threshold defaults to 1. If you have very
+    /// fine-grained work items, you may find that things run faster
+    /// if you raise the threshold.  The threshold can never be less
+    /// than 1.
+    ///
+    /// In general, if the threshold is set to some value N, then this
+    /// means that if Rayon has less than N items remaining, it will
+    /// not attempt to spawn another thread. So if you set the
+    /// threshold to 222, and you had 400 items total, then Rayon
+    /// would first split into threads, each processing 200 items, and
+    /// then stop.
+    ///
+    /// It is recommended that you set the sequential threshold at
+    /// the very end of your iterator pipeline (right before the final
+    /// action). So for example:
+    ///
+    /// ```notest
+    /// slice.par_iter()
+    ///      .zip(&another_slice)
+    ///      .map(some_function)
+    ///      .sequential_threshold(22) // <-- here!
+    ///      .for_each(...); // (final action)
+    /// ```
+    ///
+    /// **Warning:** the threshold behavior is only a heuristic used
+    /// to tune performance and should not be interpreted as any kind
+    /// of guarantee. Rayon may choose not to spawn more or less
+    /// threads than the threshold would suggest if it thinks this
+    /// would be profitable.
+    fn sequential_threshold(self, threshold: usize) -> Threshold<Self> {
+        assert!(threshold >= 1, "a threshold of zero is not allowed");
+        Threshold::new(self, threshold)
     }
 
-    /// Shorthand for `self.weight(f64::INFINITY)`. This forces the
-    /// smallest granularity of parallel execution, which makes sense
-    /// when your parallel tasks are (potentially) very expensive to
-    /// execute.
-    fn weight_max(self) -> Weight<Self> {
-        self.weight(f64::INFINITY)
+    /// This used to be used to indicate that work items were
+    /// "heavier", which would control the sequential cutoff where
+    /// Rayon stopped attempting to parallelize. However, in v0.5.0,
+    /// we changed the underlying model. Instead of calling weight to
+    /// make your tasks seem heavier, you can call
+    /// `sequential_threshold` to raise the threshold up and hence
+    /// group more tasks together (it defaults to 1, meaning that we
+    /// will potentially run every work item on its own thread).  Note
+    /// that the sense is inverted, so if you had a big weight, you
+    /// want a low sequential threshold.
+    #[deprecated(since = "v0.5.0", note = "weighting model has changed; see `sequential_threshold` instead")]
+    fn weight(self, _scale: f64) -> Self {
+        self
+    }
+
+    /// This used to ensure that each item would (potentially) be
+    /// processed on a default thread. However, that behavior is now
+    /// the default. See `weight` for more background. The new method
+    /// for controlling sequential cutoff is `sequential_threshold`.
+    #[deprecated(since = "v0.5.0", note = "weight_max is now the default behavior")]
+    fn weight_max(self) -> Self {
+        self
     }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
@@ -252,7 +289,7 @@ pub trait ParallelIterator: Sized {
     /// Here is how to visualize what is happening. Imagine an input
     /// sequence with 7 values as shown:
     ///
-    /// ```
+    /// ```notrust
     /// [ 0 1 2 3 4 5 6 ]
     ///   |     | |   |
     ///   +--X--+ +-Y-+ // <-- fold_op
@@ -276,7 +313,7 @@ pub trait ParallelIterator: Sized {
     /// example, a call `self.fold(identity, fold_op, reduce_op)` could
     /// also be expressed as follows:
     ///
-    /// ```
+    /// ```notest
     /// self.map(|elem| fold_op(identity.clone(), elem))
     ///     .reduce_with_identity(identity, reduce_op)
     /// ```
