@@ -1,12 +1,12 @@
-use latch::{LockLatch, SpinLatch};
+use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
-use job::JobImpl;
+use job::{Job, JobImpl, DeferredJobImpl};
 use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
 use thread_pool::{self, Registry, WorkerThread};
-use std::{thread, mem};
+use std::mem;
 
 /// Custom error type for the rayon thread pool configuration.
 #[derive(Debug,PartialEq)]
@@ -157,9 +157,7 @@ pub fn join<A,B,RA,RB>(oper_a: A,
             fn drop(&mut self) {
                 unsafe {
                     if !(*WorkerThread::current()).pop() {
-                        while !self.0.probe() {
-                            thread::yield_now();
-                        }
+                        self.0.wait();
                     }
                 }
             }
@@ -203,8 +201,8 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
 
     thread_pool::get_registry().inject(&[job_a.as_job_ref(), job_b.as_job_ref()]);
 
-    job_a.latch.wait();
-    job_b.latch.wait();
+    job_a.wait();
+    job_b.wait();
 
     (job_a.into_result(), job_b.into_result())
 }
@@ -232,9 +230,24 @@ impl ThreadPool {
         unsafe {
             let job_a = JobImpl::new(op, LockLatch::new());
             self.registry.inject(&[job_a.as_job_ref()]);
-            job_a.latch.wait();
+            job_a.wait();
             job_a.into_result()
         }
+    }
+
+    /// Sends `op` to the work queue to be eventually executed.
+    pub fn start<'a, OP>(&'a self, op: OP)
+        where OP: FnOnce() -> () + Send + 'static
+    {
+        let job = Box::new(DeferredJobImpl::new(op, LockLatch::new()));
+        unsafe {
+            self.registry.inject_deferred(job);
+        }
+    }
+
+    /// Waits until there are no more jobs in the work queue.
+    pub fn wait_all(&self) {
+        self.registry.wait_all()
     }
 }
 
