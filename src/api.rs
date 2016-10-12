@@ -156,7 +156,7 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         impl<'a> Drop for PanicGuard<'a> {
             fn drop(&mut self) {
                 unsafe {
-                    if !(*WorkerThread::current()).pop() {
+                    if (*WorkerThread::current()).pop().is_none() {
                         while !self.0.probe() {
                             thread::yield_now();
                         }
@@ -175,7 +175,7 @@ pub fn join<A,B,RA,RB>(oper_a: A,
 
         // if b was not stolen, do it ourselves, else wait for the thief to finish
         let result_b;
-        if (*worker_thread).pop() {
+        if (*worker_thread).pop().is_some() {
             log!(PoppedJob { worker: (*worker_thread).index() });
             result_b = job_b.run_inline(); // not stolen, let's do it!
         } else {

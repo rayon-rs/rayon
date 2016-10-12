@@ -256,8 +256,8 @@ impl WorkerThread {
     /// Pop `job` from top of stack, returning `false` if it has been
     /// stolen.
     #[inline]
-    pub unsafe fn pop(&self) -> bool {
-        self.worker.pop().is_some()
+    pub unsafe fn pop(&self) -> Option<JobRef> {
+        self.worker.pop()
     }
 
     #[cold]
