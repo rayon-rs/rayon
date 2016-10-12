@@ -398,9 +398,8 @@ pub trait BoundedParallelIterator: ParallelIterator {
     /// iterator. You should not need to call this directly.
     #[doc(hidden)]
     fn drive<'c, C: Consumer<Self::Item>>(self,
-                                                   consumer: C)
-                                                   -> C::Result;
-
+                                          consumer: C)
+                                          -> C::Result;
 }
 
 /// A trait for parallel iterators items where the precise number of
