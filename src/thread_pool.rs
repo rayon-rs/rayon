@@ -211,7 +211,12 @@ impl ThreadInfo {
 pub struct WorkerThread {
     worker: Worker<JobRef>,
     stealers: Vec<Stealer<JobRef>>,
-    index: usize
+    index: usize,
+
+    /// a counter tracking how many calls to `Scope::spawn` occurred
+    /// on the current thread; this is used by the scope code to
+    /// ensure that the depth of the local deque is maintained
+    spawn_count: Cell<usize>,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
@@ -245,6 +250,11 @@ impl WorkerThread {
     #[inline]
     pub fn index(&self) -> usize {
         self.index
+    }
+
+    #[inline]
+    pub fn spawn_count(&self) -> &Cell<usize> {
+        &self.spawn_count
     }
 
     #[inline]
@@ -300,6 +310,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         worker: worker,
         stealers: stealers,
         index: index,
+        spawn_count: Cell::new(0),
     };
     worker_thread.set_current();
 

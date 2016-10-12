@@ -1,3 +1,7 @@
+# Release 0.4.3 (pending)
+
+- New (unstable) scoped threads API.
+
 # Release 0.4.2
 
 - Updated crates.io metadata.

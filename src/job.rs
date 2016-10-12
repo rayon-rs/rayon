@@ -40,7 +40,7 @@ unsafe impl Send for JobRef {}
 unsafe impl Sync for JobRef {}
 
 impl JobRef {
-    unsafe fn new<T>(data: *const T) -> JobRef
+    pub unsafe fn new<T>(data: *const T) -> JobRef
         where T: Job
     {
         let fn_ptr: unsafe fn(*const T, JobMode) = <T as Job>::execute;
