@@ -14,14 +14,13 @@ members = [ "rayon-demo" ]
 rand = "0.3"
 num_cpus = "1.0"
 deque = "0.3.1"
+libc = "0.2.16"
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
 num = "0.1.30"
 
 [features]
-nightly = []
-
 # Unstable APIs that have not yet
 # proven their utility.
 unstable = []

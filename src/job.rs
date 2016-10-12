@@ -1,15 +1,12 @@
 use latch::Latch;
-#[cfg(feature = "nightly")]
 use std::any::Any;
-#[cfg(feature = "nightly")]
-use std::panic::{self, AssertUnwindSafe};
 use std::cell::UnsafeCell;
 use std::mem;
+use unwind;
 
 enum JobResult<T> {
     None,
     Ok(T),
-    #[cfg(feature = "nightly")]
     Panic(Box<Any + Send>),
 }
 
@@ -89,36 +86,11 @@ impl<L: Latch, F, R> StackJob<L, F, R>
         self.func.into_inner().unwrap()()
     }
 
-    #[cfg(not(feature = "nightly"))]
-    pub unsafe fn into_result(self) -> R {
-        match self.result.into_inner() {
-            JobResult::None => panic!("job function panicked"),
-            JobResult::Ok(x) => x,
-        }
-    }
-
-    #[cfg(feature = "nightly")]
     pub unsafe fn into_result(self) -> R {
         match self.result.into_inner() {
             JobResult::None => unreachable!(),
             JobResult::Ok(x) => x,
-            JobResult::Panic(x) => panic::resume_unwind(x),
-        }
-    }
-
-    #[cfg(not(feature = "nightly"))]
-    fn run_result(func: F) -> JobResult<R> {
-        JobResult::Ok(func())
-    }
-
-    #[cfg(feature = "nightly")]
-    fn run_result(func: F) -> JobResult<R> {
-        // We assert that func is unwind-safe since it doesn't touch any of
-        // our data and we will be propagating the panic back to the user at
-        // the join() call.
-        match panic::catch_unwind(AssertUnwindSafe(func)) {
-            Ok(x) => JobResult::Ok(x),
-            Err(x) => JobResult::Panic(x),
+            JobResult::Panic(x) => unwind::resume_unwinding(x),
         }
     }
 }
@@ -130,18 +102,14 @@ impl<L: Latch, F, R> Job for StackJob<L, F, R>
         let this = &*this;
         match mode {
             JobMode::Execute => {
-                // Use a guard here to ensure that the latch is always set, even if
-                // the function panics.
-                struct PanicGuard<'a, L: Latch + 'a>(&'a L);
-                impl<'a, L: Latch> Drop for PanicGuard<'a, L> {
-                    fn drop(&mut self) {
-                        self.0.set();
-                    }
-                }
-
-                let _guard = PanicGuard(&this.latch);
+                let abort = unwind::AbortIfPanic;
                 let func = (*this.func.get()).take().unwrap();
-                (*this.result.get()) = Self::run_result(func);
+                (*this.result.get()) = match unwind::halt_unwinding(|| func()) {
+                    Ok(x) => JobResult::Ok(x),
+                    Err(x) => JobResult::Panic(x),
+                };
+                this.latch.set();
+                mem::forget(abort);
             }
             JobMode::Abort => {
                 this.latch.set();
