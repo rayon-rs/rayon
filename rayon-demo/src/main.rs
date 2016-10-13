@@ -5,6 +5,7 @@ use std::io;
 use std::io::prelude::*;
 use std::process::exit;
 
+mod mergesort;
 mod nbody;
 mod sieve;
 
@@ -39,6 +40,7 @@ Benchmarks:
   - nbody: A physics simulation of multiple bodies attracting and repelling
            one another.
   - sieve: Finding primes using a Sieve of Eratosthenes.
+  - mergesort: Parallel mergesort.
 ";
 
 fn usage() -> ! {
@@ -55,6 +57,7 @@ fn main() {
 
     let bench_name = &args[1];
     match &bench_name[..] {
+        "mergesort" => mergesort::main(&args[1..]),
         "nbody" => nbody::main(&args[1..]),
         "sieve" => sieve::main(&args[1..]),
         _ => usage()
