@@ -218,9 +218,9 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
 }
 
 fn default_vec(n: usize) -> Vec<u32> {
-    let mut v = Vec::with_capacity(n);
+    let mut v = Vec::<u32>::with_capacity(n);
     // Populate with unique, pseudorandom values.
-    let mut m: u32 = 1;
+    let mut m = 1;
     for _ in 0..n {
         v.push(m);
         m = m.wrapping_mul(101);

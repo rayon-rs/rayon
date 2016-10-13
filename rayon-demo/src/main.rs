@@ -7,6 +7,7 @@ use std::process::exit;
 
 mod mergesort;
 mod nbody;
+mod quicksort;
 mod sieve;
 
 extern crate rayon; // all
@@ -41,6 +42,7 @@ Benchmarks:
            one another.
   - sieve: Finding primes using a Sieve of Eratosthenes.
   - mergesort: Parallel mergesort.
+  - quicksort: Parallel quicksort.
 ";
 
 fn usage() -> ! {
@@ -59,6 +61,7 @@ fn main() {
     match &bench_name[..] {
         "mergesort" => mergesort::main(&args[1..]),
         "nbody" => nbody::main(&args[1..]),
+        "quicksort" => quicksort::main(&args[1..]),
         "sieve" => sieve::main(&args[1..]),
         _ => usage()
     }
