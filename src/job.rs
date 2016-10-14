@@ -42,17 +42,20 @@ impl JobRef {
     }
 }
 
-pub struct JobImpl<L: Latch, F, R> {
+/// A job that will be owned by a stack slot. This means that when it
+/// executes it need not free any heap data, the cleanup occurs when
+/// the stack frame is later popped.
+pub struct StackJob<L: Latch, F, R> {
     pub latch: L,
     func: UnsafeCell<Option<F>>,
     result: UnsafeCell<JobResult<R>>,
 }
 
-impl<L: Latch, F, R> JobImpl<L, F, R>
+impl<L: Latch, F, R> StackJob<L, F, R>
     where F: FnOnce() -> R
 {
-    pub fn new(func: F, latch: L) -> JobImpl<L, F, R> {
-        JobImpl {
+    pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
+        StackJob {
             latch: latch,
             func: UnsafeCell::new(Some(func)),
             result: UnsafeCell::new(JobResult::None),
@@ -102,7 +105,7 @@ impl<L: Latch, F, R> JobImpl<L, F, R>
     }
 }
 
-impl<L: Latch, F, R> Job for JobImpl<L, F, R>
+impl<L: Latch, F, R> Job for StackJob<L, F, R>
     where F: FnOnce() -> R
 {
     unsafe fn execute(&self, mode: JobMode) {

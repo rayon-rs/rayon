@@ -1,7 +1,7 @@
 use latch::{LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
-use job::JobImpl;
+use job::StackJob;
 use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
@@ -147,7 +147,7 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         // create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough
-        let job_b = JobImpl::new(oper_b, SpinLatch::new());
+        let job_b = StackJob::new(oper_b, SpinLatch::new());
         (*worker_thread).push(job_b.as_job_ref());
 
         // If another thread stole our job when we panic, we must halt unwinding
@@ -198,8 +198,8 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
           RA: Send,
           RB: Send,
 {
-    let job_a = JobImpl::new(oper_a, LockLatch::new());
-    let job_b = JobImpl::new(oper_b, LockLatch::new());
+    let job_a = StackJob::new(oper_a, LockLatch::new());
+    let job_b = StackJob::new(oper_b, LockLatch::new());
 
     thread_pool::get_registry().inject(&[job_a.as_job_ref(), job_b.as_job_ref()]);
 
@@ -230,7 +230,7 @@ impl ThreadPool {
         where OP: FnOnce() -> R + Send
     {
         unsafe {
-            let job_a = JobImpl::new(op, LockLatch::new());
+            let job_a = StackJob::new(op, LockLatch::new());
             self.registry.inject(&[job_a.as_job_ref()]);
             job_a.latch.wait();
             job_a.into_result()
