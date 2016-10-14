@@ -7,6 +7,9 @@ license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
 documentation = "https://docs.rs/rayon/"
 
+[workspace]
+members = [ "rayon-demo" ]
+
 [dependencies]
 rand = "0.3"
 num_cpus = "1.0"

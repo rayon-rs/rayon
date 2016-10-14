@@ -1,14 +1,6 @@
-extern crate cgmath;
-extern crate docopt;
-#[macro_use]
-extern crate glium;
-extern crate rand;
-extern crate rayon;
-extern crate rustc_serialize;
-extern crate time;
-
 use docopt::Docopt;
 use rand::{SeedableRng, XorShiftRng};
+use time;
 
 mod nbody;
 mod visualize;
@@ -29,6 +21,21 @@ Options:
     --mode MODE        Execution mode for the benchmark/visualizer.
     --bodies N         Use N bodies [default: 4000].
     --ticks N          Simulate for N ticks [default: 100].
+
+
+Commands:
+    bench              Run the benchmark and print the timings.
+    visualize          Show the graphical visualizer.
+
+Options:
+    -h, --help         Show this message.
+    --mode MODE        Execution mode for the benchmark/visualizer.
+                       MODE can one of 'par', 'seq', or 'parreduce'.
+    --bodies N         Use N bodies [default: 4000].
+    --ticks N          Simulate for N ticks [default: 100].
+
+Ported from the RiverTrail demo found at:
+    https://github.com/IntelLabs/RiverTrail/tree/master/examples/nbody-webgl
 ";
 
 #[derive(Copy, Clone, PartialEq, Eq, RustcDecodable)]
@@ -47,10 +54,10 @@ pub struct Args {
     flag_ticks: usize,
 }
 
-fn main() {
+pub fn main(args: &[String]) {
     let args: Args =
         Docopt::new(USAGE)
-            .and_then(|d| d.decode())
+            .and_then(|d| d.argv(args).decode())
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
