@@ -19,8 +19,12 @@ enum JobResult<T> {
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
 pub trait Job {
-    unsafe fn execute(&self);
-    unsafe fn abort(&self);
+    unsafe fn execute(&self, mode: JobMode);
+}
+
+pub enum JobMode {
+    Execute,
+    Abort,
 }
 
 #[derive(Copy, Clone)]
@@ -28,16 +32,16 @@ pub struct JobRef(pub *const Job);
 unsafe impl Send for JobRef {}
 unsafe impl Sync for JobRef {}
 
-pub struct JobImpl<L:Latch,F,R> {
+pub struct JobImpl<L: Latch, F, R> {
     pub latch: L,
     func: UnsafeCell<Option<F>>,
     result: UnsafeCell<JobResult<R>>,
 }
 
-impl<L:Latch,F,R> JobImpl<L,F,R>
+impl<L: Latch, F, R> JobImpl<L, F, R>
     where F: FnOnce() -> R
 {
-    pub fn new(func: F, latch: L) -> JobImpl<L,F,R> {
+    pub fn new(func: F, latch: L) -> JobImpl<L, F, R> {
         JobImpl {
             latch: latch,
             func: UnsafeCell::new(Some(func)),
@@ -88,26 +92,28 @@ impl<L:Latch,F,R> JobImpl<L,F,R>
     }
 }
 
-impl<L:Latch,F,R> Job for JobImpl<L,F,R>
+impl<L: Latch, F, R> Job for JobImpl<L, F, R>
     where F: FnOnce() -> R
 {
-    unsafe fn execute(&self) {
-        // Use a guard here to ensure that the latch is always set, even if
-        // the function panics.
-        struct PanicGuard<'a,L:Latch + 'a>(&'a L);
-        impl<'a,L:Latch> Drop for PanicGuard<'a,L> {
-            fn drop(&mut self) {
-                self.0.set();
+    unsafe fn execute(&self, mode: JobMode) {
+        match mode {
+            JobMode::Execute => {
+                // Use a guard here to ensure that the latch is always set, even if
+                // the function panics.
+                struct PanicGuard<'a, L: Latch + 'a>(&'a L);
+                impl<'a, L: Latch> Drop for PanicGuard<'a, L> {
+                    fn drop(&mut self) {
+                        self.0.set();
+                    }
+                }
+
+                let _guard = PanicGuard(&self.latch);
+                let func = (*self.func.get()).take().unwrap();
+                (*self.result.get()) = Self::run_result(func);
+            }
+            JobMode::Abort => {
+                self.latch.set();
             }
         }
-
-        let _guard = PanicGuard(&self.latch);
-        let func = (*self.func.get()).take().unwrap();
-        (*self.result.get()) = Self::run_result(func);
-    }
-
-    unsafe fn abort(&self) {
-        // Just set the latch and leave the result as None
-        self.latch.set();
     }
 }
