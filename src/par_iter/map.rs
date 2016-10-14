@@ -137,6 +137,10 @@ impl<'m, P, MAP_OP> Producer for MapProducer<'m, P, MAP_OP>
     where P: Producer,
           MAP_OP: MapOp<P::Item>,
 {
+    fn weighted(&self) -> bool {
+        self.base.weighted()
+    }
+
     fn cost(&mut self, len: usize) -> f64 {
         self.base.cost(len) * FUNC_ADJUSTMENT
     }
@@ -202,6 +206,10 @@ impl<'m, ITEM, C, MAP_OP> Consumer<ITEM> for MapConsumer<'m, C, MAP_OP>
     type Folder = MapFolder<'m, C::Folder, MAP_OP>;
     type Reducer = C::Reducer;
     type Result = C::Result;
+
+    fn weighted(&self) -> bool {
+        self.base.weighted()
+    }
 
     fn cost(&mut self, cost: f64) -> f64 {
         self.base.cost(cost) * FUNC_ADJUSTMENT

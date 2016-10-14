@@ -69,6 +69,10 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
     type Reducer = C::Reducer;
     type Result = C::Result;
 
+    fn weighted(&self) -> bool {
+        self.base.weighted()
+    }
+
     /// Cost to process `items` number of items.
     fn cost(&mut self, cost: f64) -> f64 {
         self.base.cost(cost) * FUNC_ADJUSTMENT

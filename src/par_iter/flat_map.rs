@@ -53,6 +53,10 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     type Reducer = C::Reducer;
     type Result = C::Result;
 
+    fn weighted(&self) -> bool {
+        true
+    }
+
     fn cost(&mut self, _cost: f64) -> f64 {
         // We have no idea how many items we will produce, so ramp up
         // the cost, so as to encourage the producer to do a
