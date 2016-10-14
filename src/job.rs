@@ -21,12 +21,72 @@ enum JobResult<T> {
 pub trait Job {
     unsafe fn execute(&self);
     unsafe fn abort(&self);
+    fn wait(&self);
 }
 
 #[derive(Copy, Clone)]
 pub struct JobRef(pub *const Job);
 unsafe impl Send for JobRef {}
 unsafe impl Sync for JobRef {}
+
+pub struct JobBox(pub Box<Job>);
+unsafe impl Send for JobBox {}
+unsafe impl Sync for JobBox {}
+
+// This is to work around the lack of FnBox.
+trait Callback: Send {
+    fn call(self: Box<Self>);
+}
+
+impl<F: FnOnce() + Send> Callback for F {
+    fn call(self: Box<F>) {
+        (*self)()
+    }
+}
+
+pub struct DeferredJobImpl<L:Latch> {
+    latch: L,
+    func: UnsafeCell<Option<Box<Callback>>>,
+}
+
+impl<L: Latch> DeferredJobImpl<L> {
+    pub fn new<F>(func: F, latch: L) -> Self
+        where F: FnOnce() + Send + 'static,
+    {
+        DeferredJobImpl {
+            latch: latch,
+            func: UnsafeCell::new(Some(Box::new(func))),
+        }
+    }
+}
+
+impl<L: Latch> Job for DeferredJobImpl<L>
+{
+    unsafe fn execute(&self) {
+        // Use a guard here to ensure that the latch is always set, even if
+        // the function panics.
+        struct PanicGuard<'a,L:Latch + 'a>(&'a L);
+        impl<'a,L:Latch> Drop for PanicGuard<'a,L> {
+            fn drop(&mut self) {
+                self.0.set();
+            }
+        }
+
+        let _guard = PanicGuard(&self.latch);
+        let func = (*self.func.get()).take().unwrap();
+        // TODO: catch panic?
+        func.call();
+    }
+
+    unsafe fn abort(&self) {
+        // Just set the latch.
+        self.latch.set();
+    }
+
+    fn wait(&self) {
+        self.latch.wait()
+    }
+}
 
 pub struct JobImpl<L:Latch,F,R> {
     pub latch: L,
@@ -109,5 +169,9 @@ impl<L:Latch,F,R> Job for JobImpl<L,F,R>
     unsafe fn abort(&self) {
         // Just set the latch and leave the result as None
         self.latch.set();
+    }
+
+    fn wait(&self) {
+        self.latch.wait()
     }
 }
