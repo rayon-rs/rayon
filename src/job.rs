@@ -19,7 +19,7 @@ enum JobResult<T> {
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
 pub trait Job {
-    unsafe fn execute(&self, mode: JobMode);
+    unsafe fn execute(this: *const Self, mode: JobMode);
 }
 
 pub enum JobMode {
@@ -46,7 +46,7 @@ impl JobRef {
     unsafe fn new<T>(data: *const T) -> JobRef
         where T: Job
     {
-        let fn_ptr: unsafe fn(&T, JobMode) = <T as Job>::execute;
+        let fn_ptr: unsafe fn(*const T, JobMode) = <T as Job>::execute;
 
         // erase types:
         let fn_ptr: unsafe fn(*const (), JobMode) = mem::transmute(fn_ptr);
@@ -126,7 +126,8 @@ impl<L: Latch, F, R> StackJob<L, F, R>
 impl<L: Latch, F, R> Job for StackJob<L, F, R>
     where F: FnOnce() -> R
 {
-    unsafe fn execute(&self, mode: JobMode) {
+    unsafe fn execute(this: *const Self, mode: JobMode) {
+        let this = &*this;
         match mode {
             JobMode::Execute => {
                 // Use a guard here to ensure that the latch is always set, even if
@@ -138,12 +139,12 @@ impl<L: Latch, F, R> Job for StackJob<L, F, R>
                     }
                 }
 
-                let _guard = PanicGuard(&self.latch);
-                let func = (*self.func.get()).take().unwrap();
-                (*self.result.get()) = Self::run_result(func);
+                let _guard = PanicGuard(&this.latch);
+                let func = (*this.func.get()).take().unwrap();
+                (*this.result.get()) = Self::run_result(func);
             }
             JobMode::Abort => {
-                self.latch.set();
+                this.latch.set();
             }
         }
     }
