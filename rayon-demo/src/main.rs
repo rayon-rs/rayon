@@ -12,7 +12,9 @@ extern crate cgmath; // nbody
 extern crate glium; // nbody
 extern crate rand; // nbody
 extern crate rustc_serialize; // nbody
-extern crate time; // nbody
+extern crate time; // nbody, sieve
+extern crate itertools; // sieve
+
 
 const USAGE: &'static str = "
 Usage: rayon-demo bench
@@ -31,6 +33,7 @@ Benchmarks:
 
   - nbody: A physics simulation of multiple bodies attracting and repelling
            one another.
+  - sieve: Finding primes using a Sieve of Eratosthenes.
 ";
 
 fn usage() -> ! {
@@ -48,6 +51,7 @@ fn main() {
     let bench_name = &args[1];
     match &bench_name[..] {
         "nbody" => nbody::main(&args[1..]),
+        "sieve" => nbody::main(&args[1..]),
         _ => usage()
     }
 }

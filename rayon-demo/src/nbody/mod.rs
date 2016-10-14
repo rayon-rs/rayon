@@ -12,6 +12,9 @@ Usage: nbody bench [--mode MODE --bodies N --ticks N]
        nbody visualize [--mode MODE --bodies N]
        nbody --help
 
+Physics simulation of multiple bodies alternatively attracing and
+repelling one another. Visualizable with OpenGL.
+
 Commands:
     bench              Run the benchmark and print the timings.
     visualize          Show the graphical visualizer.
