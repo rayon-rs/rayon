@@ -10,6 +10,12 @@ mod nbody;
 mod quicksort;
 mod sieve;
 
+// these are not "full-fledged" benchmarks yet,
+// they only run with cargo bench
+#[cfg(test)] mod factorial;
+#[cfg(test)] mod pythagoras;
+#[cfg(test)] mod fibonacci;
+
 extern crate rayon; // all
 extern crate docopt; // all
 extern crate cgmath; // nbody
@@ -19,6 +25,7 @@ extern crate rand; // nbody
 extern crate rustc_serialize; // nbody
 extern crate time; // nbody, sieve
 extern crate itertools; // sieve
+extern crate num; // factorial
 
 #[cfg(test)]
 extern crate test;
