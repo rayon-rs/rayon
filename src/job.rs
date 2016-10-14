@@ -27,18 +27,37 @@ pub enum JobMode {
     Abort,
 }
 
+/// Effectively a Job trait object. Each JobRef **must** be executed
+/// exactly once, or else data may leak.
+///
+/// Internally, we store the job's data in a `*const ()` pointer.  The
+/// true type is something like `*const StackJob<...>`, but we hide
+/// it. We also carry the "execute fn" from the `Job` trait.
 #[derive(Copy, Clone)]
 pub struct JobRef {
-    pointer: *const Job
+    pointer: *const (),
+    execute_fn: unsafe fn(*const (), mode: JobMode),
 }
 
 unsafe impl Send for JobRef {}
 unsafe impl Sync for JobRef {}
 
 impl JobRef {
+    unsafe fn new<T>(data: *const T) -> JobRef
+        where T: Job
+    {
+        let fn_ptr: unsafe fn(&T, JobMode) = <T as Job>::execute;
+
+        // erase types:
+        let fn_ptr: unsafe fn(*const (), JobMode) = mem::transmute(fn_ptr);
+        let pointer = data as *const ();
+
+        JobRef { pointer: pointer, execute_fn: fn_ptr }
+    }
+
     #[inline]
     pub unsafe fn execute(&self, mode: JobMode) {
-        (*self.pointer).execute(mode);
+        (self.execute_fn)(self.pointer, mode)
     }
 }
 
@@ -63,8 +82,7 @@ impl<L: Latch, F, R> StackJob<L, F, R>
     }
 
     pub unsafe fn as_job_ref(&self) -> JobRef {
-        let job_ref: *const (Job + 'static) = mem::transmute(self as *const Job);
-        JobRef { pointer: job_ref }
+        JobRef::new(self)
     }
 
     pub unsafe fn run_inline(self) -> R {
