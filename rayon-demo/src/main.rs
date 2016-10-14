@@ -1,3 +1,5 @@
+#![cfg_attr(test, feature(test))]
+
 use std::env;
 use std::io;
 use std::io::prelude::*;
@@ -15,6 +17,8 @@ extern crate rustc_serialize; // nbody
 extern crate time; // nbody, sieve
 extern crate itertools; // sieve
 
+#[cfg(test)]
+extern crate test;
 
 const USAGE: &'static str = "
 Usage: rayon-demo bench

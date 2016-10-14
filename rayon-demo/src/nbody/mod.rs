@@ -2,6 +2,8 @@ use docopt::Docopt;
 use rand::{SeedableRng, XorShiftRng};
 use time;
 
+#[cfg(test)]
+mod bench;
 mod nbody;
 mod visualize;
 use self::visualize::visualize_benchmarks;
@@ -137,3 +139,4 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         println!("ParReduce speedup: {}", (st as f32) / (pt as f32));
     }
 }
+
