@@ -36,19 +36,47 @@ pub struct Args {
     cmd_bench: bool,
 }
 
+#[cfg(test)]
+mod bench;
+
+use docopt::Docopt;
 use itertools::StrideMut;
 use rayon::prelude::*;
 use time;
 
 const CHUNK_SIZE: usize = 100_000;
 
-const MAX: usize = 1_000_000_000;
-
 // Number of Primes < 10^n
 // https://oeis.org/A006880
-const NUM_PRIMES: usize = 50_847_534;
+const NUM_PRIMES: &'static [usize] = &[
+    0, // primes in 0..10^0
+    4, // primes in 0..10^1
+    25, // etc
+    168,
+    1229,
+    9592,
+    78498,
+    664579,
+    5761455,
+    50847534,
+    455052511,
+    4118054813,
+    37607912018,
+    346065536839,
+    3204941750802,
+    29844570422669,
+    279238341033925,
+    2623557157654233,
+    24739954287740860,
+    234057667276344607,
+    2220819602560918840,
+];
 
 // For all of these sieves, sieve[i]==true -> 2*i+1 is prime
+
+fn max(magnitude: usize) -> usize {
+    10_usize.pow(magnitude as u32)
+}
 
 /// Sieve odd integers for primes < max.
 fn sieve_serial(max: usize) -> Vec<bool> {
@@ -135,18 +163,20 @@ fn clear_stride(slice: &mut [bool], from: usize, stride: usize) {
 }
 
 fn measure(f: fn(usize) -> Vec<bool>) -> u64 {
+    const MAGNITUDE: usize = 9;
+
     let start = time::precise_time_ns();
-    let sieve = f(MAX);
+    let sieve = f(max(MAGNITUDE));
     let duration = time::precise_time_ns() - start;
 
     // sanity check the number of primes found
     let num_primes = 1 + sieve.into_iter().filter(|&b| b).count();
-    assert_eq!(num_primes, NUM_PRIMES);
+    assert_eq!(num_primes, NUM_PRIMES[MAGNITUDE]);
 
     duration
 }
 
-fn main(args: &[String]) {
+pub fn main(args: &[String]) {
     let args: Args =
         Docopt::new(USAGE)
             .and_then(|d| d.argv(args).decode())

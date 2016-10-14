@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::process::exit;
 
 mod nbody;
+mod sieve;
 
 extern crate rayon; // all
 extern crate docopt; // all
@@ -55,7 +56,7 @@ fn main() {
     let bench_name = &args[1];
     match &bench_name[..] {
         "nbody" => nbody::main(&args[1..]),
-        "sieve" => nbody::main(&args[1..]),
+        "sieve" => sieve::main(&args[1..]),
         _ => usage()
     }
 }
