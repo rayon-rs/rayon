@@ -1,7 +1,0 @@
-[package]
-name = "mergesort"
-version = "0.1.0"
-authors = ["Eric Roshan-Eisner <edre@google.com>"]
-
-[dependencies]
-rayon = { path = "../../" }

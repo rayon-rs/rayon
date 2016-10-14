@@ -7,8 +7,8 @@ use glium::glutin::VirtualKeyCode as Key;
 use glium::index::PrimitiveType;
 use rand::{self, Rng, SeedableRng, XorShiftRng};
 
-use nbody::NBodyBenchmark;
-use ExecutionMode;
+use nbody::nbody::NBodyBenchmark;
+use nbody::ExecutionMode;
 
 #[derive(Copy, Clone)]
 struct Vertex {

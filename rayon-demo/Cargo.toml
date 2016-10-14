@@ -1,13 +1,15 @@
 [package]
-name = "nbody"
+name = "rayon-demo"
 version = "0.1.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 
 [dependencies]
+rayon = { path = "../", features = ["unstable"] }
 cgmath = "0.11"
 docopt = "0.6"
 glium = "0.15"
 rand = "0.3"
-rayon = { path = "../../", features = ["unstable"] }
 rustc-serialize = "0.3"
 time = "0.1"
+itertools = "0.4"
+num = "0.1.30"

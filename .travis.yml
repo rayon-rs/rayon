@@ -13,6 +13,6 @@ script:
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
     cargo test --features nightly
-  - cd demo/quicksort && cargo build && cd ../../
-  - cd demo/sieve && cargo run --release && cd ../../
-  - cd demo/nbody && cargo run --release -- bench && cd ../../
+  - |
+    [ $TRAVIS_RUST_VERSION != nightly ] ||
+    ( cd rayon-demo && cargo bench && cd ../../ )

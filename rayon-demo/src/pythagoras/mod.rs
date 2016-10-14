@@ -3,17 +3,11 @@
 
 #![feature(test)]
 
-extern crate num;
-extern crate rayon;
-extern crate test;
-
 use num::Integer;
 use rayon::prelude::*;
-use rayon::Configuration;
 use std::f64::INFINITY;
 use std::ops::Add;
-
-const INIT_FAILED: &'static str = "Rayon failed to initialize";
+use test;
 
 /// Use Euclid's formula to count Pythagorean triples
 ///
@@ -52,9 +46,6 @@ fn euclid_serial(b: &mut test::Bencher) {
 #[bench]
 /// Use zero weights to force it fully serialized.
 fn euclid_faux_serial(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new())
-                     .expect(INIT_FAILED);
-
     let count = euclid();
     b.iter(|| assert_eq!(par_euclid(0.0, 0.0), count))
 }
@@ -62,9 +53,6 @@ fn euclid_faux_serial(b: &mut test::Bencher) {
 #[bench]
 /// Use the default weights (1.0)
 fn euclid_default(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new())
-                     .expect(INIT_FAILED);
-
     let count = euclid();
     b.iter(|| assert_eq!(par_euclid(1.0, 1.0), count))
 }
@@ -72,9 +60,6 @@ fn euclid_default(b: &mut test::Bencher) {
 #[bench]
 /// Use infinite weight to force the outer loop parallelized.
 fn euclid_parallel_outer(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new())
-                     .expect(INIT_FAILED);
-
     let count = euclid();
     b.iter(|| assert_eq!(par_euclid(INFINITY, 1.0), count))
 }
@@ -82,9 +67,6 @@ fn euclid_parallel_outer(b: &mut test::Bencher) {
 #[bench]
 /// Use infinite weights to force it fully parallelized.
 fn euclid_parallel_full(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new())
-                     .expect(INIT_FAILED);
-
     let count = euclid();
     b.iter(|| assert_eq!(par_euclid(INFINITY, INFINITY), count))
 }

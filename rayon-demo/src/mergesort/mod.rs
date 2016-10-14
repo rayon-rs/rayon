@@ -1,11 +1,30 @@
-// Parallel mergesort: regular sorting with a parallel merge step.
-// O(n log n) time; O(n) extra space; critical path is O(log^3 n)
-//
-// Algorithm described in: https://software.intel.com/en-us/articles/a-parallel-stable-sort-using-c11-for-tbb-cilk-plus-and-openmp
-extern crate rayon;
+const USAGE: &'static str = "
+Usage: mergesort bench [--size N]
+       mergesort --help
+
+Parallel mergesort: regular sorting with a parallel merge step.
+O(n log n) time; O(n) extra space; critical path is O(log^3 n)
+
+Algorithm described in: https://software.intel.com/en-us/articles/a-parallel-stable-sort-using-c11-for-tbb-cilk-plus-and-openmp
+
+Commands:
+    bench              Run the benchmark in different modes and print the timings.
+
+Options:
+    --size N           Number of 32-bit words to sort [default: 250000000] (1GB)
+    -h, --help         Show this message.
+";
+
+#[derive(RustcDecodable)]
+pub struct Args {
+    cmd_bench: bool,
+    flag_size: usize,
+}
+
+use docopt::Docopt;
+use rayon;
 
 use std::cmp::max;
-use std::env::args;
 use std::time::Instant;
 
 pub fn merge_sort<T: Ord + Send + Copy>(v: &mut [T]) {
@@ -198,7 +217,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     return left && right;
 }
 
-fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
+fn default_vec(n: usize) -> Vec<u32> {
     let mut v = Vec::<u32>::with_capacity(n);
     // Populate with unique, pseudorandom values.
     let mut m = 1;
@@ -206,6 +225,11 @@ fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
         v.push(m);
         m = m.wrapping_mul(101);
     }
+    v
+}
+
+fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
+    let mut v = default_vec(n);
 
     let start = Instant::now();
     f(&mut v[..]);
@@ -219,12 +243,19 @@ fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
     return nanos
 }
 
-pub fn main() {
-    // Default to gigasort: sort one gigabyte of 32-bit ints.
-    let giga: usize = 250_000_000;
-    let n: usize = args().nth(1).unwrap_or("".to_string()).parse().unwrap_or(giga);
-    let seq = timed_sort(n, seq_merge_sort, "seq");
-    let par = timed_sort(n, merge_sort, "par");
-    let speedup = seq as f64 / par as f64;
-    println!("speedup: {:.2}x", speedup);
+pub fn main(args: &[String]) {
+    let args: Args =
+        Docopt::new(USAGE)
+            .and_then(|d| d.argv(args).decode())
+            .unwrap_or_else(|e| e.exit());
+
+    if args.cmd_bench {
+        let seq = timed_sort(args.flag_size, seq_merge_sort, "seq");
+        let par = timed_sort(args.flag_size, merge_sort, "par");
+        let speedup = seq as f64 / par as f64;
+        println!("speedup: {:.2}x", speedup);
+    }
 }
+
+#[cfg(test)]
+mod bench;

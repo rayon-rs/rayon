@@ -31,6 +31,26 @@ In particular, the handling of panics is known to be terrible.  See
 [nikomatsakis/rayon#10](https://github.com/nikomatsakis/rayon/issues/10)
 for more details.
 
+### Quick demo
+
+To see Rayon in action, check out the `rayon-demo` directory, which
+includes a number of demos of code using Rayon. For example, run this
+command to get a visualization of an nbody simulation. To see the
+effect of using Rayon, press `s` to run sequentially and `p` to run in
+parallel.
+
+```
+> cd rayon-demo
+> cargo run --release -- nbody visualize
+```
+
+For more information on demos, try:
+
+```
+> cd rayon-demo
+> cargo run --release -- --help
+```
+
 ### Parallel Iterators
 
 Rayon supports an experimental API called "parallel iterators". These
@@ -118,7 +138,7 @@ handle this for you. When using join, you have to code it yourself.
 For an example, see the [quicksort demo][], which includes sequential
 fallback after a certain size.
 
-[quicksort demo]: https://github.com/nikomatsakis/rayon/blob/master/demo/quicksort/src/main.rs
+[quicksort demo]: https://github.com/nikomatsakis/rayon/blob/master/rayon-demo/src/quicksort/mod.rs
 
 ### Safety
 

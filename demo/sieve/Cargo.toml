@@ -1,9 +1,0 @@
-[package]
-name = "sieve"
-version = "0.1.0"
-authors = ["Josh Stone <cuviper@gmail.com>"]
-
-[dependencies]
-itertools = "0.4"
-rayon = { path = "../../" }
-time = "0.1"

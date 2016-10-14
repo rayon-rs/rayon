@@ -1,41 +1,82 @@
-//! Sieve of Eratosthenes
-//!
-//! A sieve finds prime numbers by first assuming all candidates are prime,
-//! then progressively using small primes to mark their multiples composite.
-//!
-//! Note that a given prime p only needs to start marking its multiples >=p²,
-//! as anything less will already have been marked by an even smaller prime
-//! factor.  This also means that sieving up to N only requires primes up to
-//! sqrt(N) - a useful fact to prepare for parallel sieving.
-//!
-//! Here we have three forms of the sieve:
-//!
-//! - `sieve_serial`: direct iteration in serial
-//! - `sieve_chunks`: chunked iteration, still serial
-//! - `sieve_parallel`: chunked iteration in parallel
-//!
-//! The performance improvement of `sieve_chunks` is largely due to cache
-//! locality.  Since the sieve has to sweep repeatedly over the same memory,
-//! it's helpful that the chunk size can fit entirely in the CPU cache.  Then
-//! `sieve_parallel` also benefits from this as long as there's cache room for
-//! multiple chunks, for the separate jobs in each thread.
+const USAGE: &'static str = "
+Usage: sieve bench
+       sieve --help
 
-extern crate itertools;
-extern crate rayon;
-extern crate time;
+Sieve of Eratosthenes
 
+A sieve finds prime numbers by first assuming all candidates are prime,
+then progressively using small primes to mark their multiples composite.
+
+Note that a given prime p only needs to start marking its multiples >=p²,
+as anything less will already have been marked by an even smaller prime
+factor.  This also means that sieving up to N only requires primes up to
+sqrt(N) - a useful fact to prepare for parallel sieving.
+
+Here we have three forms of the sieve:
+
+- `sieve_serial`: direct iteration in serial
+- `sieve_chunks`: chunked iteration, still serial
+- `sieve_parallel`: chunked iteration in parallel
+
+The performance improvement of `sieve_chunks` is largely due to cache
+locality.  Since the sieve has to sweep repeatedly over the same memory,
+it's helpful that the chunk size can fit entirely in the CPU cache.  Then
+`sieve_parallel` also benefits from this as long as there's cache room for
+multiple chunks, for the separate jobs in each thread.
+
+Commands:
+    bench              Run the benchmark in different modes and print the timings.
+
+Options:
+    -h, --help         Show this message.
+";
+
+#[derive(RustcDecodable)]
+pub struct Args {
+    cmd_bench: bool,
+}
+
+#[cfg(test)]
+mod bench;
+
+use docopt::Docopt;
 use itertools::StrideMut;
 use rayon::prelude::*;
+use time;
 
 const CHUNK_SIZE: usize = 100_000;
 
-const MAX: usize = 1_000_000_000;
-
 // Number of Primes < 10^n
 // https://oeis.org/A006880
-const NUM_PRIMES: usize = 50_847_534;
+const NUM_PRIMES: &'static [usize] = &[
+    0, // primes in 0..10^0
+    4, // primes in 0..10^1
+    25, // etc
+    168,
+    1229,
+    9592,
+    78498,
+    664579,
+    5761455,
+    50847534,
+    455052511,
+    4118054813,
+    37607912018,
+    346065536839,
+    3204941750802,
+    29844570422669,
+    279238341033925,
+    2623557157654233,
+    24739954287740860,
+    234057667276344607,
+    2220819602560918840,
+];
 
 // For all of these sieves, sieve[i]==true -> 2*i+1 is prime
+
+fn max(magnitude: usize) -> usize {
+    10_usize.pow(magnitude as u32)
+}
 
 /// Sieve odd integers for primes < max.
 fn sieve_serial(max: usize) -> Vec<bool> {
@@ -122,28 +163,35 @@ fn clear_stride(slice: &mut [bool], from: usize, stride: usize) {
 }
 
 fn measure(f: fn(usize) -> Vec<bool>) -> u64 {
+    const MAGNITUDE: usize = 9;
+
     let start = time::precise_time_ns();
-    let sieve = f(MAX);
+    let sieve = f(max(MAGNITUDE));
     let duration = time::precise_time_ns() - start;
 
     // sanity check the number of primes found
     let num_primes = 1 + sieve.into_iter().filter(|&b| b).count();
-    assert_eq!(num_primes, NUM_PRIMES);
+    assert_eq!(num_primes, NUM_PRIMES[MAGNITUDE]);
 
     duration
 }
 
-fn main() {
-    rayon::initialize(rayon::Configuration::new()).unwrap();
+pub fn main(args: &[String]) {
+    let args: Args =
+        Docopt::new(USAGE)
+            .and_then(|d| d.argv(args).decode())
+            .unwrap_or_else(|e| e.exit());
 
-    let serial = measure(sieve_serial);
-    println!("  serial: {:10} ns", serial);
+    if args.cmd_bench {
+        let serial = measure(sieve_serial);
+        println!("  serial: {:10} ns", serial);
 
-    let chunks = measure(sieve_chunks);
-    println!("  chunks: {:10} ns -> {:.2}x speedup", chunks,
-             serial as f64 / chunks as f64);
+        let chunks = measure(sieve_chunks);
+        println!("  chunks: {:10} ns -> {:.2}x speedup", chunks,
+                 serial as f64 / chunks as f64);
 
-    let parallel = measure(sieve_parallel);
-    println!("parallel: {:10} ns -> {:.2}x speedup", parallel,
-             chunks as f64 / parallel as f64);
+        let parallel = measure(sieve_parallel);
+        println!("parallel: {:10} ns -> {:.2}x speedup", parallel,
+                 chunks as f64 / parallel as f64);
+    }
 }
