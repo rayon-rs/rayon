@@ -28,9 +28,19 @@ pub enum JobMode {
 }
 
 #[derive(Copy, Clone)]
-pub struct JobRef(pub *const Job);
+pub struct JobRef {
+    pointer: *const Job
+}
+
 unsafe impl Send for JobRef {}
 unsafe impl Sync for JobRef {}
+
+impl JobRef {
+    #[inline]
+    pub unsafe fn execute(&self, mode: JobMode) {
+        (*self.pointer).execute(mode);
+    }
+}
 
 pub struct JobImpl<L: Latch, F, R> {
     pub latch: L,
@@ -51,7 +61,7 @@ impl<L: Latch, F, R> JobImpl<L, F, R>
 
     pub unsafe fn as_job_ref(&self) -> JobRef {
         let job_ref: *const (Job + 'static) = mem::transmute(self as *const Job);
-        JobRef(job_ref)
+        JobRef { pointer: job_ref }
     }
 
     pub unsafe fn run_inline(self) -> R {

@@ -173,7 +173,7 @@ impl Registry {
         state.terminate = true;
         for job in state.injected_jobs.drain(..) {
             unsafe {
-                (*job.0).execute(JobMode::Abort);
+                job.execute(JobMode::Abort);
             }
         }
         self.work_available.notify_all();
@@ -276,7 +276,7 @@ impl WorkerThread {
         let guard = PanicGuard(&latch);
         while !latch.probe() {
             if let Some(job) = self.steal_work() {
-                (*job.0).execute(JobMode::Execute);
+                job.execute(JobMode::Execute);
             } else {
                 thread::yield_now();
             }
@@ -329,7 +329,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     loop {
         match registry.wait_for_work(index, was_active) {
             Work::Job(injected_job) => {
-                (*injected_job.0).execute(JobMode::Execute);
+                injected_job.execute(JobMode::Execute);
                 was_active = true;
                 continue;
             }
@@ -340,7 +340,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         if let Some(stolen_job) = worker_thread.steal_work() {
             log!(StoleWork { worker: index });
             registry.start_working(index);
-            (*stolen_job.0).execute(JobMode::Execute);
+            stolen_job.execute(JobMode::Execute);
             was_active = true;
         } else {
             was_active = false;
