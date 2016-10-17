@@ -16,12 +16,6 @@ pub struct Scope<'scope> {
     /// number of jobs created that have not yet completed or errored
     counter: AtomicUsize,
 
-    /// if `#[cfg(debug_assertions)]`, then this counter is
-    /// incremented in `HeapJob::new` and decremented in
-    /// `HeapJob::drop`. When the scope is closed we assert that it is
-    /// zero. It is used to check that we are freeing every heap job.
-    leak_counter: AtomicUsize,
-
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
     panic: AtomicPtr<Box<Any + Send + 'static>>,
@@ -214,13 +208,11 @@ pub fn scope<'scope, OP, R>(op: OP) -> R
 {
     let scope = Scope {
         counter: AtomicUsize::new(1),
-        leak_counter: AtomicUsize::new(0),
         panic: AtomicPtr::new(ptr::null_mut()),
         mutex: Mutex::new(()),
         job_completed_cvar: Condvar::new(),
         marker: PhantomData,
     };
-    if false { scope.fool_dead_code(); }
     let result = op(&scope);
     scope.job_completed_ok(); // `op` counts as a job
     scope.block_till_jobs_complete();
@@ -228,11 +220,6 @@ pub fn scope<'scope, OP, R>(op: OP) -> R
 }
 
 impl<'scope> Scope<'scope> {
-    /// just here to full the dead_code lint
-    fn fool_dead_code(&self) {
-        self.leak_counter.fetch_add(1, Ordering::SeqCst);
-    }
-
     /// Spawns a job into the fork-join scope `self`. This job will
     /// execute sometime before the fork-join scope completes.  The
     /// job is specified as a closure, and this closure receives its
@@ -301,11 +288,6 @@ impl<'scope> Scope<'scope> {
             guard = self.job_completed_cvar.wait(guard).unwrap();
         }
 
-        // at this point, we should also have freed all HeapJob that we built
-        debug_assert!(self.leak_counter.load(Ordering::SeqCst) == 0,
-                      "{} spawned jobs leaked",
-                      self.leak_counter.load(Ordering::SeqCst));
-
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed
         // ordering:
@@ -316,20 +298,6 @@ impl<'scope> Scope<'scope> {
                 unwind::resume_unwinding(*value);
             }
         }
-    }
-
-    #[cfg(debug_assertions)]
-    fn job_created(&self) {
-        self.leak_counter.fetch_add(1, Ordering::SeqCst);
-    }
-
-    #[cfg(not(debug_assertions))]
-    fn job_created(&self) {
-    }
-
-    #[cfg(debug_assertions)]
-    fn job_dropped(&self) {
-        self.leak_counter.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -344,7 +312,6 @@ impl<'scope, BODY> HeapJob<'scope, BODY>
     where BODY: FnOnce(&Scope<'scope>) + 'scope
 {
     fn new(scope: *const Scope<'scope>, func: BODY) -> Self {
-        unsafe { (*scope).job_created(); }
         HeapJob {
             scope: scope,
             func: UnsafeCell::new(Some(func))
@@ -399,17 +366,6 @@ impl<'scope, BODY> Job for HeapJob<'scope, BODY>
             JobMode::Abort => {
                 (*this.scope).job_completed_ok();
             }
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<'scope, BODY> Drop for HeapJob<'scope, BODY>
-    where BODY: FnOnce(&Scope<'scope>) + 'scope
-{
-    fn drop(&mut self) {
-        unsafe {
-            (*self.scope).job_dropped();
         }
     }
 }
