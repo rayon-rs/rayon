@@ -252,7 +252,7 @@ pub trait ParallelIterator: Sized {
     /// Here is how to visualize what is happening. Imagine an input
     /// sequence with 7 values as shown:
     ///
-    /// ```
+    /// ```notrust
     /// [ 0 1 2 3 4 5 6 ]
     ///   |     | |   |
     ///   +--X--+ +-Y-+ // <-- fold_op
@@ -276,7 +276,7 @@ pub trait ParallelIterator: Sized {
     /// example, a call `self.fold(identity, fold_op, reduce_op)` could
     /// also be expressed as follows:
     ///
-    /// ```
+    /// ```notest
     /// self.map(|elem| fold_op(identity.clone(), elem))
     ///     .reduce_with_identity(identity, reduce_op)
     /// ```
@@ -398,9 +398,8 @@ pub trait BoundedParallelIterator: ParallelIterator {
     /// iterator. You should not need to call this directly.
     #[doc(hidden)]
     fn drive<'c, C: Consumer<Self::Item>>(self,
-                                                   consumer: C)
-                                                   -> C::Result;
-
+                                          consumer: C)
+                                          -> C::Result;
 }
 
 /// A trait for parallel iterators items where the precise number of

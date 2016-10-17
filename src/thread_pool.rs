@@ -1,7 +1,7 @@
 use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
-use job::JobRef;
+use job::{JobRef, JobMode};
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
@@ -11,6 +11,7 @@ use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::collections::VecDeque;
 use std::mem;
+use unwind;
 use util::leak;
 use num_cpus;
 
@@ -119,16 +120,14 @@ impl Registry {
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         let mut state = self.state.lock().unwrap();
-        if state.terminate {
-            drop(state);
-            // We can only reach this point if these conditions are met:
-            // 1) This must be the global thread pool
-            // 2) The only way to terminate the global thread pool is if a
-            //    worker thread panics.
-            // 3) A worker thread can only panic if a job panicked and was not
-            //    caught by panic::recover.
-            panic!("rayon thread pool is contaminated by a previous panic; recovery is only available on nightly compilers");
-        }
+
+        // It should not be possible for `state.terminate` to be true
+        // here. It is only set to true when the user creates (and
+        // drops) a `ThreadPool`; and, in that case, they cannot be
+        // calling `inject()` later, since they dropped their
+        // `ThreadPool`.
+        assert!(!state.terminate, "inject() sees state.terminate as true");
+
         state.injected_jobs.extend(injected_jobs);
         self.work_available.notify_all();
     }
@@ -173,7 +172,7 @@ impl Registry {
         state.terminate = true;
         for job in state.injected_jobs.drain(..) {
             unsafe {
-                (*job.0).abort();
+                job.execute(JobMode::Abort);
             }
         }
         self.work_available.notify_all();
@@ -212,7 +211,12 @@ impl ThreadInfo {
 pub struct WorkerThread {
     worker: Worker<JobRef>,
     stealers: Vec<Stealer<JobRef>>,
-    index: usize
+    index: usize,
+
+    /// a counter tracking how many calls to `Scope::spawn` occurred
+    /// on the current thread; this is used by the scope code to
+    /// ensure that the depth of the local deque is maintained
+    spawn_count: Cell<usize>,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
@@ -249,6 +253,11 @@ impl WorkerThread {
     }
 
     #[inline]
+    pub fn spawn_count(&self) -> &Cell<usize> {
+        &self.spawn_count
+    }
+
+    #[inline]
     pub unsafe fn push(&self, job: JobRef) {
         self.worker.push(job);
     }
@@ -256,27 +265,18 @@ impl WorkerThread {
     /// Pop `job` from top of stack, returning `false` if it has been
     /// stolen.
     #[inline]
-    pub unsafe fn pop(&self) -> bool {
-        self.worker.pop().is_some()
+    pub unsafe fn pop(&self) -> Option<JobRef> {
+        self.worker.pop()
     }
 
     #[cold]
     pub unsafe fn steal_until(&self, latch: &SpinLatch) {
         // If another thread stole our job when we panic, we must halt unwinding
         // until that thread is finished using it.
-        struct PanicGuard<'a>(&'a SpinLatch);
-        impl<'a> Drop for PanicGuard<'a> {
-            fn drop(&mut self) {
-                while !self.0.probe() {
-                    thread::yield_now();
-                }
-            }
-        }
-
-        let guard = PanicGuard(&latch);
+        let guard = unwind::finally(&latch, |latch| latch.spin());
         while !latch.probe() {
             if let Some(job) = self.steal_work() {
-                (*job.0).execute();
+                job.execute(JobMode::Execute);
             } else {
                 thread::yield_now();
             }
@@ -310,26 +310,23 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         worker: worker,
         stealers: stealers,
         index: index,
+        spawn_count: Cell::new(0),
     };
     worker_thread.set_current();
 
     // let registry know we are ready to do work
     registry.thread_infos[index].primed.set();
 
-    // If a worker thread panics, bring down the entire thread pool
-    struct PanicGuard<'a>(&'a Registry);
-    impl<'a> Drop for PanicGuard<'a> {
-        fn drop(&mut self) {
-            self.0.terminate();
-        }
-    }
-    let _guard = PanicGuard(&registry);
+    // Worker threads should not panic. If they do, just abort, as the
+    // internal state of the threadpool is corrupted. Note that if
+    // **user code** panics, we should catch that and redirect.
+    let abort_guard = unwind::AbortIfPanic;
 
     let mut was_active = false;
     loop {
         match registry.wait_for_work(index, was_active) {
             Work::Job(injected_job) => {
-                (*injected_job.0).execute();
+                injected_job.execute(JobMode::Execute);
                 was_active = true;
                 continue;
             }
@@ -340,10 +337,13 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         if let Some(stolen_job) = worker_thread.steal_work() {
             log!(StoleWork { worker: index });
             registry.start_working(index);
-            (*stolen_job.0).execute();
+            stolen_job.execute(JobMode::Execute);
             was_active = true;
         } else {
             was_active = false;
         }
     }
+
+    // Normal termination, do not abort.
+    mem::forget(abort_guard);
 }

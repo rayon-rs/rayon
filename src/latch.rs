@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Condvar};
+use std::thread;
 
 pub trait Latch {
     fn set(&self);
@@ -23,6 +24,14 @@ impl SpinLatch {
     #[inline]
     pub fn probe(&self) -> bool {
         self.b.load(Ordering::Acquire)
+    }
+
+    /// Block until latch is set. Use with caution.
+    #[inline]
+    pub fn spin(&self) {
+        while !self.probe() {
+            thread::yield_now();
+        }
     }
 }
 
