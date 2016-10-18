@@ -15,4 +15,4 @@ script:
     cargo test --features nightly
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
-    ( cd rayon-demo && cargo bench && cd ../../ )
+    ( cd rayon-demo && cargo test && cd ../../ )
