@@ -6,6 +6,7 @@
 use join;
 use super::IndexedParallelIterator;
 use super::len::*;
+use thread_pool::get_registry;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
@@ -17,6 +18,9 @@ pub trait ProducerCallback<ITEM> {
 /// not queryable through the API; the consumer is expected to track
 /// it.
 pub trait Producer: IntoIterator + Send + Sized {
+    /// Reports whether the producer has explicit weights.
+    fn weighted(&self) -> bool { false }
+
     /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, len: usize) -> f64;
 
@@ -30,6 +34,9 @@ pub trait Consumer<Item>: Send + Sized {
     type Folder: Folder<Item, Result=Self::Result>;
     type Reducer: Reducer<Self::Result>;
     type Result: Send;
+
+    /// Reports whether the consumer has explicit weights.
+    fn weighted(&self) -> bool { false }
 
     /// If it costs `producer_cost` to produce the items we will
     /// consume, returns cost adjusted to account for consuming them.
@@ -69,6 +76,57 @@ pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
     fn to_reducer(&self) -> Self::Reducer;
 }
 
+/// A splitter controls the policy for splitting into smaller work items.
+#[derive(Clone, Copy)]
+enum Splitter {
+    /// Classic cost-splitting uses weights to split until below a threshold.
+    Cost(f64),
+
+    /// Thief-splitting is an adaptive policy that starts by splitting into
+    /// enough jobs for every worker thread, and then resets itself whenever a
+    /// job is actually stolen into a different thread.
+    Thief(usize, usize),
+}
+
+impl Splitter {
+    #[inline]
+    fn thief_id() -> usize {
+        // The actual `ID` value is irrelevant.  We're just using its TLS
+        // address as a unique thread key, faster than a real thread-id call.
+        thread_local!{ static ID: bool = false; }
+        ID.with(|id| id as *const bool as usize )
+    }
+
+    #[inline]
+    fn new_thief() -> Splitter {
+        Splitter::Thief(Splitter::thief_id(), get_registry().num_threads())
+    }
+
+    #[inline]
+    fn try(&mut self) -> bool {
+        match *self {
+            Splitter::Cost(ref mut cost) => {
+                if *cost > THRESHOLD {
+                    *cost /= 2.0;
+                    true
+                } else { false }
+            },
+
+            Splitter::Thief(ref mut origin, ref mut splits) => {
+                let id = Splitter::thief_id();
+                if *origin != id {
+                    *origin = id;
+                    *splits = get_registry().num_threads();
+                    true
+                } else if *splits > 0 {
+                    *splits /= 2;
+                    true
+                } else { false }
+            }
+        }
+    }
+}
+
 pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
                              consumer: C)
                              -> C::Result
@@ -90,29 +148,34 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
         fn callback<P>(mut self, mut producer: P) -> C::Result
             where P: Producer<Item=ITEM>
         {
-            let producer_cost = producer.cost(self.len);
-            let cost = self.consumer.cost(producer_cost);
-            bridge_producer_consumer(self.len, cost, producer, self.consumer)
+            let splitter = if producer.weighted() || self.consumer.weighted() {
+                let producer_cost = producer.cost(self.len);
+                let cost = self.consumer.cost(producer_cost);
+                Splitter::Cost(cost)
+            } else {
+                Splitter::new_thief()
+            };
+            bridge_producer_consumer(self.len, splitter, producer, self.consumer)
         }
     }
 }
 
 fn bridge_producer_consumer<P,C>(len: usize,
-                                 cost: f64,
+                                 mut splitter: Splitter,
                                  producer: P,
                                  consumer: C)
                                  -> C::Result
     where P: Producer, C: Consumer<P::Item>
 {
-    if len > 1 && cost > THRESHOLD {
+    if len > 1 && splitter.try() {
         let mid = len / 2;
         let (left_producer, right_producer) = producer.split_at(mid);
         let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
         let (left_result, right_result) =
-            join(|| bridge_producer_consumer(mid, cost / 2.0,
-                                             left_producer, left_consumer),
-                 || bridge_producer_consumer(len - mid, cost / 2.0,
-                                             right_producer, right_consumer));
+            join(move || bridge_producer_consumer(mid, splitter,
+                                                  left_producer, left_consumer),
+                 move || bridge_producer_consumer(len - mid, splitter,
+                                                  right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {
         let mut folder = consumer.into_folder();
