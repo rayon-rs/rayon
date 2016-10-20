@@ -201,7 +201,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     let n = v.len();
     if n <= SORT_CHUNK {
         for i in 1..n {
-            if v[i - 1] >= v[i] {
+            if v[i - 1] > v[i] {
                 return false;
             }
         }
@@ -209,7 +209,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     }
 
     let mid = n / 2;
-    if v[mid - 1] >= v[mid] {
+    if v[mid - 1] > v[mid] {
         return false;
     }
     let (a, b) = v.split_at_mut(mid);
