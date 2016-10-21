@@ -129,7 +129,7 @@ small workloads (as in the example above).
 
 However, in practice, the overhead is still noticeable. Therefore, for
 maximal performance, you want to have some kind of sequential fallback
-one your problem gets small enough. The parallel iterator APIs try to
+once your problem gets small enough. The parallel iterator APIs try to
 handle this for you. When using join, you have to code it yourself.
 For an example, see the [quicksort demo][], which includes sequential
 fallback after a certain size.
@@ -214,7 +214,7 @@ serve a common purpose:
 2. A `RefCell` is kind of like a "single-threaded read-write lock"; it
    can be used with any sort of type `T`. To gain access to the data
    inside, you call `borrow` or `borrow_mut`. Dynamic checks are done
-   to ensure that you have either reads or writers but not both.
+   to ensure that you have either readers or writers but not both.
 
 While there are threadsafe types that offer similar APIs, caution is
 warranted because, in a threadsafe setting, other threads may
