@@ -5,7 +5,7 @@ use job::{JobRef, JobMode};
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
-use rand;
+use rand::{self, Rng};
 use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::thread;
@@ -217,6 +217,9 @@ pub struct WorkerThread {
     /// on the current thread; this is used by the scope code to
     /// ensure that the depth of the local deque is maintained
     spawn_count: Cell<usize>,
+
+    /// A weak random number generator.
+    rng: rand::XorShiftRng,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
@@ -225,8 +228,8 @@ pub struct WorkerThread {
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
-    static WORKER_THREAD_STATE: Cell<*const WorkerThread> =
-        Cell::new(0 as *const WorkerThread)
+    static WORKER_THREAD_STATE: Cell<*mut WorkerThread> =
+        Cell::new(0 as *mut WorkerThread)
 }
 
 impl WorkerThread {
@@ -234,13 +237,13 @@ impl WorkerThread {
     /// NULL if this is not a worker thread. This pointer is valid
     /// anywhere on the current thread.
     #[inline]
-    pub unsafe fn current() -> *const WorkerThread {
+    pub unsafe fn current() -> *mut WorkerThread {
         WORKER_THREAD_STATE.with(|t| t.get())
     }
 
     /// Sets `self` as the worker thread index for the current thread.
     /// This is done during worker thread startup.
-    unsafe fn set_current(&self) {
+    unsafe fn set_current(&mut self) {
         WORKER_THREAD_STATE.with(|t| {
             assert!(t.get().is_null());
             t.set(self);
@@ -270,7 +273,7 @@ impl WorkerThread {
     }
 
     #[cold]
-    pub unsafe fn steal_until(&self, latch: &SpinLatch) {
+    pub unsafe fn steal_until(&mut self, latch: &SpinLatch) {
         // If another thread stole our job when we panic, we must halt unwinding
         // until that thread is finished using it.
         let guard = unwind::finally(&latch, |latch| latch.spin());
@@ -284,10 +287,10 @@ impl WorkerThread {
         mem::forget(guard);
     }
 
-    unsafe fn steal_work(&self) -> Option<JobRef> {
+    unsafe fn steal_work(&mut self) -> Option<JobRef> {
         if self.stealers.is_empty() { return None }
-        let start = rand::random::<usize>() % self.stealers.len();
-        let (lo, hi) = self.stealers.split_at(start);
+        let start = self.rng.next_u32() % self.stealers.len() as u32;
+        let (lo, hi) = self.stealers.split_at(start as usize);
         hi.iter().chain(lo)
             .filter_map(|stealer| match stealer.steal() {
                 Stolen::Empty => None,
@@ -304,13 +307,17 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     let stealers = registry.thread_infos.iter()
         .enumerate().filter(|&(i, _)| i != index)
         .map(|(_, ti)| ti.stealer.clone())
-        .collect();
+        .collect::<Vec<_>>();
 
-    let worker_thread = WorkerThread {
+    assert!(stealers.len() < ::std::u32::MAX as usize,
+            "We assume this is not going to happen!");
+
+    let mut worker_thread = WorkerThread {
         worker: worker,
         stealers: stealers,
         index: index,
         spawn_count: Cell::new(0),
+        rng: rand::weak_rng(),
     };
     worker_thread.set_current();
 
