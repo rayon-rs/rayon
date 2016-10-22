@@ -112,23 +112,27 @@ impl Registry {
 
     fn start_working(&self, index: usize) {
         log!(StartWorking { index: index });
-        let mut state = self.state.lock().unwrap();
-        state.threads_at_work += 1;
+        {
+            let mut state = self.state.lock().unwrap();
+            state.threads_at_work += 1;
+        }
         self.work_available.notify_all();
     }
 
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
-        let mut state = self.state.lock().unwrap();
+        {
+            let mut state = self.state.lock().unwrap();
 
-        // It should not be possible for `state.terminate` to be true
-        // here. It is only set to true when the user creates (and
-        // drops) a `ThreadPool`; and, in that case, they cannot be
-        // calling `inject()` later, since they dropped their
-        // `ThreadPool`.
-        assert!(!state.terminate, "inject() sees state.terminate as true");
+            // It should not be possible for `state.terminate` to be true
+            // here. It is only set to true when the user creates (and
+            // drops) a `ThreadPool`; and, in that case, they cannot be
+            // calling `inject()` later, since they dropped their
+            // `ThreadPool`.
+            assert!(!state.terminate, "inject() sees state.terminate as true");
 
-        state.injected_jobs.extend(injected_jobs);
+            state.injected_jobs.extend(injected_jobs);
+        }
         self.work_available.notify_all();
     }
 
@@ -168,11 +172,13 @@ impl Registry {
     }
 
     pub fn terminate(&self) {
-        let mut state = self.state.lock().unwrap();
-        state.terminate = true;
-        for job in state.injected_jobs.drain(..) {
-            unsafe {
-                job.execute(JobMode::Abort);
+        {
+            let mut state = self.state.lock().unwrap();
+            state.terminate = true;
+            for job in state.injected_jobs.drain(..) {
+                unsafe {
+                    job.execute(JobMode::Abort);
+                }
             }
         }
         self.work_available.notify_all();
