@@ -1,3 +1,5 @@
+use rand::{Rng, SeedableRng, XorShiftRng};
+
 const USAGE: &'static str = "
 Usage: mergesort bench [--size N]
        mergesort --help
@@ -201,7 +203,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     let n = v.len();
     if n <= SORT_CHUNK {
         for i in 1..n {
-            if v[i - 1] >= v[i] {
+            if v[i - 1] > v[i] {
                 return false;
             }
         }
@@ -209,7 +211,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     }
 
     let mid = n / 2;
-    if v[mid - 1] >= v[mid] {
+    if v[mid - 1] > v[mid] {
         return false;
     }
     let (a, b) = v.split_at_mut(mid);
@@ -218,14 +220,8 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
 }
 
 fn default_vec(n: usize) -> Vec<u32> {
-    let mut v = Vec::<u32>::with_capacity(n);
-    // Populate with unique, pseudorandom values.
-    let mut m = 1;
-    for _ in 0..n {
-        v.push(m);
-        m = m.wrapping_mul(101);
-    }
-    v
+    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    (0..n).map(|_| rng.next_u32()).collect()
 }
 
 fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
