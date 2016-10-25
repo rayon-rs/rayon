@@ -35,7 +35,6 @@ pub mod flat_map;
 pub mod internal;
 pub mod len;
 pub mod for_each;
-#[cfg(feature = "unstable")]
 pub mod fold;
 pub mod reduce;
 pub mod slice;
@@ -403,15 +402,6 @@ pub trait ParallelIterator: Sized {
     ///                .sum();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
-    ///
-    /// ### Stability
-    ///
-    /// **This method is marked as unstable** because it is
-    /// particularly likely to change its name and/or signature, or go
-    /// away entirely.
-    ///
-    /// The concern is whether it holds its weight in comparison to map/reduce.
-    #[cfg(feature = "unstable")]
     fn fold<IDENTITY_ITEM,IDENTITY,FOLD_OP>(self,
                                             identity: IDENTITY,
                                             fold_op: FOLD_OP)
