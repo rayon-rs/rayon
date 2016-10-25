@@ -1,11 +1,10 @@
-use job::{Job, JobMode, JobRef};
+use latch::{Latch, SpinLatch, LockLatch};
+use job::{JobMode, HeapJob, StackJob};
 use std::any::Any;
-use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
-use std::sync::{Condvar, Mutex};
 use thread_pool::{self, WorkerThread};
 use unwind;
 
@@ -13,6 +12,11 @@ use unwind;
 mod test;
 
 pub struct Scope<'scope> {
+    /// thread where `scope()` was executed (note that individual jobs
+    /// may be executing on different worker threads, though they
+    /// should always be within the same pool of threads)
+    owner_thread: *mut WorkerThread,
+
     /// number of jobs created that have not yet completed or errored
     counter: AtomicUsize,
 
@@ -20,12 +24,8 @@ pub struct Scope<'scope> {
     /// propagated to the one who created the scope
     panic: AtomicPtr<Box<Any + Send + 'static>>,
 
-    /// mutex that is used in conjunction with `job_completed_cvar` below
-    mutex: Mutex<()>,
-
-    /// condition variable that is notified whenever jobs complete;
-    /// used to block while waiting for jobs to complete
-    job_completed_cvar: Condvar,
+    /// latch to set when the counter drops to zero (and hence this scope is complete)
+    job_completed_latch: SpinLatch,
 
     marker: PhantomData<fn(&'scope ())>,
 }
@@ -68,6 +68,18 @@ pub struct Scope<'scope> {
 /// ```
 ///
 /// ### Task execution
+///
+/// Task execution potentially starts as soon as `spawn()` is called.
+/// The task will end sometime before `scope()` returns. Note that the
+/// *closure* given to scope may return much earlier. In general
+/// the lifetime of a scope created like `scope(body) goes something like this:
+///
+/// - Scope begins when `scope(body)` is called
+/// - Scope body `body()` is invoked
+///     - Scope tasks may be spawned
+/// - Scope body returns
+/// - Scope tasks execute, possibly spawning more tasks
+/// - Once all tasks are done, scope ends and `scope()` returns
 ///
 /// To see how and when tasks are joined, consider this example:
 ///
@@ -203,21 +215,43 @@ pub struct Scope<'scope> {
 ///     s.spawn(|_| println!("ok: {:?}", ok)); // we too can borrow `ok`
 /// });
 /// ```
-pub fn scope<'scope, OP, R>(op: OP) -> R
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R
+pub fn scope<'scope, OP>(op: OP)
+    where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
 {
-    let scope = Scope {
-        counter: AtomicUsize::new(1),
-        panic: AtomicPtr::new(ptr::null_mut()),
-        mutex: Mutex::new(()),
-        job_completed_cvar: Condvar::new(),
-        marker: PhantomData,
-    };
-    let result = op(&scope);
-    scope.job_completed_ok(); // `op` counts as a job
-    scope.block_till_jobs_complete();
-    result
+    unsafe {
+        let owner_thread = WorkerThread::current();
+        if !owner_thread.is_null() {
+            let scope: Scope<'scope> = Scope {
+                owner_thread: owner_thread,
+                counter: AtomicUsize::new(1),
+                panic: AtomicPtr::new(ptr::null_mut()),
+                job_completed_latch: SpinLatch::new(),
+                marker: PhantomData,
+            };
+            scope.execute_job_closure(op);
+            scope.steal_till_jobs_complete();
+        } else {
+            scope_not_in_worker(op)
+        }
+    }
 }
+
+#[cold]
+unsafe fn scope_not_in_worker<'scope, OP>(op: OP)
+    where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
+{
+    // never run from a worker thread; just shifts over into worker threads
+    debug_assert!(WorkerThread::current().is_null());
+
+    let mut result = None;
+    {
+        let job = StackJob::new(|| result = Some(scope(op)), LockLatch::new());
+        thread_pool::get_registry().inject(&[job.as_job_ref()]);
+        job.latch.wait();
+    }
+    result.unwrap()
+}
+
 
 impl<'scope> Scope<'scope> {
     /// Spawns a job into the fork-join scope `self`. This job will
@@ -231,20 +265,76 @@ impl<'scope> Scope<'scope> {
         unsafe {
             let old_value = self.counter.fetch_add(1, Ordering::SeqCst);
             assert!(old_value > 0); // scope can't have completed yet
-            let job_ref = Box::new(HeapJob::new(self, body)).as_job_ref();
+            let job_ref = Box::new(HeapJob::new(move |mode| self.execute_job(body, mode)))
+                .as_job_ref();
             let worker_thread = WorkerThread::current();
-            if !worker_thread.is_null() {
-                let worker_thread = &*worker_thread;
-                let spawn_count = worker_thread.spawn_count();
-                spawn_count.set(spawn_count.get() + 1);
-                worker_thread.push(job_ref);
-            } else {
-                thread_pool::get_registry().inject(&[job_ref]);
-            }
+
+            // the `Scope` is not send or sync, and we only give out
+            // pointers to it from within a worker thread
+            debug_assert!(!WorkerThread::current().is_null());
+
+            let worker_thread = &*worker_thread;
+            let spawn_count = worker_thread.spawn_count();
+            spawn_count.set(spawn_count.get() + 1);
+            worker_thread.push(job_ref);
         }
     }
 
-    fn job_panicked(&self, err: Box<Any + Send + 'static>) {
+    /// Executes `func` as a job, either aborting or executing as
+    /// appropriate.
+    ///
+    /// Unsafe because it must be executed on a worker thread.
+    unsafe fn execute_job<FUNC>(&self, func: FUNC, mode: JobMode)
+        where FUNC: FnOnce(&Scope<'scope>) + 'scope
+    {
+        match mode {
+            JobMode::Execute => self.execute_job_closure(func),
+            JobMode::Abort => self.job_completed_ok(),
+        }
+    }
+
+    /// Executes `func` as a job in scope. Adjusts the "job completed"
+    /// counters and also catches any panic and stores it into
+    /// `scope`.
+    ///
+    /// Unsafe because this must be executed on a worker thread.
+    unsafe fn execute_job_closure<FUNC>(&self, func: FUNC)
+        where FUNC: FnOnce(&Scope<'scope>) + 'scope
+    {
+        let worker_thread = &*WorkerThread::current();
+        let start_count = worker_thread.spawn_count().get();
+
+        match unwind::halt_unwinding(move || func(self)) {
+            Ok(()) => self.job_completed_ok(),
+            Err(err) => self.job_panicked(err),
+        }
+
+        Self::pop_jobs(worker_thread, start_count);
+    }
+
+    /// We have to maintain an invariant that we pop off any work
+    /// that we pushed onto the local thread deque. In other words,
+    /// if no thieves are at play, then the height of the local
+    /// deque must be the same when we enter and exit. Otherwise,
+    /// we get into trouble composing with the main `join` API,
+    /// which assumes that -- after it executes the first closure
+    /// -- the top-most thing on the stack is the second closure.
+    ///
+    /// Unsafe because `worker_thread` must be the current worker
+    /// thread, and it must be correct to pop jobs until the
+    /// spawn-count on `worker_thread` is `start_count`.
+    unsafe fn pop_jobs(worker_thread: &WorkerThread, start_count: usize) {
+        let spawn_count = worker_thread.spawn_count();
+        let current_count = spawn_count.get();
+        for _ in start_count..current_count {
+            if let Some(job_ref) = worker_thread.pop() {
+                job_ref.execute(JobMode::Execute);
+            }
+        }
+        spawn_count.set(start_count);
+    }
+
+    unsafe fn job_panicked(&self, err: Box<Any + Send + 'static>) {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
@@ -255,7 +345,7 @@ impl<'scope> Scope<'scope> {
         self.job_completed_ok()
     }
 
-    fn job_completed_ok(&self) {
+    unsafe fn job_completed_ok(&self) {
         let old_value = self.counter.fetch_sub(1, Ordering::Release);
         if old_value == 1 {
             // Important: grab the lock here to avoid a data race with
@@ -274,98 +364,21 @@ impl<'scope> Scope<'scope> {
             // By holding the lock, we ensure that the "read counter"
             // and "wait on job_completed_cvar" occur atomically with respect to the
             // notify.
-            let _guard = self.mutex.lock().unwrap();
-            self.job_completed_cvar.notify_all();
+            self.job_completed_latch.set();
         }
     }
 
-    fn block_till_jobs_complete(&self) {
+    unsafe fn steal_till_jobs_complete(&self) {
         // wait for job counter to reach 0:
-        //
-        // FIXME -- if on a worker thread, we should be helping here
-        let mut guard = self.mutex.lock().unwrap();
-        while self.counter.load(Ordering::Acquire) > 0 {
-            guard = self.job_completed_cvar.wait(guard).unwrap();
-        }
+        (*self.owner_thread).steal_until(&self.job_completed_latch);
 
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed
         // ordering:
         let panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
         if !panic.is_null() {
-            unsafe {
-                let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);
-                unwind::resume_unwinding(*value);
-            }
-        }
-    }
-}
-
-struct HeapJob<'scope, BODY>
-    where BODY: FnOnce(&Scope<'scope>) + 'scope,
-{
-    scope: *const Scope<'scope>,
-    func: UnsafeCell<Option<BODY>>,
-}
-
-impl<'scope, BODY> HeapJob<'scope, BODY>
-    where BODY: FnOnce(&Scope<'scope>) + 'scope
-{
-    fn new(scope: *const Scope<'scope>, func: BODY) -> Self {
-        HeapJob {
-            scope: scope,
-            func: UnsafeCell::new(Some(func))
-        }
-    }
-
-    unsafe fn as_job_ref(self: Box<Self>) -> JobRef {
-        let this: *const Self = mem::transmute(self);
-        JobRef::new(this)
-    }
-
-    /// We have to maintain an invariant that we pop off any work
-    /// that we pushed onto the local thread deque. In other words,
-    /// if no thieves are at play, then the height of the local
-    /// deque must be the same when we enter and exit. Otherwise,
-    /// we get into trouble composing with the main `join` API,
-    /// which assumes that -- after it executes the first closure
-    /// -- the top-most thing on the stack is the second closure.
-    unsafe fn pop_jobs(worker_thread: &WorkerThread, start_count: usize) {
-        let spawn_count = worker_thread.spawn_count();
-        let current_count = spawn_count.get();
-        for _ in start_count .. current_count {
-            if let Some(job_ref) = worker_thread.pop() {
-                job_ref.execute(JobMode::Execute);
-            }
-        }
-        spawn_count.set(start_count);
-    }
-}
-
-impl<'scope, BODY> Job for HeapJob<'scope, BODY>
-    where BODY: FnOnce(&Scope<'scope>) + 'scope
-{
-    unsafe fn execute(this: *const Self, mode: JobMode) {
-        let this: Box<Self> = mem::transmute(this);
-        let scope = &*this.scope;
-
-        match mode {
-            JobMode::Execute => {
-                let worker_thread = &*WorkerThread::current();
-                let start_count = worker_thread.spawn_count().get();
-
-                let func = (*this.func.get()).take().unwrap();
-                match unwind::halt_unwinding(|| func(&*scope)) {
-                    Ok(()) => { (*scope).job_completed_ok(); }
-                    Err(err) => { (*scope).job_panicked(err); }
-                }
-
-                Self::pop_jobs(worker_thread, start_count);
-            }
-
-            JobMode::Abort => {
-                (*this.scope).job_completed_ok();
-            }
+            let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);
+            unwind::resume_unwinding(*value);
         }
     }
 }

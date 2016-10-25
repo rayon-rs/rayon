@@ -68,7 +68,7 @@ pub struct StackJob<L: Latch, F, R> {
 }
 
 impl<L: Latch, F, R> StackJob<L, F, R>
-    where F: FnOnce() -> R
+    where F: FnOnce() -> R + Send
 {
     pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
         StackJob {
@@ -117,3 +117,42 @@ impl<L: Latch, F, R> Job for StackJob<L, F, R>
         }
     }
 }
+
+/// Represents a job stored in the heap. Used to implement
+/// `scope`. Unlike `StackJob`, when executed, `HeapJob` simply
+/// invokes a closure, which then triggers the appropriate logic to
+/// signal that the job executed.
+///
+/// (Probably `StackJob` should be refactored in a similar fashion.)
+pub struct HeapJob<BODY>
+    where BODY: FnOnce(JobMode)
+{
+    job: UnsafeCell<Option<BODY>>,
+}
+
+impl<BODY> HeapJob<BODY>
+    where BODY: FnOnce(JobMode)
+{
+    pub fn new(func: BODY) -> Self {
+        HeapJob { job: UnsafeCell::new(Some(func)) }
+    }
+
+    /// Creates a `JobRef` from this job -- note that this hides all
+    /// lifetimes, so it is up to you to ensure that this JobRef
+    /// doesn't outlive any data that it closes over.
+    pub unsafe fn as_job_ref(self: Box<Self>) -> JobRef {
+        let this: *const Self = mem::transmute(self);
+        JobRef::new(this)
+    }
+}
+
+impl<BODY> Job for HeapJob<BODY>
+    where BODY: FnOnce(JobMode)
+{
+    unsafe fn execute(this: *const Self, mode: JobMode) {
+        let this: Box<Self> = mem::transmute(this);
+        let job = (*this.job.get()).take().unwrap();
+        job(mode);
+    }
+}
+

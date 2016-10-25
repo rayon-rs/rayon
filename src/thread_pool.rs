@@ -278,6 +278,7 @@ impl WorkerThread {
         self.worker.pop()
     }
 
+    /// Keep stealing jobs until the latch is set.
     #[cold]
     pub unsafe fn steal_until(&mut self, latch: &SpinLatch) {
         // If another thread stole our job when we panic, we must halt unwinding
@@ -293,6 +294,7 @@ impl WorkerThread {
         mem::forget(guard);
     }
 
+    /// Steal a single job and return it.
     unsafe fn steal_work(&mut self) -> Option<JobRef> {
         if self.stealers.is_empty() { return None }
         let start = self.rng.next_u32() % self.stealers.len() as u32;
