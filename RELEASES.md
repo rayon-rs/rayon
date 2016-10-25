@@ -1,6 +1,22 @@
-# Release 0.4.3 (pending)
+# Release 0.4.3
 
-- New (unstable) scoped threads API.
+- Parallel iterators now offer an adaptive weight scheme,
+  which means that explicit weights should no longer
+  be necessary in most cases! Thanks @cuviper!
+  - We are considering removing weights or changing the weight mechanism
+    before 1.0. Examples of scenarios where you still need weights even
+    with this adaptive mechanism would be great. Join the discussion
+    at <https://github.com/nikomatsakis/rayon/issues/111>.
+- New (unstable) scoped threads API, see `rayon::scope` for details.
+  - You will need to supply the [cargo feature] `unstable`.
+- The various demos and benchmarks have been consolidated into one
+  program, `rayon-demo`.
+- Optimizations in Rayon's inner workings. Thanks @emilio!  
+- Update `num_cpus` to 1.0. Thanks @jamwt!
+- Various internal cleanup in the implementation and typo fixes.
+  Thanks @cuviper, @Eh2406, and @spacejam!
+
+[cargo feature]: http://doc.crates.io/manifest.html#the-features-section
 
 # Release 0.4.2
 
