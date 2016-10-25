@@ -35,4 +35,3 @@ pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
         v.set_len(len);
     }
 }
-
