@@ -19,6 +19,7 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
+use self::from_par_iter::FromParIter;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
@@ -33,6 +34,7 @@ pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
 pub mod flat_map;
+pub mod from_par_iter;
 pub mod internal;
 pub mod len;
 pub mod for_each;
@@ -545,6 +547,12 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>;
+
+    fn collect<C>(self) -> C
+        where C: FromParIter<Self>
+    {
+        C::from_par_iter(self)
+    }
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {

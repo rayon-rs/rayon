@@ -3,6 +3,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::*;
 use super::internal::*;
 
+use std::collections::HashMap;
+
 fn is_bounded<T: ExactParallelIterator>(_: T) { }
 fn is_exact<T: ExactParallelIterator>(_: T) { }
 fn is_indexed<T: IndexedParallelIterator>(_: T) { }
@@ -643,3 +645,19 @@ pub fn check_find_is_present() {
     assert!(q >= 1024 && q < 1096);
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
 }
+
+#[test]
+pub fn par_iter_collect() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: Vec<i32> = a.par_iter().map(|&i| i + 1).collect();
+    let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
+    assert_eq!(b, c);
+}
+
+#[test]
+pub fn par_iter_collect_map() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: HashMap<i32, String> = a.par_iter().map(|&i| (i, format!("{}", i))).collect();
+    assert_eq!(&b[&3], "3");
+}
+
