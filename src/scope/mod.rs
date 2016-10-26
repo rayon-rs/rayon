@@ -27,7 +27,9 @@ pub struct Scope<'scope> {
     /// latch to set when the counter drops to zero (and hence this scope is complete)
     job_completed_latch: SpinLatch,
 
-    marker: PhantomData<fn(&'scope ())>,
+    /// you can think of a scope as containing a list of closures to
+    /// execute, all of which outlive `'scope`
+    marker: PhantomData<Box<FnOnce(&Scope<'scope>) + 'scope>>,
 }
 
 /// Create a "fork-join" scope `s` and invokes the closure with a

@@ -39,7 +39,7 @@ pub fn is_sorted<T: Send + Ord>(v: &[T]) -> bool {
 }
 
 fn main() {
-    let mut v: Vec<i32> = (0 .. 1024).rev().collect();
+    let mut v: Vec<i32> = (0 .. 256).rev().collect();
     quick_sort(&mut v);
     assert!(is_sorted(&v));
 }
