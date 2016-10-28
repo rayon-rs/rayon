@@ -576,3 +576,13 @@ pub fn check_chain() {
         .sum();
     assert_eq!(sum, 2500);
 }
+
+
+#[test]
+pub fn check_count() {
+    let c0 = (0_u32..24*1024).filter(|i| i % 2 == 0).count();
+    let c1 = (0_u32..24*1024).into_par_iter().filter(|i| i % 2 == 0).count();
+    let c2 = (0_u32..24*1024).into_par_iter().weight_max().filter(|i| i % 2 == 0).count();
+    assert_eq!(c0, c1);
+    assert_eq!(c1, c2);
+}
