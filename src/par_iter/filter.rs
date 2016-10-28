@@ -89,7 +89,6 @@ impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER
     }
 }
 
-
 impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM>
     for FilterConsumer<'f, C, FILTER_OP>
     where C: UnindexedConsumer<ITEM>, FILTER_OP: Fn(&ITEM) -> bool + Sync,
