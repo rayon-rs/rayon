@@ -228,6 +228,10 @@ impl<'m, ITEM, C, MAP_OP> Consumer<ITEM> for MapConsumer<'m, C, MAP_OP>
             map_op: self.map_op,
         }
     }
+
+    fn should_continue(&self) -> bool {
+        self.base.should_continue()
+    }
 }
 
 impl<'m, ITEM, C, MAP_OP> UnindexedConsumer<ITEM>

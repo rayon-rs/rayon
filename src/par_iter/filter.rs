@@ -83,6 +83,10 @@ impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER
     fn into_folder(self) -> Self::Folder {
         FilterFolder { base: self.base.into_folder(), filter_op: self.filter_op, }
     }
+
+    fn should_continue(&self) -> bool {
+        self.base.should_continue()
+    }
 }
 
 

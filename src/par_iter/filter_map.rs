@@ -90,6 +90,10 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
         FilterMapFolder { base: base,
                           filter_op: self.filter_op }
     }
+
+    fn should_continue(&self) -> bool {
+        self.base.should_continue()
+    }
 }
 
 impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
