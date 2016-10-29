@@ -157,6 +157,11 @@ pub trait ParallelIterator: Sized {
         for_each::for_each(self, &op)
     }
 
+    /// Counts the number of items in this parallel iterator.
+    fn count(self) -> usize {
+        self.map(|_| 1).sum()
+    }
+
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
     fn map<MAP_OP,R>(self, map_op: MAP_OP) -> Map<Self, MapFn<MAP_OP>>
