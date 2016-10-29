@@ -52,6 +52,8 @@ pub trait Consumer<Item>: Send + Sized {
     /// sequentially, eventually producing a final result.
     fn into_folder(self) -> Self::Folder;
 
+    /// Hint whether this `Consumer` would like to stop processing
+    /// further items, e.g. if a search has been completed.
     fn full(&self) -> bool { false }
 }
 
@@ -64,6 +66,8 @@ pub trait Folder<Item> {
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
 
+    /// Hint whether this `Folder` would like to stop processing
+    /// further items, e.g. if a search has been completed.
     fn full(&self) -> bool { false }
 }
 

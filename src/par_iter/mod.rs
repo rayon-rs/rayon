@@ -395,12 +395,20 @@ pub trait ParallelIterator: Sized {
         find::find(self, predicate)
     }
 
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate, and if so returns true.  Once
+    /// a match is found, we'll attempt to stop process the rest
+    /// of the items.  Proving that there's no match, returning false,
+    /// does require visiting every item.
     fn any<ANY_OP>(self, predicate: ANY_OP) -> bool
         where ANY_OP: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate).find(|&p| p).is_some()
     }
 
+    /// Tests that every item in the parallel iterator matches the given
+    /// predicate, and if so returns true.  If a counter-example is found,
+    /// we'll attempt to stop processing more items, then return false.
     fn all<ALL_OP>(self, predicate: ALL_OP) -> bool
         where ALL_OP: Fn(Self::Item) -> bool + Sync
     {
@@ -486,6 +494,11 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         Enumerate::new(self)
     }
 
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate, and returns its index.  Like
+    /// `ParallelIterator::find`, the parallel search will not
+    /// necessarily find the **first** match, and once a match is
+    /// found we'll attempt to stop processing any more.
     fn position<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
         where POSITION_OP: Fn(Self::Item) -> bool + Sync
     {
