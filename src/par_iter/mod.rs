@@ -378,6 +378,17 @@ pub trait ParallelIterator: Sized {
         ChainIter::new(self, chain.into_par_iter())
     }
 
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate and returns it. This operation
+    /// is similar to [`find` on sequential iterators][find] but
+    /// the item returned may not be the **first** one in the parallel
+    /// sequence which matches, since we search the entire sequence in parallel.
+    ///
+    /// Once a match is found, we will attempt to stop processing
+    /// the rest of the items in the iterator as soon as possible
+    /// (just as `find` stops iterating once a match is found).
+    ///
+    /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
     fn find<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
         where FIND_OP: Fn(&Self::Item) -> bool + Sync
     {
