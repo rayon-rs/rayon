@@ -26,6 +26,7 @@ use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
+pub mod find;
 pub mod chain;
 pub mod collect;
 pub mod enumerate;
@@ -377,6 +378,24 @@ pub trait ParallelIterator: Sized {
         ChainIter::new(self, chain.into_par_iter())
     }
 
+    fn find<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
+        where FIND_OP: Fn(&Self::Item) -> bool + Sync
+    {
+        find::find(self, predicate)
+    }
+
+    fn any<ANY_OP>(self, predicate: ANY_OP) -> bool
+        where ANY_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate).find(|&p| p).is_some()
+    }
+
+    fn all<ALL_OP>(self, predicate: ALL_OP) -> bool
+        where ALL_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate).find(|&p| !p).is_none()
+    }
+
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
     #[doc(hidden)]
@@ -454,6 +473,14 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
+    }
+
+    fn position<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
+        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate).enumerate()
+            .find(|&(_, p)| p)
+            .map(|(i, _)| i)
     }
 }
 

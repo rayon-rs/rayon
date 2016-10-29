@@ -52,6 +52,7 @@ pub trait Consumer<Item>: Send + Sized {
     /// sequentially, eventually producing a final result.
     fn into_folder(self) -> Self::Folder;
 
+    fn full(&self) -> bool { false }
 }
 
 pub trait Folder<Item> {
@@ -62,6 +63,8 @@ pub trait Folder<Item> {
 
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
+
+    fn full(&self) -> bool { false }
 }
 
 pub trait Reducer<Result> {
@@ -167,7 +170,9 @@ fn bridge_producer_consumer<P,C>(len: usize,
                                  -> C::Result
     where P: Producer, C: Consumer<P::Item>
 {
-    if len > 1 && splitter.try() {
+    if consumer.full() {
+        consumer.into_folder().complete()
+    } else if len > 1 && splitter.try() {
         let mid = len / 2;
         let (left_producer, right_producer) = producer.split_at(mid);
         let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
@@ -181,6 +186,7 @@ fn bridge_producer_consumer<P,C>(len: usize,
         let mut folder = consumer.into_folder();
         for item in producer {
             folder = folder.consume(item);
+            if folder.full() { break }
         }
         folder.complete()
     }
