@@ -36,10 +36,10 @@ pub mod filter_map;
 #[path = "find_atomic.rs"]
 mod find;
 
-#[cfg(disabled)]
 #[path = "find_mutex.rs"]
 mod find;
 
+#[cfg(disabled)]
 #[path = "find_reduce.rs"]
 mod find;
 
