@@ -34,6 +34,10 @@ impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
     fn into_folder(self) -> Self {
         self
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 
 impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
@@ -47,6 +51,10 @@ impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
     }
 
     fn complete(self) {
+    }
+
+    fn should_continue(&self) -> bool {
+        true
     }
 }
 

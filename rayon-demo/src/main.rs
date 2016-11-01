@@ -15,6 +15,7 @@ mod sieve;
 #[cfg(test)] mod factorial;
 #[cfg(test)] mod pythagoras;
 #[cfg(test)] mod fibonacci;
+#[cfg(test)] mod find;
 
 extern crate rayon; // all
 extern crate docopt; // all
@@ -26,6 +27,8 @@ extern crate rustc_serialize; // nbody
 extern crate time; // nbody, sieve
 extern crate itertools; // sieve
 extern crate num; // factorial
+#[macro_use]
+extern crate lazy_static; // find
 
 #[cfg(test)]
 extern crate test;

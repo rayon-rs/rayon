@@ -54,6 +54,10 @@ impl<'r, ITEM, I, FOLD_OP, REDUCE_OP> Consumer<ITEM>
         FoldFolder { item: self.identity.clone(),
                      fold_op: self.fold_op }
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 
 impl<'r, ITEM, I, FOLD_OP, REDUCE_OP> UnindexedConsumer<ITEM>
@@ -99,6 +103,10 @@ impl<'r, I, FOLD_OP, ITEM> Folder<ITEM>
 
     fn complete(self) -> I {
         self.item
+    }
+
+    fn should_continue(&self) -> bool {
+        true
     }
 }
 

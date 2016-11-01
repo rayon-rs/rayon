@@ -52,6 +52,11 @@ pub trait Consumer<Item>: Send + Sized {
     /// sequentially, eventually producing a final result.
     fn into_folder(self) -> Self::Folder;
 
+    /// Indicates whether producer should continue feeding items.
+    /// This can be used to cut off execution early (e.g., when an
+    /// item is found). Note that the producer is not required to
+    /// confirm to this.
+    fn should_continue(&self) -> bool;
 }
 
 pub trait Folder<Item> {
@@ -62,6 +67,12 @@ pub trait Folder<Item> {
 
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
+
+    /// Indicates whether producer should continue feeding items.
+    /// This can be used to cut off execution early (e.g., when an
+    /// item is found). Note that the producer is not required to
+    /// confirm to this.
+    fn should_continue(&self) -> bool;
 }
 
 pub trait Reducer<Result> {
@@ -167,7 +178,8 @@ fn bridge_producer_consumer<P,C>(len: usize,
                                  -> C::Result
     where P: Producer, C: Consumer<P::Item>
 {
-    if len > 1 && splitter.try() {
+    let should_continue = consumer.should_continue();
+    if len > 1 && splitter.try() && should_continue {
         let mid = len / 2;
         let (left_producer, right_producer) = producer.split_at(mid);
         let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
@@ -179,8 +191,13 @@ fn bridge_producer_consumer<P,C>(len: usize,
         reducer.reduce(left_result, right_result)
     } else {
         let mut folder = consumer.into_folder();
-        for item in producer {
-            folder = folder.consume(item);
+        if should_continue {
+            for item in producer {
+                if !folder.should_continue() {
+                    break;
+                }
+                folder = folder.consume(item);
+            }
         }
         folder.complete()
     }

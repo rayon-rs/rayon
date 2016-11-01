@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use super::*;
 use super::internal::*;
 
@@ -585,4 +587,27 @@ pub fn check_count() {
     let c2 = (0_u32..24*1024).into_par_iter().weight_max().filter(|i| i % 2 == 0).count();
     assert_eq!(c0, c1);
     assert_eq!(c1, c2);
+}
+
+#[test]
+pub fn check_find_any_not_present() {
+    let counter = AtomicUsize::new(0);
+    let value: Option<i32> =
+        (0_i32..2048)
+        .into_par_iter()
+        .find_any(|&p| { counter.fetch_add(1, Ordering::SeqCst); p >= 2048 });
+    assert!(value.is_none());
+    assert!(counter.load(Ordering::SeqCst) == 2048); // should have visited every single one
+}
+
+#[test]
+pub fn check_find_any_is_present() {
+    let counter = AtomicUsize::new(0);
+    let value: Option<i32> =
+        (0_i32..2048)
+        .into_par_iter()
+        .find_any(|&p| { counter.fetch_add(1, Ordering::SeqCst); p >= 1024 && p < 1096 });
+    let q = value.unwrap();
+    assert!(q >= 1024 && q < 1096);
+    assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
 }

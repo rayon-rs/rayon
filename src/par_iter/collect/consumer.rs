@@ -69,6 +69,10 @@ impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
     fn into_folder(self) -> CollectFolder<'c, ITEM> {
         CollectFolder { consumer: self, offset: 0 }
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 
 impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
@@ -97,5 +101,9 @@ impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
 
         // track total values written
         self.consumer.writes.fetch_add(self.consumer.len, Ordering::SeqCst);
+    }
+
+    fn should_continue(&self) -> bool {
+        true
     }
 }

@@ -31,6 +31,18 @@ pub mod collect;
 pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
+
+#[cfg(disabled)]
+#[path = "find_atomic.rs"]
+mod find;
+
+#[path = "find_mutex.rs"]
+mod find;
+
+#[cfg(disabled)]
+#[path = "find_reduce.rs"]
+mod find;
+
 pub mod flat_map;
 pub mod internal;
 pub mod len;
@@ -201,6 +213,23 @@ pub trait ParallelIterator: Sized {
         where FILTER_OP: Fn(Self::Item) -> Option<R> + Sync
     {
         FilterMap::new(self, filter_op)
+    }
+
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate and returns it. This operation
+    /// is similar to [`find` on sequential iterators][find] but
+    /// the item returned may not be the **first** one in the parallel
+    /// sequence which matches, since we search the entire sequence in parallel.
+    ///
+    /// Once a match is found, we will attempt to stop processing
+    /// the rest of the items in the iterator as soon as possible
+    /// (just as `find` stops iterating once a match is found).
+    ///
+    /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
+    fn find<P>(self, predicate: P) -> Option<Self::Item>
+        where P: Fn(&Self::Item) -> bool + Sync,
+    {
+        find::find(self, &predicate)
     }
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,

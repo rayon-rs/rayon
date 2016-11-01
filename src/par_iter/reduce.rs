@@ -73,6 +73,10 @@ impl<'r, REDUCE_OP, ITEM> Consumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
         ReduceFolder { reduce_op: self.reduce_op,
                        item: self.reduce_op.start_value() }
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 
 impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
@@ -113,6 +117,10 @@ impl<'r, REDUCE_OP, ITEM> Folder<ITEM> for ReduceFolder<'r, REDUCE_OP, ITEM>
 
     fn complete(self) -> ITEM {
         self.item
+    }
+
+    fn should_continue(&self) -> bool {
+        true
     }
 }
 
