@@ -32,6 +32,7 @@ pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
 
+#[cfg(disabled)]
 #[path = "find_atomic.rs"]
 mod find;
 
@@ -39,7 +40,6 @@ mod find;
 #[path = "find_mutex.rs"]
 mod find;
 
-#[cfg(disabled)]
 #[path = "find_reduce.rs"]
 mod find;
 
