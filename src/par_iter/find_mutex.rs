@@ -43,7 +43,7 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for &'f Find<ITEM, FIND_OP>
     }
 
     fn should_continue(&self) -> bool {
-        self.found.load(Ordering::Relaxed)
+        !self.found.load(Ordering::Relaxed)
     }
 }
 
@@ -82,6 +82,6 @@ impl<'f, ITEM, FIND_OP> Folder<ITEM> for &'f Find<ITEM, FIND_OP>
     }
 
     fn should_continue(&self) -> bool {
-        self.found.load(Ordering::Relaxed)
+        !self.found.load(Ordering::Relaxed)
     }
 }
