@@ -63,3 +63,14 @@ fn serial_find_missing(b: &mut Bencher) {
     let needle = HAYSTACK.iter().max().unwrap() + 1;
     b.iter(|| assert!(HAYSTACK.iter().find(|&&x| x == needle).is_none()));
 }
+
+
+#[bench]
+fn parallel_find_common(b: &mut Bencher) {
+    b.iter(|| assert!(HAYSTACK.par_iter().find(|&&x| x % 1000 == 999).is_some()));
+}
+
+#[bench]
+fn serial_find_common(b: &mut Bencher) {
+    b.iter(|| assert!(HAYSTACK.iter().find(|&&x| x % 1000 == 999).is_some()));
+}
