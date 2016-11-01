@@ -140,4 +140,8 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
             None => self.base.into_folder().complete(),
         }
     }
+
+    fn should_continue(&self) -> bool {
+        self.base.should_continue()
+    }
 }

@@ -270,5 +270,9 @@ impl<'m, ITEM, C, MAP_OP> Folder<ITEM> for MapFolder<'m, C, MAP_OP>
     fn complete(self) -> C::Result {
         self.base.complete()
     }
+
+    fn should_continue(&self) -> bool {
+        self.base.should_continue()
+    }
 }
 

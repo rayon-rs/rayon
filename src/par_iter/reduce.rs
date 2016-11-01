@@ -118,6 +118,10 @@ impl<'r, REDUCE_OP, ITEM> Folder<ITEM> for ReduceFolder<'r, REDUCE_OP, ITEM>
     fn complete(self) -> ITEM {
         self.item
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////

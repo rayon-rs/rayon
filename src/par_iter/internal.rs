@@ -67,6 +67,12 @@ pub trait Folder<Item> {
 
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
+
+    /// Indicates whether producer should continue feeding items.
+    /// This can be used to cut off execution early (e.g., when an
+    /// item is found). Note that the producer is not required to
+    /// confirm to this.
+    fn should_continue(&self) -> bool;
 }
 
 pub trait Reducer<Result> {
@@ -187,6 +193,9 @@ fn bridge_producer_consumer<P,C>(len: usize,
         let mut folder = consumer.into_folder();
         if should_continue {
             for item in producer {
+                if !folder.should_continue() {
+                    break;
+                }
                 folder = folder.consume(item);
             }
         }

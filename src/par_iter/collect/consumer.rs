@@ -102,4 +102,8 @@ impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
         // track total values written
         self.consumer.writes.fetch_add(self.consumer.len, Ordering::SeqCst);
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }

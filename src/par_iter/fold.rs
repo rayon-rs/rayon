@@ -104,5 +104,9 @@ impl<'r, I, FOLD_OP, ITEM> Folder<ITEM>
     fn complete(self) -> I {
         self.item
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 

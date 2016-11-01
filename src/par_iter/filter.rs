@@ -89,6 +89,7 @@ impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER
     }
 }
 
+
 impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM>
     for FilterConsumer<'f, C, FILTER_OP>
     where C: UnindexedConsumer<ITEM>, FILTER_OP: Fn(&ITEM) -> bool + Sync,
@@ -124,5 +125,9 @@ impl<'f, C, FILTER_OP, ITEM> Folder<ITEM> for FilterFolder<'f, C, FILTER_OP>
 
     fn complete(self) -> Self::Result {
         self.base.complete()
+    }
+
+    fn should_continue(&self) -> bool {
+        self.base.should_continue()
     }
 }

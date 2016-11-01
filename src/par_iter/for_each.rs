@@ -52,6 +52,10 @@ impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
 
     fn complete(self) {
     }
+
+    fn should_continue(&self) -> bool {
+        true
+    }
 }
 
 impl<'f, OP, ITEM> UnindexedConsumer<ITEM> for ForEachConsumer<'f, OP>

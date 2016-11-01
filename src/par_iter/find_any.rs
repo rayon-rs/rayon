@@ -116,5 +116,9 @@ impl<'f, PREDICATE, ITEM> Folder<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
 
     fn complete(self) {
     }
+
+    fn should_continue(&self) -> bool {
+        self.flag.load(Ordering::SeqCst) == SEARCHING
+    }
 }
 
