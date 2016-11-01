@@ -7,11 +7,11 @@ use super::ParallelIterator;
 const SEARCHING: usize = 0;
 const FOUND: usize = 1;
 
-pub fn find_any<PAR_ITER, PREDICATE>(par_iter: PAR_ITER,
-                                     predicate: &PREDICATE)
-                                     -> Option<PAR_ITER::Item>
+pub fn find<PAR_ITER, PREDICATE>(par_iter: PAR_ITER,
+                                 predicate: &PREDICATE)
+                                 -> Option<PAR_ITER::Item>
     where PAR_ITER: ParallelIterator,
-          PREDICATE: Fn(&PAR_ITER::Item) -> bool + Sync,
+          PREDICATE: Fn(&PAR_ITER::Item) -> bool + Sync
 {
     let flag: AtomicUsize = AtomicUsize::new(SEARCHING);
     let mut data: Option<PAR_ITER::Item> = None;
@@ -34,10 +34,10 @@ pub fn find_any<PAR_ITER, PREDICATE>(par_iter: PAR_ITER,
 struct FindAnyConsumer<'f, PREDICATE: 'f, ITEM> {
     flag: &'f AtomicUsize,
     predicate: &'f PREDICATE,
-    data_ptr: *mut Option<ITEM>
+    data_ptr: *mut Option<ITEM>,
 }
 
-impl<'f, PREDICATE, ITEM> Copy for FindAnyConsumer<'f, PREDICATE, ITEM> { }
+impl<'f, PREDICATE, ITEM> Copy for FindAnyConsumer<'f, PREDICATE, ITEM> {}
 
 impl<'f, PREDICATE, ITEM> Clone for FindAnyConsumer<'f, PREDICATE, ITEM> {
     fn clone(&self) -> Self {
@@ -47,12 +47,12 @@ impl<'f, PREDICATE, ITEM> Clone for FindAnyConsumer<'f, PREDICATE, ITEM> {
 
 /// We need this because of the `*mut` that we are sending between
 /// threads. We guarantee that it will still be valid because it
-/// points into the stack of `find_any()` and `find_any()` is blocked
+/// points into the stack of `find()` and `find()` is blocked
 /// waiting for `FindAnyConsumer`.
-unsafe impl<'f, PREDICATE, ITEM> Send for FindAnyConsumer<'f, PREDICATE, ITEM> { }
+unsafe impl<'f, PREDICATE, ITEM> Send for FindAnyConsumer<'f, PREDICATE, ITEM> {}
 
 impl<'f, PREDICATE, ITEM> Consumer<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
-    where PREDICATE: Fn(&ITEM) -> bool + Sync,
+    where PREDICATE: Fn(&ITEM) -> bool + Sync
 {
     type Folder = Self;
     type Reducer = NoopReducer;
@@ -81,7 +81,7 @@ impl<'f, PREDICATE, ITEM> Consumer<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM
 }
 
 impl<'f, PREDICATE, ITEM> UnindexedConsumer<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
-    where PREDICATE: Fn(&ITEM) -> bool + Sync,
+    where PREDICATE: Fn(&ITEM) -> bool + Sync
 {
     fn split_off(&self) -> Self {
         *self
@@ -93,7 +93,7 @@ impl<'f, PREDICATE, ITEM> UnindexedConsumer<ITEM> for FindAnyConsumer<'f, PREDIC
 }
 
 impl<'f, PREDICATE, ITEM> Folder<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
-    where PREDICATE: Fn(&ITEM) -> bool + Sync,
+    where PREDICATE: Fn(&ITEM) -> bool + Sync
 {
     type Result = ();
 
@@ -104,7 +104,7 @@ impl<'f, PREDICATE, ITEM> Folder<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
                 // I made the transition from SEARCHING to
                 // FOUND. Therefore, I am responsible for storing a
                 // value into the data slot. Moreover, we know the
-                // slot is still valid because the `find_any` call is
+                // slot is still valid because the `find` call is
                 // blocked waiting for us to complete our execution.
                 unsafe {
                     *self.data_ptr = Some(item);
@@ -114,11 +114,9 @@ impl<'f, PREDICATE, ITEM> Folder<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
         self
     }
 
-    fn complete(self) {
-    }
+    fn complete(self) {}
 
     fn should_continue(&self) -> bool {
         self.flag.load(Ordering::Relaxed) == SEARCHING
     }
 }
-

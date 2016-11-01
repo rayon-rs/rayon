@@ -31,7 +31,7 @@ pub mod collect;
 pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
-mod find_any;
+mod find;
 pub mod flat_map;
 pub mod internal;
 pub mod len;
@@ -215,10 +215,10 @@ pub trait ParallelIterator: Sized {
     /// (just as `find` stops iterating once a match is found).
     ///
     /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
-    fn find_any<P>(self, predicate: P) -> Option<Self::Item>
+    fn find<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync,
     {
-        find_any::find_any(self, &predicate)
+        find::find(self, &predicate)
     }
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
