@@ -50,7 +50,7 @@ impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
         }
     }
 
-    fn full(&self) -> bool {
+    fn should_continue(&self) -> bool {
         self.found.load(Ordering::Relaxed)
     }
 }
@@ -92,7 +92,7 @@ impl<'f, ITEM, FIND_OP> Folder<ITEM> for FindFolder<'f, ITEM, FIND_OP>
         self.item
     }
 
-    fn full(&self) -> bool {
+    fn should_continue(&self) -> bool {
         self.found.load(Ordering::Relaxed)
     }
 }
