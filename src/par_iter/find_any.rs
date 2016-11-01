@@ -76,7 +76,7 @@ impl<'f, PREDICATE, ITEM> Consumer<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM
     }
 
     fn should_continue(&self) -> bool {
-        self.flag.load(Ordering::SeqCst) == SEARCHING
+        self.flag.load(Ordering::Relaxed) == SEARCHING
     }
 }
 
@@ -99,7 +99,7 @@ impl<'f, PREDICATE, ITEM> Folder<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
 
     fn consume(self, item: ITEM) -> Self {
         if (self.predicate)(&item) {
-            let state = self.flag.swap(FOUND, Ordering::SeqCst);
+            let state = self.flag.swap(FOUND, Ordering::Acquire);
             if state == SEARCHING {
                 // I made the transition from SEARCHING to
                 // FOUND. Therefore, I am responsible for storing a
@@ -118,7 +118,7 @@ impl<'f, PREDICATE, ITEM> Folder<ITEM> for FindAnyConsumer<'f, PREDICATE, ITEM>
     }
 
     fn should_continue(&self) -> bool {
-        self.flag.load(Ordering::SeqCst) == SEARCHING
+        self.flag.load(Ordering::Relaxed) == SEARCHING
     }
 }
 
