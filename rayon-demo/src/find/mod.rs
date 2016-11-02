@@ -80,5 +80,5 @@ macro_rules! make_tests {
 }
 
 make_tests!(1, size1);
-make_tests!(64, size64);
-make_tests!(256, size256);
+// make_tests!(64, size64);
+// make_tests!(256, size256);
