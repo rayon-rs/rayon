@@ -22,9 +22,9 @@ impl<PAR_ITER, T> FromParIter<PAR_ITER> for Vec<T>
     }
 }
 
-/// Collect items from a parallel iterator into a freshly allocated
-/// vector. This is very efficient, but requires precise knowledge of
-/// the number of items being iterated.
+/// Collect items from a parallel iterator into a vector tree. This is
+/// a useful intermediate data structure since building it does not
+/// require knowing the full size of the iterator in advance.
 impl<PAR_ITER, T> FromParIter<PAR_ITER> for VecTree<T>
     where PAR_ITER: ParallelIterator<Item=T>,
           T: Send,
