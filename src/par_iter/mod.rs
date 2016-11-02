@@ -548,6 +548,16 @@ pub trait ParallelIterator: Sized {
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>;
 
+    /// Create a fresh collection containing all the element produced
+    /// by this parallel iterator. Note that some kinds of collections
+    /// have stricter requirements in terms of the kinds of iterators
+    /// that you can collect from (e.g., a `Vec` currently requires an
+    /// iterator that has precise knowledge of how many elements it
+    /// contains).
+    ///
+    /// You may also prefer to use `collect_into()`, which allows you
+    /// to reuse the vector's backing store rather than allocating a
+    /// fresh vector.
     fn collect<C>(self) -> C
         where C: FromParIter<Self>
     {
