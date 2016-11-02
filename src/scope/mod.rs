@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
-use thread_pool::{self, WorkerThread};
+use thread_pool::{self, in_worker, WorkerThread};
 use unwind;
 
 #[cfg(test)]
@@ -227,11 +227,10 @@ pub struct Scope<'scope> {
 pub fn scope<'scope, OP>(op: OP)
     where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
 {
-    unsafe {
-        let owner_thread = WorkerThread::current();
-        if !owner_thread.is_null() {
+    in_worker(|owner_thread| {
+        unsafe {
             let scope: Scope<'scope> = Scope {
-                owner_thread: owner_thread,
+                owner_thread: owner_thread as *const WorkerThread as *mut WorkerThread,
                 counter: AtomicUsize::new(1),
                 panic: AtomicPtr::new(ptr::null_mut()),
                 job_completed_latch: SpinLatch::new(),
@@ -239,28 +238,9 @@ pub fn scope<'scope, OP>(op: OP)
             };
             scope.execute_job_closure(op);
             scope.steal_till_jobs_complete();
-        } else {
-            scope_not_in_worker(op)
         }
-    }
+    });
 }
-
-#[cold]
-unsafe fn scope_not_in_worker<'scope, OP>(op: OP)
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
-{
-    // never run from a worker thread; just shifts over into worker threads
-    debug_assert!(WorkerThread::current().is_null());
-
-    let mut result = None;
-    {
-        let job = StackJob::new(|| result = Some(scope(op)), LockLatch::new());
-        thread_pool::get_registry().inject(&[job.as_job_ref()]);
-        job.latch.wait();
-    }
-    result.unwrap()
-}
-
 
 impl<'scope> Scope<'scope> {
     /// Spawns a job into the fork-join scope `self`. This job will
