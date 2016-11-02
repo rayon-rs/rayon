@@ -39,11 +39,11 @@ impl<PAR_ITER, T> FromParIter<PAR_ITER> for LinkedList<T>
 /// extent, a proof of concept, since it requires an intermediate
 /// allocation into a vector at the moment.
 impl<PAR_ITER, K: Eq + Hash, V> FromParIter<PAR_ITER> for HashMap<K, V>
-    where PAR_ITER: ExactParallelIterator<Item=(K, V)>,
+    where PAR_ITER: ParallelIterator<Item=(K, V)>,
           (K, V): Send,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
-        let vec: Vec<(K, V)> = par_iter.collect();
+        let vec: LinkedList<(K, V)> = par_iter.collect();
         vec.into_iter().collect()
     }
 }
