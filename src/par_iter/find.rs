@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use super::*;
 use super::len::*;
@@ -8,38 +7,47 @@ pub fn find<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITE
     where PAR_ITER: ParallelIterator,
           FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync,
 {
-    let finder = Find {
-        find_op: find_op,
-        found: AtomicBool::new(false),
-        result: Mutex::new(None),
-    };
-    pi.drive_unindexed(&finder);
-    finder.result.into_inner().unwrap()
+    let found = AtomicBool::new(false);
+    let consumer = FindConsumer::new(&find_op, &found);
+    pi.drive_unindexed(consumer)
 }
 
-struct Find<ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync> {
-    find_op: FIND_OP,
-    found: AtomicBool,
-    result: Mutex<Option<ITEM>>,
+struct FindConsumer<'f, FIND_OP: 'f> {
+    find_op: &'f FIND_OP,
+    found: &'f AtomicBool,
 }
 
-impl<'f, ITEM, FIND_OP> Consumer<ITEM> for &'f Find<ITEM, FIND_OP>
-    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync
+impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
+    fn new(find_op: &'f FIND_OP, found: &'f AtomicBool) -> Self {
+        FindConsumer {
+            find_op: find_op,
+            found: found,
+        }
+    }
+}
+
+impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
+    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync,
 {
-    type Folder = Self;
-    type Reducer = NoopReducer;
-    type Result = ();
+    type Folder = FindFolder<'f, ITEM, FIND_OP>;
+    type Reducer = FindReducer;
+    type Result = Option<ITEM>;
 
     fn cost(&mut self, cost: f64) -> f64 {
+        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
         cost * FUNC_ADJUSTMENT
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
-        (self, self, NoopReducer)
+        (self.split_off(), self, FindReducer)
     }
 
     fn into_folder(self) -> Self::Folder {
-        self
+        FindFolder {
+            find_op: self.find_op,
+            found: self.found,
+            item: None,
+        }
     }
 
     fn full(&self) -> bool {
@@ -48,40 +56,52 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for &'f Find<ITEM, FIND_OP>
 }
 
 
-impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for &'f Find<ITEM, FIND_OP>
-    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync
+impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
+    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync,
 {
     fn split_off(&self) -> Self {
-        self
+        FindConsumer::new(self.find_op, self.found)
     }
 
     fn to_reducer(&self) -> Self::Reducer {
-        NoopReducer
+        FindReducer
     }
 }
 
 
-impl<'f, ITEM, FIND_OP> Folder<ITEM> for &'f Find<ITEM, FIND_OP>
-    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync
-{
-    type Result = ();
+struct FindFolder<'f, ITEM, FIND_OP: 'f> {
+    find_op: &'f FIND_OP,
+    found: &'f AtomicBool,
+    item: Option<ITEM>,
+}
 
-    fn consume(self, item: ITEM) -> Self {
+impl<'f, ITEM, FIND_OP> Folder<ITEM> for FindFolder<'f, ITEM, FIND_OP>
+    where FIND_OP: Fn(&ITEM) -> bool + 'f
+{
+    type Result = Option<ITEM>;
+
+    fn consume(mut self, item: ITEM) -> Self {
         if (self.find_op)(&item) {
             self.found.store(true, Ordering::Relaxed);
-            if let Ok(mut guard) = self.result.try_lock() {
-                if guard.is_none() {
-                    *guard = Some(item);
-                }
-            }
+            self.item = Some(item);
         }
         self
     }
 
     fn complete(self) -> Self::Result {
+        self.item
     }
 
     fn full(&self) -> bool {
         self.found.load(Ordering::Relaxed)
+    }
+}
+
+
+struct FindReducer;
+
+impl<ITEM> Reducer<Option<ITEM>> for FindReducer {
+    fn reduce(self, left: Option<ITEM>, right: Option<ITEM>) -> Option<ITEM> {
+        left.or(right)
     }
 }
