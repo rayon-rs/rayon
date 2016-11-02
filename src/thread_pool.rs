@@ -256,9 +256,16 @@ impl WorkerThread {
         });
     }
 
+    /// Our index amongst the worker threads (ranges from `0..self.num_threads()`).
     #[inline]
     pub fn index(&self) -> usize {
         self.index
+    }
+
+    /// Number of worker threads total in the current registry.
+    #[inline]
+    pub fn num_threads(&self) -> usize {
+        self.stealers.len() + 1
     }
 
     #[inline]

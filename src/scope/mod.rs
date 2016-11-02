@@ -1,11 +1,11 @@
-use latch::{Latch, SpinLatch, LockLatch};
-use job::{JobMode, HeapJob, StackJob};
+use latch::{Latch, SpinLatch};
+use job::{JobMode, HeapJob};
 use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
-use thread_pool::{self, in_worker, WorkerThread};
+use thread_pool::{in_worker, WorkerThread};
 use unwind;
 
 #[cfg(test)]
