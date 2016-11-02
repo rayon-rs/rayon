@@ -19,7 +19,7 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
-use self::from_par_iter::FromParIter;
+use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
@@ -442,7 +442,7 @@ pub trait ParallelIterator: Sized {
     /// to reuse the vector's backing store rather than allocating a
     /// fresh vector.
     fn collect<C>(self) -> C
-        where C: FromParIter<Self>
+        where C: FromParallelIterator<Self>
     {
         C::from_par_iter(self)
     }
