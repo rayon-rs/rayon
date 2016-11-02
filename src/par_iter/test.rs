@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use super::*;
 use super::internal::*;
 
@@ -585,4 +587,47 @@ pub fn check_count() {
     let c2 = (0_u32..24*1024).into_par_iter().weight_max().filter(|i| i % 2 == 0).count();
     assert_eq!(c0, c1);
     assert_eq!(c1, c2);
+}
+
+
+#[test]
+pub fn find_any() {
+    let a: Vec<i32> = (0..1024).collect();
+
+    assert!(a.par_iter().find_any(|&&x| x % 42 == 41).is_some());
+    assert_eq!(a.par_iter().find_any(|&&x| x % 19 == 1 && x % 53 == 0), Some(&742_i32));
+    assert_eq!(a.par_iter().find_any(|&&x| x < 0), None);
+
+    assert!(a.par_iter().position_any(|&x| x % 42 == 41).is_some());
+    assert_eq!(a.par_iter().position_any(|&x| x % 19 == 1 && x % 53 == 0), Some(742_usize));
+    assert_eq!(a.par_iter().position_any(|&x| x < 0), None);
+
+    assert!(a.par_iter().any(|&x| x > 1000));
+    assert!(!a.par_iter().any(|&x| x < 0));
+
+    assert!(!a.par_iter().all(|&x| x > 1000));
+    assert!(a.par_iter().all(|&x| x >= 0));
+}
+
+#[test]
+pub fn check_find_not_present() {
+    let counter = AtomicUsize::new(0);
+    let value: Option<i32> =
+        (0_i32..2048)
+        .into_par_iter()
+        .find_any(|&p| { counter.fetch_add(1, Ordering::SeqCst); p >= 2048 });
+    assert!(value.is_none());
+    assert!(counter.load(Ordering::SeqCst) == 2048); // should have visited every single one
+}
+
+#[test]
+pub fn check_find_is_present() {
+    let counter = AtomicUsize::new(0);
+    let value: Option<i32> =
+        (0_i32..2048)
+        .into_par_iter()
+        .find_any(|&p| { counter.fetch_add(1, Ordering::SeqCst); p >= 1024 && p < 1096 });
+    let q = value.unwrap();
+    assert!(q >= 1024 && q < 1096);
+    assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
 }

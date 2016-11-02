@@ -90,6 +90,10 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM>
         FilterMapFolder { base: base,
                           filter_op: self.filter_op }
     }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
 }
 
 impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
@@ -130,6 +134,10 @@ impl<'f, ITEM, C_ITEM, C, FILTER_OP> Folder<ITEM> for FilterMapFolder<'f, C, FIL
 
     fn complete(self) -> C::Result {
         self.base.complete()
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
     }
 }
 

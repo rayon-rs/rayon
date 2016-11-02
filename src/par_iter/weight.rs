@@ -141,6 +141,10 @@ impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
     fn into_folder(self) -> C::Folder {
         self.base.into_folder()
     }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
 }
 
 impl<C, ITEM> UnindexedConsumer<ITEM> for WeightConsumer<C>

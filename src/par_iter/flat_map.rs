@@ -78,6 +78,10 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
             previous: None,
         }
     }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
 }
 
 impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
@@ -135,5 +139,9 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
             Some(previous) => previous,
             None => self.base.into_folder().complete(),
         }
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
     }
 }

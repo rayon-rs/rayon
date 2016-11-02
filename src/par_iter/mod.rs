@@ -26,6 +26,7 @@ use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
+pub mod find;
 pub mod chain;
 pub mod collect;
 pub mod enumerate;
@@ -377,6 +378,51 @@ pub trait ParallelIterator: Sized {
         ChainIter::new(self, chain.into_par_iter())
     }
 
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate and returns it. This operation
+    /// is similar to [`find` on sequential iterators][find] but
+    /// the item returned may not be the **first** one in the parallel
+    /// sequence which matches, since we search the entire sequence in parallel.
+    ///
+    /// Once a match is found, we will attempt to stop processing
+    /// the rest of the items in the iterator as soon as possible
+    /// (just as `find` stops iterating once a match is found).
+    ///
+    /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
+    fn find_any<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
+        where FIND_OP: Fn(&Self::Item) -> bool + Sync
+    {
+        find::find(self, predicate)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`")]
+    fn find<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
+        where FIND_OP: Fn(&Self::Item) -> bool + Sync
+    {
+        self.find_any(predicate)
+    }
+
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate, and if so returns true.  Once
+    /// a match is found, we'll attempt to stop process the rest
+    /// of the items.  Proving that there's no match, returning false,
+    /// does require visiting every item.
+    fn any<ANY_OP>(self, predicate: ANY_OP) -> bool
+        where ANY_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate).find_any(|&p| p).is_some()
+    }
+
+    /// Tests that every item in the parallel iterator matches the given
+    /// predicate, and if so returns true.  If a counter-example is found,
+    /// we'll attempt to stop processing more items, then return false.
+    fn all<ALL_OP>(self, predicate: ALL_OP) -> bool
+        where ALL_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate).find_any(|&p| !p).is_none()
+    }
+
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
     #[doc(hidden)]
@@ -454,6 +500,27 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
+    }
+
+    /// Searches for **some** item in the parallel iterator that
+    /// matches the given predicate, and returns its index.  Like
+    /// `ParallelIterator::find_any`, the parallel search will not
+    /// necessarily find the **first** match, and once a match is
+    /// found we'll attempt to stop processing any more.
+    fn position_any<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
+        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate).enumerate()
+            .find_any(|&(_, p)| p)
+            .map(|(i, _)| i)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`")]
+    fn position<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
+        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.position_any(predicate)
     }
 }
 

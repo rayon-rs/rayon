@@ -228,6 +228,10 @@ impl<'m, ITEM, C, MAP_OP> Consumer<ITEM> for MapConsumer<'m, C, MAP_OP>
             map_op: self.map_op,
         }
     }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
 }
 
 impl<'m, ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
@@ -265,6 +269,10 @@ impl<'m, ITEM, C, MAP_OP> Folder<ITEM> for MapFolder<'m, C, MAP_OP>
 
     fn complete(self) -> C::Result {
         self.base.complete()
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
     }
 }
 
