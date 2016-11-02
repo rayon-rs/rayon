@@ -1,4 +1,4 @@
-/// Simple benchmarks of `find()` performance
+/// Simple benchmarks of `find_any()` performance
 
 macro_rules! make_tests {
     ($n:expr, $m:ident) => {
@@ -21,7 +21,7 @@ macro_rules! make_tests {
             #[bench]
             fn parallel_find_first(b: &mut Bencher) {
                 let needle = HAYSTACK[0][0];
-                b.iter(|| assert!(HAYSTACK.par_iter().find(|&&x| x[0] == needle).is_some()));
+                b.iter(|| assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] == needle).is_some()));
             }
 
             #[bench]
@@ -33,7 +33,7 @@ macro_rules! make_tests {
             #[bench]
             fn parallel_find_last(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len()-1][0];
-                b.iter(|| assert!(HAYSTACK.par_iter().find(|&&x| x[0] == needle).is_some()));
+                b.iter(|| assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] == needle).is_some()));
             }
 
             #[bench]
@@ -45,7 +45,7 @@ macro_rules! make_tests {
             #[bench]
             fn parallel_find_middle(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() / 3 * 2][0];
-                b.iter(|| assert!(HAYSTACK.par_iter().find(|&&x| x[0] == needle).is_some()));
+                b.iter(|| assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] == needle).is_some()));
             }
 
             #[bench]
@@ -57,7 +57,7 @@ macro_rules! make_tests {
             #[bench]
             fn parallel_find_missing(b: &mut Bencher) {
                 let needle = HAYSTACK.iter().map(|v| v[0]).max().unwrap() + 1;
-                b.iter(|| assert!(HAYSTACK.par_iter().find(|&&x| x[0] == needle).is_none()));
+                b.iter(|| assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] == needle).is_none()));
             }
 
             #[bench]
@@ -68,7 +68,7 @@ macro_rules! make_tests {
 
             #[bench]
             fn parallel_find_common(b: &mut Bencher) {
-                b.iter(|| assert!(HAYSTACK.par_iter().find(|&&x| x[0] % 1000 == 999).is_some()));
+                b.iter(|| assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] % 1000 == 999).is_some()));
             }
 
             #[bench]
