@@ -32,6 +32,11 @@ impl BecameOwner {
     fn became_owner(&self) -> bool { self.0 }
 }
 
+#[inline]
+fn processing_sentinel<T>() -> *mut T {
+    1 as *mut T
+}
+
 impl<F, T> FlatCombiner<F, T>
     where T: Send,
           F: FnMut(T)
@@ -73,6 +78,9 @@ impl<F, T> FlatCombiner<F, T>
 
         // Otherwise, enqueue the data.
         self.send(sender, data.unwrap());
+
+        // Data is done, shouldn't be anything.
+        debug_assert!(sender.is_empty());
     }
 
     unsafe fn send(&self,
@@ -141,8 +149,9 @@ impl<F, T> FlatCombiner<F, T>
         // load-balancing heuristics quite a bit.
         for _ in 0 .. 3 {
             for sender in &self.senders {
-                if let Some(data) = sender.try_take() {
+                if let Some(data) = sender.try_take_as_owner() {
                     (owner_data.func)(data);
+                    sender.release_as_owner();
                 }
             }
         }
@@ -177,14 +186,42 @@ impl<T> Sender<T>
     }
 
     /// Try to take an item from the sender queue; returns `None` if
+    /// nothing is present. This should only be executed by the owner.
+    ///
+    /// Unsafe because it should only be executed by the owner.
+    unsafe fn try_take_as_owner(&self) -> Option<T> {
+        let data_ptr = self.data.load(Ordering::SeqCst);
+        if data_ptr.is_null() {
+            None
+        } else {
+            // At this state, the sender has stored some data and is
+            // waiting for owner to clear it. As owner, we store a
+            // sentinel in (to indicate we have taken ownership) and
+            // then we read from the data. When we are fully done
+            // processing it, we will store back a NULL to indicate
+            // that sender can keep going (for now, they have to stick
+            // around so that ptr to data remains valid).
+            debug_assert!(data_ptr != processing_sentinel());
+            self.data.store(processing_sentinel(), Ordering::SeqCst);
+            Some(ptr::read(data_ptr))
+        }
+    }
+
+    /// Owner calls this to indicate it has completed processing the given item.
+    unsafe fn release_as_owner(&self) {
+        debug_assert!(self.data.load(Ordering::SeqCst) == processing_sentinel());
+        self.data.store(ptr::null_mut(), Ordering::SeqCst);
+    }
+
+    /// Try to take an item from the sender queue; returns `None` if
     /// nothing is present. Normally, this should only be executed by
     /// the owner, but in the case of panic there is some special
     /// handling; see `SenderGuard` for details.
     ///
     /// Unsafe because it should only be executed by the owner (or a properly used `SenderGuard`).
-    unsafe fn try_take(&self) -> Option<T> {
+    unsafe fn try_take_by_guard(&self) -> Option<T> {
         let data_ptr = self.data.swap(ptr::null_mut(), Ordering::SeqCst);
-        if data_ptr.is_null() {
+        if data_ptr.is_null() || data_ptr == processing_sentinel() {
             None
         } else {
             Some(ptr::read(data_ptr))
@@ -208,10 +245,9 @@ impl<'sender, T> Drop for SenderGuard<'sender, T>
 {
     fn drop(&mut self) {
         unsafe {
-            // Subtle safety point: normally, `try_take()` should only
-            // be executed by the *owner* of the lock. But we are
-            // guaranteed by the structure of the algorithm that if
-            // this guard executes, one of two things have happened:
+            // Subtle safety point: We are guaranteed by the structure
+            // of the algorithm that if this guard executes, one of
+            // two things have happened:
             //
             // 1. The owner has panicked, and hence there will never
             //    be another owner, as the mutex is now poisoned. In this event,
@@ -223,7 +259,7 @@ impl<'sender, T> Drop for SenderGuard<'sender, T>
             //    happen, because we always `mem::forget` the guard. But even if we didn't,
             //    it'd be fine, since we (the current thread) are the only ones that
             //    would ever enqueue into `self.sender`.
-            self.sender.try_take(); // will drop if there was any data present
+            self.sender.try_take_by_guard(); // will drop if there was any data present
         }
     }
 }
