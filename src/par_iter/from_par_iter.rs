@@ -48,7 +48,7 @@ impl<PAR_ITER, K, V, S> FromParallelIterator<PAR_ITER> for HashMap<K, V, S>
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
         let mut map = HashMap::default();
-        par_iter.for_each_locked(|(key, value)| {
+        par_iter.for_each_atomic(|(key, value)| {
             map.insert(key, value);
         });
         map
@@ -66,7 +66,7 @@ impl<PAR_ITER, K, V> FromParallelIterator<PAR_ITER> for BTreeMap<K, V>
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
         let mut map = BTreeMap::default();
-        par_iter.for_each_locked(|(key, value)| {
+        par_iter.for_each_atomic(|(key, value)| {
             map.insert(key, value);
         });
         map
@@ -81,7 +81,7 @@ impl<PAR_ITER, K, S> FromParallelIterator<PAR_ITER> for HashSet<K, S>
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
         let mut map = HashSet::default();
-        par_iter.for_each_locked(|key| {
+        par_iter.for_each_atomic(|key| {
             map.insert(key);
         });
         map
@@ -95,7 +95,7 @@ impl<PAR_ITER, K> FromParallelIterator<PAR_ITER> for BTreeSet<K>
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
         let mut map = BTreeSet::default();
-        par_iter.for_each_locked(|key| {
+        par_iter.for_each_atomic(|key| {
             map.insert(key);
         });
         map

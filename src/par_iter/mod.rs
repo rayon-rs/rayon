@@ -38,7 +38,7 @@ pub mod from_par_iter;
 pub mod internal;
 pub mod len;
 pub mod for_each;
-pub mod for_each_locked;
+pub mod for_each_atomic;
 #[cfg(feature = "unstable")]
 pub mod fold;
 pub mod reduce;
@@ -179,16 +179,16 @@ pub trait ParallelIterator: Sized {
     ///
     /// let mut set = HashSet::new();
     /// (0_u32..1024).into_par_iter()
-    ///              .for_each_locked(|v| { set.insert(v); });
+    ///              .for_each_atomic(|v| { set.insert(v); });
     /// assert_eq!(set.len(), 1024);
     /// ```
     ///
     /// [FC]: https://www.cs.bgu.ac.il/~hendlerd/papers/flat-combining.pdf
-    fn for_each_locked<OP>(self, mut op: OP)
+    fn for_each_atomic<OP>(self, mut op: OP)
         where OP: FnMut(Self::Item) + Send,
               Self: Send,
     {
-        for_each_locked::for_each_locked(self, &mut op)
+        for_each_atomic::for_each_atomic(self, &mut op)
     }
 
     /// Counts the number of items in this parallel iterator.

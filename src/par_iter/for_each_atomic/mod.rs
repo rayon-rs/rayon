@@ -8,7 +8,7 @@ use thread_pool::in_worker;
 
 mod flat_combine;
 
-pub fn for_each_locked<PAR_ITER,OP,T>(pi: PAR_ITER, op: &mut OP)
+pub fn for_each_atomic<PAR_ITER,OP,T>(pi: PAR_ITER, op: &mut OP)
     where PAR_ITER: ParallelIterator<Item=T> + Send,
           OP: FnMut(T) + Send,
           T: Send,
