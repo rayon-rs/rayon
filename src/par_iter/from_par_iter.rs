@@ -1,7 +1,8 @@
 use super::{ParallelIterator, ExactParallelIterator};
 
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::collections::{HashSet, HashMap};
+use std::collections::{BTreeSet, BTreeMap};
+use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
 
 pub trait FromParallelIterator<PAR_ITER> {
@@ -35,15 +36,68 @@ impl<PAR_ITER, T> FromParallelIterator<PAR_ITER> for LinkedList<T>
     }
 }
 
-/// Collect items from a parallel iterator into a hashmap. To some
-/// extent, a proof of concept, since it requires an intermediate
-/// allocation into a vector at the moment.
-impl<PAR_ITER, K: Eq + Hash, V> FromParallelIterator<PAR_ITER> for HashMap<K, V>
-    where PAR_ITER: ParallelIterator<Item=(K, V)>,
-          (K, V): Send,
+/// Collect items from a parallel iterator into a hashmap.
+///
+/// WARNING: If multiple keys map to the same key, it is not defined
+/// which one will win as the final value.
+impl<PAR_ITER, K, V, S> FromParallelIterator<PAR_ITER> for HashMap<K, V, S>
+    where PAR_ITER: ParallelIterator<Item=(K, V)> + Send,
+          K: Eq + Hash + Send,
+          V: Send,
+          S: BuildHasher + Default + Send,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
-        let vec: LinkedList<(K, V)> = par_iter.collect();
-        vec.into_iter().collect()
+        let mut map = HashMap::default();
+        par_iter.for_each_locked(|(key, value)| {
+            map.insert(key, value);
+        });
+        map
+    }
+}
+
+/// Collect items from a parallel iterator into a btreemap.
+///
+/// WARNING: If multiple keys map to the same key, it is not defined
+/// which one will win as the final value.
+impl<PAR_ITER, K, V> FromParallelIterator<PAR_ITER> for BTreeMap<K, V>
+    where PAR_ITER: ParallelIterator<Item=(K, V)> + Send,
+          K: Ord + Send,
+          V: Send,
+{
+    fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        let mut map = BTreeMap::default();
+        par_iter.for_each_locked(|(key, value)| {
+            map.insert(key, value);
+        });
+        map
+    }
+}
+
+/// Collect items from a parallel iterator into a hashset.
+impl<PAR_ITER, K, S> FromParallelIterator<PAR_ITER> for HashSet<K, S>
+    where PAR_ITER: ParallelIterator<Item=K> + Send,
+          K: Eq + Hash + Send,
+          S: BuildHasher + Default + Send,
+{
+    fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        let mut map = HashSet::default();
+        par_iter.for_each_locked(|key| {
+            map.insert(key);
+        });
+        map
+    }
+}
+
+/// Collect items from a parallel iterator into a btreeset.
+impl<PAR_ITER, K> FromParallelIterator<PAR_ITER> for BTreeSet<K>
+    where PAR_ITER: ParallelIterator<Item=K> + Send,
+          K: Send + Ord,
+{
+    fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        let mut map = BTreeSet::default();
+        par_iter.for_each_locked(|key| {
+            map.insert(key);
+        });
+        map
     }
 }
