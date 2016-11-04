@@ -229,7 +229,7 @@ pub trait ParallelIterator: Sized {
     /// ```
     ///
     /// **Note:** unlike a sequential `fold` operation, the order in
-    /// which `op` will be applied to reduce the result is not
+    /// which `op` will be applied to reduce the result is not fully
     /// specified. So `op` should be [associative] or else the results
     /// will be non-deterministic. And of course `identity()` should
     /// produce a true identity.
@@ -251,9 +251,11 @@ pub trait ParallelIterator: Sized {
     /// requires an identity element.
     ///
     /// **Note:** unlike a sequential `fold` operation, the order in
-    /// which `op` will be applied to reduce the result is not
-    /// specified. So `op` should be [commutative] and associative or
-    /// else the results will be non-deterministic.
+    /// which `op` will be applied to reduce the result is not fully
+    /// specified. So `op` should be [associative] or else the results
+    /// will be non-deterministic.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
     {
@@ -416,9 +418,11 @@ pub trait ParallelIterator: Sized {
     /// Sums up the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `+` operator is not truly commutative and
-    /// associative (as is the case for floating point numbers), then
-    /// the results are not fully deterministic.
+    /// so if the `+` operator is not truly [associative] (as is the
+    /// case for floating point numbers), then the results are not
+    /// fully deterministic.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     ///
     /// Basically equivalent to `self.reduce(|| 0, |a, b| a + b)`,
     /// except that the type of `0` and the `+` operation may vary
@@ -432,9 +436,11 @@ pub trait ParallelIterator: Sized {
     /// Multiplies all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `*` operator is not truly commutative and
-    /// associative (as is the case for floating point numbers), then
-    /// the results are not fully deterministic.
+    /// so if the `*` operator is not truly [associative] (as is the
+    /// case for floating point numbers), then the results are not
+    /// fully deterministic.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     ///
     /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
     /// except that the type of `1` and the `*` operation may vary
@@ -448,9 +454,8 @@ pub trait ParallelIterator: Sized {
     /// Computes the minimum of all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `Ord` impl is not truly commutative and associative
-    /// (as is the case for floating point numbers), then the results
-    /// are not deterministic.
+    /// so if the `Ord` impl is not truly associative, then the
+    /// results are not deterministic.
     ///
     /// Basically equivalent to `self.reduce(|| MAX, |a, b| cmp::min(a, b))`
     /// except that the type of `MAX` and the `min` operation may vary
@@ -464,8 +469,8 @@ pub trait ParallelIterator: Sized {
     /// Computes the maximum of all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `Ord` impl is not truly commutative and associative
-    /// (as is the case for floating point numbers), then the results
+    /// so if the `Ord` impl is not truly associative, then the
+    /// results are not deterministic.
     ///
     /// Basically equivalent to `self.reduce(|| MIN, |a, b| cmp::max(a, b))`
     /// except that the type of `MIN` and the `max` operation may vary
