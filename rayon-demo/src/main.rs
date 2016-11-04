@@ -1,4 +1,5 @@
 #![cfg_attr(test, feature(test))]
+#![cfg_attr(test, feature(conservative_impl_trait))]
 
 use std::env;
 use std::io;
@@ -12,6 +13,7 @@ mod sieve;
 
 // these are not "full-fledged" benchmarks yet,
 // they only run with cargo bench
+#[cfg(test)] mod map_collect;
 #[cfg(test)] mod factorial;
 #[cfg(test)] mod pythagoras;
 #[cfg(test)] mod fibonacci;
