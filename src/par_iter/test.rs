@@ -4,7 +4,7 @@ use super::*;
 use super::internal::*;
 
 use std::collections::LinkedList;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 fn is_bounded<T: ExactParallelIterator>(_: T) { }
 fn is_exact<T: ExactParallelIterator>(_: T) { }
@@ -656,10 +656,33 @@ pub fn par_iter_collect() {
 }
 
 #[test]
-pub fn par_iter_collect_map() {
+pub fn par_iter_collect_hashmap() {
     let a: Vec<i32> = (0..1024).collect();
     let b: HashMap<i32, String> = a.par_iter().map(|&i| (i, format!("{}", i))).collect();
     assert_eq!(&b[&3], "3");
+    assert_eq!(b.len(), 1024);
+}
+
+#[test]
+pub fn par_iter_collect_hashset() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: HashSet<i32> = a.par_iter().cloned().collect();
+    assert_eq!(b.len(), 1024);
+}
+
+#[test]
+pub fn par_iter_collect_btreemap() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: BTreeMap<i32, String> = a.par_iter().map(|&i| (i, format!("{}", i))).collect();
+    assert_eq!(&b[&3], "3");
+    assert_eq!(b.len(), 1024);
+}
+
+#[test]
+pub fn par_iter_collect_btreeset() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: BTreeSet<i32> = a.par_iter().cloned().collect();
+    assert_eq!(b.len(), 1024);
 }
 
 #[test]
