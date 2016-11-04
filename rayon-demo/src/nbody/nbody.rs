@@ -342,12 +342,10 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
         acc += diff;
     }
 
-    let zero: Vector3<f64> = Vector3::zero();
     let (diff, diff2) = bodies
         .par_iter()
-        .fold(
-            (zero, zero),
-            |(mut diff, mut diff2), body| {
+        .fold(|| (Vector3::zero(), Vector3::zero()),
+              |(mut diff, mut diff2), body| {
                 let r = body.position - prev.position;
 
                 // make sure we are not testing the particle against its own position
@@ -395,8 +393,9 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
                 }
 
                 (diff, diff2)
-            },
-            |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b));
+              })
+        .reduce(|| (Vector3::zero(), Vector3::zero()),
+                |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b));
 
     acc += diff;
     acc2 += diff2;

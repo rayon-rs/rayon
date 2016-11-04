@@ -1,3 +1,12 @@
+# Release 0.5 (pending)
+
+- **Breaking change:** The `reduce` method has been vastly
+  simplified, and `reduce_with_identity` has been deprecated.
+- **Breaking change:** The `fold` method has been changed. It used to
+  always reduce the values, but now instead it is a combinator that
+  returns a parallel iterator which can itself be reduced. See the
+  docs for more information.
+
 # Release 0.4.3
 
 - Parallel iterators now offer an adaptive weight scheme,

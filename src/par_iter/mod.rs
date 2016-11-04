@@ -20,7 +20,7 @@ use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
-use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
+use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
 use self::internal::*;
 use self::weight::Weight;
@@ -36,7 +36,6 @@ pub mod flat_map;
 pub mod internal;
 pub mod len;
 pub mod for_each;
-#[cfg(feature = "unstable")]
 pub mod fold;
 pub mod reduce;
 pub mod slice;
@@ -213,110 +212,227 @@ pub trait ParallelIterator: Sized {
     }
 
     /// Reduces the items in the iterator into one item using `op`.
-    /// See also `sum`, `mul`, `min`, etc, which are slightly more
-    /// efficient. Returns `None` if the iterator is empty.
+    /// The argument `identity` should be a closure that can produce
+    /// "identity" value which may be inserted into the sequence as
+    /// needed to create opportunities for parallel execution. So, for
+    /// example, if you are doing a summation, then `identity()` ought
+    /// to produce something that represents the zero for your type
+    /// (but consider just calling `sum()` in that case).
     ///
-    /// Note: unlike in a sequential iterator, the order in which `op`
-    /// will be applied to reduce the result is not specified. So `op`
-    /// should be commutative and associative or else the results will
-    /// be non-deterministic.
-    fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
+    /// Example:
+    ///
+    /// ```
+    /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
+    /// // and use reduce to compute one pair `(x0 + ... + xN, y0 + ... + yN)`
+    /// // where the first/second elements are summed separately.
+    /// use rayon::prelude::*;
+    /// let sums = [(0, 1), (5, 6), (16, 2), (8, 9)]
+    ///            .par_iter()        // iterating over &(i32, i32)
+    ///            .cloned()          // iterating over (i32, i32)
+    ///            .reduce(|| (0, 0), // the "identity" is 0 in both columns
+    ///                    |a, b| (a.0 + b.0, a.1 + b.1));
+    /// assert_eq!(sums, (0 + 5 + 16 + 8, 1 + 6 + 2 + 9));
+    /// ```
+    ///
+    /// **Note:** unlike a sequential `fold` operation, the order in
+    /// which `op` will be applied to reduce the result is not fully
+    /// specified. So `op` should be [associative] or else the results
+    /// will be non-deterministic. And of course `identity()` should
+    /// produce a true identity.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    fn reduce<OP,IDENTITY>(self, identity: IDENTITY, op: OP) -> Self::Item
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-    {
-        reduce(self.map(Some), &ReduceWithOp::new(&op))
-    }
-
-    /// Reduces the items in the iterator into one item using `op`.
-    /// The argument `identity` represents an "identity" value which
-    /// may be inserted into the sequence as needed to create
-    /// opportunities for parallel execution. So, for example, if you
-    /// are doing a summation, then `identity` ought to be something
-    /// that represents the zero for your type (but consider just
-    /// calling `sum()` in that case).
-    ///
-    /// Example `vectors.par_iter().reduce_with_identity(Vector::zero(), Vector::add)`.
-    ///
-    /// Note: unlike in a sequential iterator, the order in which `op`
-    /// will be applied to reduce the result is not specified. So `op`
-    /// should be commutative and associative or else the results will
-    /// be non-deterministic. And of course `identity` should be a
-    /// true identity.
-    fn reduce_with_identity<OP>(self, identity: Self::Item, op: OP) -> Self::Item
-        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-              Self::Item: Clone + Sync,
+              IDENTITY: Fn() -> Self::Item + Sync,
     {
         reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
     }
 
-    /// A variant on the typical `map/reduce` pattern. Parallel fold
-    /// is similar to sequential fold except that the sequence of
-    /// items may be subdivided before it is folded. The resulting
-    /// values are then reduced together using `reduce_op`.  Typically
-    /// `fold_op` and `reduce_op` will be doing the same conceptual
-    /// operation, but on different types, or with a different twist.
+    /// Reduces the items in the iterator into one item using `op`.
+    /// If the iterator is empty, `None` is returned; otherwise,
+    /// `Some` is returned.
     ///
-    /// Here is how to visualize what is happening. Imagine an input
-    /// sequence with 7 values as shown:
+    /// This version of `reduce` is simple but somewhat less
+    /// efficient. If possible, it is better to call `reduce()`, which
+    /// requires an identity element.
+    ///
+    /// **Note:** unlike a sequential `fold` operation, the order in
+    /// which `op` will be applied to reduce the result is not fully
+    /// specified. So `op` should be [associative] or else the results
+    /// will be non-deterministic.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
+    {
+        self.map(Some)
+            .reduce(|| None,
+                    |opt_a, opt_b| match (opt_a, opt_b) {
+                        (Some(a), Some(b)) => Some(op(a, b)),
+                        (Some(v), None) | (None, Some(v)) => Some(v),
+                        (None, None) => None,
+                    })
+    }
+
+    /// Deprecated. Use `reduce()` instead.
+    #[deprecated(since = "v0.5.0", note = "call `reduce` instead")]
+    fn reduce_with_identity<OP>(self, identity: Self::Item, op: OP) -> Self::Item
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
+              Self::Item: Clone + Sync,
+    {
+        self.reduce(|| identity.clone(), op)
+    }
+
+    /// Parallel fold is similar to sequential fold except that the
+    /// sequence of items may be subdivided before it is
+    /// folded. Consider a list of numbers like `22 3 77 89 46`. If
+    /// you used sequential fold to add them (`fold(0, |a,b| a+b)`,
+    /// you would wind up first adding 0 + 22, then 22 + 3, then 25 +
+    /// 77, and so forth. The **parallel fold** works similarly except
+    /// that it first breaks up your list into sublists, and hence
+    /// instead of yielding up a single sum at the end, it yields up
+    /// multiple sums. The number of results is nondeterministic, as
+    /// is the point where the breaks occur.
+    ///
+    /// So if did the same parallel fold (`fold(0, |a,b| a+b)`) on
+    /// our example list, we might wind up with a sequence of two numbers,
+    /// like so:
     ///
     /// ```notrust
-    /// [ 0 1 2 3 4 5 6 ]
-    ///   |     | |   |
-    ///   +--X--+ +-Y-+ // <-- fold_op
-    ///      |      |
-    ///      +---Z--+   // <-- reduce_op
+    /// 22 3 77 89 46
+    ///       |     |
+    ///     102   135
     /// ```
     ///
-    /// These values will be first divided into contiguous chunks of
-    /// some size (the precise sizes will depend on how many cores are
-    /// present and how active they are). These are folded using
-    /// `fold_op`. Here, the chunk `[0, 1, 2, 3]` was folded into `X`
-    /// and the chunk `[4, 5, 6]` was folded into `Y`. Note that `X`
-    /// and `Y` may, in general, have different types than the
-    /// original input sequence. Now the results from these folds are
-    /// themselves *reduced* using `reduce_op` (again, in some
-    /// unspecified order). So now `X` and `Y` are reduced to `Z`,
-    /// which is the final result. Note that `reduce_op` must consume
-    /// and produce values of the same type.
+    /// Or perhaps these three numbers:
     ///
-    /// Note that `fold` can always be expressed using map/reduce. For
-    /// example, a call `self.fold(identity, fold_op, reduce_op)` could
-    /// also be expressed as follows:
-    ///
-    /// ```notest
-    /// self.map(|elem| fold_op(identity.clone(), elem))
-    ///     .reduce_with_identity(identity, reduce_op)
+    /// ```notrust
+    /// 22 3 77 89 46
+    ///       |  |  |
+    ///     102 89 46
     /// ```
     ///
-    /// This is equivalent to an execution of `fold` where the
-    /// subsequences that were folded sequentially would up being of
-    /// length 1.  However, this would rarely happen in practice,
-    /// typically the subsequences would be larger, and hence a call
-    /// to `fold` *can* be more efficient than map/reduce,
-    /// particularly if the `fold_op` is more efficient when applied
-    /// to a large sequence.
+    /// In general, Rayon will attempt to find good breaking points
+    /// that keep all of your cores busy.
     ///
-    /// **This method is marked as unstable** because it is
-    /// particularly likely to change its name and/or signature, or go
-    /// away entirely.
-    #[cfg(feature = "unstable")]
-    fn fold<I,FOLD_OP,REDUCE_OP>(self,
-                                 identity: I,
-                                 fold_op: FOLD_OP,
-                                 reduce_op: REDUCE_OP)
-                                 -> I
-        where FOLD_OP: Fn(I, Self::Item) -> I + Sync,
-              REDUCE_OP: Fn(I, I) -> I + Sync,
-              I: Clone + Sync + Send,
+    /// ### Fold versus reduce
+    ///
+    /// The `fold()` and `reduce()` methods each take an identity element
+    /// and a combining function, but they operate rather differently.
+    ///
+    /// `reduce()` requires that the identity function has the same
+    /// type as the things you are iterating over, and it fully
+    /// reduces the list of items into a single item. So, for example,
+    /// imagine we are iterating over a list of bytes `bytes: [128_u8,
+    /// 64_u8, 64_u8]`. If we used `bytes.reduce(|| 0_u8, |a: u8, b:
+    /// u8| a + b)`, we would get an overflow. This is because `0`,
+    /// `a`, and `b` here are all bytes, just like the numbers in the
+    /// list (I wrote the types explicitly above, but those are the
+    /// only types you can use). To avoid the overflow, we would need
+    /// to do something like `bytes.map(|b| b as u32).reduce(|| 0, |a,
+    /// b| a + b)`, in which case our result would be `256`.
+    ///
+    /// In contrast, with `fold()`, the identity function does not
+    /// have to have the same type as the things you are iterating
+    /// over, and you potentially get back many results. So, if we
+    /// continue with the `bytes` example from the previous paragraph,
+    /// we could do `bytes.fold(|| 0_u32, |a, b| a + (b as u32))` to
+    /// convert our bytes into `u32`. And of course we might not get
+    /// back a single sum.
+    ///
+    /// There is a more subtle distinction as well, though it's
+    /// actually implied by the above points. When you use `reduce()`,
+    /// your reduction function is sometimes called with values that
+    /// were never part of your original parallel iterator (for
+    /// example, both the left and right might be a partial sum). With
+    /// `fold()`, in contrast, the left value in the fold function is
+    /// always the accumulator, and the right value is always from
+    /// your original sequence.
+    ///
+    /// ### Fold vs Map/Reduce
+    ///
+    /// Fold makes sense if you have some operation where it is
+    /// cheaper to groups of elements at a time. For example, imagine
+    /// collecting characters into a string. If you were going to use
+    /// map/reduce, you might try this:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let s =
+    ///     ['a', 'b', 'c', 'd', 'e']
+    ///     .par_iter()
+    ///     .map(|c: &char| format!("{}", c))
+    ///     .reduce(|| String::new(),
+    ///             |mut a: String, b: String| { a.push_str(&b); a });
+    /// assert_eq!(s, "abcde");
+    /// ```
+    ///
+    /// Because reduce produces the same type of element as its input,
+    /// you have to first map each character into a string, and then
+    /// you can reduce them. This means we create one string per
+    /// element in ou iterator -- not so great. Using `fold`, we can
+    /// do this instead:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let s =
+    ///     ['a', 'b', 'c', 'd', 'e']
+    ///     .par_iter()
+    ///     .fold(|| String::new(),
+    ///             |mut s: String, c: &char| { s.push(*c); s })
+    ///     .reduce(|| String::new(),
+    ///             |mut a: String, b: String| { a.push_str(&b); a });
+    /// assert_eq!(s, "abcde");
+    /// ```
+    ///
+    /// Now `fold` will process groups of our characters at a time,
+    /// and we only make one string per group. We should wind up with
+    /// some small-ish number of strings roughly proportional to the
+    /// number of CPUs you have (it will ultimately depend on how busy
+    /// your processors are). Note that we still need to do a reduce
+    /// afterwards to combine those groups of strings into a single
+    /// string.
+    ///
+    /// You could use a similar trick to save partial results (e.g., a
+    /// cache) or something similar.
+    ///
+    /// ### Combining fold with other operations
+    ///
+    /// You can combine `fold` with `reduce` if you want to produce a
+    /// single value. This is then roughly equivalent to a map/reduce
+    /// combination in effect:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let bytes = 0..22_u8; // series of u8 bytes
+    /// let sum = bytes.into_par_iter()
+    ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
+    ///                .sum();
+    /// assert_eq!(sum, (0..22).sum()); // compare to sequential
+    /// ```
+    fn fold<IDENTITY_ITEM,IDENTITY,FOLD_OP>(self,
+                                            identity: IDENTITY,
+                                            fold_op: FOLD_OP)
+                                            -> fold::Fold<Self, IDENTITY, FOLD_OP>
+        where FOLD_OP: Fn(IDENTITY_ITEM, Self::Item) -> IDENTITY_ITEM + Sync,
+              IDENTITY: Fn() -> IDENTITY_ITEM + Sync,
+              IDENTITY_ITEM: Send,
     {
-        fold::fold(self, &identity, &fold_op, &reduce_op)
+        fold::fold(self, identity, fold_op)
     }
 
     /// Sums up the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `+` operator is not truly commutative and
-    /// associative (as is the case for floating point numbers), then
-    /// the results are not fully deterministic.
+    /// so if the `+` operator is not truly [associative] (as is the
+    /// case for floating point numbers), then the results are not
+    /// fully deterministic.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    ///
+    /// Basically equivalent to `self.reduce(|| 0, |a, b| a + b)`,
+    /// except that the type of `0` and the `+` operation may vary
+    /// depending on the type of value being produced.
     fn sum(self) -> Self::Item
         where SumOp: ReduceOp<Self::Item>
     {
@@ -326,9 +442,15 @@ pub trait ParallelIterator: Sized {
     /// Multiplies all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `*` operator is not truly commutative and
-    /// associative (as is the case for floating point numbers), then
-    /// the results are not fully deterministic.
+    /// so if the `*` operator is not truly [associative] (as is the
+    /// case for floating point numbers), then the results are not
+    /// fully deterministic.
+    ///
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
+    ///
+    /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
+    /// except that the type of `1` and the `*` operation may vary
+    /// depending on the type of value being produced.
     fn mul(self) -> Self::Item
         where MulOp: ReduceOp<Self::Item>
     {
@@ -338,9 +460,12 @@ pub trait ParallelIterator: Sized {
     /// Computes the minimum of all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `Ord` impl is not truly commutative and associative
-    /// (as is the case for floating point numbers), then the results
-    /// are not deterministic.
+    /// so if the `Ord` impl is not truly associative, then the
+    /// results are not deterministic.
+    ///
+    /// Basically equivalent to `self.reduce(|| MAX, |a, b| cmp::min(a, b))`
+    /// except that the type of `MAX` and the `min` operation may vary
+    /// depending on the type of value being produced.
     fn min(self) -> Self::Item
         where MinOp: ReduceOp<Self::Item>
     {
@@ -350,25 +475,17 @@ pub trait ParallelIterator: Sized {
     /// Computes the maximum of all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `Ord` impl is not truly commutative and associative
-    /// (as is the case for floating point numbers), then the results
+    /// so if the `Ord` impl is not truly associative, then the
+    /// results are not deterministic.
+    ///
+    /// Basically equivalent to `self.reduce(|| MIN, |a, b| cmp::max(a, b))`
+    /// except that the type of `MIN` and the `max` operation may vary
+    /// depending on the type of value being produced.
     /// are not deterministic.
     fn max(self) -> Self::Item
         where MaxOp: ReduceOp<Self::Item>
     {
         reduce(self, MAX)
-    }
-
-    /// Reduces the items using the given "reduce operator". You may
-    /// prefer `reduce_with` for a simpler interface.
-    ///
-    /// Note that the order in items will be reduced is not specified,
-    /// so if the `reduce_op` impl is not truly commutative and
-    /// associative, then the results are not deterministic.
-    fn reduce<REDUCE_OP>(self, reduce_op: &REDUCE_OP) -> Self::Item
-        where REDUCE_OP: ReduceOp<Self::Item>
-    {
-        reduce(self, reduce_op)
     }
 
     /// Takes two iterators and creates a new iterator over both.
