@@ -71,3 +71,49 @@ mod i_to_i {
     }
 }
 
+/// Tests a big map mapping `i % 10 -> i` forall i in 0 to N. This map
+/// is interesting because it has lots of conflicts, so parallel
+/// iterations sometimes overwrite entries.
+mod i_mod_10_to_i {
+    use rayon::prelude::*;
+    use test::Bencher;
+    use std::collections::{HashMap};
+    use super::util;
+
+    const N: u32 = 256*1024;
+
+    fn generate() -> impl ParallelIterator<Item=(u32, u32)> {
+        (0_u32..N)
+            .into_par_iter()
+            .map(|i| (i % 10, i))
+    }
+
+    fn check(hm: &HashMap<u32, u32>) {
+        assert_eq!(hm.len(), 10);
+        for (&k, &v) in hm {
+            assert_eq!(k, v % 10);
+        }
+    }
+
+    #[bench]
+    fn with_flat_combine(b: &mut Bencher) {
+        let mut map = None;
+        b.iter(|| map = Some(util::flat_combine(generate())));
+        check(&map.unwrap());
+    }
+
+    #[bench]
+    fn with_mutex(b: &mut Bencher) {
+        let mut map = None;
+        b.iter(|| map = Some(util::mutex(generate())));
+        check(&map.unwrap());
+    }
+
+    #[bench]
+    fn with_linked_list(b: &mut Bencher) {
+        let mut map = None;
+        b.iter(|| map = Some(util::linked_list(generate())));
+        check(&map.unwrap());
+    }
+}
+
