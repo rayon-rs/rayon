@@ -1,7 +1,7 @@
 use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
-use job::{JobRef, JobMode};
+use job::{JobRef, JobMode, StackJob};
 use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
@@ -256,9 +256,16 @@ impl WorkerThread {
         });
     }
 
+    /// Our index amongst the worker threads (ranges from `0..self.num_threads()`).
     #[inline]
     pub fn index(&self) -> usize {
         self.index
+    }
+
+    /// Number of worker threads total in the current registry.
+    #[inline]
+    pub fn num_threads(&self) -> usize {
+        self.stealers.len() + 1
     }
 
     #[inline]
@@ -361,4 +368,31 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
+}
+
+pub fn in_worker<OP>(op: OP)
+    where OP: FnOnce(&WorkerThread) + Send
+{
+    unsafe {
+        let owner_thread = WorkerThread::current();
+        if !owner_thread.is_null() {
+            // Perfectly valid to give them a `&T`: this is the
+            // current thread, so we know the data structure won't be
+            // invalidated until we return.
+            op(&*owner_thread);
+        } else {
+            in_worker_cold(op);
+        }
+    }
+}
+
+#[cold]
+unsafe fn in_worker_cold<OP>(op: OP)
+    where OP: FnOnce(&WorkerThread) + Send
+{
+    // never run from a worker thread; just shifts over into worker threads
+    debug_assert!(WorkerThread::current().is_null());
+    let job = StackJob::new(|| in_worker(op), LockLatch::new());
+    get_registry().inject(&[job.as_job_ref()]);
+    job.latch.wait();
 }

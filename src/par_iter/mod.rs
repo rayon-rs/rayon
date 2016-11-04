@@ -19,6 +19,7 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
+use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp, ReduceWithOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
@@ -33,9 +34,11 @@ pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
 pub mod flat_map;
+pub mod from_par_iter;
 pub mod internal;
 pub mod len;
 pub mod for_each;
+pub mod for_each_atomic;
 #[cfg(feature = "unstable")]
 pub mod fold;
 pub mod reduce;
@@ -156,6 +159,36 @@ pub trait ParallelIterator: Sized {
         where OP: Fn(Self::Item) + Sync
     {
         for_each::for_each(self, &op)
+    }
+
+    /// Executes `OP` on each item produced by the iterator. The
+    /// executions of `OP` can occur in any order, but will execute
+    /// atomically relative to one another. This is implemented using
+    /// [Flat Combining][FC] and hence is more efficient than a naive
+    /// implementation. Nonetheless, it is semantically roughly
+    /// equivalent to having each iteration acquire a mutex before
+    /// executing.
+    ///
+    /// This is very useful for building up sequential data
+    /// structures. It works well so long as the insertion order is
+    /// not important. For example, building a set can be done as follows:
+    ///
+    /// ```rust
+    /// use rayon::prelude::*;
+    /// use std::collections::HashSet;
+    ///
+    /// let mut set = HashSet::new();
+    /// (0_u32..1024).into_par_iter()
+    ///              .for_each_atomic(|v| { set.insert(v); });
+    /// assert_eq!(set.len(), 1024);
+    /// ```
+    ///
+    /// [FC]: https://www.cs.bgu.ac.il/~hendlerd/papers/flat-combining.pdf
+    fn for_each_atomic<OP>(self, mut op: OP)
+        where OP: FnMut(Self::Item) + Send,
+              Self: Send,
+    {
+        for_each_atomic::for_each_atomic(self, &mut op)
     }
 
     /// Counts the number of items in this parallel iterator.
@@ -428,6 +461,22 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>;
+
+    /// Create a fresh collection containing all the element produced
+    /// by this parallel iterator. Note that some kinds of collections
+    /// have stricter requirements in terms of the kinds of iterators
+    /// that you can collect from (e.g., a `Vec` currently requires an
+    /// iterator that has precise knowledge of how many elements it
+    /// contains).
+    ///
+    /// You may also prefer to use `collect_into()`, which allows you
+    /// to reuse the vector's backing store rather than allocating a
+    /// fresh vector.
+    fn collect<C>(self) -> C
+        where C: FromParallelIterator<Self>
+    {
+        C::from_par_iter(self)
+    }
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {
