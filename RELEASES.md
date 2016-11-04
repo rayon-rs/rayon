@@ -1,4 +1,4 @@
-# Release 0.5 (pending)
+# Release 0.5
 
 - **Breaking change:** The `reduce` method has been vastly
   simplified, and `reduce_with_identity` has been deprecated.
@@ -6,7 +6,17 @@
   always reduce the values, but now instead it is a combinator that
   returns a parallel iterator which can itself be reduced. See the
   docs for more information.
-
+- The following parallel iterator combinators are now available (thanks @cuviper!):
+  - `find_any()`: similar to `find` on a sequential iterator,
+    but doesn't necessarily return the *first* matching item
+  - `position_any()`: similar to `position` on a sequential iterator,
+    but doesn't necessarily return the index of *first* matching item
+  - `any()`, `all()`: just like their sequential counterparts
+- The `count()` combinator is now available for parallel iterators.
+- We now build with older versions of rustc again (thanks @durango!),
+  as we removed a stray semicolon from `thread_local!`.
+- Various improvements to the (unstable) `scope()` API implementation.
+    
 # Release 0.4.3
 
 - Parallel iterators now offer an adaptive weight scheme,
