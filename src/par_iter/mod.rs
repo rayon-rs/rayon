@@ -19,6 +19,7 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
+use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp,
                    ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
@@ -33,6 +34,7 @@ pub mod enumerate;
 pub mod filter;
 pub mod filter_map;
 pub mod flat_map;
+pub mod from_par_iter;
 pub mod internal;
 pub mod len;
 pub mod for_each;
@@ -545,6 +547,22 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>;
+
+    /// Create a fresh collection containing all the element produced
+    /// by this parallel iterator. Note that some kinds of collections
+    /// have stricter requirements in terms of the kinds of iterators
+    /// that you can collect from (e.g., a `Vec` currently requires an
+    /// iterator that has precise knowledge of how many elements it
+    /// contains).
+    ///
+    /// You may also prefer to use `collect_into()`, which allows you
+    /// to reuse the vector's backing store rather than allocating a
+    /// fresh vector.
+    fn collect<C>(self) -> C
+        where C: FromParallelIterator<Self>
+    {
+        C::from_par_iter(self)
+    }
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {
