@@ -65,9 +65,14 @@ mod util {
                     map
                 })
           .reduce(|| HashMap::new(),
-                  |mut map1, map2| {
-                      map1.extend(map2);
-                      map1
+                  |mut map1, mut map2| {
+                      if map1.len() > map2.len() {
+                          map1.extend(map2);
+                          map1
+                      } else {
+                          map2.extend(map1);
+                          map2
+                      }
                   })
     }
 }
