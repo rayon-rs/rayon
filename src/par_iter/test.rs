@@ -5,6 +5,7 @@ use super::internal::*;
 
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BinaryHeap, VecDeque};
 
 fn is_bounded<T: ExactParallelIterator>(_: T) { }
 fn is_exact<T: ExactParallelIterator>(_: T) { }
@@ -653,6 +654,22 @@ pub fn par_iter_collect() {
     let b: Vec<i32> = a.par_iter().map(|&i| i + 1).collect();
     let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
     assert_eq!(b, c);
+}
+
+#[test]
+pub fn par_iter_collect_vecdeque() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: VecDeque<i32> = a.par_iter().cloned().collect();
+    let c: VecDeque<i32> = a.iter().cloned().collect();
+    assert_eq!(b, c);
+}
+
+#[test]
+pub fn par_iter_collect_binaryheap() {
+    let a: Vec<i32> = (0..1024).collect();
+    let b: BinaryHeap<i32> = a.par_iter().cloned().collect();
+    assert_eq!(b.peek(), Some(&1023));
+    assert_eq!(b.len(), 1024);
 }
 
 #[test]

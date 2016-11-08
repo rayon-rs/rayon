@@ -3,6 +3,7 @@ use super::{ParallelIterator, ExactParallelIterator};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
+use std::collections::{BinaryHeap, VecDeque};
 
 pub trait FromParallelIterator<PAR_ITER> {
     fn from_par_iter(par_iter: PAR_ITER) -> Self;
@@ -29,6 +30,27 @@ impl<PAR_ITER, T> FromParallelIterator<PAR_ITER> for Vec<T>
         let mut vec = vec![];
         par_iter.collect_into(&mut vec);
         vec
+    }
+}
+
+/// Collect items from a parallel iterator into a vecdeque.
+impl<PAR_ITER, T> FromParallelIterator<PAR_ITER> for VecDeque<T>
+    where Vec<T>: FromParallelIterator<PAR_ITER>,
+          T: Send,
+{
+    fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        Vec::from_par_iter(par_iter).into()
+    }
+}
+
+/// Collect items from a parallel iterator into a binaryheap.
+/// The heap-ordering is calculated serially after all items are collected.
+impl<PAR_ITER, T> FromParallelIterator<PAR_ITER> for BinaryHeap<T>
+    where Vec<T>: FromParallelIterator<PAR_ITER>,
+          T: Ord + Send,
+{
+    fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        Vec::from_par_iter(par_iter).into()
     }
 }
 
