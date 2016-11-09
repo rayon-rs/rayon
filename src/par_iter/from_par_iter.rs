@@ -88,6 +88,7 @@ impl<PAR_ITER, K, V, S> FromParallelIterator<PAR_ITER> for HashMap<K, V, S>
           S: BuildHasher + Default + Send,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        // See the map_collect benchmarks in rayon-demo for different strategies.
         combine(par_iter, |list| {
             let len = combined_len(list);
             HashMap::with_capacity_and_hasher(len, Default::default())
