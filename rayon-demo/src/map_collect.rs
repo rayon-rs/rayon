@@ -5,6 +5,7 @@ mod util {
     use rayon::prelude::*;
     use std::collections::{LinkedList, HashMap};
     use std::hash::Hash;
+    use std::iter::FromIterator;
     use std::sync::Mutex;
 
     /// Do whatever `collect` does by default.
@@ -30,6 +31,22 @@ mod util {
         mutex.into_inner().unwrap()
     }
 
+    /// Use a system mutex over a folded vec.
+    pub fn mutex_vec<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        let mutex = Mutex::new(HashMap::new());
+        pi.fold(|| Vec::new(),
+                |mut vec, elem| { vec.push(elem); vec })
+          .for_each(|vec| {
+              let mut guard = mutex.lock().unwrap();
+              guard.extend(vec);
+          });
+        mutex.into_inner().unwrap()
+    }
+
     /// Use a linked list intermediary.
     pub fn linked_list<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
@@ -50,7 +67,26 @@ mod util {
             .fold(|| Vec::new(),
                   |mut vec, elem| { vec.push(elem); vec })
             .collect();
-        list.into_iter().flat_map(Vec::into_iter).collect()
+        list.into_iter()
+            .fold(HashMap::new(),
+                  |mut map, vec| { map.extend(vec); map })
+    }
+
+    /// Use a linked list of vectors intermediary, with a size hint.
+    pub fn linked_list_vec_sized<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        let list: LinkedList<Vec<(_, _)>> = pi
+            .fold(|| Vec::new(),
+                  |mut vec, elem| { vec.push(elem); vec })
+            .collect();
+
+        let len = list.iter().map(Vec::len).sum();
+        list.into_iter()
+            .fold(HashMap::with_capacity(len),
+                  |mut map, vec| { map.extend(vec); map })
     }
 
     /// Fold into hashmaps and then reduce them together.
@@ -75,6 +111,22 @@ mod util {
                       }
                   })
     }
+
+    /// Fold into vecs and then reduce them together as hashmaps.
+    pub fn fold_vec<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        pi.fold(|| Vec::new(),
+                |mut vec, elem| { vec.push(elem); vec })
+          .map(HashMap::from_iter)
+          .reduce(|| HashMap::new(),
+                  |mut map1, map2| {
+                      map1.extend(map2);
+                      map1
+                  })
+    }
 }
 
 
@@ -97,6 +149,14 @@ macro_rules! make_bench {
         }
 
         #[bench]
+        fn with_mutex_vec(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::mutex_vec($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
         fn with_linked_list(b: &mut ::test::Bencher) {
             use map_collect::util;
             let mut map = None;
@@ -113,10 +173,26 @@ macro_rules! make_bench {
         }
 
         #[bench]
+        fn with_linked_list_vec_sized(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::linked_list_vec_sized($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
         fn with_fold(b: &mut ::test::Bencher) {
             use map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::fold($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
+        fn with_fold_vec(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::fold_vec($generate())));
             $check(&map.unwrap());
         }
     }
