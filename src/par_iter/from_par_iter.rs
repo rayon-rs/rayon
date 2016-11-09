@@ -10,12 +10,22 @@ pub trait FromParallelIterator<PAR_ITER> {
 }
 
 
-/// Collect an intermediate list of folded vectors.
-fn collect_list_vec<PAR_ITER>(par_iter: PAR_ITER) -> LinkedList<Vec<PAR_ITER::Item>>
-    where PAR_ITER: ParallelIterator
+fn combine<PAR_ITER, START, COLL>(par_iter: PAR_ITER, make_start: START) -> COLL
+    where PAR_ITER: ParallelIterator,
+          START: FnOnce(&LinkedList<Vec<PAR_ITER::Item>>) -> COLL,
+          COLL: Extend<PAR_ITER::Item>
 {
-    par_iter.fold(Vec::new, |mut vec, elem| { vec.push(elem); vec })
-            .collect()
+    let list = par_iter
+        .fold(Vec::new, |mut vec, elem| { vec.push(elem); vec })
+        .collect();
+
+    let start = make_start(&list);
+    list.into_iter()
+        .fold(start, |mut coll, vec| { coll.extend(vec); coll })
+}
+
+fn combined_len<T>(list: &LinkedList<Vec<T>>) -> usize {
+    list.iter().map(Vec::len).sum()
 }
 
 
@@ -78,11 +88,10 @@ impl<PAR_ITER, K, V, S> FromParallelIterator<PAR_ITER> for HashMap<K, V, S>
           S: BuildHasher + Default + Send,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
-        let list = collect_list_vec(par_iter);
-        let len = list.iter().map(Vec::len).sum();
-        list.into_iter()
-            .fold(HashMap::with_capacity_and_hasher(len, Default::default()),
-                  |mut map, vec| { map.extend(vec); map })
+        combine(par_iter, |list| {
+            let len = combined_len(list);
+            HashMap::with_capacity_and_hasher(len, Default::default())
+        })
     }
 }
 
@@ -96,10 +105,7 @@ impl<PAR_ITER, K, V> FromParallelIterator<PAR_ITER> for BTreeMap<K, V>
           V: Send,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
-        let list = collect_list_vec(par_iter);
-        list.into_iter()
-            .fold(BTreeMap::new(),
-                  |mut map, vec| { map.extend(vec); map })
+        combine(par_iter, |_| BTreeMap::new())
     }
 }
 
@@ -110,11 +116,10 @@ impl<PAR_ITER, V, S> FromParallelIterator<PAR_ITER> for HashSet<V, S>
           S: BuildHasher + Default + Send,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
-        let list = collect_list_vec(par_iter);
-        let len = list.iter().map(Vec::len).sum();
-        list.into_iter()
-            .fold(HashSet::with_capacity_and_hasher(len, Default::default()),
-                  |mut set, vec| { set.extend(vec); set })
+        combine(par_iter, |list| {
+            let len = combined_len(list);
+            HashSet::with_capacity_and_hasher(len, Default::default())
+        })
     }
 }
 
@@ -124,9 +129,6 @@ impl<PAR_ITER, V> FromParallelIterator<PAR_ITER> for BTreeSet<V>
           V: Send + Ord,
 {
     fn from_par_iter(par_iter: PAR_ITER) -> Self {
-        let list = collect_list_vec(par_iter);
-        list.into_iter()
-            .fold(BTreeSet::new(),
-                  |mut set, vec| { set.extend(vec); set })
+        combine(par_iter, |_| BTreeSet::new())
     }
 }
