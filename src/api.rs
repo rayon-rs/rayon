@@ -151,6 +151,10 @@ pub fn join<A,B,RA,RB>(oper_a: A,
         let job_b = StackJob::new(oper_b, SpinLatch::new());
         (*worker_thread).push(job_b.as_job_ref());
 
+        // record how many async spawns have occurred on this thread
+        // before task A is executed
+        let spawn_count = (*worker_thread).current_spawn_count();
+
         // execute task a; hopefully b gets stolen
         let result_a;
         {
@@ -164,6 +168,10 @@ pub fn join<A,B,RA,RB>(oper_a: A,
             result_a = oper_a();
             mem::forget(guard);
         }
+
+        // before we can try to pop b, we have to first pop off any async spawns
+        // that have occurred on this thread
+        (*worker_thread).pop_spawned_jobs(spawn_count);
 
         // if b was not stolen, do it ourselves, else wait for the thief to finish
         let result_b;
