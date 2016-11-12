@@ -181,10 +181,10 @@ fn bridge_producer_consumer<P,C>(len: usize,
         let (left_producer, right_producer) = producer.split_at(mid);
         let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
         let (left_result, right_result) =
-            join(move || bridge_producer_consumer(mid, splitter,
-                                                  left_producer, left_consumer),
-                 move || bridge_producer_consumer(len - mid, splitter,
-                                                  right_producer, right_consumer));
+            join(|| bridge_producer_consumer(mid, splitter,
+                                             left_producer, left_consumer),
+                 || bridge_producer_consumer(len - mid, splitter,
+                                             right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {
         let mut folder = consumer.into_folder();
