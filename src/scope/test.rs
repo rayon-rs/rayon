@@ -1,7 +1,7 @@
 extern crate rand;
 
 use Configuration;
-use {scope, Scope};
+use scope::{scope, Scope};
 use ThreadPool;
 use prelude::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
