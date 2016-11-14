@@ -11,6 +11,7 @@ extern crate rand;
 #[macro_use]
 mod log;
 
+mod caslist;
 mod configuration;
 mod latch;
 mod join;
