@@ -90,6 +90,13 @@ impl Registry {
         registry
     }
 
+    /// Returns an opaque identifier for this registry.
+    pub fn id(&self) -> RegistryId {
+        // We can rely on `self` not to change since we only ever create
+        // registries that are boxed up in an `Arc` (see `new()` above).
+        RegistryId { addr: self as *const Self as usize }
+    }
+
     pub fn num_threads(&self) -> usize {
         self.thread_infos.len()
     }
@@ -188,6 +195,11 @@ impl Registry {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RegistryId {
+    addr: usize
+}
+
 impl RegistryState {
     pub fn new() -> RegistryState {
         RegistryState {
@@ -262,6 +274,8 @@ pub struct WorkerThread {
 
     /// A weak random number generator.
     rng: rand::XorShiftRng,
+
+    registry: Arc<Registry>,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
@@ -292,6 +306,12 @@ impl WorkerThread {
         });
     }
 
+    /// Returns the registry that owns this worker thread.
+    pub fn registry(&self) -> &Arc<Registry> {
+        &self.registry
+    }
+
+    /// Our index amongst the worker threads (ranges from `0..self.num_threads()`).
     #[inline]
     pub fn index(&self) -> usize {
         self.index
@@ -408,6 +428,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         index: index,
         spawn_count: Cell::new(0),
         rng: rand::weak_rng(),
+        registry: registry.clone(),
     };
     worker_thread.set_current();
 
