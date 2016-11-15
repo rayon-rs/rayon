@@ -1,10 +1,14 @@
 extern crate rand;
 
+use Configuration;
 use {scope, Scope};
+use ThreadPool;
 use prelude::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 #[test]
 fn scope_empty() {
@@ -140,5 +144,46 @@ fn update_tree() {
     assert_eq!(values.len(), new_values.len());
     for (&i, &j) in values.iter().zip(&new_values) {
         assert_eq!(i + 1, j);
+    }
+}
+
+/// Check that if you have a chain of scoped tasks where T0 spawns T1
+/// spawns T2 and so forth down to Tn, the stack space should not grow
+/// linearly with N. We test this by some unsafe hackery and
+/// permitting an approx 10% change with a 10x input change.
+#[test]
+fn linear_stack_growth() {
+    let config = Configuration::new().set_num_threads(1);
+    let pool = ThreadPool::new(config).unwrap();
+    pool.install(|| {
+        let mut max_diff = Mutex::new(0);
+        let bottom_of_stack = 0;
+        scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 5));
+        let diff_when_5 = *max_diff.get_mut().unwrap() as f64;
+
+        scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 500));
+        let diff_when_500 = *max_diff.get_mut().unwrap() as f64;
+
+        let ratio = diff_when_5 / diff_when_500;
+        assert!(ratio > 0.9 && ratio < 1.1,
+                "stack usage ratio out of bounds: {}",
+                ratio);
+    });
+}
+
+fn the_final_countdown<'scope>(s: &Scope<'scope>,
+                               bottom_of_stack: &'scope i32,
+                               max: &'scope Mutex<usize>,
+                               n: usize) {
+    let top_of_stack = 0;
+    let p = bottom_of_stack as *const i32 as usize;
+    let q = &top_of_stack as *const i32 as usize;
+    let diff = if p > q { p - q } else { q - p };
+
+    let mut data = max.lock().unwrap();
+    *data = cmp::max(diff, *data);
+
+    if n > 0 {
+        s.spawn(move |s| the_final_countdown(s, bottom_of_stack, max, n - 1));
     }
 }

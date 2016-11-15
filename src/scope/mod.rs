@@ -237,7 +237,9 @@ pub fn scope<'scope, OP>(op: OP)
                 job_completed_latch: SpinLatch::new(),
                 marker: PhantomData,
             };
+            let spawn_count = (*owner_thread).current_spawn_count();
             scope.execute_job_closure(op);
+            (*owner_thread).pop_spawned_jobs(spawn_count);
             scope.steal_till_jobs_complete();
         } else {
             scope_not_in_worker(op)
@@ -283,8 +285,7 @@ impl<'scope> Scope<'scope> {
             debug_assert!(!WorkerThread::current().is_null());
 
             let worker_thread = &*worker_thread;
-            let spawn_count = worker_thread.spawn_count();
-            spawn_count.set(spawn_count.get() + 1);
+            worker_thread.bump_spawn_count();
             worker_thread.push(job_ref);
         }
     }
@@ -310,37 +311,10 @@ impl<'scope> Scope<'scope> {
     unsafe fn execute_job_closure<FUNC>(&self, func: FUNC)
         where FUNC: FnOnce(&Scope<'scope>) + 'scope
     {
-        let worker_thread = &*WorkerThread::current();
-        let start_count = worker_thread.spawn_count().get();
-
         match unwind::halt_unwinding(move || func(self)) {
             Ok(()) => self.job_completed_ok(),
             Err(err) => self.job_panicked(err),
         }
-
-        Self::pop_jobs(worker_thread, start_count);
-    }
-
-    /// We have to maintain an invariant that we pop off any work
-    /// that we pushed onto the local thread deque. In other words,
-    /// if no thieves are at play, then the height of the local
-    /// deque must be the same when we enter and exit. Otherwise,
-    /// we get into trouble composing with the main `join` API,
-    /// which assumes that -- after it executes the first closure
-    /// -- the top-most thing on the stack is the second closure.
-    ///
-    /// Unsafe because `worker_thread` must be the current worker
-    /// thread, and it must be correct to pop jobs until the
-    /// spawn-count on `worker_thread` is `start_count`.
-    unsafe fn pop_jobs(worker_thread: &WorkerThread, start_count: usize) {
-        let spawn_count = worker_thread.spawn_count();
-        let current_count = spawn_count.get();
-        for _ in start_count..current_count {
-            if let Some(job_ref) = worker_thread.pop() {
-                job_ref.execute(JobMode::Execute);
-            }
-        }
-        spawn_count.set(start_count);
     }
 
     unsafe fn job_panicked(&self, err: Box<Any + Send + 'static>) {
@@ -378,6 +352,12 @@ impl<'scope> Scope<'scope> {
     }
 
     unsafe fn steal_till_jobs_complete(&self) {
+        // at this point, we have popped all tasks spawned since the scope
+        // began. So either we've executed everything on this thread, or one of
+        // those was stolen. If one of them was stolen, then everything below us on
+        // the deque must have been stolen too, so we should just go ahead and steal.
+        debug_assert!(self.job_completed_latch.probe() || (*self.owner_thread).pop().is_none());
+
         // wait for job counter to reach 0:
         (*self.owner_thread).steal_until(&self.job_completed_latch);
 
