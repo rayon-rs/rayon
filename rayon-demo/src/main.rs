@@ -6,23 +6,6 @@ use std::io;
 use std::io::prelude::*;
 use std::process::exit;
 
-mod matmul;
-mod mergesort;
-mod nbody;
-mod quicksort;
-mod sieve;
-mod tsp;
-
-// these are not "full-fledged" benchmarks yet,
-// they only run with cargo bench
-#[cfg(test)] mod map_collect;
-#[cfg(test)] mod vec_collect;
-#[cfg(test)] mod factorial;
-#[cfg(test)] mod pythagoras;
-#[cfg(test)] mod fibonacci;
-#[cfg(test)] mod find;
-#[cfg(test)] mod join_microbench;
-
 extern crate rayon; // all
 extern crate docopt; // all
 extern crate cgmath; // nbody
@@ -40,6 +23,23 @@ extern crate regex; // tsp
 
 #[cfg(test)]
 extern crate test;
+
+mod matmul;
+mod mergesort;
+mod nbody;
+mod quicksort;
+mod sieve;
+mod tsp;
+
+// these are not "full-fledged" benchmarks yet,
+// they only run with cargo bench
+#[cfg(test)] mod map_collect;
+#[cfg(test)] mod vec_collect;
+#[cfg(test)] mod factorial;
+#[cfg(test)] mod pythagoras;
+#[cfg(test)] mod fibonacci;
+#[cfg(test)] mod find;
+#[cfg(test)] mod join_microbench;
 
 const USAGE: &'static str = "
 Usage: rayon-demo bench

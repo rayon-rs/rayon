@@ -343,8 +343,13 @@ impl<T, R> Sender<T, R>
     /// rules around `data_ptr`.
     unsafe fn put(&self, input_ptr: *mut T, output_ptr: *mut Option<R>) -> SenderGuard<T, R> {
         debug_assert!(self.is_empty());
-        self.output.store(output_ptr, Ordering::Relaxed); // not the "gateway" write, relaxed suffices
-        self.input.store(input_ptr, Ordering::Release); // the gateway write, release ownership
+
+        // These two stores "publish" the data to be processed as well
+        // as the location to write the data to. Therefore, we use
+        // "release" ordering so that the one who holds the lock will
+        // be able to read data from `*input_ptr`.
+        self.output.store(output_ptr, Ordering::Relaxed); // [A] must happen-before B
+        self.input.store(input_ptr, Ordering::Release); // [B] synchronizes-with C
         SenderGuard { sender: self }
     }
 
