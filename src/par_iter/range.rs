@@ -6,17 +6,30 @@ pub struct RangeIter<T> {
     range: Range<T>
 }
 
-macro_rules! range_impl {
+impl<T> IntoParallelIterator for Range<T>
+    where RangeIter<T>: ParallelIterator
+{
+    type Item = <RangeIter<T> as ParallelIterator>::Item;
+    type Iter = RangeIter<T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        RangeIter { range: self }
+    }
+}
+
+impl<T> IntoIterator for RangeIter<T>
+    where Range<T>: Iterator
+{
+    type Item = <Range<T> as Iterator>::Item;
+    type IntoIter = Range<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.range
+    }
+}
+
+macro_rules! indexed_range_impl {
     ( $t:ty ) => {
-        impl IntoParallelIterator for Range<$t> {
-            type Item = $t;
-            type Iter = RangeIter<$t>;
-
-            fn into_par_iter(self) -> Self::Iter {
-                RangeIter { range: self }
-            }
-        }
-
         impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
 
@@ -41,7 +54,7 @@ macro_rules! range_impl {
 
         impl ExactParallelIterator for RangeIter<$t> {
             fn len(&mut self) -> usize {
-                self.range.len() as usize
+                self.range.len()
             }
         }
 
@@ -68,24 +81,58 @@ macro_rules! range_impl {
                 (RangeIter { range: left }, RangeIter { range: right })
             }
         }
+    }
+}
 
-        impl IntoIterator for RangeIter<$t> {
+macro_rules! unindexed_range_impl {
+    ( $t:ty ) => {
+        impl RangeIter<$t> {
+            fn len(&self) -> u64 {
+                let Range { start, end } = self.range;
+                if end > start {
+                    end.wrapping_sub(start) as u64
+                } else {
+                    0
+                }
+            }
+        }
+
+        impl ParallelIterator for RangeIter<$t> {
             type Item = $t;
-            type IntoIter = Range<$t>;
 
-            fn into_iter(self) -> Self::IntoIter {
-                self.range
+            fn drive_unindexed<C>(self, consumer: C) -> C::Result
+                where C: UnindexedConsumer<Self::Item>
+            {
+                bridge_unindexed(self, consumer)
+            }
+        }
+
+        impl UnindexedProducer for RangeIter<$t> {
+            fn can_split(&self) -> bool {
+                self.len() > 1
+            }
+
+            fn split(self) -> (Self, Self) {
+                let index = self.len() / 2;
+                let mid = self.range.start.wrapping_add(index as $t);
+                let left = self.range.start .. mid;
+                let right = mid .. self.range.end;
+                (RangeIter { range: left }, RangeIter { range: right })
             }
         }
     }
 }
 
 // all Range<T> with ExactSizeIterator
-range_impl!{u8}
-range_impl!{u16}
-range_impl!{u32}
-range_impl!{usize}
-range_impl!{i8}
-range_impl!{i16}
-range_impl!{i32}
-range_impl!{isize}
+indexed_range_impl!{u8}
+indexed_range_impl!{u16}
+indexed_range_impl!{u32}
+indexed_range_impl!{usize}
+indexed_range_impl!{i8}
+indexed_range_impl!{i16}
+indexed_range_impl!{i32}
+indexed_range_impl!{isize}
+
+// other Range<T> with just Iterator
+unindexed_range_impl!{u64}
+unindexed_range_impl!{i64}

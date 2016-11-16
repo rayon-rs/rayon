@@ -46,6 +46,14 @@ pub fn execute_range() {
 }
 
 #[test]
+pub fn execute_unindexed_range() {
+    let a = 0i64..1024;
+    let b: LinkedList<i64> = a.into_par_iter().map(|i| i + 1).collect();
+    let c: LinkedList<i64> = (0..1024).map(|i| i+1).collect();
+    assert_eq!(b, c);
+}
+
+#[test]
 pub fn check_map_exact_and_bounded() {
     let a = [1, 2, 3];
     is_bounded(a.par_iter().map(|x| x));
