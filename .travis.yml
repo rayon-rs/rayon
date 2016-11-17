@@ -6,6 +6,9 @@ script:
   - cargo build
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
+    cargo test && cargo clean
+  - |
+    [ $TRAVIS_RUST_VERSION != nightly ] ||
     cargo test --features "unstable"
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
