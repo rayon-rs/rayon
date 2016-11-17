@@ -27,6 +27,10 @@ part, adding calls to Rayon should not change how your programs works
 at all, in fact. However, if you operate on mutexes or atomic
 integers, please see the [notes on atomicity](#atomicity).
 
+### Contribution
+
+Rayon is an open source project! If you'd like to contribute to Rayon, check out [the list of "help wanted" issues](https://github.com/nikomatsakis/rayon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22). These are all (or should be) issues that are suitable for getting started, and they generally include a detailed set of instructions for what to do. Please ask questions if anything is unclear! Note that all PRs to Rayon are assumed to accept Rayon's dual MIT/Apache2 licensing.
+
 ### Quick demo
 
 To see Rayon in action, check out the `rayon-demo` directory, which
