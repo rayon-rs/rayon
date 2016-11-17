@@ -21,8 +21,8 @@ use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
 use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
-use self::reduce::{reduce, ReduceOp, SumOp, MulOp, MinOp, MaxOp,
-                   ReduceWithIdentityOp, SUM, MUL, MIN, MAX};
+use self::reduce::{reduce, ReduceOp, SumOp, ProductOp, MinOp, MaxOp,
+                   ReduceWithIdentityOp, SUM, PRODUCT, MIN, MAX};
 use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
@@ -453,10 +453,19 @@ pub trait ParallelIterator: Sized {
     /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
-    fn mul(self) -> Self::Item
-        where MulOp: ReduceOp<Self::Item>
+    fn product(self) -> Self::Item
+        where ProductOp: ReduceOp<Self::Item>
     {
-        reduce(self, MUL)
+        reduce(self, PRODUCT)
+    }
+
+    /// DEPRECATED
+    #[deprecated(since = "v0.6.0",
+        note = "name changed to `product()` to match sequential iterators")]
+    fn mul(self) -> Self::Item
+        where ProductOp: ReduceOp<Self::Item>
+    {
+        reduce(self, PRODUCT)
     }
 
     /// Computes the minimum of all the items in the iterator.
