@@ -6,7 +6,7 @@ Parallel matrix multiplication.
 Commands:
     bench           Run the benchmark in different modes and print the timings.
 Options:
-    --size N    Row-size of matrices (rounded up to power of 2) [default: 1024]
+    --size N        Row-size of matrices (rounded up to power of 2) [default: 1024]
     -h, --help      Show this message.
 ";
 
@@ -22,7 +22,7 @@ use rayon::prelude::*;
 
 use std::time::Instant;
 
-// TODO: Investiate other cache patterns for row-major order that may be more
+// TODO: Investigate other cache patterns for row-major order that may be more
 // parallelizable.
 // https://tavianator.com/a-quick-trick-for-faster-naive-matrix-multiplication/
 pub fn seq_matmul(a: &[f32], b: &[f32], dest: &mut [f32]) {
@@ -119,7 +119,7 @@ pub fn seq_matmulz(a: &[f32], b: &[f32], dest: &mut [f32]) {
     }
 }
 
-const MULT_CHUNK: usize = 4 * 1024;
+const MULT_CHUNK: usize = 1 * 1024;
 const LINEAR_CHUNK: usize = 64 * 1024;
 
 fn quarter_chunks<'a>(v: &'a [f32]) -> (&'a [f32], &'a [f32], &'a [f32], &'a [f32]) {
@@ -386,3 +386,6 @@ pub fn main(args: &[String]) {
         println!("speedup: {:.2}x", speedup);
     }
 }
+
+#[cfg(test)]
+mod bench;
