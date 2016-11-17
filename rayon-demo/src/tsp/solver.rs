@@ -41,14 +41,15 @@ impl<'s> SolverCx<'s> {
     pub fn search_from(&mut self, node: Node) {
         // Enqueue the initial prefix:
         let id = self.tour_id();
-        let empty = self.graph.node_set();
+        let mut visited = self.graph.node_set();
+        visited.insert(node);
         self.priority_queue.get_mut().unwrap().push(Arc::new(TourPrefix {
             id: id,
             node: node,
             len: 1,
             prefix_weight: Weight::zero(),
-            lower_bound: Weight::max(),
-            visited: empty,
+            priority: Weight::max().to_priority(),
+            visited: visited,
             previous: None
         }));
 

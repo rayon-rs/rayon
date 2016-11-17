@@ -9,6 +9,7 @@ use docopt::Docopt;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
 use std::time::Instant;
 
 mod graph;
@@ -56,15 +57,15 @@ pub fn main(args: &[String]) {
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        let _ = run_solver(&args.arg_datafile, args.flag_seq_threshold, args.flag_from);
+        let _ = run_solver(Path::new(&args.arg_datafile), args.flag_seq_threshold, args.flag_from);
     }
 }
 
-fn run_solver(datafile: &str, seq_threshold: usize, from: usize) -> Result<(), ()> {
+fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), ()> {
     let graph = match parse_solver(datafile) {
         Ok(g) => g,
         Err(e) => {
-            println!("failed to parse `{}`: {}", datafile, e);
+            println!("failed to parse `{}`: {}", datafile.display(), e);
             return Err(());
         }
     };
@@ -99,7 +100,7 @@ fn run_solver(datafile: &str, seq_threshold: usize, from: usize) -> Result<(), (
     Ok(())
 }
 
-fn parse_solver(datafile: &str) -> Result<Graph, Box<Error>> {
+fn parse_solver(datafile: &Path) -> Result<Graph, Box<Error>> {
     let mut file = File::open(datafile)?;
     let mut text = String::new();
     file.read_to_string(&mut text)?;

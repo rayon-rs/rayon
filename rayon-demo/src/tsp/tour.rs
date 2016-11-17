@@ -7,6 +7,10 @@ use super::solver::TourId;
 
 #[derive(Clone, Debug)]
 pub struct TourPrefix {
+    /// priority to visit, derived from a lower bound on how much weight we
+    /// have remaining to complete the tour
+    pub priority: Priority,
+
     pub id: TourId,
 
     /// the next node to traverse
@@ -17,10 +21,6 @@ pub struct TourPrefix {
 
     /// total weight of our tour so far
     pub prefix_weight: Weight,
-
-    /// a lower bound on how much weight we have remaining to complete
-    /// the tour
-    pub lower_bound: Weight,
 
     /// bit set with elements left to visit
     pub visited: NodeSet,
@@ -33,7 +33,7 @@ pub struct TourPrefix {
 impl TourPrefix {
     /// Returns a tuple of stuff to use when comparing for ord/eq
     fn to_cmp_elements(&self) -> (Priority, TourId) {
-        (self.lower_bound.to_priority(), self.id)
+        (self.priority, self.id)
     }
 
     pub fn visited(&self, node: Node) -> bool {

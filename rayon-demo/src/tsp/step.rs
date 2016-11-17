@@ -27,7 +27,7 @@ fn split_tour<'s>(scope: &Scope<'s>, solver: &'s SolverCx<'s>, element: Arc<Tour
         if !element.visited(next_node) {
             // ...check we haven't already been there...
             let weight = next_edge.weight;
-            if (element.lower_bound + weight) < solver.min_tour_weight() {
+            if (element.prefix_weight + weight) < solver.min_tour_weight() {
                 // ...and that we haven't already found a cheaper route
                 let visited = element.visited.with(next_node);
 
@@ -40,10 +40,10 @@ fn split_tour<'s>(scope: &Scope<'s>, solver: &'s SolverCx<'s>, element: Arc<Tour
 
                 let next_tour = Arc::new(TourPrefix {
                     id: solver.tour_id(),
+                    priority: next_lower_bound.to_priority(),
                     node: next_node,
                     len: element.len + 1,
                     prefix_weight: prefix_weight,
-                    lower_bound: next_lower_bound,
                     visited: visited,
                     previous: Some(element.clone()),
                 });
@@ -115,10 +115,14 @@ fn solve_tour_seq(solver: &SolverCx, element: Arc<TourPrefix>) {
     }
     path.reverse();
 
-    enumerate_sequentially(solver,
-                           &mut path,
-                           &mut visited,
-                           element.prefix_weight);
+    if path.len() == graph.num_nodes() {
+        complete_tour(solver, &mut path, element.prefix_weight);
+    } else {
+        enumerate_sequentially(solver,
+                               &mut path,
+                               &mut visited,
+                               element.prefix_weight);
+    }
 }
 
 fn enumerate_sequentially(solver: &SolverCx,
@@ -156,17 +160,27 @@ fn enumerate_sequentially(solver: &SolverCx,
             enumerate_sequentially(solver, path, visited, weight);
         } else {
             // Completed the whole graph; we have to get back to the start node now (if we can).
-            let home = path[0];
-            if let Some(home_weight) = graph.edge_weight(i, home) {
-                path.push(home);
-                solver.add_complete_tour(&path, weight + home_weight);
-                path.pop();
-            }
+            complete_tour(solver, path, weight);
         }
 
         // Uncommit to `i`.
         weight -= edge_weight;
         path.pop();
         visited.remove(i);
+    }
+}
+
+fn complete_tour(solver: &SolverCx,
+                 path: &mut Vec<Node>,
+                 weight: Weight)
+{
+    let graph = solver.graph();
+    debug_assert!(path.len() == graph.num_nodes());
+    let home = path[0];
+    let last = *path.last().unwrap();
+    if let Some(home_weight) = graph.edge_weight(last, home) {
+        path.push(home);
+        solver.add_complete_tour(&path, weight + home_weight);
+        path.pop();
     }
 }
