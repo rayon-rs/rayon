@@ -6,6 +6,7 @@ use std::io;
 use std::io::prelude::*;
 use std::process::exit;
 
+mod matmul;
 mod mergesort;
 mod nbody;
 mod quicksort;
@@ -53,6 +54,7 @@ Benchmarks:
   - nbody: A physics simulation of multiple bodies attracting and repelling
            one another.
   - sieve: Finding primes using a Sieve of Eratosthenes.
+  - matmul: Parallel matrix multiplication.
   - mergesort: Parallel mergesort.
   - quicksort: Parallel quicksort.
 ";
@@ -71,6 +73,7 @@ fn main() {
 
     let bench_name = &args[1];
     match &bench_name[..] {
+        "matmul" => matmul::main(&args[1..]),
         "mergesort" => mergesort::main(&args[1..]),
         "nbody" => nbody::main(&args[1..]),
         "quicksort" => quicksort::main(&args[1..]),
