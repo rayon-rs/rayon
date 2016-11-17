@@ -155,13 +155,13 @@ sum_rule!(usize, 0);
 sum_rule!(f32, 0.0);
 sum_rule!(f64, 0.0);
 
-pub struct MulOp;
+pub struct ProductOp;
 
-pub const MUL: &'static MulOp = &MulOp;
+pub const PRODUCT: &'static ProductOp = &ProductOp;
 
-macro_rules! mul_rule {
+macro_rules! product_rule {
     ($i:ty, $z:expr) => {
-        impl ReduceOp<$i> for MulOp {
+        impl ReduceOp<$i> for ProductOp {
             fn start_value(&self) -> $i {
                 $z
             }
@@ -172,18 +172,18 @@ macro_rules! mul_rule {
     }
 }
 
-mul_rule!(i8, 1);
-mul_rule!(i16, 1);
-mul_rule!(i32, 1);
-mul_rule!(i64, 1);
-mul_rule!(isize, 1);
-mul_rule!(u8, 1);
-mul_rule!(u16, 1);
-mul_rule!(u32, 1);
-mul_rule!(u64, 1);
-mul_rule!(usize, 1);
-mul_rule!(f32, 1.0);
-mul_rule!(f64, 1.0);
+product_rule!(i8, 1);
+product_rule!(i16, 1);
+product_rule!(i32, 1);
+product_rule!(i64, 1);
+product_rule!(isize, 1);
+product_rule!(u8, 1);
+product_rule!(u16, 1);
+product_rule!(u32, 1);
+product_rule!(u64, 1);
+product_rule!(usize, 1);
+product_rule!(f32, 1.0);
+product_rule!(f64, 1.0);
 
 pub struct MinOp;
 
