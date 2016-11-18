@@ -13,8 +13,6 @@
 //! unless you have a whole lot of CPUs.  The iterative version reveals the
 //! joke.
 
-#![feature(test)]
-
 extern crate rayon;
 extern crate test;
 

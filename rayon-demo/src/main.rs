@@ -1,5 +1,5 @@
 #![cfg_attr(test, feature(test))]
-#![cfg_attr(test, feature(conservative_impl_trait))]
+#![feature(conservative_impl_trait)]
 
 use std::env;
 use std::io;
@@ -11,6 +11,7 @@ mod mergesort;
 mod nbody;
 mod quicksort;
 mod sieve;
+mod tsp;
 
 // these are not "full-fledged" benchmarks yet,
 // they only run with cargo bench
@@ -32,6 +33,8 @@ extern crate itertools; // sieve
 extern crate num; // factorial
 #[macro_use]
 extern crate lazy_static; // find
+extern crate fixedbitset; // tsp
+extern crate regex; // tsp
 
 #[cfg(test)]
 extern crate test;
@@ -57,6 +60,7 @@ Benchmarks:
   - matmul: Parallel matrix multiplication.
   - mergesort: Parallel mergesort.
   - quicksort: Parallel quicksort.
+  - tsp: Traveling salesman problem solver (sample data sets in `data/tsp`).
 ";
 
 fn usage() -> ! {
@@ -78,6 +82,7 @@ fn main() {
         "nbody" => nbody::main(&args[1..]),
         "quicksort" => quicksort::main(&args[1..]),
         "sieve" => sieve::main(&args[1..]),
+        "tsp" => tsp::main(&args[1..]),
         _ => usage()
     }
 }
