@@ -130,3 +130,180 @@ answer is that there isn't really a need for one: the
 happens, in the current code base, all parallel iterators bottom out
 in something indexed (a slice, a range, etc), but we may extend that
 in the future, no problem.
+
+## What on earth is `ProducerCallback`?
+
+We saw that when you call a parallel action method like
+`par_iter.reduce()`, that will creating a "reducing" consumer and then
+invoke `par_iter.drive_unindexed()` (or `par_iter.drive()`) as
+appropriate. This may create yet more consumers as we proceed up the
+parallel iterator chain. But at some point we're going to get to the
+start of the chain, or to a parallel iterator (like `zip()`) that has
+to coordinate multiple inputs. At that point, we need to start
+converting parallel iterators into producers.
+
+The way we do this is by invoking the method `with_producer()`, defined on
+`IndexedParallelIterator`. This is a callback scheme. In an ideal world,
+it would work like this:
+
+```rust
+base_iter.with_producer(|base_producer| {
+    // here, `base_producer` is the producer for `base_iter`
+});
+```
+
+In that case, we could implement a combinator like `map()` by getting
+the producer for the base iterator, wrapping it to make our own
+`MapProducer`, and then passing that to the callback. Something like
+this:
+
+```rust
+pub struct MapProducer<'m, P, MAP_OP: 'm> {
+    base: P,
+    map_op: &'m MAP_OP,
+}
+
+impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP> 
+    where M: IndexedParallelIterator,
+          MAP_OP: MapOp<M::Item>,
+{
+    fn with_producer<CB>(self, callback: CB) -> CB::Output {
+        let map_op = &self.map_op;
+        self.base_iter.with_producer(|base_producer| {
+            // Here `producer` is the producer for `self.base_iter`.
+            // Wrap that to make a `MapProducer`
+            let map_producer = MapProducer {
+                base: base_producer,
+                map_op: map_op
+            };
+    
+            // invoke the callback with the wrapped version
+            callback(map_producer)
+        });
+    }
+});
+```
+
+This example demonstrates some of the power of the callback scheme.
+It winds up being a very flexible setup. For one thing, it means we
+can take ownership of `par_iter`; we can then in turn give ownership
+away of its bits and pieces into the producer (this is very useful if
+the iterator owns an `&mut` slice, for example), or create shared
+references and put *those* in the producer. In the case of map, for
+example, the parallel iterator owns the `map_op`, and we borrow
+references to it which we then put into the `MapProducer` (this means
+the `MapProducer` can easily split itself and share those references).
+The `with_producer` method can also create resources that are needed
+during the parallel execution, since the producer does not have to be
+returned.
+
+Unfortunately there is a catch. We can't actually use closures the way
+I showed you. To see why, think about the type that `map_producer`
+would have to have. If we were going to write the `with_producer`
+method using a closure, it would have to look something like this:
+
+```rust
+pub trait IndexedParallelIterator: ExactParallelIterator {
+    type Producer;
+    fn with_producer<CB, R>(self, callback: CB) -> R
+        where CB: FnOnce(Self::Producer) -> R;
+    ...
+}    
+```        
+
+Note that we had to add this associated type `Producer` so that
+we could specify the argument of the callback to be `Self::Producer`.
+Now, imagine trying to write that `MapProducer` impl using this style:
+
+```rust
+impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP> 
+    where M: IndexedParallelIterator,
+          MAP_OP: MapOp<M::Item>,
+{
+    type MapProducer = MapProducer<'m, P::Producer, MAP_OP>;
+    //                             ^^ wait, what is this `'m`?
+    
+    fn with_producer<CB, R>(self, callback: CB) -> R
+        where CB: FnOnce(Self::Producer) -> R
+    {
+        let map_op = &self.map_op;
+        //  ^^^^^^ `'m` is (conceptually) the lifetime of this reference,
+        //         so it will be different for each call to `with_producer`!
+    }
+}
+```
+
+This may look familiar to you: it's the same problem that we have
+trying to define an `Iterable` trait. Basically, the producer type
+needs to include a lifetime (here, `'m`) that refers to the body of
+`with_producer` and hence is not in scope at the impl level.
+
+If we had [associated type constructors][1598], we could solve this
+problem that way. But there is another solution. We can use a
+dedicated callback trait like `ProducerCallback`, instead of `FnOnce`:
+
+[1598]: https://github.com/rust-lang/rfcs/pull/1598
+
+```rust
+pub trait ProducerCallback<ITEM> {
+    type Output;
+    fn callback<P>(self, producer: P) -> Self::Output
+        where P: Producer<Item=ITEM>;
+}
+```
+
+Using this trait, the signature of `with_producer()` looks like this:
+
+```rust
+fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
+```
+
+Notice that this signature **never has to name the producer type** --
+there is no associated type `Producer` anymore. This is because the
+`callback()` method is generically over **all** producers `P`.
+
+The problem is that now the `||` sugar doesn't work anymore. So we
+have to manually create the callback struct, which is a mite tedious.
+So our `MapProducer` code looks like this:
+
+```rust
+impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
+    where M: IndexedParallelIterator,
+          MAP_OP: MapOp<M::Item>,
+{
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+        where CB: ProducerCallback<Self::Item>
+    {
+        return self.base.with_producer(Callback { callback: callback, map_op: self.map_op });
+        //                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        //                             Manual version of the closure sugar: create an instance
+        //                             of a struct that implements `ProducerCallback`.
+
+        // The struct declaration. Each field is something that need to capture from the
+        // creating scope.
+        struct Callback<CB, MAP_OP> {
+            callback: CB,
+            map_op: MAP_OP,
+        }
+
+        // Implement the `ProducerCallback` trait. This is pure boilerplate.
+        impl<ITEM, MAP_OP, CB> ProducerCallback<ITEM> for Callback<CB, MAP_OP>
+            where MAP_OP: MapOp<ITEM>,
+                  CB: ProducerCallback<MAP_OP::Output>
+        {
+            type Output = CB::Output;
+
+            fn callback<P>(self, base: P) -> CB::Output
+                where P: Producer<Item=ITEM>
+            {
+                // The body of the closure is here:
+                let producer = MapProducer { base: base,
+                                             map_op: &self.map_op };
+                self.callback.callback(producer)
+            }
+        }
+    }
+}
+```
+
+OK, a bit tedious, but it works!
