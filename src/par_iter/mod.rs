@@ -12,7 +12,7 @@
 //! good place to start.
 
 use std::f64;
-use std::cmp;
+use std::cmp::{self, Ordering};
 use std::ops::Fn;
 use self::chain::ChainIter;
 use self::collect::collect_into;
@@ -484,6 +484,25 @@ pub trait ParallelIterator: Sized {
         self.reduce_with(cmp::min)
     }
 
+    /// Computes the item that yields the minimum value for the given
+    /// function. If the iterator is empty, `None` is returned;
+    /// otherwise, `Some(item)` is returned.
+    ///
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the `Ord` impl is not truly associative, then
+    /// the results are not deterministic.
+    fn min_by_key<K, F>(self, f: F) -> Option<Self::Item>
+        where K: Ord + Send,
+              F: Sync + Fn(&Self::Item) -> K,
+    {
+        self.map(|x| (f(&x), x))
+            .reduce_with(|a, b| match (a.0).cmp(&b.0) {
+                Ordering::Greater => b,
+                _ => a
+            })
+            .map(|(_, x)| x)
+    }
+
     /// Computes the maximum of all the items in the iterator. If the
     /// iterator is empty, `None` is returned; otherwise, `Some(max)`
     /// is returned.
@@ -497,6 +516,25 @@ pub trait ParallelIterator: Sized {
         where Self::Item: Ord
     {
         self.reduce_with(cmp::max)
+    }
+
+    /// Computes the item that yields the maximum value for the given
+    /// function. If the iterator is empty, `None` is returned;
+    /// otherwise, `Some(item)` is returned.
+    ///
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the `Ord` impl is not truly associative, then
+    /// the results are not deterministic.
+    fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
+        where K: Ord + Send,
+              F: Sync + Fn(&Self::Item) -> K,
+    {
+        self.map(|x| (f(&x), x))
+            .reduce_with(|a, b| match (a.0).cmp(&b.0) {
+                Ordering::Greater => a,
+                _ => b
+            })
+            .map(|(_, x)| x)
     }
 
     /// Takes two iterators and creates a new iterator over both.
