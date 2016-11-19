@@ -702,9 +702,9 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
     fn partial_cmp<I>(self, other: I) -> Option<Ordering>
-        where I: IntoParallelIterator<Item = Self::Item>,
+        where I: IntoParallelIterator,
               I::Iter: IndexedParallelIterator,
-              Self::Item: PartialOrd
+              Self::Item: PartialOrd<I::Item>
     {
         self.zip(other.into_par_iter())
             .map(|(x, y)| PartialOrd::partial_cmp(&x, &y))
@@ -719,6 +719,69 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
                         }
                         _ => None,
                     })
+    }
+
+    /// Determines if the elements of this `ParallelIterator`
+    /// are equal to those of another
+    fn eq<I>(self, other: I) -> bool
+        where I: IntoParallelIterator,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialEq<I::Item>
+    {
+        self.zip(other.into_par_iter())
+            .all(|(x, y)| x.eq(&y))
+    }
+
+    /// Determines if the elements of this `ParallelIterator`
+    /// are unequal to those of another
+    fn ne<I>(self, other: I) -> bool
+        where I: IntoParallelIterator,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialEq<I::Item>
+    {
+        !self.eq(other)
+    }
+
+    /// Determines if the elements of this `ParallelIterator`
+    /// are lexicographically less than those of another.
+    fn lt<I>(self, other: I) -> bool
+        where I: IntoParallelIterator,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialOrd<I::Item>
+    {
+        self.partial_cmp(other) == Some(Ordering::Less)
+    }
+
+    /// Determines if the elements of this `ParallelIterator`
+    /// are less or equal to those of another.
+    fn le<I>(self, other: I) -> bool
+        where I: IntoParallelIterator,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialOrd<I::Item>
+    {
+        let ord = self.partial_cmp(other);
+        ord == Some(Ordering::Equal) || ord == Some(Ordering::Less)
+    }
+
+    /// Determines if the elements of this `ParallelIterator`
+    /// are lexicographically greater than those of another.
+    fn gt<I>(self, other: I) -> bool
+        where I: IntoParallelIterator,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialOrd<I::Item>
+    {
+        self.partial_cmp(other) == Some(Ordering::Greater)
+    }
+
+    /// Determines if the elements of this `ParallelIterator`
+    /// are less or equal to those of another.
+    fn ge<I>(self, other: I) -> bool
+        where I: IntoParallelIterator,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialOrd<I::Item>
+    {
+        let ord = self.partial_cmp(other);
+        ord == Some(Ordering::Equal) || ord == Some(Ordering::Greater)
     }
 
     /// Yields an index along with each item.
