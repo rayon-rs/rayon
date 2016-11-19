@@ -12,6 +12,7 @@
 //! good place to start.
 
 use std::f64;
+use std::cmp::{self, Ordering};
 use std::ops::Fn;
 use self::chain::ChainIter;
 use self::collect::collect_into;
@@ -21,8 +22,8 @@ use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
 use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
-use self::reduce::{reduce, ReduceOp, SumOp, ProductOp, MinOp, MaxOp,
-                   ReduceWithIdentityOp, SUM, PRODUCT, MIN, MAX};
+use self::reduce::{reduce, ReduceOp, SumOp, ProductOp,
+                   ReduceWithIdentityOp, SUM, PRODUCT};
 use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
@@ -468,35 +469,72 @@ pub trait ParallelIterator: Sized {
         reduce(self, PRODUCT)
     }
 
-    /// Computes the minimum of all the items in the iterator.
+    /// Computes the minimum of all the items in the iterator. If the
+    /// iterator is empty, `None` is returned; otherwise, `Some(min)`
+    /// is returned.
     ///
-    /// Note that the order in items will be reduced is not specified,
-    /// so if the `Ord` impl is not truly associative, then the
-    /// results are not deterministic.
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the `Ord` impl is not truly associative, then
+    /// the results are not deterministic.
     ///
-    /// Basically equivalent to `self.reduce(|| MAX, |a, b| cmp::min(a, b))`
-    /// except that the type of `MAX` and the `min` operation may vary
-    /// depending on the type of value being produced.
-    fn min(self) -> Self::Item
-        where MinOp: ReduceOp<Self::Item>
+    /// Basically equivalent to `self.reduce_with(|a, b| cmp::min(a, b))`.
+    fn min(self) -> Option<Self::Item>
+        where Self::Item: Ord
     {
-        reduce(self, MIN)
+        self.reduce_with(cmp::min)
     }
 
-    /// Computes the maximum of all the items in the iterator.
+    /// Computes the item that yields the minimum value for the given
+    /// function. If the iterator is empty, `None` is returned;
+    /// otherwise, `Some(item)` is returned.
     ///
-    /// Note that the order in items will be reduced is not specified,
-    /// so if the `Ord` impl is not truly associative, then the
-    /// results are not deterministic.
-    ///
-    /// Basically equivalent to `self.reduce(|| MIN, |a, b| cmp::max(a, b))`
-    /// except that the type of `MIN` and the `max` operation may vary
-    /// depending on the type of value being produced.
-    /// are not deterministic.
-    fn max(self) -> Self::Item
-        where MaxOp: ReduceOp<Self::Item>
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the `Ord` impl is not truly associative, then
+    /// the results are not deterministic.
+    fn min_by_key<K, F>(self, f: F) -> Option<Self::Item>
+        where K: Ord + Send,
+              F: Sync + Fn(&Self::Item) -> K,
     {
-        reduce(self, MAX)
+        self.map(|x| (f(&x), x))
+            .reduce_with(|a, b| match (a.0).cmp(&b.0) {
+                Ordering::Greater => b,
+                _ => a
+            })
+            .map(|(_, x)| x)
+    }
+
+    /// Computes the maximum of all the items in the iterator. If the
+    /// iterator is empty, `None` is returned; otherwise, `Some(max)`
+    /// is returned.
+    ///
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the `Ord` impl is not truly associative, then
+    /// the results are not deterministic.
+    ///
+    /// Basically equivalent to `self.reduce_with(|a, b| cmp::max(a, b))`.
+    fn max(self) -> Option<Self::Item>
+        where Self::Item: Ord
+    {
+        self.reduce_with(cmp::max)
+    }
+
+    /// Computes the item that yields the maximum value for the given
+    /// function. If the iterator is empty, `None` is returned;
+    /// otherwise, `Some(item)` is returned.
+    ///
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the `Ord` impl is not truly associative, then
+    /// the results are not deterministic.
+    fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
+        where K: Ord + Send,
+              F: Sync + Fn(&Self::Item) -> K,
+    {
+        self.map(|x| (f(&x), x))
+            .reduce_with(|a, b| match (a.0).cmp(&b.0) {
+                Ordering::Greater => a,
+                _ => b
+            })
+            .map(|(_, x)| x)
     }
 
     /// Takes two iterators and creates a new iterator over both.
@@ -667,4 +705,3 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         self.position_any(predicate)
     }
 }
-

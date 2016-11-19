@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::*;
 use super::internal::*;
 
+use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
@@ -729,3 +730,23 @@ pub fn par_iter_collect_linked_list_flat_map_filter() {
     assert_eq!(b, c);
 }
 
+#[test]
+fn min_max() {
+    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
+    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
+    for i in 0 .. a.len() + 1 {
+        let slice = &a[..i];
+        assert_eq!(slice.par_iter().min(), slice.iter().min());
+        assert_eq!(slice.par_iter().max(), slice.iter().max());
+    }
+}
+
+fn min_max_by() {
+    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
+    let a: Vec<(i32, u16)> = rng.gen_iter().take(1024).zip(0 .. 1024).collect();
+    for i in 0 .. a.len() + 1 {
+        let slice = &a[..i];
+        assert_eq!(slice.par_iter().min_by_key(|x| x.0), slice.iter().min_by_key(|x| x.0));
+        assert_eq!(slice.par_iter().max_by_key(|x| x.0), slice.iter().max_by_key(|x| x.0));
+    }
+}
