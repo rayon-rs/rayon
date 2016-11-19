@@ -682,6 +682,23 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         ZipIter::new(self, zip_op.into_par_iter())
     }
 
+    /// Lexicographically compares the elements of this `ParallelIterator` with those of
+    /// another.
+    fn cmp<I>(self, other: I) -> Ordering
+        where I: IntoParallelIterator<Item = Self::Item>,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: Ord
+    {
+        self.zip(other.into_par_iter())
+            .map(|(x, y)| Ord::cmp(&x, &y))
+            .reduce(|| Ordering::Equal,
+                    |cmp_a, cmp_b| if cmp_a != Ordering::Equal {
+                        cmp_b
+                    } else {
+                        cmp_a
+                    })
+    }
+
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
