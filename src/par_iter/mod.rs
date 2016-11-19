@@ -699,6 +699,28 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
                     })
     }
 
+    /// Lexicographically compares the elements of this `ParallelIterator` with those of
+    /// another.
+    fn partial_cmp<I>(self, other: I) -> Option<Ordering>
+        where I: IntoParallelIterator<Item = Self::Item>,
+              I::Iter: IndexedParallelIterator,
+              Self::Item: PartialOrd
+    {
+        self.zip(other.into_par_iter())
+            .map(|(x, y)| PartialOrd::partial_cmp(&x, &y))
+            .reduce(|| Some(Ordering::Equal),
+                    |cmp_a, cmp_b| match (cmp_a, cmp_b) {
+                        (Some(a), Some(b)) => {
+                            if a != Ordering::Equal {
+                                Some(b)
+                            } else {
+                                Some(a)
+                            }
+                        }
+                        _ => None,
+                    })
+    }
+
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
