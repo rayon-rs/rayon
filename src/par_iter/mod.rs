@@ -54,6 +54,7 @@ pub mod range;
 pub mod vec;
 pub mod option;
 pub mod collections;
+pub mod noop;
 
 #[cfg(test)]
 mod test;

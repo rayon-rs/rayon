@@ -197,6 +197,13 @@ pub fn check_skip() {
     a.par_iter().skip(0).collect_into(&mut v1);
     let v2 = a.iter().skip(0).collect::<Vec<_>>();
     assert_eq!(v1, v2);
+
+    // Check that the skipped elements side effects are executed
+    use std::sync::{Arc, Mutex};
+    let num = Arc::new(Mutex::new(0usize));
+    a.par_iter().map(|&n| *num.lock().unwrap() += n).skip(512).count();
+    let n: usize = *num.lock().unwrap();
+    assert_eq!(n, a.iter().sum());
 }
 
 #[test]

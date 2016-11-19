@@ -7,7 +7,7 @@ pub struct Skip<M> {
     n: usize,
 }
 
-impl<M> Skip<M> 
+impl<M> Skip<M>
     where M: IndexedParallelIterator
 {
     pub fn new(mut base: M, n: usize) -> Skip<M> {
@@ -70,8 +70,10 @@ impl<M> IndexedParallelIterator for Skip<M>
             fn callback<P>(self, base: P) -> CB::Output
                 where P: Producer<Item=ITEM>
             {
-                let (_, producer) = base.split_at(self.n);
-                self.callback.callback(producer)
+                let (before_skip, after_skip) = base.split_at(self.n);
+                bridge_producer_consumer(self.n, Splitter::Cost(self.n as f64),
+                                         before_skip, noop::NoopConsumer::new());
+                self.callback.callback(after_skip)
             }
         }
     }

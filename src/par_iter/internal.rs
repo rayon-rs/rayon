@@ -92,7 +92,7 @@ pub trait UnindexedProducer: IntoIterator + Send + Sized {
 
 /// A splitter controls the policy for splitting into smaller work items.
 #[derive(Clone, Copy)]
-enum Splitter {
+pub enum Splitter {
     /// Classic cost-splitting uses weights to split until below a threshold.
     Cost(f64),
 
@@ -174,7 +174,7 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
     }
 }
 
-fn bridge_producer_consumer<P,C>(len: usize,
+pub fn bridge_producer_consumer<P,C>(len: usize,
                                  mut splitter: Splitter,
                                  producer: P,
                                  consumer: C)
