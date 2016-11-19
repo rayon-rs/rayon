@@ -404,6 +404,72 @@ pub fn check_partial_cmp_none() {
 }
 
 #[test]
+pub fn check_eq() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    let result = a.eq(&b);
+
+    assert!(result);
+}
+
+#[test]
+pub fn check_ne() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (1..1024).collect();
+
+    let result = a.ne(&b);
+
+    assert!(result);
+}
+
+#[test]
+pub fn check_lt() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (1..1024).collect();
+
+    let result = a.lt(&b);
+
+    assert!(result);
+}
+
+#[test]
+pub fn check_le() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (1..1024).collect();
+    let c: Vec<usize> = (0..1024).collect();
+
+    let result_lt = a.le(&b);
+    let result_eq = a.le(&c);
+
+    assert!(result_lt);
+    assert!(result_eq);
+}
+
+#[test]
+pub fn check_gt() {
+    let a: Vec<usize> = (1..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    let result = a.gt(&b);
+
+    assert!(result);
+}
+
+#[test]
+pub fn check_ge() {
+    let a: Vec<usize> = (1..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+    let c: Vec<usize> = (1..1024).collect();
+
+    let result_gt = a.ge(&b);
+    let result_eq = a.ge(&c);
+
+    assert!(result_gt);
+    assert!(result_eq);
+}
+
+#[test]
 pub fn check_zip() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
     let b: Vec<usize> = (0..1024).collect();
