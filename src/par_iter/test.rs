@@ -362,6 +362,48 @@ pub fn check_cmp_gt() {
 }
 
 #[test]
+pub fn check_partial_cmp() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    let result = a.partial_cmp(&b);
+
+    assert!(result == Some(::std::cmp::Ordering::Equal));
+}
+
+#[test]
+pub fn check_partial_cmp_lt() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (1..1024).collect();
+
+    let result = a.partial_cmp(&b);
+
+    assert!(result == Some(::std::cmp::Ordering::Less));
+}
+
+#[test]
+pub fn check_partial_cmp_gt() {
+    let a: Vec<usize> = (1..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    let result = a.partial_cmp(&b);
+
+    assert!(result == Some(::std::cmp::Ordering::Greater));
+}
+
+#[test]
+pub fn check_partial_cmp_none() {
+    let mut a: Vec<f32> = (0..1024u16).map(From::from).collect();
+    let b: Vec<f32> = (0..1024u16).map(From::from).collect();
+
+    a[0] = ::std::f32::NAN;
+
+    let result = a.partial_cmp(&b);
+
+    assert!(result == None);
+}
+
+#[test]
 pub fn check_zip() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
     let b: Vec<usize> = (0..1024).collect();
