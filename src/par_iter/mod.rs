@@ -25,6 +25,7 @@ use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, ProductOp,
                    ReduceWithIdentityOp, SUM, PRODUCT};
 use self::skip::Skip;
+use self::take::Take;
 use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
@@ -43,6 +44,7 @@ pub mod for_each;
 pub mod fold;
 pub mod reduce;
 pub mod skip;
+pub mod take;
 pub mod slice;
 pub mod slice_mut;
 pub mod map;
@@ -690,6 +692,12 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         use std::cmp::min;
         let n = min(n, self.len());
         Skip::new(self, n)
+    }
+
+    fn take(mut self, n: usize) -> Take<Self> {
+        use std::cmp::min;
+        let n = min(n, self.len());
+        Take::new(self, n)
     }
 
     /// Searches for **some** item in the parallel iterator that

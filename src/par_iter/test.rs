@@ -200,6 +200,26 @@ pub fn check_skip_overflow() {
 }
 
 #[test]
+pub fn check_take() {
+    let mut b = vec![];
+    let a: Vec<usize> = (0..10).collect();
+    a.into_par_iter()
+        .take(5)
+        .collect_into(&mut b);
+    assert_eq!(b, vec![0, 1, 2, 3, 4]);
+}
+
+#[test]
+pub fn check_take_overflow() {
+    let mut b = vec![];
+    let a: Vec<usize> = (0..10).collect();
+    a.into_par_iter()
+        .take(15)
+        .collect_into(&mut b);
+    assert_eq!(b, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+}
+
+#[test]
 pub fn check_inspect() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
