@@ -29,6 +29,10 @@ impl<M> ExactParallelIterator for Take<M>
     where M: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
+        let base_len = self.base.len();
+        if self.n > base_len {
+            self.n = base_len
+        }
         self.n
     }
 }
@@ -48,7 +52,7 @@ impl<M> BoundedParallelIterator for Take<M>
 impl<M> IndexedParallelIterator for Take<M>
     where M: IndexedParallelIterator
 {
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback { callback: callback,

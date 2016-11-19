@@ -29,7 +29,11 @@ impl<M> ExactParallelIterator for Skip<M>
     where M: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
-        self.base.len() - self.n
+        let base_len = self.base.len();
+        if self.n > base_len {
+            self.n = base_len;
+        }
+        base_len - self.n
     }
 }
 

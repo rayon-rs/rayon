@@ -688,15 +688,11 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         Enumerate::new(self)
     }
 
-    fn skip(mut self, n: usize) -> Skip<Self> {
-        use std::cmp::min;
-        let n = min(n, self.len());
+    fn skip(self, n: usize) -> Skip<Self> {
         Skip::new(self, n)
     }
 
-    fn take(mut self, n: usize) -> Take<Self> {
-        use std::cmp::min;
-        let n = min(n, self.len());
+    fn take(self, n: usize) -> Take<Self> {
         Take::new(self, n)
     }
 

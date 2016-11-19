@@ -181,40 +181,51 @@ pub fn check_increment() {
 
 #[test]
 pub fn check_skip() {
-    let mut b = vec![];
     let a: Vec<usize> = (0..10).collect();
-    a.into_par_iter()
+
+    let mut b = vec![];
+    a.par_iter()
         .skip(5)
+        .cloned()
         .collect_into(&mut b);
     assert_eq!(b, vec![5, 6, 7, 8, 9]);
-}
 
-#[test]
-pub fn check_skip_overflow() {
     let mut b = vec![];
-    let a: Vec<usize> = (0..10).collect();
-    a.into_par_iter()
+    a.par_iter()
+        .skip(0)
+        .cloned()
+        .collect_into(&mut b);
+    assert_eq!(b, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+    let mut b = vec![];
+    a.par_iter()
         .skip(15)
+        .cloned()
         .collect_into(&mut b);
     assert_eq!(b, vec![]);
 }
 
 #[test]
 pub fn check_take() {
-    let mut b = vec![];
     let a: Vec<usize> = (0..10).collect();
-    a.into_par_iter()
+    let mut b = vec![];
+    a.par_iter()
         .take(5)
+        .cloned()
         .collect_into(&mut b);
     assert_eq!(b, vec![0, 1, 2, 3, 4]);
-}
 
-#[test]
-pub fn check_take_overflow() {
     let mut b = vec![];
-    let a: Vec<usize> = (0..10).collect();
-    a.into_par_iter()
+    a.par_iter()
+        .take(0)
+        .cloned()
+        .collect_into(&mut b);
+    assert_eq!(b, vec![]);
+
+    let mut b = vec![];
+    a.par_iter()
         .take(15)
+        .cloned()
         .collect_into(&mut b);
     assert_eq!(b, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 }
