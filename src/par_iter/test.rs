@@ -180,6 +180,26 @@ pub fn check_increment() {
 }
 
 #[test]
+pub fn check_skip() {
+    let mut b = vec![];
+    let a: Vec<usize> = (0..10).collect();
+    a.into_par_iter()
+        .skip(5)
+        .collect_into(&mut b);
+    assert_eq!(b, vec![5, 6, 7, 8, 9]);
+}
+
+#[test]
+pub fn check_skip_overflow() {
+    let mut b = vec![];
+    let a: Vec<usize> = (0..10).collect();
+    a.into_par_iter()
+        .skip(15)
+        .collect_into(&mut b);
+    assert_eq!(b, vec![]);
+}
+
+#[test]
 pub fn check_inspect() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
