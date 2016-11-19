@@ -181,53 +181,42 @@ pub fn check_increment() {
 
 #[test]
 pub fn check_skip() {
-    let a: Vec<usize> = (0..10).collect();
+    let a: Vec<usize> = (0..1024).collect();
 
-    let mut b = vec![];
-    a.par_iter()
-        .skip(5)
-        .cloned()
-        .collect_into(&mut b);
-    assert_eq!(b, vec![5, 6, 7, 8, 9]);
+    let mut v1 = Vec::new();
+    a.par_iter().skip(16).collect_into(&mut v1);
+    let v2 = a.iter().skip(16).collect::<Vec<_>>();
+    assert_eq!(v1, v2);
 
-    let mut b = vec![];
-    a.par_iter()
-        .skip(0)
-        .cloned()
-        .collect_into(&mut b);
-    assert_eq!(b, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    let mut v1 = Vec::new();
+    a.par_iter().skip(2048).collect_into(&mut v1);
+    let v2 = a.iter().skip(2048).collect::<Vec<_>>();
+    assert_eq!(v1, v2);
 
-    let mut b = vec![];
-    a.par_iter()
-        .skip(15)
-        .cloned()
-        .collect_into(&mut b);
-    assert_eq!(b, vec![]);
+    let mut v1 = Vec::new();
+    a.par_iter().skip(0).collect_into(&mut v1);
+    let v2 = a.iter().skip(0).collect::<Vec<_>>();
+    assert_eq!(v1, v2);
 }
 
 #[test]
 pub fn check_take() {
-    let a: Vec<usize> = (0..10).collect();
-    let mut b = vec![];
-    a.par_iter()
-        .take(5)
-        .cloned()
-        .collect_into(&mut b);
-    assert_eq!(b, vec![0, 1, 2, 3, 4]);
+    let a: Vec<usize> = (0..1024).collect();
 
-    let mut b = vec![];
-    a.par_iter()
-        .take(0)
-        .cloned()
-        .collect_into(&mut b);
-    assert_eq!(b, vec![]);
+    let mut v1 = Vec::new();
+    a.par_iter().take(16).collect_into(&mut v1);
+    let v2 = a.iter().take(16).collect::<Vec<_>>();
+    assert_eq!(v1, v2);
 
-    let mut b = vec![];
-    a.par_iter()
-        .take(15)
-        .cloned()
-        .collect_into(&mut b);
-    assert_eq!(b, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    let mut v1 = Vec::new();
+    a.par_iter().take(2048).collect_into(&mut v1);
+    let v2 = a.iter().take(2048).collect::<Vec<_>>();
+    assert_eq!(v1, v2);
+
+    let mut v1 = Vec::new();
+    a.par_iter().take(0).collect_into(&mut v1);
+    let v2 = a.iter().take(0).collect::<Vec<_>>();
+    assert_eq!(v1, v2);
 }
 
 #[test]

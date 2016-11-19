@@ -688,10 +688,12 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         Enumerate::new(self)
     }
 
+    /// Creates an iterator that skips the first `n` elements.
     fn skip(self, n: usize) -> Skip<Self> {
         Skip::new(self, n)
     }
 
+    /// Creates an iterator that yields the first `n` elements.
     fn take(self, n: usize) -> Take<Self> {
         Take::new(self, n)
     }

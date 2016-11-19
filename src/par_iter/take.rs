@@ -1,13 +1,17 @@
 use super::*;
 use super::internal::*;
+use std::cmp::min;
 
 pub struct Take<M> {
     base: M,
     n: usize,
 }
 
-impl<M> Take<M> {
-    pub fn new(base: M, n: usize) -> Take<M> {
+impl<M> Take<M> 
+    where M: IndexedParallelIterator
+{
+    pub fn new(mut base: M, n: usize) -> Take<M> {
+        let n = min(base.len(), n);
         Take { base: base,
                n: n }
     }
@@ -29,10 +33,6 @@ impl<M> ExactParallelIterator for Take<M>
     where M: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
-        let base_len = self.base.len();
-        if self.n > base_len {
-            self.n = base_len
-        }
         self.n
     }
 }

@@ -1,13 +1,17 @@
 use super::*;
 use super::internal::*;
+use std::cmp::min;
 
 pub struct Skip<M> {
     base: M,
     n: usize,
 }
 
-impl<M> Skip<M> {
-    pub fn new(base: M, n: usize) -> Skip<M> {
+impl<M> Skip<M> 
+    where M: IndexedParallelIterator
+{
+    pub fn new(mut base: M, n: usize) -> Skip<M> {
+        let n = min(base.len(), n);
         Skip { base: base,
                n: n }
     }
@@ -29,11 +33,7 @@ impl<M> ExactParallelIterator for Skip<M>
     where M: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
-        let base_len = self.base.len();
-        if self.n > base_len {
-            self.n = base_len;
-        }
-        base_len - self.n
+        self.base.len() - self.n
     }
 }
 
