@@ -332,6 +332,36 @@ pub fn check_range_exact_and_bounded() {
 }
 
 #[test]
+pub fn check_cmp() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    let result = a.cmp(&b);
+
+    assert!(result == ::std::cmp::Ordering::Equal);
+}
+
+#[test]
+pub fn check_cmp_lt() {
+    let a: Vec<usize> = (0..1024).collect();
+    let b: Vec<usize> = (1..1024).collect();
+
+    let result = a.cmp(&b);
+
+    assert!(result == ::std::cmp::Ordering::Less);
+}
+
+#[test]
+pub fn check_cmp_gt() {
+    let a: Vec<usize> = (1..1024).collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    let result = a.cmp(&b);
+
+    assert!(result == ::std::cmp::Ordering::Greater);
+}
+
+#[test]
 pub fn check_zip() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
     let b: Vec<usize> = (0..1024).collect();
