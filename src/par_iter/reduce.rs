@@ -1,4 +1,3 @@
-use std;
 use super::ParallelIterator;
 use super::len::*;
 use super::internal::*;
