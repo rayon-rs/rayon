@@ -349,6 +349,21 @@ pub fn check_cmp_to_seq() {
 }
 
 #[test]
+pub fn check_cmp_rng_to_seq() {
+    use rand::{Rng, SeedableRng, XorShiftRng};
+
+    let mut rng = XorShiftRng::from_seed([11507, 46649, 55961, 20171]);
+    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let b: Vec<i32> = rng.gen_iter().take(1024).collect();
+    for i in 0..a.len() {
+        let par_result = a[i..].par_iter().cmp(b[i..].par_iter());
+        let seq_result = a[i..].iter().cmp(b[i..].iter());
+
+        assert_eq!(par_result, seq_result);
+    }
+}
+
+#[test]
 pub fn check_cmp_lt_direct() {
     let a = (0..1024).into_par_iter();
     let b = (1..1024).into_par_iter();
@@ -395,6 +410,21 @@ pub fn check_partial_cmp_to_seq() {
     let par_result = (0..1024).into_par_iter().partial_cmp(0..1024);
     let seq_result = (0..1024).partial_cmp(0..1024);
     assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_partial_cmp_rng_to_seq() {
+    use rand::{Rng, SeedableRng, XorShiftRng};
+
+    let mut rng = XorShiftRng::from_seed([9346, 26355, 87943, 28346]);
+    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let b: Vec<i32> = rng.gen_iter().take(1024).collect();
+    for i in 0..a.len() {
+        let par_result = a[i..].par_iter().partial_cmp(b[i..].par_iter());
+        let seq_result = a[i..].iter().partial_cmp(b[i..].iter());
+
+        assert_eq!(par_result, seq_result);
+    }
 }
 
 #[test]
