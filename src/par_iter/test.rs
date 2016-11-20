@@ -7,6 +7,7 @@ use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
+use std::f64;
 
 fn is_bounded<T: ExactParallelIterator>(_: T) {}
 fn is_exact<T: ExactParallelIterator>(_: T) {}
@@ -343,7 +344,8 @@ pub fn check_cmp_direct() {
 
 #[test]
 pub fn check_cmp_to_seq() {
-    assert_eq!((0..1024).into_par_iter().cmp(0..1024), (0..1024).cmp(0..1024));
+    assert_eq!((0..1024).into_par_iter().cmp(0..1024),
+               (0..1024).cmp(0..1024));
 }
 
 #[test]
@@ -358,7 +360,8 @@ pub fn check_cmp_lt_direct() {
 
 #[test]
 pub fn check_cmp_lt_to_seq() {
-    assert_eq!((0..1024).into_par_iter().cmp(1..1024), (0..1024).cmp(1..1024))
+    assert_eq!((0..1024).into_par_iter().cmp(1..1024),
+               (0..1024).cmp(1..1024))
 }
 
 #[test]
@@ -373,115 +376,214 @@ pub fn check_cmp_gt_direct() {
 
 #[test]
 pub fn check_cmp_gt_to_seq() {
-    assert_eq!((1..1024).into_par_iter().cmp(0..1024), (1..1024).cmp(0..1024))
+    assert_eq!((1..1024).into_par_iter().cmp(0..1024),
+               (1..1024).cmp(0..1024))
 }
 
 #[test]
-pub fn check_partial_cmp() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
+pub fn check_partial_cmp_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
 
-    let result = a.partial_cmp(&b);
+    let result = a.partial_cmp(b);
 
     assert!(result == Some(::std::cmp::Ordering::Equal));
 }
 
 #[test]
-pub fn check_partial_cmp_lt() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (1..1024).collect();
+pub fn check_partial_cmp_to_seq() {
+    let par_result = (0..1024).into_par_iter().partial_cmp(0..1024);
+    let seq_result = (0..1024).partial_cmp(0..1024);
+    assert_eq!(par_result, seq_result);
+}
 
-    let result = a.partial_cmp(&b);
+#[test]
+pub fn check_partial_cmp_lt_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (1..1024).into_par_iter();
+
+    let result = a.partial_cmp(b);
 
     assert!(result == Some(::std::cmp::Ordering::Less));
 }
 
 #[test]
-pub fn check_partial_cmp_gt() {
-    let a: Vec<usize> = (1..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
+pub fn check_partial_cmp_lt_to_seq() {
+    let par_result = (0..1024).into_par_iter().partial_cmp(1..1024);
+    let seq_result = (0..1024).partial_cmp(1..1024);
+    assert_eq!(par_result, seq_result);
+}
 
-    let result = a.partial_cmp(&b);
+#[test]
+pub fn check_partial_cmp_gt_direct() {
+    let a = (1..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.partial_cmp(b);
 
     assert!(result == Some(::std::cmp::Ordering::Greater));
 }
 
 #[test]
-pub fn check_partial_cmp_none() {
-    let mut a: Vec<f32> = (0..1024u16).map(From::from).collect();
-    let b: Vec<f32> = (0..1024u16).map(From::from).collect();
+pub fn check_partial_cmp_gt_to_seq() {
+    let par_result = (1..1024).into_par_iter().partial_cmp(0..1024);
+    let seq_result = (1..1024).partial_cmp(0..1024);
+    assert_eq!(par_result, seq_result);
+}
 
-    a[0] = ::std::f32::NAN;
+#[test]
+pub fn check_partial_cmp_none_direct() {
+    let a = vec![f64::NAN, 0.0];
+    let b = vec![0.0, 1.0];
 
-    let result = a.partial_cmp(&b);
+    let result = a.par_iter().partial_cmp(b.par_iter());
 
     assert!(result == None);
 }
 
 #[test]
-pub fn check_eq() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
+pub fn check_partial_cmp_none_to_seq() {
+    let a = vec![f64::NAN, 0.0];
+    let b = vec![0.0, 1.0];
 
-    let result = a.eq(&b);
+    let par_result = a.par_iter().partial_cmp(b.par_iter());
+    let seq_result = a.iter().partial_cmp(b.iter());
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_partial_cmp_late_nan_direct() {
+    let a = vec![0.0, f64::NAN];
+    let b = vec![1.0, 1.0];
+
+    let result = a.par_iter().partial_cmp(b.par_iter());
+
+    assert!(result == Some(::std::cmp::Ordering::Less));
+}
+
+#[test]
+pub fn check_partial_cmp_late_nane_to_seq() {
+    let a = vec![0.0, f64::NAN];
+    let b = vec![1.0, 1.0];
+
+    let par_result = a.par_iter().partial_cmp(b.par_iter());
+    let seq_result = a.iter().partial_cmp(b.iter());
+
+    assert_eq!(par_result, seq_result);
+}
+
+
+#[test]
+pub fn check_eq_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.eq(b);
 
     assert!(result);
 }
 
 #[test]
-pub fn check_ne() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (1..1024).collect();
+pub fn check_eq_to_seq() {
+    let par_result = (0..1024).into_par_iter().eq((0..1024).into_par_iter());
+    let seq_result = (0..1024).eq(0..1024);
 
-    let result = a.ne(&b);
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ne_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (1..1024).into_par_iter();
+
+    let result = a.ne(b);
 
     assert!(result);
 }
 
 #[test]
-pub fn check_lt() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (1..1024).collect();
+pub fn check_ne_to_seq() {
+    let par_result = (0..1024).into_par_iter().ne((1..1024).into_par_iter());
+    let seq_result = (0..1024).ne(1..1024);
 
-    let result = a.lt(&b);
-
-    assert!(result);
+    assert_eq!(par_result, seq_result);
 }
 
 #[test]
-pub fn check_le() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (1..1024).collect();
-    let c: Vec<usize> = (0..1024).collect();
+pub fn check_lt_direct() {
+    assert!((0..1024).into_par_iter().lt(1..1024));
+    assert!(!(1..1024).into_par_iter().lt(0..1024));
+}
 
-    let result_lt = a.le(&b);
-    let result_eq = a.le(&c);
+pub fn check_lt_to_seq() {
+    let par_result = (0..1024).into_par_iter().lt((1..1024).into_par_iter());
+    let seq_result = (0..1024).lt(1..1024);
 
-    assert!(result_lt);
-    assert!(result_eq);
+    assert_eq!(par_result, seq_result);
 }
 
 #[test]
-pub fn check_gt() {
-    let a: Vec<usize> = (1..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
+pub fn check_le_equal_direct() {
+    assert!((0..1024).into_par_iter().le((0..1024).into_par_iter()));
+}
 
-    let result = a.gt(&b);
+pub fn check_le_equal_to_seq() {
+    let par_result = (0..1024).into_par_iter().le((0..1024).into_par_iter());
+    let seq_result = (0..1024).le(0..1024);
 
-    assert!(result);
+    assert_eq!(par_result, seq_result);
 }
 
 #[test]
-pub fn check_ge() {
-    let a: Vec<usize> = (1..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
-    let c: Vec<usize> = (1..1024).collect();
+pub fn check_le_less_direct() {
+    assert!((0..1024).into_par_iter().le((1..1024).into_par_iter()));
+}
 
-    let result_gt = a.ge(&b);
-    let result_eq = a.ge(&c);
+pub fn check_le_less_to_seq() {
+    let par_result = (0..1024).into_par_iter().le((1..1024).into_par_iter());
+    let seq_result = (0..1024).le(1..1024);
 
-    assert!(result_gt);
-    assert!(result_eq);
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_gt_direct() {
+    assert!((1..1024).into_par_iter().gt((0..1024).into_par_iter()));
+}
+
+#[test]
+pub fn check_gt_to_seq() {
+    let par_result = (1..1024).into_par_iter().gt((0..1024).into_par_iter());
+    let seq_result = (1..1024).gt(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ge_equal_direct() {
+    assert!((0..1024).into_par_iter().ge((0..1024).into_par_iter()));
+}
+
+#[test]
+pub fn check_ge_equal_to_seq() {
+    let par_result = (0..1024).into_par_iter().ge((0..1024).into_par_iter());
+    let seq_result = (0..1024).ge(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ge_greater_direct() {
+    assert!((1..1024).into_par_iter().ge((0..1024).into_par_iter()));
+}
+
+#[test]
+pub fn check_ge_greater_to_seq() {
+    let par_result = (1..1024).into_par_iter().ge((0..1024).into_par_iter());
+    let seq_result = (1..1024).ge(0..1024);
+
+    assert_eq!(par_result, seq_result);
 }
 
 #[test]

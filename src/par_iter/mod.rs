@@ -708,17 +708,11 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     {
         self.zip(other.into_par_iter())
             .map(|(x, y)| PartialOrd::partial_cmp(&x, &y))
-            .reduce(|| Some(Ordering::Equal),
-                    |cmp_a, cmp_b| match (cmp_a, cmp_b) {
-                        (Some(a), Some(b)) => {
-                            if a != Ordering::Equal {
-                                Some(b)
-                            } else {
-                                Some(a)
-                            }
-                        }
-                        _ => None,
-                    })
+            .reduce(|| Some(Ordering::Equal), |cmp_a, cmp_b| match cmp_a {
+                Some(Ordering::Equal) => cmp_b,
+                Some(_) => cmp_a,
+                None => None,
+            })
     }
 
     /// Determines if the elements of this `ParallelIterator`
