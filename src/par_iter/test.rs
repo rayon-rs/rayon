@@ -332,33 +332,48 @@ pub fn check_range_exact_and_bounded() {
 }
 
 #[test]
-pub fn check_cmp() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
+pub fn check_cmp_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
 
-    let result = a.cmp(&b);
+    let result = a.cmp(b);
 
     assert!(result == ::std::cmp::Ordering::Equal);
 }
 
 #[test]
-pub fn check_cmp_lt() {
-    let a: Vec<usize> = (0..1024).collect();
-    let b: Vec<usize> = (1..1024).collect();
+pub fn check_cmp_to_seq() {
+    assert_eq!((0..1024).into_par_iter().cmp(0..1024), (0..1024).cmp(0..1024));
+}
 
-    let result = a.cmp(&b);
+#[test]
+pub fn check_cmp_lt_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (1..1024).into_par_iter();
+
+    let result = a.cmp(b);
 
     assert!(result == ::std::cmp::Ordering::Less);
 }
 
 #[test]
-pub fn check_cmp_gt() {
-    let a: Vec<usize> = (1..1024).collect();
-    let b: Vec<usize> = (0..1024).collect();
+pub fn check_cmp_lt_to_seq() {
+    assert_eq!((0..1024).into_par_iter().cmp(1..1024), (0..1024).cmp(1..1024))
+}
 
-    let result = a.cmp(&b);
+#[test]
+pub fn check_cmp_gt_direct() {
+    let a = (1..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.cmp(b);
 
     assert!(result == ::std::cmp::Ordering::Greater);
+}
+
+#[test]
+pub fn check_cmp_gt_to_seq() {
+    assert_eq!((1..1024).into_par_iter().cmp(0..1024), (1..1024).cmp(0..1024))
 }
 
 #[test]

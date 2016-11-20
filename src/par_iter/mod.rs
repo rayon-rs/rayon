@@ -692,7 +692,7 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         self.zip(other.into_par_iter())
             .map(|(x, y)| Ord::cmp(&x, &y))
             .reduce(|| Ordering::Equal,
-                    |cmp_a, cmp_b| if cmp_a != Ordering::Equal {
+                    |cmp_a, cmp_b| if cmp_a == Ordering::Equal {
                         cmp_b
                     } else {
                         cmp_a
