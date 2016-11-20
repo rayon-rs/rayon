@@ -55,6 +55,19 @@ pub fn execute_unindexed_range() {
 }
 
 #[test]
+pub fn execute_strings() {
+    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
+    let s: String = rng.gen_iter::<char>().take(1024).collect();
+
+    let par_chars: String = s.par_chars().collect();
+    assert_eq!(s, par_chars);
+
+    let par_even: String = s.par_chars().filter(|&c| (c as u32) & 1 == 0).collect();
+    let ser_even: String = s.chars().filter(|&c| (c as u32) & 1 == 0).collect();
+    assert_eq!(par_even, ser_even);
+}
+
+#[test]
 pub fn check_map_exact_and_bounded() {
     let a = [1, 2, 3];
     is_bounded(a.par_iter().map(|x| x));
