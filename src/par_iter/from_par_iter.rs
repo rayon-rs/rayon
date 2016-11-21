@@ -133,3 +133,23 @@ impl<PAR_ITER, V> FromParallelIterator<PAR_ITER> for BTreeSet<V>
         combine(par_iter, |_| BTreeSet::new())
     }
 }
+
+/// Collect characters from a parallel iterator into a string.
+impl<PAR_ITER> FromParallelIterator<PAR_ITER> for String
+    where PAR_ITER: ParallelIterator<Item=char>,
+{
+    fn from_par_iter(par_iter: PAR_ITER) -> Self {
+        // This is like `combine`, but `Vec<char>` is less efficient to deal
+        // with than `String`, so instead collect to `LinkedList<String>`.
+        let list: LinkedList<_> = par_iter
+            .fold(String::new, |mut string, ch| { string.push(ch); string })
+            .collect();
+
+        let len = list.iter().map(String::len).sum();
+        let start = String::with_capacity(len);
+        list.into_iter()
+            .fold(start, |mut string, sub| { string.push_str(&sub); string })
+    }
+}
+// Note, `String` also has `FromIterator<&'a str>` and `FromIterator<String>`,
+// but that's not possible with the current signature of `FromParallelIterator`.

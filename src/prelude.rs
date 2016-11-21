@@ -13,4 +13,6 @@ pub use par_iter::IndexedParallelIterator;
 pub use par_iter::ToParallelChunks;
 pub use par_iter::ToParallelChunksMut;
 
+pub use par_iter::ParallelString;
+
 pub use par_iter::from_par_iter::FromParallelIterator;

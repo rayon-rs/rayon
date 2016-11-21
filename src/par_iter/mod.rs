@@ -47,6 +47,7 @@ pub mod skip;
 pub mod take;
 pub mod slice;
 pub mod slice_mut;
+pub mod string;
 pub mod map;
 pub mod weight;
 pub mod zip;
@@ -130,6 +131,14 @@ pub trait ToParallelChunksMut<'data> {
     /// implementation should strive to maximize chunk size when
     /// possible.
     fn par_chunks_mut(&'data mut self, size: usize) -> Self::Iter;
+}
+
+/// Parallel extensions for strings.
+pub trait ParallelString {
+    type Chars;
+
+    /// Returns a parallel iterator over the characters of a string.
+    fn par_chars(self) -> Self::Chars;
 }
 
 /// The `ParallelIterator` interface.
