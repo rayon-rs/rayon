@@ -45,6 +45,10 @@ impl<'a> UnindexedProducer for ParChars<'a> {
 
     fn split(self) -> (Self, Self) {
         let mid = self.chars.len() / 2;
+
+        // We want to split near the midpoint, but we need to find an actual
+        // character boundary.  So we look at the raw bytes, first scanning
+        // forward from the midpoint for a boundary, then trying backward.
         let (left, right) = self.chars.as_bytes().split_at(mid);
         let index = right.iter().cloned().position(is_char_boundary).map(|i| mid + i)
             .or_else(|| left.iter().cloned().rposition(is_char_boundary))
