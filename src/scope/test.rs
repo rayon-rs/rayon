@@ -12,15 +12,20 @@ use std::sync::Mutex;
 
 #[test]
 fn scope_empty() {
-    scope(|_| { });
+    scope(|_| {
+    });
 }
 
 #[test]
 fn scope_two() {
     let counter = &AtomicUsize::new(0);
     scope(|s| {
-        s.spawn(move |_| { counter.fetch_add(1, Ordering::SeqCst); });
-        s.spawn(move |_| { counter.fetch_add(10, Ordering::SeqCst); });
+        s.spawn(move |_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        });
+        s.spawn(move |_| {
+            counter.fetch_add(10, Ordering::SeqCst);
+        });
     });
 
     let v = counter.load(Ordering::SeqCst);
@@ -40,9 +45,7 @@ fn scope_divide_and_conquer() {
     assert_eq!(p, s);
 }
 
-fn divide_and_conquer<'scope>(
-    scope: &Scope<'scope>, counter: &'scope AtomicUsize, size: usize)
-{
+fn divide_and_conquer<'scope>(scope: &Scope<'scope>, counter: &'scope AtomicUsize, size: usize) {
     if size > 1 {
         scope.spawn(move |scope| divide_and_conquer(scope, counter, size / 2));
         scope.spawn(move |scope| divide_and_conquer(scope, counter, size / 2));
@@ -72,12 +75,12 @@ fn scope_mix() {
         s.spawn(move |_| {
             let a: Vec<i32> = (0..1024).collect();
             let r1 = a.par_iter()
-                      .weight_max()
-                      .map(|&i| i + 1)
-                      .reduce_with(|i, j| i + j);
+                .weight_max()
+                .map(|&i| i + 1)
+                .reduce_with(|i, j| i + j);
             let r2 = a.iter()
-                      .map(|&i| i + 1)
-                      .fold(0, |a,b| a+b);
+                .map(|&i| i + 1)
+                .fold(0, |a, b| a + b);
             assert_eq!(r1.unwrap(), r2);
         });
     });
@@ -89,8 +92,7 @@ struct Tree<T> {
 }
 
 impl<T> Tree<T> {
-    pub fn iter<'s>(&'s self) -> impl Iterator<Item=&'s T> + 's
-    {
+    pub fn iter<'s>(&'s self) -> impl Iterator<Item = &'s T> + 's {
         once(&self.value)
             .chain(self.children.iter().flat_map(|c| c.iter()))
             .collect::<Vec<_>>() // seems like it shouldn't be needed... but prevents overflow
@@ -98,7 +100,8 @@ impl<T> Tree<T> {
     }
 
     pub fn update<OP>(&mut self, op: OP)
-        where OP: Fn(&mut T) + Sync, T: Send,
+        where OP: Fn(&mut T) + Sync,
+              T: Send
     {
         scope(|s| self.update_in_scope(&op, s));
     }
@@ -132,7 +135,10 @@ fn random_tree1(depth: usize, rng: &mut XorShiftRng) -> Tree<u32> {
             .collect()
     };
 
-    Tree { value: rng.next_u32() % 1_000_000, children: children }
+    Tree {
+        value: rng.next_u32() % 1_000_000,
+        children: children,
+    }
 }
 
 #[test]

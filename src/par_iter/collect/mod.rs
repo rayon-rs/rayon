@@ -5,10 +5,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 mod consumer;
 use self::consumer::CollectConsumer;
 
-pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
-    where PAR_ITER: ExactParallelIterator<Item=T>,
+pub fn collect_into<PAR_ITER, T>(mut pi: PAR_ITER, v: &mut Vec<T>)
+    where PAR_ITER: ExactParallelIterator<Item = T>,
           PAR_ITER: ExactParallelIterator,
-          T: Send,
+          T: Send
 {
     let len = pi.len();
     assert!(len < isize::MAX as usize);
@@ -17,7 +17,8 @@ pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
     v.reserve(len); // reserve enough space
     let target = v.as_mut_ptr(); // get a raw ptr
     let writes = AtomicUsize::new(0);
-    let consumer = unsafe { // assert that target..target+len is unique and writable
+    let consumer = unsafe {
+        // assert that target..target+len is unique and writable
         CollectConsumer::new(&writes, target, len)
     };
     pi.drive(consumer);
@@ -31,7 +32,10 @@ pub fn collect_into<PAR_ITER,T>(mut pi: PAR_ITER, v: &mut Vec<T>)
         // have happened. Unless some code is buggy, that means we
         // should have seen `len` total writes.
         let actual_writes = writes.load(Ordering::Relaxed);
-        assert!(actual_writes == len, "expected {} total writes, but got {}", len, actual_writes);
+        assert!(actual_writes == len,
+                "expected {} total writes, but got {}",
+                len,
+                actual_writes);
         v.set_len(len);
     }
 }

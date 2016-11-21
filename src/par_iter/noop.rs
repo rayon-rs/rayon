@@ -8,8 +8,7 @@ impl NoopConsumer {
     }
 }
 
-impl<ITEM> Consumer<ITEM> for NoopConsumer
-{
+impl<ITEM> Consumer<ITEM> for NoopConsumer {
     type Folder = NoopConsumer;
     type Reducer = NoopReducer;
     type Result = ();
@@ -34,8 +33,7 @@ impl<ITEM> Folder<ITEM> for NoopConsumer {
         self
     }
 
-    fn complete(self) {
-    }
+    fn complete(self) {}
 }
 
 impl<ITEM> UnindexedConsumer<ITEM> for NoopConsumer {
@@ -51,5 +49,5 @@ impl<ITEM> UnindexedConsumer<ITEM> for NoopConsumer {
 pub struct NoopReducer;
 
 impl Reducer<()> for NoopReducer {
-    fn reduce(self, _left: (), _right: ()) { }
+    fn reduce(self, _left: (), _right: ()) {}
 }

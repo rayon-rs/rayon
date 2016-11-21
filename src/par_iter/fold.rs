@@ -99,10 +99,8 @@ impl<'r, U, T, C, IDENTITY, FOLD_OP> Consumer<T> for FoldConsumer<'r, C, IDENTIT
     }
 }
 
-impl<'r, U, ITEM, C, IDENTITY, FOLD_OP> UnindexedConsumer<ITEM> for FoldConsumer<'r,
-                                                                                 C,
-                                                                                 IDENTITY,
-                                                                                 FOLD_OP>
+impl<'r, U, ITEM, C, IDENTITY, FOLD_OP> UnindexedConsumer<ITEM>
+    for FoldConsumer<'r, C, IDENTITY, FOLD_OP>
     where C: UnindexedConsumer<U>,
           FOLD_OP: Fn(U, ITEM) -> U + Sync,
           IDENTITY: Fn() -> U + Sync,

@@ -9,28 +9,33 @@ pub struct FlatMap<M, MAP_OP> {
 
 impl<M, MAP_OP> FlatMap<M, MAP_OP> {
     pub fn new(base: M, map_op: MAP_OP) -> FlatMap<M, MAP_OP> {
-        FlatMap { base: base, map_op: map_op }
+        FlatMap {
+            base: base,
+            map_op: map_op,
+        }
     }
 }
 
 impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
     where M: ParallelIterator,
           MAP_OP: Fn(M::Item) -> PI + Sync,
-          PI: IntoParallelIterator,
+          PI: IntoParallelIterator
 {
     type Item = PI::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let consumer = FlatMapConsumer { base: consumer,
-                                         map_op: &self.map_op };
+        let consumer = FlatMapConsumer {
+            base: consumer,
+            map_op: &self.map_op,
+        };
         self.base.drive_unindexed(consumer)
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Consumer implementation
+/// ////////////////////////////////////////////////////////////////////////
+/// Consumer implementation
 
 struct FlatMapConsumer<'m, C, MAP_OP: 'm> {
     base: C,
@@ -39,15 +44,17 @@ struct FlatMapConsumer<'m, C, MAP_OP: 'm> {
 
 impl<'m, C, MAP_OP> FlatMapConsumer<'m, C, MAP_OP> {
     fn new(base: C, map_op: &'m MAP_OP) -> Self {
-        FlatMapConsumer { base: base, map_op: map_op }
+        FlatMapConsumer {
+            base: base,
+            map_op: map_op,
+        }
     }
 }
 
-impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
-    for FlatMapConsumer<'m, C, MAP_OP>
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM> for FlatMapConsumer<'m, C, MAP_OP>
     where C: UnindexedConsumer<MAPPED_ITEM::Item>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: IntoParallelIterator,
+          MAPPED_ITEM: IntoParallelIterator
 {
     type Folder = FlatMapFolder<'m, C, MAP_OP, C::Result>;
     type Reducer = C::Reducer;
@@ -84,11 +91,10 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Consumer<ITEM>
     }
 }
 
-impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM>
-    for FlatMapConsumer<'m, C, MAP_OP>
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> UnindexedConsumer<ITEM> for FlatMapConsumer<'m, C, MAP_OP>
     where C: UnindexedConsumer<MAPPED_ITEM::Item>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: IntoParallelIterator,
+          MAPPED_ITEM: IntoParallelIterator
 {
     fn split_off(&self) -> Self {
         FlatMapConsumer::new(self.base.split_off(), self.map_op)
@@ -106,11 +112,10 @@ struct FlatMapFolder<'m, C, MAP_OP: 'm, R> {
     previous: Option<R>,
 }
 
-impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
-    for FlatMapFolder<'m, C, MAP_OP, C::Result>
+impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM> for FlatMapFolder<'m, C, MAP_OP, C::Result>
     where C: UnindexedConsumer<MAPPED_ITEM::Item>,
           MAP_OP: Fn(ITEM) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: IntoParallelIterator,
+          MAPPED_ITEM: IntoParallelIterator
 {
     type Result = C::Result;
 
@@ -129,9 +134,11 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM>
             }
         };
 
-        FlatMapFolder { base: self.base,
-                        map_op: map_op,
-                        previous: previous }
+        FlatMapFolder {
+            base: self.base,
+            map_op: map_op,
+            previous: previous,
+        }
     }
 
     fn complete(self) -> Self::Result {

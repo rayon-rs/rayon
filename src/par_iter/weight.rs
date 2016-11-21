@@ -8,12 +8,15 @@ pub struct Weight<M> {
 
 impl<M> Weight<M> {
     pub fn new(base: M, weight: f64) -> Weight<M> {
-        Weight { base: base, weight: weight }
+        Weight {
+            base: base,
+            weight: weight,
+        }
     }
 }
 
 impl<M> ParallelIterator for Weight<M>
-    where M: ParallelIterator,
+    where M: ParallelIterator
 {
     type Item = M::Item;
 
@@ -48,29 +51,34 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Callback { weight: self.weight, callback: callback });
+        return self.base.with_producer(Callback {
+            weight: self.weight,
+            callback: callback,
+        });
 
         struct Callback<CB> {
             weight: f64,
-            callback: CB
+            callback: CB,
         }
 
-        impl<ITEM,CB> ProducerCallback<ITEM> for Callback<CB>
+        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
             where CB: ProducerCallback<ITEM>
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> Self::Output
-                where P: Producer<Item=ITEM>
+                where P: Producer<Item = ITEM>
             {
-                self.callback.callback(WeightProducer { base: base,
-                                                        weight: self.weight })
+                self.callback.callback(WeightProducer {
+                    base: base,
+                    weight: self.weight,
+                })
             }
         }
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////////////////////
 
 pub struct WeightProducer<P> {
     base: P,
@@ -88,8 +96,14 @@ impl<P: Producer> Producer for WeightProducer<P> {
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (WeightProducer { base: left, weight: self.weight },
-         WeightProducer { base: right, weight: self.weight })
+        (WeightProducer {
+             base: left,
+             weight: self.weight,
+         },
+         WeightProducer {
+             base: right,
+             weight: self.weight,
+         })
     }
 }
 
@@ -102,8 +116,8 @@ impl<P: Producer> IntoIterator for WeightProducer<P> {
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Consumer implementation
+/// ////////////////////////////////////////////////////////////////////////
+/// Consumer implementation
 
 struct WeightConsumer<C> {
     base: C,
@@ -112,12 +126,15 @@ struct WeightConsumer<C> {
 
 impl<C> WeightConsumer<C> {
     fn new(base: C, weight: f64) -> WeightConsumer<C> {
-        WeightConsumer { base: base, weight: weight }
+        WeightConsumer {
+            base: base,
+            weight: weight,
+        }
     }
 }
 
 impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
-    where C: Consumer<ITEM>,
+    where C: Consumer<ITEM>
 {
     type Folder = C::Folder;
     type Reducer = C::Reducer;
@@ -133,9 +150,7 @@ impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (WeightConsumer::new(left, self.weight),
-         WeightConsumer::new(right, self.weight),
-         reducer)
+        (WeightConsumer::new(left, self.weight), WeightConsumer::new(right, self.weight), reducer)
     }
 
     fn into_folder(self) -> C::Folder {

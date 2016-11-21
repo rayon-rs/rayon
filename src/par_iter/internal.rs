@@ -10,8 +10,7 @@ use thread_pool::get_registry;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
-    fn callback<P>(self, producer: P) -> Self::Output
-        where P: Producer<Item=ITEM>;
+    fn callback<P>(self, producer: P) -> Self::Output where P: Producer<Item = ITEM>;
 }
 
 /// A producer which will produce a fixed number of items N. This is
@@ -19,7 +18,9 @@ pub trait ProducerCallback<ITEM> {
 /// it.
 pub trait Producer: IntoIterator + Send + Sized {
     /// Reports whether the producer has explicit weights.
-    fn weighted(&self) -> bool { false }
+    fn weighted(&self) -> bool {
+        false
+    }
 
     /// Cost to produce `len` items, where `len` must be `N`.
     fn cost(&mut self, len: usize) -> f64;
@@ -31,12 +32,14 @@ pub trait Producer: IntoIterator + Send + Sized {
 
 /// A consumer which consumes items that are fed to it.
 pub trait Consumer<Item>: Send + Sized {
-    type Folder: Folder<Item, Result=Self::Result>;
+    type Folder: Folder<Item, Result = Self::Result>;
     type Reducer: Reducer<Self::Result>;
     type Result: Send;
 
     /// Reports whether the consumer has explicit weights.
-    fn weighted(&self) -> bool { false }
+    fn weighted(&self) -> bool {
+        false
+    }
 
     /// If it costs `producer_cost` to produce the items we will
     /// consume, returns cost adjusted to account for consuming them.
@@ -54,7 +57,9 @@ pub trait Consumer<Item>: Send + Sized {
 
     /// Hint whether this `Consumer` would like to stop processing
     /// further items, e.g. if a search has been completed.
-    fn full(&self) -> bool { false }
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 pub trait Folder<Item> {
@@ -68,7 +73,9 @@ pub trait Folder<Item> {
 
     /// Hint whether this `Folder` would like to stop processing
     /// further items, e.g. if a search has been completed.
-    fn full(&self) -> bool { false }
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 pub trait Reducer<Result> {
@@ -108,7 +115,7 @@ impl Splitter {
         // The actual `ID` value is irrelevant.  We're just using its TLS
         // address as a unique thread key, faster than a real thread-id call.
         thread_local!{ static ID: bool = false }
-        ID.with(|id| id as *const bool as usize )
+        ID.with(|id| id as *const bool as usize)
     }
 
     #[inline]
@@ -123,8 +130,10 @@ impl Splitter {
                 if *cost > THRESHOLD {
                     *cost /= 2.0;
                     true
-                } else { false }
-            },
+                } else {
+                    false
+                }
+            }
 
             Splitter::Thief(ref mut origin, ref mut splits) => {
                 let id = Splitter::thief_id();
@@ -135,20 +144,23 @@ impl Splitter {
                 } else if *splits > 0 {
                     *splits /= 2;
                     true
-                } else { false }
+                } else {
+                    false
+                }
             }
         }
     }
 }
 
-pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
-                             consumer: C)
-                             -> C::Result
-    where PAR_ITER: IndexedParallelIterator, C: Consumer<PAR_ITER::Item>
+pub fn bridge<PAR_ITER, C>(mut par_iter: PAR_ITER, consumer: C) -> C::Result
+    where PAR_ITER: IndexedParallelIterator,
+          C: Consumer<PAR_ITER::Item>
 {
     let len = par_iter.len();
-    return par_iter.with_producer(Callback { len: len,
-                                             consumer: consumer, });
+    return par_iter.with_producer(Callback {
+        len: len,
+        consumer: consumer,
+    });
 
     struct Callback<C> {
         len: usize,
@@ -160,18 +172,16 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
     {
         type Output = C::Result;
         fn callback<P>(self, producer: P) -> C::Result
-            where P: Producer<Item=ITEM>
+            where P: Producer<Item = ITEM>
         {
             bridge_producer_consumer(self.len, producer, self.consumer)
         }
     }
 }
 
-pub fn bridge_producer_consumer<P,C>(len: usize,
-                                 mut producer: P,
-                                 mut consumer: C)
-                                 -> C::Result
-    where P: Producer, C: Consumer<P::Item>
+pub fn bridge_producer_consumer<P, C>(len: usize, mut producer: P, mut consumer: C) -> C::Result
+    where P: Producer,
+          C: Consumer<P::Item>
 {
     let splitter = if producer.weighted() || consumer.weighted() {
         let producer_cost = producer.cost(len);
@@ -182,8 +192,9 @@ pub fn bridge_producer_consumer<P,C>(len: usize,
     };
     return helper(len, splitter, producer, consumer);
 
-    fn helper<P,C>(len: usize, mut splitter: Splitter, producer: P, consumer: C) -> C::Result
-        where P: Producer, C: Consumer<P::Item>
+    fn helper<P, C>(len: usize, mut splitter: Splitter, producer: P, consumer: C) -> C::Result
+        where P: Producer,
+              C: Consumer<P::Item>
     {
         if consumer.full() {
             consumer.into_folder().complete()
@@ -199,25 +210,29 @@ pub fn bridge_producer_consumer<P,C>(len: usize,
             let mut folder = consumer.into_folder();
             for item in producer {
                 folder = folder.consume(item);
-                if folder.full() { break }
+                if folder.full() {
+                    break;
+                }
             }
             folder.complete()
         }
     }
 }
 
-pub fn bridge_unindexed<P,C>(producer: P, consumer: C) -> C::Result
-    where P: UnindexedProducer, C: UnindexedConsumer<P::Item>
+pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
+    where P: UnindexedProducer,
+          C: UnindexedConsumer<P::Item>
 {
     let splitter = Splitter::new_thief();
     bridge_unindexed_producer_consumer(splitter, producer, consumer)
 }
 
-fn bridge_unindexed_producer_consumer<P,C>(mut splitter: Splitter,
-                                           producer: P,
-                                           consumer: C)
-                                           -> C::Result
-    where P: UnindexedProducer, C: UnindexedConsumer<P::Item>
+fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
+                                            producer: P,
+                                            consumer: C)
+                                            -> C::Result
+    where P: UnindexedProducer,
+          C: UnindexedConsumer<P::Item>
 {
     if consumer.full() {
         consumer.into_folder().complete()
@@ -226,18 +241,16 @@ fn bridge_unindexed_producer_consumer<P,C>(mut splitter: Splitter,
         let (reducer, left_consumer, right_consumer) =
             (consumer.to_reducer(), consumer.split_off(), consumer);
         let (left_result, right_result) =
-            join(|| bridge_unindexed_producer_consumer(splitter,
-                                                       left_producer,
-                                                       left_consumer),
-                 || bridge_unindexed_producer_consumer(splitter,
-                                                       right_producer,
-                                                       right_consumer));
+            join(|| bridge_unindexed_producer_consumer(splitter, left_producer, left_consumer),
+                 || bridge_unindexed_producer_consumer(splitter, right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {
         let mut folder = consumer.into_folder();
         for item in producer {
             folder = folder.consume(item);
-            if folder.full() { break }
+            if folder.full() {
+                break;
+            }
         }
         folder.complete()
     }

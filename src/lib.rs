@@ -14,7 +14,8 @@ mod latch;
 mod job;
 pub mod par_iter;
 pub mod prelude;
-#[cfg(test)] mod test;
+#[cfg(test)]
+mod test;
 #[cfg(feature = "unstable")]
 mod scope;
 mod thread_pool;

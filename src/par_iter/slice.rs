@@ -2,7 +2,7 @@ use super::*;
 use super::internal::*;
 
 pub struct SliceIter<'data, T: 'data + Sync> {
-    slice: &'data [T]
+    slice: &'data [T],
 }
 
 impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
@@ -28,7 +28,10 @@ impl<'data, T: Sync + 'data> ToParallelChunks<'data> for [T] {
     type Iter = ChunksIter<'data, T>;
 
     fn par_chunks(&'data self, chunk_size: usize) -> Self::Iter {
-        ChunksIter { chunk_size: chunk_size, slice: self }
+        ChunksIter {
+            chunk_size: chunk_size,
+            slice: self,
+        }
     }
 }
 
@@ -105,14 +108,17 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for ChunksIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.callback(SliceChunksProducer { chunk_size: self.chunk_size, slice: self.slice })
+        callback.callback(SliceChunksProducer {
+            chunk_size: self.chunk_size,
+            slice: self.slice,
+        })
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////////////////////
 
 pub struct SliceProducer<'data, T: 'data + Sync> {
-    slice: &'data [T]
+    slice: &'data [T],
 }
 
 impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
@@ -137,7 +143,7 @@ impl<'data, T: 'data + Sync> IntoIterator for SliceProducer<'data, T> {
 
 pub struct SliceChunksProducer<'data, T: 'data + Sync> {
     chunk_size: usize,
-    slice: &'data [T]
+    slice: &'data [T],
 }
 
 impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
@@ -148,8 +154,14 @@ impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
     fn split_at(self, index: usize) -> (Self, Self) {
         let elem_index = index * self.chunk_size;
         let (left, right) = self.slice.split_at(elem_index);
-        (SliceChunksProducer { chunk_size: self.chunk_size, slice: left },
-         SliceChunksProducer { chunk_size: self.chunk_size, slice: right })
+        (SliceChunksProducer {
+             chunk_size: self.chunk_size,
+             slice: left,
+         },
+         SliceChunksProducer {
+             chunk_size: self.chunk_size,
+             slice: right,
+         })
     }
 }
 
