@@ -199,11 +199,10 @@ pub fn check_skip() {
     assert_eq!(v1, v2);
 
     // Check that the skipped elements side effects are executed
-    use std::sync::{Arc, Mutex};
-    let num = Arc::new(Mutex::new(0usize));
-    a.par_iter().map(|&n| *num.lock().unwrap() += n).skip(512).count();
-    let n: usize = *num.lock().unwrap();
-    assert_eq!(n, a.iter().sum());
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let num = AtomicUsize::new(0);
+    a.par_iter().map(|&n| num.fetch_add(n, Ordering::Relaxed)).skip(512).count();
+    assert_eq!(num.load(Ordering::Relaxed), a.iter().sum());
 }
 
 #[test]
