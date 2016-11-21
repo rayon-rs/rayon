@@ -24,6 +24,8 @@ use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, ProductOp,
                    ReduceWithIdentityOp, SUM, PRODUCT};
+use self::skip::Skip;
+use self::take::Take;
 use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
@@ -41,6 +43,8 @@ pub mod len;
 pub mod for_each;
 pub mod fold;
 pub mod reduce;
+pub mod skip;
+pub mod take;
 pub mod slice;
 pub mod slice_mut;
 pub mod map;
@@ -50,6 +54,7 @@ pub mod range;
 pub mod vec;
 pub mod option;
 pub mod collections;
+pub mod noop;
 
 #[cfg(test)]
 mod test;
@@ -682,6 +687,16 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
+    }
+
+    /// Creates an iterator that skips the first `n` elements.
+    fn skip(self, n: usize) -> Skip<Self> {
+        Skip::new(self, n)
+    }
+
+    /// Creates an iterator that yields the first `n` elements.
+    fn take(self, n: usize) -> Take<Self> {
+        Take::new(self, n)
     }
 
     /// Searches for **some** item in the parallel iterator that

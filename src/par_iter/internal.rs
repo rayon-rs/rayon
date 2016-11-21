@@ -159,47 +159,50 @@ pub fn bridge<PAR_ITER,C>(mut par_iter: PAR_ITER,
         where C: Consumer<ITEM>
     {
         type Output = C::Result;
-        fn callback<P>(mut self, mut producer: P) -> C::Result
+        fn callback<P>(self, producer: P) -> C::Result
             where P: Producer<Item=ITEM>
         {
-            let splitter = if producer.weighted() || self.consumer.weighted() {
-                let producer_cost = producer.cost(self.len);
-                let cost = self.consumer.cost(producer_cost);
-                Splitter::Cost(cost)
-            } else {
-                Splitter::new_thief()
-            };
-            bridge_producer_consumer(self.len, splitter, producer, self.consumer)
+            bridge_producer_consumer(self.len, producer, self.consumer)
         }
     }
 }
 
-fn bridge_producer_consumer<P,C>(len: usize,
-                                 mut splitter: Splitter,
-                                 producer: P,
-                                 consumer: C)
+pub fn bridge_producer_consumer<P,C>(len: usize,
+                                 mut producer: P,
+                                 mut consumer: C)
                                  -> C::Result
     where P: Producer, C: Consumer<P::Item>
 {
-    if consumer.full() {
-        consumer.into_folder().complete()
-    } else if len > 1 && splitter.try() {
-        let mid = len / 2;
-        let (left_producer, right_producer) = producer.split_at(mid);
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
-        let (left_result, right_result) =
-            join(|| bridge_producer_consumer(mid, splitter,
-                                             left_producer, left_consumer),
-                 || bridge_producer_consumer(len - mid, splitter,
-                                             right_producer, right_consumer));
-        reducer.reduce(left_result, right_result)
+    let splitter = if producer.weighted() || consumer.weighted() {
+        let producer_cost = producer.cost(len);
+        let cost = consumer.cost(producer_cost);
+        Splitter::Cost(cost)
     } else {
-        let mut folder = consumer.into_folder();
-        for item in producer {
-            folder = folder.consume(item);
-            if folder.full() { break }
+        Splitter::new_thief()
+    };
+    return helper(len, splitter, producer, consumer);
+
+    fn helper<P,C>(len: usize, mut splitter: Splitter, producer: P, consumer: C) -> C::Result
+        where P: Producer, C: Consumer<P::Item>
+    {
+        if consumer.full() {
+            consumer.into_folder().complete()
+        } else if len > 1 && splitter.try() {
+            let mid = len / 2;
+            let (left_producer, right_producer) = producer.split_at(mid);
+            let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
+            let (left_result, right_result) =
+                join(|| helper(mid, splitter, left_producer, left_consumer),
+                     || helper(len - mid, splitter, right_producer, right_consumer));
+            reducer.reduce(left_result, right_result)
+        } else {
+            let mut folder = consumer.into_folder();
+            for item in producer {
+                folder = folder.consume(item);
+                if folder.full() { break }
+            }
+            folder.complete()
         }
-        folder.complete()
     }
 }
 
@@ -238,12 +241,4 @@ fn bridge_unindexed_producer_consumer<P,C>(mut splitter: Splitter,
         }
         folder.complete()
     }
-}
-
-/// Utility type for consumers that don't need a "reduce" step. Just
-/// reduces unit to unit.
-pub struct NoopReducer;
-
-impl Reducer<()> for NoopReducer {
-    fn reduce(self, _left: (), _right: ()) { }
 }
