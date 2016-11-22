@@ -38,43 +38,7 @@ fn combined_len<T>(list: &LinkedList<Vec<T>>) -> usize {
 }
 
 
-/// Collect items from a parallel iterator into a freshly allocated vector.
-impl<T> FromParallelIterator<T> for Vec<T>
-    where T: Send
-{
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = T>
-    {
-        // See the vec_collect benchmarks in rayon-demo for different strategies.
-        let mut par_iter = par_iter.into_par_iter();
-        match par_iter.opt_len() {
-            Some(len) => {
-                // When Rust gets specialization, call `par_iter.collect_into()`
-                // for exact iterators.  Until then, `special_collect_into()` fakes
-                // the same thing on the promise that `opt_len()` is accurate.
-                let mut vec = vec![];
-                super::collect::special_collect_into(par_iter, len, &mut vec);
-                vec
-            }
-            None => {
-                // This works like `combine`, but `Vec::append` is more efficient than `extend`.
-                let list = par_iter.fold(Vec::new, |mut vec, elem| {
-                        vec.push(elem);
-                        vec
-                    })
-                    .collect();
-
-                let len = combined_len(&list);
-                let start = Vec::with_capacity(len);
-                list.into_iter()
-                    .fold(start, |mut vec, mut sub| {
-                        vec.append(&mut sub);
-                        vec
-                    })
-            }
-        }
-    }
-}
+// See the `collect` module for the `Vec<T>` implementation.
 
 /// Collect items from a parallel iterator into a vecdeque.
 impl<T> FromParallelIterator<T> for VecDeque<T>
