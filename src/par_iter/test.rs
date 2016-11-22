@@ -7,19 +7,20 @@ use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
+use std::f64;
 
-fn is_bounded<T: ExactParallelIterator>(_: T) { }
-fn is_exact<T: ExactParallelIterator>(_: T) { }
-fn is_indexed<T: IndexedParallelIterator>(_: T) { }
+fn is_bounded<T: ExactParallelIterator>(_: T) {}
+fn is_exact<T: ExactParallelIterator>(_: T) {}
+fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 
 #[test]
 pub fn execute() {
     let a: Vec<i32> = (0..1024).collect();
     let mut b = vec![];
     a.par_iter()
-     .map(|&i| i + 1)
-     .collect_into(&mut b);
-    let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
+        .map(|&i| i + 1)
+        .collect_into(&mut b);
+    let c: Vec<i32> = (0..1024).map(|i| i + 1).collect();
     assert_eq!(b, c);
 }
 
@@ -28,9 +29,9 @@ pub fn execute_cloned() {
     let a: Vec<i32> = (0..1024).collect();
     let mut b: Vec<i32> = vec![];
     a.par_iter()
-     .weight_max()
-     .cloned()
-     .collect_into(&mut b);
+        .weight_max()
+        .cloned()
+        .collect_into(&mut b);
     let c: Vec<i32> = (0..1024).collect();
     assert_eq!(b, c);
 }
@@ -40,9 +41,9 @@ pub fn execute_range() {
     let a = 0i32..1024;
     let mut b = vec![];
     a.into_par_iter()
-     .map(|i| i + 1)
-     .collect_into(&mut b);
-    let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
+        .map(|i| i + 1)
+        .collect_into(&mut b);
+    let c: Vec<i32> = (0..1024).map(|i| i + 1).collect();
     assert_eq!(b, c);
 }
 
@@ -50,7 +51,7 @@ pub fn execute_range() {
 pub fn execute_unindexed_range() {
     let a = 0i64..1024;
     let b: LinkedList<i64> = a.into_par_iter().map(|i| i + 1).collect();
-    let c: LinkedList<i64> = (0..1024).map(|i| i+1).collect();
+    let c: LinkedList<i64> = (0..1024).map(|i| i + 1).collect();
     assert_eq!(b, c);
 }
 
@@ -79,12 +80,12 @@ pub fn check_map_exact_and_bounded() {
 pub fn map_sum() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-              .weight_max()
-              .map(|&i| i + 1)
-              .sum();
+        .weight_max()
+        .map(|&i| i + 1)
+        .sum();
     let r2 = a.iter()
-              .map(|&i| i + 1)
-              .fold(0, |a,b| a+b);
+        .map(|&i| i + 1)
+        .fold(0, |a, b| a + b);
     assert_eq!(r1, r2);
 }
 
@@ -92,12 +93,12 @@ pub fn map_sum() {
 pub fn map_reduce() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-              .weight_max()
-              .map(|&i| i + 1)
-              .reduce(|| 0, |i, j| i + j);
+        .weight_max()
+        .map(|&i| i + 1)
+        .reduce(|| 0, |i, j| i + j);
     let r2 = a.iter()
-              .map(|&i| i + 1)
-              .fold(0, |a,b| a+b);
+        .map(|&i| i + 1)
+        .fold(0, |a, b| a + b);
     assert_eq!(r1, r2);
 }
 
@@ -105,12 +106,12 @@ pub fn map_reduce() {
 pub fn map_reduce_with() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-              .weight_max()
-              .map(|&i| i + 1)
-              .reduce_with(|i, j| i + j);
+        .weight_max()
+        .map(|&i| i + 1)
+        .reduce_with(|i, j| i + j);
     let r2 = a.iter()
-              .map(|&i| i + 1)
-              .fold(0, |a,b| a+b);
+        .map(|&i| i + 1)
+        .fold(0, |a, b| a + b);
     assert_eq!(r1, Some(r2));
 }
 
@@ -126,11 +127,18 @@ pub fn fold_map_reduce() {
     // individual vector by mapping each into their own vector (so we
     // have Vec<Vec<i32>>) and then reducing those into a single
     // vector.
-    let r1 = (0_i32..32).into_par_iter()
-                        .weight_max()
-                        .fold(|| vec![], |mut v, e| { v.push(e); v })
-                        .map(|v| vec![v])
-                        .reduce_with(|mut v_a, v_b| { v_a.extend(v_b); v_a });
+    let r1 = (0_i32..32)
+        .into_par_iter()
+        .weight_max()
+        .fold(|| vec![], |mut v, e| {
+            v.push(e);
+            v
+        })
+        .map(|v| vec![v])
+        .reduce_with(|mut v_a, v_b| {
+            v_a.extend(v_b);
+            v_a
+        });
     assert_eq!(r1,
                Some(vec![vec![0], vec![1], vec![2], vec![3], vec![4], vec![5], vec![6], vec![7],
                          vec![8], vec![9], vec![10], vec![11], vec![12], vec![13], vec![14],
@@ -153,9 +161,9 @@ pub fn check_enumerate() {
 
     let mut b = vec![];
     a.par_iter()
-     .enumerate()
-     .map(|(i, &x)| i + x)
-     .collect_into(&mut b);
+        .enumerate()
+        .map(|(i, &x)| i + x)
+        .collect_into(&mut b);
     assert!(b.iter().all(|&x| x == a.len() - 1));
 }
 
@@ -167,7 +175,9 @@ pub fn check_indices_after_enumerate_split() {
     struct WithProducer;
     impl<'a> ProducerCallback<(usize, &'a i32)> for WithProducer {
         type Output = ();
-        fn callback<P>(self, producer: P) where P: Producer<Item=(usize, &'a i32)> {
+        fn callback<P>(self, producer: P)
+            where P: Producer<Item = (usize, &'a i32)>
+        {
             let (a, b) = producer.split_at(512);
             for ((index, value), trusted_index) in a.into_iter().zip(0..) {
                 assert_eq!(index, trusted_index);
@@ -186,8 +196,8 @@ pub fn check_increment() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
 
     a.par_iter_mut()
-     .enumerate()
-     .for_each(|(i, v)| *v += i);
+        .enumerate()
+        .for_each(|(i, v)| *v += i);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -243,9 +253,12 @@ pub fn check_inspect() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let a = AtomicUsize::new(0);
-    let b = (0_usize..1024).into_par_iter()
+    let b = (0_usize..1024)
+        .into_par_iter()
         .weight_max()
-        .inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); })
+        .inspect(|&i| {
+            a.fetch_add(i, Ordering::Relaxed);
+        })
         .sum();
 
     assert_eq!(a.load(Ordering::Relaxed), b);
@@ -292,7 +305,9 @@ pub fn check_drops() {
     struct Partial;
     impl<'a> ProducerCallback<DropCounter<'a>> for Partial {
         type Output = ();
-        fn callback<P>(self, producer: P) where P: Producer<Item=DropCounter<'a>> {
+        fn callback<P>(self, producer: P)
+            where P: Producer<Item = DropCounter<'a>>
+        {
             let (a, _) = producer.split_at(5);
             a.into_iter().next();
         }
@@ -331,13 +346,297 @@ pub fn check_range_exact_and_bounded() {
 }
 
 #[test]
+pub fn check_cmp_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.cmp(b);
+
+    assert!(result == ::std::cmp::Ordering::Equal);
+}
+
+#[test]
+pub fn check_cmp_to_seq() {
+    assert_eq!((0..1024).into_par_iter().cmp(0..1024),
+               (0..1024).cmp(0..1024));
+}
+
+#[test]
+pub fn check_cmp_rng_to_seq() {
+    use rand::{Rng, SeedableRng, XorShiftRng};
+
+    let mut rng = XorShiftRng::from_seed([11507, 46649, 55961, 20171]);
+    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let b: Vec<i32> = rng.gen_iter().take(1024).collect();
+    for i in 0..a.len() {
+        let par_result = a[i..].par_iter().cmp(b[i..].par_iter());
+        let seq_result = a[i..].iter().cmp(b[i..].iter());
+
+        assert_eq!(par_result, seq_result);
+    }
+}
+
+#[test]
+pub fn check_cmp_lt_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (1..1024).into_par_iter();
+
+    let result = a.cmp(b);
+
+    assert!(result == ::std::cmp::Ordering::Less);
+}
+
+#[test]
+pub fn check_cmp_lt_to_seq() {
+    assert_eq!((0..1024).into_par_iter().cmp(1..1024),
+               (0..1024).cmp(1..1024))
+}
+
+#[test]
+pub fn check_cmp_gt_direct() {
+    let a = (1..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.cmp(b);
+
+    assert!(result == ::std::cmp::Ordering::Greater);
+}
+
+#[test]
+pub fn check_cmp_gt_to_seq() {
+    assert_eq!((1..1024).into_par_iter().cmp(0..1024),
+               (1..1024).cmp(0..1024))
+}
+
+#[test]
+pub fn check_partial_cmp_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.partial_cmp(b);
+
+    assert!(result == Some(::std::cmp::Ordering::Equal));
+}
+
+#[test]
+pub fn check_partial_cmp_to_seq() {
+    let par_result = (0..1024).into_par_iter().partial_cmp(0..1024);
+    let seq_result = (0..1024).partial_cmp(0..1024);
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_partial_cmp_rng_to_seq() {
+    use rand::{Rng, SeedableRng, XorShiftRng};
+
+    let mut rng = XorShiftRng::from_seed([9346, 26355, 87943, 28346]);
+    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let b: Vec<i32> = rng.gen_iter().take(1024).collect();
+    for i in 0..a.len() {
+        let par_result = a[i..].par_iter().partial_cmp(b[i..].par_iter());
+        let seq_result = a[i..].iter().partial_cmp(b[i..].iter());
+
+        assert_eq!(par_result, seq_result);
+    }
+}
+
+#[test]
+pub fn check_partial_cmp_lt_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (1..1024).into_par_iter();
+
+    let result = a.partial_cmp(b);
+
+    assert!(result == Some(::std::cmp::Ordering::Less));
+}
+
+#[test]
+pub fn check_partial_cmp_lt_to_seq() {
+    let par_result = (0..1024).into_par_iter().partial_cmp(1..1024);
+    let seq_result = (0..1024).partial_cmp(1..1024);
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_partial_cmp_gt_direct() {
+    let a = (1..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.partial_cmp(b);
+
+    assert!(result == Some(::std::cmp::Ordering::Greater));
+}
+
+#[test]
+pub fn check_partial_cmp_gt_to_seq() {
+    let par_result = (1..1024).into_par_iter().partial_cmp(0..1024);
+    let seq_result = (1..1024).partial_cmp(0..1024);
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_partial_cmp_none_direct() {
+    let a = vec![f64::NAN, 0.0];
+    let b = vec![0.0, 1.0];
+
+    let result = a.par_iter().partial_cmp(b.par_iter());
+
+    assert!(result == None);
+}
+
+#[test]
+pub fn check_partial_cmp_none_to_seq() {
+    let a = vec![f64::NAN, 0.0];
+    let b = vec![0.0, 1.0];
+
+    let par_result = a.par_iter().partial_cmp(b.par_iter());
+    let seq_result = a.iter().partial_cmp(b.iter());
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_partial_cmp_late_nan_direct() {
+    let a = vec![0.0, f64::NAN];
+    let b = vec![1.0, 1.0];
+
+    let result = a.par_iter().partial_cmp(b.par_iter());
+
+    assert!(result == Some(::std::cmp::Ordering::Less));
+}
+
+#[test]
+pub fn check_partial_cmp_late_nane_to_seq() {
+    let a = vec![0.0, f64::NAN];
+    let b = vec![1.0, 1.0];
+
+    let par_result = a.par_iter().partial_cmp(b.par_iter());
+    let seq_result = a.iter().partial_cmp(b.iter());
+
+    assert_eq!(par_result, seq_result);
+}
+
+
+#[test]
+pub fn check_eq_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (0..1024).into_par_iter();
+
+    let result = a.eq(b);
+
+    assert!(result);
+}
+
+#[test]
+pub fn check_eq_to_seq() {
+    let par_result = (0..1024).into_par_iter().eq((0..1024).into_par_iter());
+    let seq_result = (0..1024).eq(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ne_direct() {
+    let a = (0..1024).into_par_iter();
+    let b = (1..1024).into_par_iter();
+
+    let result = a.ne(b);
+
+    assert!(result);
+}
+
+#[test]
+pub fn check_ne_to_seq() {
+    let par_result = (0..1024).into_par_iter().ne((1..1024).into_par_iter());
+    let seq_result = (0..1024).ne(1..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_lt_direct() {
+    assert!((0..1024).into_par_iter().lt(1..1024));
+    assert!(!(1..1024).into_par_iter().lt(0..1024));
+}
+
+pub fn check_lt_to_seq() {
+    let par_result = (0..1024).into_par_iter().lt((1..1024).into_par_iter());
+    let seq_result = (0..1024).lt(1..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_le_equal_direct() {
+    assert!((0..1024).into_par_iter().le((0..1024).into_par_iter()));
+}
+
+pub fn check_le_equal_to_seq() {
+    let par_result = (0..1024).into_par_iter().le((0..1024).into_par_iter());
+    let seq_result = (0..1024).le(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_le_less_direct() {
+    assert!((0..1024).into_par_iter().le((1..1024).into_par_iter()));
+}
+
+pub fn check_le_less_to_seq() {
+    let par_result = (0..1024).into_par_iter().le((1..1024).into_par_iter());
+    let seq_result = (0..1024).le(1..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_gt_direct() {
+    assert!((1..1024).into_par_iter().gt((0..1024).into_par_iter()));
+}
+
+#[test]
+pub fn check_gt_to_seq() {
+    let par_result = (1..1024).into_par_iter().gt((0..1024).into_par_iter());
+    let seq_result = (1..1024).gt(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ge_equal_direct() {
+    assert!((0..1024).into_par_iter().ge((0..1024).into_par_iter()));
+}
+
+#[test]
+pub fn check_ge_equal_to_seq() {
+    let par_result = (0..1024).into_par_iter().ge((0..1024).into_par_iter());
+    let seq_result = (0..1024).ge(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ge_greater_direct() {
+    assert!((1..1024).into_par_iter().ge((0..1024).into_par_iter()));
+}
+
+#[test]
+pub fn check_ge_greater_to_seq() {
+    let par_result = (1..1024).into_par_iter().ge((0..1024).into_par_iter());
+    let seq_result = (1..1024).ge(0..1024);
+
+    assert_eq!(par_result, seq_result);
+}
+
+#[test]
 pub fn check_zip() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
     let b: Vec<usize> = (0..1024).collect();
 
     a.par_iter_mut()
-     .zip(&b[..])
-     .for_each(|(a, &b)| *a += b);
+        .zip(&b[..])
+        .for_each(|(a, &b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -360,8 +659,8 @@ pub fn check_zip_into_mut_par_iter() {
     let mut b: Vec<usize> = (0..1024).collect();
 
     a.par_iter()
-     .zip(&mut b)
-     .for_each(|(&a, b)| *b += a);
+        .zip(&mut b)
+        .for_each(|(&a, b)| *b += a);
 
     assert!(b.iter().all(|&x| x == b.len() - 1));
 }
@@ -371,8 +670,8 @@ pub fn check_zip_range() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
 
     a.par_iter_mut()
-     .zip(0usize..1024)
-     .for_each(|(a, b)| *a += b);
+        .zip(0usize..1024)
+        .for_each(|(a, b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -389,30 +688,26 @@ pub fn check_range_split_at_overflow() {
 #[test]
 pub fn check_sum_filtered_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let par_sum_evens =
-        a.par_iter()
-         .filter(|&x| (x & 1) == 0)
-         .map(|&x| x)
-         .sum();
-    let seq_sum_evens =
-        a.iter()
-         .filter(|&x| (x & 1) == 0)
-         .map(|&x| x)
-         .fold(0, |a,b| a+b);
+    let par_sum_evens = a.par_iter()
+        .filter(|&x| (x & 1) == 0)
+        .map(|&x| x)
+        .sum();
+    let seq_sum_evens = a.iter()
+        .filter(|&x| (x & 1) == 0)
+        .map(|&x| x)
+        .fold(0, |a, b| a + b);
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
 
 #[test]
 pub fn check_sum_filtermap_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let par_sum_evens =
-        a.par_iter()
-         .filter_map(|&x| if (x & 1) == 0 {Some(x as f32)} else {None})
-         .sum();
-    let seq_sum_evens =
-        a.iter()
-         .filter_map(|&x| if (x & 1) == 0 {Some(x as f32)} else {None})
-         .fold(0.0, |a,b| a+b);
+    let par_sum_evens = a.par_iter()
+        .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
+        .sum();
+    let seq_sum_evens = a.iter()
+        .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
+        .fold(0.0, |a, b| a + b);
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
 
@@ -420,16 +715,16 @@ pub fn check_sum_filtermap_ints() {
 pub fn check_flat_map_nested_ranges() {
     // FIXME -- why are precise type hints required on the integers here?
 
-    let v =
-        (0_i32..10).into_par_iter()
-                   .flat_map(|i| (0_i32..10).into_par_iter().map(move |j| (i, j)))
-                   .map(|(i, j)| i * j)
-                   .sum();
+    let v = (0_i32..10)
+        .into_par_iter()
+        .flat_map(|i| (0_i32..10).into_par_iter().map(move |j| (i, j)))
+        .map(|(i, j)| i * j)
+        .sum();
 
-    let w =
-        (0_i32..10).flat_map(|i| (0_i32..10).map(move |j| (i, j)))
-                   .map(|(i, j)| i * j)
-                   .fold(0, |i, j| i + j);
+    let w = (0_i32..10)
+        .flat_map(|i| (0_i32..10).map(move |j| (i, j)))
+        .map(|(i, j)| i * j)
+        .fold(0, |i, j| i + j);
 
     assert_eq!(v, w);
 }
@@ -457,27 +752,23 @@ pub fn check_empty_flat_map_sum() {
 #[test]
 pub fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
-    let par_sum_product_pairs =
-         a.par_chunks(2)
-          .weight_max()
-          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
-          .sum();
-    let seq_sum_product_pairs =
-         a.chunks(2)
-          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
-          .fold(0, |i, j| i+j);
+    let par_sum_product_pairs = a.par_chunks(2)
+        .weight_max()
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .sum();
+    let seq_sum_product_pairs = a.chunks(2)
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .fold(0, |i, j| i + j);
     assert_eq!(par_sum_product_pairs, 12345);
     assert_eq!(par_sum_product_pairs, seq_sum_product_pairs);
 
-    let par_sum_product_triples: i32 =
-         a.par_chunks(3)
-          .weight_max()
-          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
-          .sum();
-    let seq_sum_product_triples =
-         a.chunks(3)
-          .map(|c| c.iter().map(|&x|x).fold(1, |i, j| i*j))
-          .fold(0, |i, j| i+j);
+    let par_sum_product_triples: i32 = a.par_chunks(3)
+        .weight_max()
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .sum();
+    let seq_sum_product_triples = a.chunks(3)
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .fold(0, |i, j| i + j);
     assert_eq!(par_sum_product_triples, 5_0 + 12_00 + 2_000_0000 + 1);
     assert_eq!(par_sum_product_triples, seq_sum_product_triples);
 }
@@ -488,9 +779,9 @@ pub fn check_chunks_mut() {
     let mut b: Vec<i32> = a.clone();
     a.par_chunks_mut(2)
         .weight_max()
-        .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
+        .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
     b.chunks_mut(2)
-        .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
+        .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
         .count();
     assert_eq!(a, &[3, 2, 7, 4, 11, 6, 15, 8, 19, 10]);
     assert_eq!(a, b);
@@ -499,9 +790,9 @@ pub fn check_chunks_mut() {
     let mut b: Vec<i32> = a.clone();
     a.par_chunks_mut(3)
         .weight_max()
-        .for_each(|c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j));
+        .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
     b.chunks_mut(3)
-        .map(     |c| c[0] = c.iter().map(|&x|x).fold(0, |i, j| i+j))
+        .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
         .count();
     assert_eq!(a, &[6, 2, 3, 15, 5, 6, 24, 8, 9, 10]);
     assert_eq!(a, b);
@@ -514,7 +805,8 @@ pub fn check_options() {
     assert_eq!(7, a.par_iter().flat_map(|opt| opt).cloned().sum());
     assert_eq!(7, a.par_iter().cloned().flat_map(|opt| opt).sum());
 
-    a.par_iter_mut().flat_map(|opt| opt)
+    a.par_iter_mut()
+        .flat_map(|opt| opt)
         .for_each(|x| *x = *x * *x);
 
     assert_eq!(21, a.into_par_iter().flat_map(|opt| opt).sum());
@@ -526,7 +818,8 @@ pub fn check_results() {
 
     assert_eq!(7, a.par_iter().flat_map(|res| res).cloned().sum());
 
-    a.par_iter_mut().flat_map(|res| res)
+    a.par_iter_mut()
+        .flat_map(|res| res)
         .for_each(|x| *x = *x * *x);
 
     assert_eq!(21, a.into_par_iter().flat_map(|res| res).sum());
@@ -625,8 +918,9 @@ pub fn check_chain() {
     let mut res = vec![];
 
     // stays indexed in the face of madness
-    Some(0).into_par_iter()
-        .chain(Ok::<_,()>(1))
+    Some(0)
+        .into_par_iter()
+        .chain(Ok::<_, ()>(1))
         .chain(1..4)
         .chain(Err("huh?"))
         .chain(None)
@@ -639,25 +933,29 @@ pub fn check_chain() {
         .weight_max()
         .collect_into(&mut res);
 
-    assert_eq!(res, vec![(0, 'a', 0),
-                         (1, 'b', -1),
-                         (2, 'b', -2),
-                         (3, 'c', -3),
-                         (4, 'd', -4),
-                         (5, 'f', -5),
-                         (6, 'i', -6),
-                         (7, 'n', -7),
-                         (8, 'x', -8),
-                         (9, 'y', -9),
-                         (10, 'z', -10)]);
+    assert_eq!(res,
+               vec![(0, 'a', 0),
+                    (1, 'b', -1),
+                    (2, 'b', -2),
+                    (3, 'c', -3),
+                    (4, 'd', -4),
+                    (5, 'f', -5),
+                    (6, 'i', -6),
+                    (7, 'n', -7),
+                    (8, 'x', -8),
+                    (9, 'y', -9),
+                    (10, 'z', -10)]);
 
     // unindexed is ok too
-    let sum = Some(1i32).into_par_iter()
-        .chain((2i32..4).into_par_iter()
-                .chain(vec![5, 6, 7, 8, 9])
-                .chain(Some((10, 100)).into_par_iter()
-                       .flat_map(|(a, b)| a..b))
-                .filter(|x| x & 1 == 1))
+    let sum = Some(1i32)
+        .into_par_iter()
+        .chain((2i32..4)
+            .into_par_iter()
+            .chain(vec![5, 6, 7, 8, 9])
+            .chain(Some((10, 100))
+                .into_par_iter()
+                .flat_map(|(a, b)| a..b))
+            .filter(|x| x & 1 == 1))
         .weight_max()
         .sum();
     assert_eq!(sum, 2500);
@@ -666,9 +964,9 @@ pub fn check_chain() {
 
 #[test]
 pub fn check_count() {
-    let c0 = (0_u32..24*1024).filter(|i| i % 2 == 0).count();
-    let c1 = (0_u32..24*1024).into_par_iter().filter(|i| i % 2 == 0).count();
-    let c2 = (0_u32..24*1024).into_par_iter().weight_max().filter(|i| i % 2 == 0).count();
+    let c0 = (0_u32..24 * 1024).filter(|i| i % 2 == 0).count();
+    let c1 = (0_u32..24 * 1024).into_par_iter().filter(|i| i % 2 == 0).count();
+    let c2 = (0_u32..24 * 1024).into_par_iter().weight_max().filter(|i| i % 2 == 0).count();
     assert_eq!(c0, c1);
     assert_eq!(c1, c2);
 }
@@ -679,11 +977,13 @@ pub fn find_any() {
     let a: Vec<i32> = (0..1024).collect();
 
     assert!(a.par_iter().find_any(|&&x| x % 42 == 41).is_some());
-    assert_eq!(a.par_iter().find_any(|&&x| x % 19 == 1 && x % 53 == 0), Some(&742_i32));
+    assert_eq!(a.par_iter().find_any(|&&x| x % 19 == 1 && x % 53 == 0),
+               Some(&742_i32));
     assert_eq!(a.par_iter().find_any(|&&x| x < 0), None);
 
     assert!(a.par_iter().position_any(|&x| x % 42 == 41).is_some());
-    assert_eq!(a.par_iter().position_any(|&x| x % 19 == 1 && x % 53 == 0), Some(742_usize));
+    assert_eq!(a.par_iter().position_any(|&x| x % 19 == 1 && x % 53 == 0),
+               Some(742_usize));
     assert_eq!(a.par_iter().position_any(|&x| x < 0), None);
 
     assert!(a.par_iter().any(|&x| x > 1000));
@@ -696,10 +996,12 @@ pub fn find_any() {
 #[test]
 pub fn check_find_not_present() {
     let counter = AtomicUsize::new(0);
-    let value: Option<i32> =
-        (0_i32..2048)
+    let value: Option<i32> = (0_i32..2048)
         .into_par_iter()
-        .find_any(|&p| { counter.fetch_add(1, Ordering::SeqCst); p >= 2048 });
+        .find_any(|&p| {
+            counter.fetch_add(1, Ordering::SeqCst);
+            p >= 2048
+        });
     assert!(value.is_none());
     assert!(counter.load(Ordering::SeqCst) == 2048); // should have visited every single one
 }
@@ -707,10 +1009,12 @@ pub fn check_find_not_present() {
 #[test]
 pub fn check_find_is_present() {
     let counter = AtomicUsize::new(0);
-    let value: Option<i32> =
-        (0_i32..2048)
+    let value: Option<i32> = (0_i32..2048)
         .into_par_iter()
-        .find_any(|&p| { counter.fetch_add(1, Ordering::SeqCst); p >= 1024 && p < 1096 });
+        .find_any(|&p| {
+            counter.fetch_add(1, Ordering::SeqCst);
+            p >= 1024 && p < 1096
+        });
     let q = value.unwrap();
     assert!(q >= 1024 && q < 1096);
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
@@ -720,7 +1024,7 @@ pub fn check_find_is_present() {
 pub fn par_iter_collect() {
     let a: Vec<i32> = (0..1024).collect();
     let b: Vec<i32> = a.par_iter().map(|&i| i + 1).collect();
-    let c: Vec<i32> = (0..1024).map(|i| i+1).collect();
+    let c: Vec<i32> = (0..1024).map(|i| i + 1).collect();
     assert_eq!(b, c);
 }
 
@@ -784,7 +1088,12 @@ pub fn par_iter_collect_linked_list() {
 
 #[test]
 pub fn par_iter_collect_linked_list_flat_map_filter() {
-    let b: LinkedList<i32> = (0_i32..1024).into_par_iter().weight_max().flat_map(|i| (0..i)).filter(|&i| i % 2 == 0).collect();
+    let b: LinkedList<i32> = (0_i32..1024)
+        .into_par_iter()
+        .weight_max()
+        .flat_map(|i| (0..i))
+        .filter(|&i| i % 2 == 0)
+        .collect();
     let c: LinkedList<i32> = (0_i32..1024).flat_map(|i| (0..i)).filter(|&i| i % 2 == 0).collect();
     assert_eq!(b, c);
 }
@@ -793,7 +1102,7 @@ pub fn par_iter_collect_linked_list_flat_map_filter() {
 fn min_max() {
     let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
     let a: Vec<i32> = rng.gen_iter().take(1024).collect();
-    for i in 0 .. a.len() + 1 {
+    for i in 0..a.len() + 1 {
         let slice = &a[..i];
         assert_eq!(slice.par_iter().min(), slice.iter().min());
         assert_eq!(slice.par_iter().max(), slice.iter().max());
@@ -805,10 +1114,12 @@ fn min_max_by() {
     let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
     // Make sure there are duplicate keys, for testing sort stability
     let r: Vec<i32> = rng.gen_iter().take(512).collect();
-    let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0 ..).collect();
-    for i in 0 .. a.len() + 1 {
+    let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
+    for i in 0..a.len() + 1 {
         let slice = &a[..i];
-        assert_eq!(slice.par_iter().min_by_key(|x| x.0), slice.iter().min_by_key(|x| x.0));
-        assert_eq!(slice.par_iter().max_by_key(|x| x.0), slice.iter().max_by_key(|x| x.0));
+        assert_eq!(slice.par_iter().min_by_key(|x| x.0),
+                   slice.iter().min_by_key(|x| x.0));
+        assert_eq!(slice.par_iter().max_by_key(|x| x.0),
+                   slice.iter().max_by_key(|x| x.0));
     }
 }
