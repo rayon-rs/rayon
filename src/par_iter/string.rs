@@ -14,15 +14,13 @@ impl<'a> ParallelString for &'a str {
     type Chars = ParChars<'a>;
 
     fn par_chars(self) -> Self::Chars {
-        ParChars {
-            chars: self
-        }
+        ParChars { chars: self }
     }
 }
 
 
 pub struct ParChars<'a> {
-    chars: &'a str
+    chars: &'a str,
 }
 
 impl<'a> ParallelIterator for ParChars<'a> {
@@ -50,7 +48,10 @@ impl<'a> UnindexedProducer for ParChars<'a> {
         // character boundary.  So we look at the raw bytes, first scanning
         // forward from the midpoint for a boundary, then trying backward.
         let (left, right) = self.chars.as_bytes().split_at(mid);
-        let index = right.iter().cloned().position(is_char_boundary).map(|i| mid + i)
+        let index = right.iter()
+            .cloned()
+            .position(is_char_boundary)
+            .map(|i| mid + i)
             .or_else(|| left.iter().cloned().rposition(is_char_boundary))
             .unwrap_or(0);
 
@@ -59,8 +60,7 @@ impl<'a> UnindexedProducer for ParChars<'a> {
     }
 }
 
-impl<'a> IntoIterator for ParChars<'a>
-{
+impl<'a> IntoIterator for ParChars<'a> {
     type Item = char;
     type IntoIter = Chars<'a>;
 
