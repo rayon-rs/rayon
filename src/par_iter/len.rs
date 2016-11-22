@@ -19,15 +19,19 @@ pub struct ParallelLen {
 
 impl ParallelLen {
     pub fn left_cost(&self, mid: usize) -> ParallelLen {
-        ParallelLen { maximal_len: mid,
-                      cost: self.cost / 2.0,
-                      sparse: self.sparse }
+        ParallelLen {
+            maximal_len: mid,
+            cost: self.cost / 2.0,
+            sparse: self.sparse,
+        }
     }
 
     pub fn right_cost(&self, mid: usize) -> ParallelLen {
-        ParallelLen { maximal_len: self.maximal_len - mid,
-                      cost: self.cost / 2.0,
-                      sparse: self.sparse }
+        ParallelLen {
+            maximal_len: self.maximal_len - mid,
+            cost: self.cost / 2.0,
+            sparse: self.sparse,
+        }
     }
 }
 

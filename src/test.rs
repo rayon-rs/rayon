@@ -7,18 +7,17 @@ use rand::{Rng, SeedableRng, XorShiftRng};
 use std::path::PathBuf;
 use std::error::Error;
 
-fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
+fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
     if v.len() <= 1 {
         return;
     }
 
     let mid = partition(v);
     let (lo, hi) = v.split_at_mut(mid);
-    join(|| quick_sort(lo),
-         || quick_sort(hi));
+    join(|| quick_sort(lo), || quick_sort(hi));
 }
 
-fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
+fn partition<T: PartialOrd + Send>(v: &mut [T]) -> usize {
     let pivot = v.len() - 1;
     let mut i = 0;
     for j in 0..pivot {
@@ -34,7 +33,7 @@ fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
 #[test]
 fn sort() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut data: Vec<_> = (0..6*1024).map(|_| rng.next_u32()).collect();
+    let mut data: Vec<_> = (0..6 * 1024).map(|_| rng.next_u32()).collect();
 
     let result = initialize(Configuration::new());
 
@@ -46,7 +45,7 @@ fn sort() {
             sorted_data.sort();
 
             assert_eq!(data, sorted_data);
-        },
+        }
         Err(e) => panic!("expected InitOk, but got {:?}", e),
     }
 }
@@ -54,7 +53,7 @@ fn sort() {
 #[test]
 fn sort_in_pool() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut data: Vec<_> = (0..12*1024).map(|_| rng.next_u32()).collect();
+    let mut data: Vec<_> = (0..12 * 1024).map(|_| rng.next_u32()).collect();
 
     let result = ThreadPool::new(Configuration::new());
 
@@ -68,8 +67,8 @@ fn sort_in_pool() {
             sorted_data.sort();
 
             assert_eq!(data, sorted_data);
-        },
-        Err(_) => panic!("expected Ok() but got Err()")
+        }
+        Err(_) => panic!("expected Ok() but got Err()"),
     }
 }
 
@@ -79,7 +78,7 @@ fn error_in_pool() {
 
     match result {
         Ok(_) => panic!("expected Err(), but got Ok()"),
-        Err(error) => assert_eq!(error, InitError::NumberOfThreadsZero)
+        Err(error) => assert_eq!(error, InitError::NumberOfThreadsZero),
     }
 }
 
@@ -166,6 +165,6 @@ fn positive_test_run_pass_unstable() {
 
 #[test]
 fn coerce_to_box_error() {
-     // check that coercion succeeds
+    // check that coercion succeeds
     let _: Box<Error> = From::from(InitError::NumberOfThreadsZero);
 }

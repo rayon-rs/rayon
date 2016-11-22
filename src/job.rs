@@ -49,7 +49,10 @@ impl JobRef {
         let fn_ptr: unsafe fn(*const (), JobMode) = mem::transmute(fn_ptr);
         let pointer = data as *const ();
 
-        JobRef { pointer: pointer, execute_fn: fn_ptr }
+        JobRef {
+            pointer: pointer,
+            execute_fn: fn_ptr,
+        }
     }
 
     #[inline]
@@ -155,4 +158,3 @@ impl<BODY> Job for HeapJob<BODY>
         job(mode);
     }
 }
-

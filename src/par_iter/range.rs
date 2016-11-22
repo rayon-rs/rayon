@@ -3,7 +3,7 @@ use super::internal::*;
 use std::ops::Range;
 
 pub struct RangeIter<T> {
-    range: Range<T>
+    range: Range<T>,
 }
 
 impl<T> IntoParallelIterator for Range<T>

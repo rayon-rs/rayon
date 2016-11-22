@@ -3,10 +3,10 @@ use super::len::*;
 use super::internal::*;
 use super::noop::*;
 
-pub fn for_each<PAR_ITER,OP,T>(pi: PAR_ITER, op: &OP)
-    where PAR_ITER: ParallelIterator<Item=T>,
+pub fn for_each<PAR_ITER, OP, T>(pi: PAR_ITER, op: &OP)
+    where PAR_ITER: ParallelIterator<Item = T>,
           OP: Fn(T) + Sync,
-          T: Send,
+          T: Send
 {
     let consumer = ForEachConsumer { op: op };
     pi.drive_unindexed(consumer)
@@ -17,7 +17,7 @@ struct ForEachConsumer<'f, OP: 'f> {
 }
 
 impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
-    where OP: Fn(ITEM) + Sync,
+    where OP: Fn(ITEM) + Sync
 {
     type Folder = ForEachConsumer<'f, OP>;
     type Reducer = NoopReducer;
@@ -38,7 +38,7 @@ impl<'f, OP, ITEM> Consumer<ITEM> for ForEachConsumer<'f, OP>
 }
 
 impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
-    where OP: Fn(ITEM) + Sync,
+    where OP: Fn(ITEM) + Sync
 {
     type Result = ();
 
@@ -47,12 +47,11 @@ impl<'f, OP, ITEM> Folder<ITEM> for ForEachConsumer<'f, OP>
         self
     }
 
-    fn complete(self) {
-    }
+    fn complete(self) {}
 }
 
 impl<'f, OP, ITEM> UnindexedConsumer<ITEM> for ForEachConsumer<'f, OP>
-    where OP: Fn(ITEM) + Sync,
+    where OP: Fn(ITEM) + Sync
 {
     fn split_off(&self) -> Self {
         ForEachConsumer { op: self.op }

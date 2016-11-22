@@ -15,7 +15,7 @@ use unwind;
 use util::leak;
 use num_cpus;
 
-///////////////////////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////////////////////
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -29,8 +29,8 @@ struct RegistryState {
     injected_jobs: VecDeque<JobRef>,
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Initialization
+/// ////////////////////////////////////////////////////////////////////////
+/// Initialization
 
 static mut THE_REGISTRY: Option<&'static Registry> = None;
 static THE_REGISTRY_SET: Once = ONCE_INIT;
@@ -69,15 +69,15 @@ impl Registry {
     pub fn new(num_threads: Option<usize>) -> Arc<Registry> {
         let limit_value = match num_threads {
             Some(value) => value,
-            None => num_cpus::get()
+            None => num_cpus::get(),
         };
 
-        let (workers, stealers) : (Vec<_>, Vec<_>) =
-            (0..limit_value).map(|_| deque::new()).unzip();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque::new()).unzip();
 
         let registry = Arc::new(Registry {
-            thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s))
-                                          .collect(),
+            thread_infos: stealers.into_iter()
+                .map(|s| ThreadInfo::new(s))
+                .collect(),
             state: Mutex::new(RegistryState::new()),
             work_available: Condvar::new(),
         });
@@ -104,11 +104,11 @@ impl Registry {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // MAIN LOOP
-    //
-    // So long as all of the worker threads are hanging out in their
-    // top-level loop, there is no work to be done.
+    /// ////////////////////////////////////////////////////////////////////////
+    /// MAIN LOOP
+    ///
+    /// So long as all of the worker threads are hanging out in their
+    /// top-level loop, there is no work to be done.
 
     fn start_working(&self, index: usize) {
         log!(StartWorking { index: index });
@@ -137,7 +137,10 @@ impl Registry {
     }
 
     fn wait_for_work(&self, _worker: usize, was_active: bool) -> Work {
-        log!(WaitForWork { worker: _worker, was_active: was_active });
+        log!(WaitForWork {
+            worker: _worker,
+            was_active: was_active,
+        });
 
         let mut state = self.state.lock().unwrap();
 
@@ -211,8 +214,8 @@ impl ThreadInfo {
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
-// WorkerThread identifiers
+/// ////////////////////////////////////////////////////////////////////////
+/// WorkerThread identifiers
 
 pub struct WorkerThread {
     worker: Worker<JobRef>,
@@ -368,24 +371,31 @@ impl WorkerThread {
         // at no point should we try to steal unless our local deque is empty
         debug_assert!(self.pop().is_none());
 
-        if self.stealers.is_empty() { return None }
+        if self.stealers.is_empty() {
+            return None;
+        }
         let start = self.rng.next_u32() % self.stealers.len() as u32;
         let (lo, hi) = self.stealers.split_at(start as usize);
-        hi.iter().chain(lo)
-            .filter_map(|stealer| match stealer.steal() {
-                Stolen::Empty => None,
-                Stolen::Abort => None, // loop?
-                Stolen::Data(v) => Some(v),
+        hi.iter()
+            .chain(lo)
+            .filter_map(|stealer| {
+                match stealer.steal() {
+                    Stolen::Empty => None,
+                    Stolen::Abort => None, // loop?
+                    Stolen::Data(v) => Some(v),
+                }
             })
             .next()
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
-    let stealers = registry.thread_infos.iter()
-        .enumerate().filter(|&(i, _)| i != index)
+    let stealers = registry.thread_infos
+        .iter()
+        .enumerate()
+        .filter(|&(i, _)| i != index)
         .map(|(_, ti)| ti.stealer.clone())
         .collect::<Vec<_>>();
 
@@ -418,7 +428,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
                 continue;
             }
             Work::Terminate => break,
-            Work::None => {},
+            Work::None => {}
         }
 
         if let Some(stolen_job) = worker_thread.steal_work() {

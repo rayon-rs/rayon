@@ -23,11 +23,15 @@ pub enum InitError {
 impl fmt::Display for InitError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            InitError::NumberOfThreadsZero =>
-                write!(f, "The number of threads was set to zero but must be greater than zero."),
-            InitError::GlobalPoolAlreadyInitialized =>
-                write!(f, "The gobal thread pool has already been initialized with a different \
-                           configuration. Only one valid configuration is allowed.")
+            InitError::NumberOfThreadsZero => {
+                write!(f,
+                       "The number of threads was set to zero but must be greater than zero.")
+            }
+            InitError::GlobalPoolAlreadyInitialized => {
+                write!(f,
+                       "The gobal thread pool has already been initialized with a different \
+                        configuration. Only one valid configuration is allowed.")
+            }
         }
     }
 }
@@ -35,10 +39,10 @@ impl fmt::Display for InitError {
 impl Error for InitError {
     fn description(&self) -> &str {
         match *self {
-            InitError::NumberOfThreadsZero =>
-                "number of threads set to zero",
-            InitError::GlobalPoolAlreadyInitialized =>
+            InitError::NumberOfThreadsZero => "number of threads set to zero",
+            InitError::GlobalPoolAlreadyInitialized => {
                 "global thread pool has already been initialized"
+            }
         }
     }
 }
@@ -47,7 +51,7 @@ impl Error for InitError {
 #[derive(Clone, Debug)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool. Must not be zero.
-    num_threads: Option<usize>
+    num_threads: Option<usize>,
 }
 
 impl Configuration {
@@ -127,13 +131,11 @@ pub fn dump_stats() {
     dump_stats!();
 }
 
-pub fn join<A,B,RA,RB>(oper_a: A,
-                       oper_b: B)
-                       -> (RA, RB)
+pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     where A: FnOnce() -> RA + Send,
           B: FnOnce() -> RB + Send,
           RA: Send,
-          RB: Send,
+          RB: Send
 {
     unsafe {
         let worker_thread = WorkerThread::current();
@@ -190,13 +192,11 @@ pub fn join<A,B,RA,RB>(oper_a: A,
 }
 
 #[cold] // cold path
-unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
-                                 oper_b: B)
-                                 -> (RA, RB)
+unsafe fn join_inject<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     where A: FnOnce() -> RA + Send,
           B: FnOnce() -> RB + Send,
           RA: Send,
-          RB: Send,
+          RB: Send
 {
     let job_a = StackJob::new(oper_a, LockLatch::new());
     let job_b = StackJob::new(oper_b, LockLatch::new());
@@ -210,23 +210,21 @@ unsafe fn join_inject<A,B,RA,RB>(oper_a: A,
 }
 
 pub struct ThreadPool {
-    registry: Arc<Registry>
+    registry: Arc<Registry>,
 }
 
 impl ThreadPool {
     /// Constructs a new thread pool with the given configuration. If
     /// the configuration is not valid, returns a suitable `Err`
     /// result.  See `InitError` for more details.
-    pub fn new(configuration: Configuration) -> Result<ThreadPool,InitError> {
+    pub fn new(configuration: Configuration) -> Result<ThreadPool, InitError> {
         try!(configuration.validate());
-        Ok(ThreadPool {
-            registry: Registry::new(configuration.num_threads)
-        })
+        Ok(ThreadPool { registry: Registry::new(configuration.num_threads) })
     }
 
     /// Executes `op` within the threadpool. Any attempts to `join`
     /// which occur there will then operate within that threadpool.
-    pub fn install<OP,R>(&self, op: OP) -> R
+    pub fn install<OP, R>(&self, op: OP) -> R
         where OP: FnOnce() -> R + Send
     {
         unsafe {

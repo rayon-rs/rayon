@@ -7,13 +7,12 @@ pub struct Take<M> {
     n: usize,
 }
 
-impl<M> Take<M> 
+impl<M> Take<M>
     where M: IndexedParallelIterator
 {
     pub fn new(mut base: M, n: usize) -> Take<M> {
         let n = min(base.len(), n);
-        Take { base: base,
-               n: n }
+        Take { base: base, n: n }
     }
 }
 
@@ -55,8 +54,10 @@ impl<M> IndexedParallelIterator for Take<M>
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Callback { callback: callback,
-                                                  n: self.n});
+        return self.base.with_producer(Callback {
+            callback: callback,
+            n: self.n,
+        });
 
         struct Callback<CB> {
             callback: CB,
@@ -68,7 +69,7 @@ impl<M> IndexedParallelIterator for Take<M>
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item=ITEM>
+                where P: Producer<Item = ITEM>
             {
                 let (producer, _) = base.split_at(self.n);
                 self.callback.callback(producer)

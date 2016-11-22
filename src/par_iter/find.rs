@@ -5,7 +5,7 @@ use super::internal::*;
 
 pub fn find<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
     where PAR_ITER: ParallelIterator,
-          FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync,
+          FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync
 {
     let found = AtomicBool::new(false);
     let consumer = FindConsumer::new(&find_op, &found);
@@ -27,7 +27,8 @@ impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
 }
 
 impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
-    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync,
+    where ITEM: Send,
+          FIND_OP: Fn(&ITEM) -> bool + Sync
 {
     type Folder = FindFolder<'f, ITEM, FIND_OP>;
     type Reducer = FindReducer;
@@ -57,7 +58,8 @@ impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 
 
 impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
-    where ITEM: Send, FIND_OP: Fn(&ITEM) -> bool + Sync,
+    where ITEM: Send,
+          FIND_OP: Fn(&ITEM) -> bool + Sync
 {
     fn split_off(&self) -> Self {
         FindConsumer::new(self.find_op, self.found)

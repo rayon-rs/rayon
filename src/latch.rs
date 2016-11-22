@@ -9,15 +9,13 @@ pub trait Latch {
 /// A Latch starts as false and eventually becomes true. You can block
 /// until it becomes true.
 pub struct SpinLatch {
-    b: AtomicBool
+    b: AtomicBool,
 }
 
 impl SpinLatch {
     #[inline]
     pub fn new() -> SpinLatch {
-        SpinLatch {
-            b: AtomicBool::new(false)
-        }
+        SpinLatch { b: AtomicBool::new(false) }
     }
 
     /// Test if latch is set.

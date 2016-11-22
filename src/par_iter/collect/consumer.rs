@@ -28,15 +28,20 @@ pub struct CollectFolder<'c, ITEM: Send> {
 
 /// Safe to send because all `CollectConsumer` instances have disjoint
 /// `target` regions (as limited by `len`).
-unsafe impl<'c, ITEM: Send> Send for CollectConsumer<'c, ITEM> { }
+unsafe impl<'c, ITEM: Send> Send for CollectConsumer<'c, ITEM> {}
 
 impl<'c, ITEM: Send> CollectConsumer<'c, ITEM> {
     /// Unsafe because caller must assert that `target..target+len` is
     /// an unaliased, writable region.
     pub unsafe fn new(writes: &'c AtomicUsize,
                       target: *mut ITEM,
-                      len: usize) -> CollectConsumer<ITEM> {
-        CollectConsumer { writes: writes, target: target, len: len }
+                      len: usize)
+                      -> CollectConsumer<ITEM> {
+        CollectConsumer {
+            writes: writes,
+            target: target,
+            len: len,
+        }
     }
 }
 
@@ -68,7 +73,10 @@ impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
     }
 
     fn into_folder(self) -> CollectFolder<'c, ITEM> {
-        CollectFolder { consumer: self, offset: 0 }
+        CollectFolder {
+            consumer: self,
+            offset: 0,
+        }
     }
 }
 
@@ -78,7 +86,8 @@ impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
     fn consume(mut self, item: ITEM) -> CollectFolder<'c, ITEM> {
         // Assert that struct invariants hold, and hence computing
         // `target` and writing to it is valid.
-        assert!(self.offset < self.consumer.len, "too many values pushed to consumer");
+        assert!(self.offset < self.consumer.len,
+                "too many values pushed to consumer");
 
         // Compute target pointer and write to it. Safe because of
         // struct invariants and because we asserted that `offset < len`.
@@ -94,7 +103,8 @@ impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
     }
 
     fn complete(self) {
-        assert!(self.offset == self.consumer.len, "too few values pushed to consumer");
+        assert!(self.offset == self.consumer.len,
+                "too few values pushed to consumer");
 
         // track total values written
         self.consumer.writes.fetch_add(self.consumer.len, Ordering::SeqCst);

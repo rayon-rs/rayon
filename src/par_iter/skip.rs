@@ -12,8 +12,7 @@ impl<M> Skip<M>
 {
     pub fn new(mut base: M, n: usize) -> Skip<M> {
         let n = min(base.len(), n);
-        Skip { base: base,
-               n: n }
+        Skip { base: base, n: n }
     }
 }
 
@@ -55,8 +54,10 @@ impl<M> IndexedParallelIterator for Skip<M>
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        return self.base.with_producer(Callback { callback: callback,
-                                                  n: self.n});
+        return self.base.with_producer(Callback {
+            callback: callback,
+            n: self.n,
+        });
 
         struct Callback<CB> {
             callback: CB,
@@ -68,7 +69,7 @@ impl<M> IndexedParallelIterator for Skip<M>
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item=ITEM>
+                where P: Producer<Item = ITEM>
             {
                 let (before_skip, after_skip) = base.split_at(self.n);
                 bridge_producer_consumer(self.n, before_skip, noop::NoopConsumer::new());

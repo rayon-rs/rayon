@@ -2,7 +2,7 @@ use super::*;
 use super::internal::*;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {
-    slice: &'data mut [T]
+    slice: &'data mut [T],
 }
 
 impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
@@ -28,7 +28,10 @@ impl<'data, T: Send + 'data> ToParallelChunksMut<'data> for [T] {
     type Iter = ChunksMutIter<'data, T>;
 
     fn par_chunks_mut(&'data mut self, chunk_size: usize) -> Self::Iter {
-        ChunksMutIter { chunk_size: chunk_size, slice: self }
+        ChunksMutIter {
+            chunk_size: chunk_size,
+            slice: self,
+        }
     }
 }
 
@@ -105,18 +108,20 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMutIter<'data, T>
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
-        callback.callback(SliceChunksMutProducer { chunk_size: self.chunk_size, slice: self.slice })
+        callback.callback(SliceChunksMutProducer {
+            chunk_size: self.chunk_size,
+            slice: self.slice,
+        })
     }
 }
 
-///////////////////////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////////////////////
 
 pub struct SliceMutProducer<'data, T: 'data + Send> {
-    slice: &'data mut [T]
+    slice: &'data mut [T],
 }
 
-impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T>
-{
+impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T> {
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -138,7 +143,7 @@ impl<'data, T: 'data + Send> IntoIterator for SliceMutProducer<'data, T> {
 
 pub struct SliceChunksMutProducer<'data, T: 'data + Send> {
     chunk_size: usize,
-    slice: &'data mut [T]
+    slice: &'data mut [T],
 }
 
 impl<'data, T: 'data + Send> Producer for SliceChunksMutProducer<'data, T> {
@@ -149,8 +154,14 @@ impl<'data, T: 'data + Send> Producer for SliceChunksMutProducer<'data, T> {
     fn split_at(self, index: usize) -> (Self, Self) {
         let elem_index = index * self.chunk_size;
         let (left, right) = self.slice.split_at_mut(elem_index);
-        (SliceChunksMutProducer { chunk_size: self.chunk_size, slice: left },
-         SliceChunksMutProducer { chunk_size: self.chunk_size, slice: right })
+        (SliceChunksMutProducer {
+             chunk_size: self.chunk_size,
+             slice: left,
+         },
+         SliceChunksMutProducer {
+             chunk_size: self.chunk_size,
+             slice: right,
+         })
     }
 }
 
