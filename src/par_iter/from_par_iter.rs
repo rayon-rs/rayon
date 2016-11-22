@@ -45,21 +45,34 @@ impl<T> FromParallelIterator<T> for Vec<T>
     fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
         where PAR_ITER: IntoParallelIterator<Item = T>
     {
-        // When Rust gets specialization, we can use `collect_into` for exact iterators.
-        // This works like `combine`, but `Vec::append` is more efficient than `extend`.
-        let list = par_iter.into_par_iter()
-            .fold(Vec::new, |mut vec, elem| {
-                vec.push(elem);
+        // See the vec_collect benchmarks in rayon-demo for different strategies.
+        let mut par_iter = par_iter.into_par_iter();
+        match par_iter.opt_len() {
+            Some(len) => {
+                // When Rust gets specialization, call `par_iter.collect_into()`
+                // for exact iterators.  Until then, `special_collect_into()` fakes
+                // the same thing on the promise that `opt_len()` is accurate.
+                let mut vec = vec![];
+                super::collect::special_collect_into(par_iter, len, &mut vec);
                 vec
-            })
-            .collect();
+            }
+            None => {
+                // This works like `combine`, but `Vec::append` is more efficient than `extend`.
+                let list = par_iter.fold(Vec::new, |mut vec, elem| {
+                        vec.push(elem);
+                        vec
+                    })
+                    .collect();
 
-        let start = Vec::with_capacity(combined_len(&list));
-        list.into_iter()
-            .fold(start, |mut vec, mut sub| {
-                vec.append(&mut sub);
-                vec
-            })
+                let len = combined_len(&list);
+                let start = Vec::with_capacity(len);
+                list.into_iter()
+                    .fold(start, |mut vec, mut sub| {
+                        vec.append(&mut sub);
+                        vec
+                    })
+            }
+        }
     }
 }
 
@@ -104,7 +117,7 @@ impl<T> FromParallelIterator<T> for LinkedList<T>
                 list1.append(&mut list2);
                 list1
             })
-            .unwrap_or_else(|| LinkedList::new())
+            .unwrap_or_else(LinkedList::new)
     }
 }
 

@@ -16,6 +16,7 @@ mod tsp;
 // these are not "full-fledged" benchmarks yet,
 // they only run with cargo bench
 #[cfg(test)] mod map_collect;
+#[cfg(test)] mod vec_collect;
 #[cfg(test)] mod factorial;
 #[cfg(test)] mod pythagoras;
 #[cfg(test)] mod fibonacci;

@@ -70,6 +70,10 @@ impl<T: Send> ParallelIterator for OptionIter<T> {
     {
         bridge(self, consumer)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
+    }
 }
 
 impl<T: Send> BoundedParallelIterator for OptionIter<T> {

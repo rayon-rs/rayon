@@ -23,6 +23,10 @@ impl<T: Send> ParallelIterator for VecIter<T> {
     {
         bridge(self, consumer)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
+    }
 }
 
 impl<T: Send> BoundedParallelIterator for VecIter<T> {

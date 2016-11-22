@@ -608,6 +608,12 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
 
+    /// Internal method used to fake specialization for indexed collect.
+    #[doc(hidden)]
+    fn opt_len(&mut self) -> Option<usize> {
+        None
+    }
+
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
@@ -650,11 +656,6 @@ pub trait BoundedParallelIterator: ParallelIterator {
 pub trait ExactParallelIterator: BoundedParallelIterator {
     /// Produces an exact count of how many items this iterator will
     /// produce, presuming no panic occurs.
-    ///
-    /// # Safety note
-    ///
-    /// Returning an incorrect value here could lead to **undefined
-    /// behavior**.
     fn len(&mut self) -> usize;
 
     /// Collects the results of the iterator into the specified

@@ -26,6 +26,10 @@ impl<M> ParallelIterator for Weight<M>
         let consumer1 = WeightConsumer::new(consumer, self.weight);
         self.base.drive_unindexed(consumer1)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        self.base.opt_len()
+    }
 }
 
 impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {

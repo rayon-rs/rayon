@@ -43,6 +43,10 @@ impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
     {
         bridge(self, consumer)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
+    }
 }
 
 impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> {
@@ -83,6 +87,10 @@ impl<'data, T: Send + 'data> ParallelIterator for ChunksMutIter<'data, T> {
         where C: UnindexedConsumer<Self::Item>
     {
         bridge(self, consumer)
+    }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
     }
 }
 
