@@ -71,6 +71,10 @@ impl<M, MAP_OP> ParallelIterator for Map<M, MAP_OP>
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive_unindexed(consumer1)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        self.base.opt_len()
+    }
 }
 
 impl<M, MAP_OP> BoundedParallelIterator for Map<M, MAP_OP>

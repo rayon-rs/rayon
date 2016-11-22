@@ -26,6 +26,10 @@ impl<M> ParallelIterator for Skip<M>
     {
         bridge(self, consumer)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
+    }
 }
 
 impl<M> ExactParallelIterator for Skip<M>

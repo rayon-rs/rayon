@@ -23,6 +23,10 @@ impl<M> ParallelIterator for Enumerate<M>
     {
         bridge(self, consumer)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
+    }
 }
 
 impl<M> BoundedParallelIterator for Enumerate<M>

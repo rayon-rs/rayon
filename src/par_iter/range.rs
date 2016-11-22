@@ -38,6 +38,10 @@ macro_rules! indexed_range_impl {
             {
                 bridge(self, consumer)
             }
+
+            fn opt_len(&mut self) -> Option<usize> {
+                Some(self.len())
+            }
         }
 
         impl BoundedParallelIterator for RangeIter<$t> {

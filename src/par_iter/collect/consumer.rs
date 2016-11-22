@@ -110,3 +110,14 @@ impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
         self.consumer.writes.fetch_add(self.consumer.len, Ordering::SeqCst);
     }
 }
+
+/// Pretend to be unindexed for `special_collect_into`,
+/// but we should never actually get used that way...
+impl<'c, ITEM: Send> UnindexedConsumer<ITEM> for CollectConsumer<'c, ITEM> {
+    fn split_off(&self) -> Self {
+        unreachable!("CollectConsumer must be indexed!")
+    }
+    fn to_reducer(&self) -> Self::Reducer {
+        NoopReducer
+    }
+}

@@ -26,6 +26,10 @@ impl<M> ParallelIterator for Take<M>
     {
         bridge(self, consumer)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        Some(self.len())
+    }
 }
 
 impl<M> ExactParallelIterator for Take<M>

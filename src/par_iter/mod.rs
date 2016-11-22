@@ -608,18 +608,31 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
 
-    /// Create a fresh collection containing all the element produced
-    /// by this parallel iterator. Note that some kinds of collections
-    /// have stricter requirements in terms of the kinds of iterators
-    /// that you can collect from (e.g., a `Vec` currently requires an
-    /// iterator that has precise knowledge of how many elements it
-    /// contains).
+    /// Returns the number of items produced by this iterator, if known
+    /// statically. This can be used by consumers to trigger special fast
+    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
+    /// use the (indexed) `Consumer` methods when driving a consumer, such
+    /// as `split_at()`. Calling `UnindexedConsumer::split_off()` or other
+    /// `UnindexedConsumer` methods -- or returning an inaccurate value --
+    /// may result in panics.
     ///
-    /// You may also prefer to use `collect_into()`, which allows you
-    /// to reuse the vector's backing store rather than allocating a
-    /// fresh vector.
+    /// This is hidden & considered internal for now, until we decide
+    /// whether it makes sense for a public API.  Right now it is only used
+    /// to optimize `collect`  for want of true Rust specialization.
+    #[doc(hidden)]
+    fn opt_len(&mut self) -> Option<usize> {
+        None
+    }
+
+    /// Create a fresh collection containing all the element produced
+    /// by this parallel iterator.
+    ///
+    /// You may prefer to use `collect_into()`, which allocates more
+    /// efficiently with precise knowledge of how many elements the
+    /// iterator contains, and even allows you to reuse an existing
+    /// vector's backing store rather than allocating a fresh vector.
     fn collect<C>(self) -> C
-        where C: FromParallelIterator<Self>
+        where C: FromParallelIterator<Self::Item>
     {
         C::from_par_iter(self)
     }
@@ -653,11 +666,6 @@ pub trait BoundedParallelIterator: ParallelIterator {
 pub trait ExactParallelIterator: BoundedParallelIterator {
     /// Produces an exact count of how many items this iterator will
     /// produce, presuming no panic occurs.
-    ///
-    /// # Safety note
-    ///
-    /// Returning an incorrect value here could lead to **undefined
-    /// behavior**.
     fn len(&mut self) -> usize;
 
     /// Collects the results of the iterator into the specified

@@ -33,6 +33,13 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
         let b = self.b.drive_unindexed(consumer.split_off());
         consumer.to_reducer().reduce(a, b)
     }
+
+    fn opt_len(&mut self) -> Option<usize> {
+        match (self.a.opt_len(), self.b.opt_len()) {
+            (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
+            _ => None,
+        }
+    }
 }
 
 impl<A, B> BoundedParallelIterator for ChainIter<A, B>
