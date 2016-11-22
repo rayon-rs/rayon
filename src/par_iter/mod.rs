@@ -608,7 +608,17 @@ pub trait ParallelIterator: Sized {
     #[doc(hidden)]
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
 
-    /// Internal method used to fake specialization for indexed collect.
+    /// Returns the number of items produced by this iterator, if known
+    /// statically. This can be used by consumers to trigger special fast
+    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
+    /// use the (indexed) `Consumer` methods when driving a consumer, such
+    /// as `split_at()`. Calling `UnindexedConsumer::split_off()` or other
+    /// `UnindexedConsumer` methods -- or returning an inaccurate value --
+    /// may result in panics.
+    ///
+    /// This is hidden & considered internal for now, until we decide
+    /// whether it makes sense for a public API.  Right now it is only used
+    /// to optimize `collect`  for want of true Rust specialization.
     #[doc(hidden)]
     fn opt_len(&mut self) -> Option<usize> {
         None
