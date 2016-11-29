@@ -7,12 +7,13 @@ use latch::{Latch, LockLatch};
 use log::Event::*;
 use rand::{self, Rng};
 use std::cell::{Cell, UnsafeCell};
+use std::collections::VecDeque;
 use std::env;
+use std::str::FromStr;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::thread;
-use std::collections::VecDeque;
 use std::mem;
-use std::str::FromStr;
+use std::usize;
 use unwind;
 use util::leak;
 use num_cpus;
@@ -236,46 +237,8 @@ impl ThreadInfo {
 
 pub struct WorkerThread {
     worker: Worker<JobRef>,
-    stealers: Vec<Stealer<JobRef>>,
+    stealers: Vec<(usize, Stealer<JobRef>)>,
     index: usize,
-
-    /// A counter tracking how many calls to `Scope::spawn` occurred
-    /// on the current thread; this is used by the scope code to
-    /// ensure that the depth of the local deque is maintained.
-    ///
-    /// The actual logic here is a bit subtle. Perhaps more subtle
-    /// than it has to be. The problem is this: if you have only join,
-    /// then you can easily pair each push onto the deque with a pop.
-    /// But when you have spawn, you push onto the deque without a
-    /// corresponding pop. The `spawn_count` is used to track how many
-    /// of these "unpaired pushes" have occurred.
-    ///
-    /// The basic pattern is that people record the spawned count
-    /// before they execute a task (let's call it N). Then, if they
-    /// want to pop the local tasks that this task may have spawned,
-    /// they invoke `pop_spawned_jobs` with N. `pop_spawned_jobs` will
-    /// pop things from the local deque and execute them until the
-    /// spawn count drops to N, or the deque is empty, whichever
-    /// happens first. (Either way, it resets the spawn count to N.)
-    ///
-    /// So e.g. join will push the right task, record the spawn count
-    /// as N, run the left task, and then pop spawned jobs. Once pop
-    /// spawned jobs returns, we can go ahead and try to pop the right
-    /// task -- it has either been stolen, or should be on the top of the deque.
-    ///
-    /// Similarly, `scope` will record the spawn count and run the
-    /// main task.  It can then pop the spawned jobs. At this point,
-    /// until the "all done!" latch is set, it can go and steal from
-    /// other people, confident in the knowledge that the local deque
-    /// is empty. This is a bit subtle: basically, since all the
-    /// locally spawned tasks were popped, the only way that we are
-    /// not all done is if one was stolen. If one was stolen, the
-    /// stuff pushed before the scope was stolen too.
-    ///
-    /// Finally, we have to make sure to pop spawned tasks after we
-    /// steal, so as to maintain the invariant that our local deque is
-    /// empty when we go to steal.
-    spawn_count: Cell<usize>,
 
     /// A weak random number generator.
     rng: UnsafeCell<rand::XorShiftRng>,
@@ -322,43 +285,6 @@ impl WorkerThread {
         self.index
     }
 
-    /// Read current value of the spawn counter.
-    ///
-    /// See the `spawn_count` field for an extensive comment on the
-    /// meaning of the spawn counter.
-    #[inline]
-    pub fn current_spawn_count(&self) -> usize {
-        self.spawn_count.get()
-    }
-
-    /// Increment the spawn count by 1.
-    ///
-    /// See the `spawn_count` field for an extensive comment on the
-    /// meaning of the spawn counter.
-    #[inline]
-    pub fn bump_spawn_count(&self) {
-        self.spawn_count.set(self.spawn_count.get() + 1);
-    }
-
-    /// Pops spawned (async) jobs until our spawn count reaches
-    /// `start_count` or the deque is empty. This routine is used to
-    /// ensure that the local deque is "balanced".
-    ///
-    /// See the `spawn_count` field for an extensive comment on the
-    /// meaning of the spawn counter and use of this function.
-    #[inline]
-    pub unsafe fn pop_spawned_jobs(&self, start_count: usize) {
-        while self.spawn_count.get() != start_count {
-            if let Some(job_ref) = self.pop() {
-                self.spawn_count.set(self.spawn_count.get() - 1);
-                job_ref.execute(JobMode::Execute);
-            } else {
-                self.spawn_count.set(start_count);
-                break;
-            }
-        }
-    }
-
     #[inline]
     pub unsafe fn push(&self, job: JobRef) {
         self.worker.push(job);
@@ -371,34 +297,73 @@ impl WorkerThread {
         self.worker.pop()
     }
 
-    /// Keep stealing jobs until the latch is set.
-    #[cold]
-    pub unsafe fn steal_until<L: Latch>(&self, latch: &L) {
-        let spawn_count = self.spawn_count.get();
+    /// Wait until the latch is set. Try to keep busy by popping and
+    /// stealing tasks as necessary.
+    #[inline]
+    pub unsafe fn wait_until<L: Latch>(&self, latch: &L) {
+        log!(WaitUntil { worker: self.index });
+        if !latch.probe() {
+            self.wait_until_cold(latch);
+        }
+    }
 
+    #[cold]
+    unsafe fn wait_until_cold<L: Latch>(&self, latch: &L) {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the
         // latch has been signaled, and hence that permit random
         // memory accesses, which would be *very bad*
         let abort_guard = unwind::AbortIfPanic;
+
         while !latch.probe() {
-            if let Some(job) = self.steal_work() {
-                debug_assert!(self.spawn_count.get() == spawn_count);
-                job.execute(JobMode::Execute);
-                self.pop_spawned_jobs(spawn_count);
+            // if not, try to steal some more
+            if self.pop_or_steal_and_execute() {
+                log!(FoundWork { worker: self.index });
             } else {
+                log!(DidNotFindWork { worker: self.index, });
                 thread::yield_now();
             }
         }
-        mem::forget(abort_guard);
+
+        log!(LatchSet { worker: self.index });
+        mem::forget(abort_guard); // successful execution, do not abort
     }
 
-    /// Steal a single job and return it.
-    unsafe fn steal_work(&self) -> Option<JobRef> {
-        // at no point should we try to steal unless our local deque is empty
-        debug_assert!(self.pop().is_none());
+    /// Try to steal a single job. If successful, execute it and
+    /// return true. Else return false.
+    unsafe fn pop_or_steal_and_execute(&self) -> bool {
+        if let Some(job) = self.pop_or_steal() {
+            self.execute(job);
+            true
+        } else {
+            false
+        }
+    }
 
+    pub unsafe fn execute(&self, job: JobRef) {
+        job.execute(JobMode::Execute);
+    }
+
+    /// Try to pop a job locally; if none is found, try to steal a job.
+    ///
+    /// This is only used in the main worker loop or when stealing:
+    /// code elsewhere never pops indiscriminantly, but always with
+    /// some notion of the current stack depth.
+    unsafe fn pop_or_steal(&self) -> Option<JobRef> {
+        self.pop()
+            .or_else(|| self.steal())
+    }
+
+    /// Try to steal a single job and return it.
+    ///
+    /// This should only be done as a last resort, when there is no
+    /// local work to do.
+    unsafe fn steal(&self) -> Option<JobRef> {
+        // we only steal when we don't have any work to do locally
+        debug_assert!(self.worker.pop().is_none());
+
+        // otherwise, try to steal
         if self.stealers.is_empty() {
             return None;
         }
@@ -414,11 +379,16 @@ impl WorkerThread {
         let (lo, hi) = self.stealers.split_at(start as usize);
         hi.iter()
             .chain(lo)
-            .filter_map(|stealer| {
-                match stealer.steal() {
-                    Stolen::Empty => None,
-                    Stolen::Abort => None, // loop?
-                    Stolen::Data(v) => Some(v),
+            .filter_map(|&(victim_index, ref stealer)| {
+                loop {
+                    match stealer.steal() {
+                        Stolen::Empty => return None,
+                        Stolen::Abort => (), // retry
+                        Stolen::Data(v) => {
+                            log!(StoleWork { worker: self.index, victim: victim_index });
+                            return Some(v);
+                        }
+                    }
                 }
             })
             .next()
@@ -432,7 +402,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         .iter()
         .enumerate()
         .filter(|&(i, _)| i != index)
-        .map(|(_, ti)| ti.stealer.clone())
+        .map(|(i, ti)| (i, ti.stealer.clone()))
         .collect::<Vec<_>>();
 
     assert!(stealers.len() < ::std::u32::MAX as usize,
@@ -442,7 +412,6 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         worker: worker,
         stealers: stealers,
         index: index,
-        spawn_count: Cell::new(0),
         rng: UnsafeCell::new(rand::weak_rng()),
         registry: registry.clone(),
     };
@@ -460,7 +429,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     loop {
         match registry.wait_for_work(index, was_active) {
             Work::Job(injected_job) => {
-                injected_job.execute(JobMode::Execute);
+                worker_thread.execute(injected_job);
                 was_active = true;
                 continue;
             }
@@ -468,15 +437,13 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
             Work::None => {}
         }
 
-        if let Some(stolen_job) = worker_thread.steal_work() {
-            log!(StoleWork { worker: index });
-            registry.start_working(index);
-            debug_assert!(worker_thread.spawn_count.get() == 0);
-            stolen_job.execute(JobMode::Execute);
-            worker_thread.pop_spawned_jobs(0);
+        was_active = false;
+        while let Some(stolen_job) = worker_thread.pop_or_steal() {
+            if !was_active {
+                registry.start_working(index);
+            }
+            worker_thread.execute(stolen_job);
             was_active = true;
-        } else {
-            was_active = false;
         }
     }
 

@@ -227,14 +227,12 @@ pub fn scope<'scope, OP>(op: OP)
     in_worker(|owner_thread| {
         unsafe {
             let scope: Scope<'scope> = Scope {
-                owner_thread: owner_thread,
+                owner_thread: owner_thread as *const WorkerThread as *mut WorkerThread,
                 panic: AtomicPtr::new(ptr::null_mut()),
                 job_completed_latch: CountLatch::new(),
                 marker: PhantomData,
             };
-            let spawn_count = (*owner_thread).current_spawn_count();
             scope.execute_job_closure(op);
-            (*owner_thread).pop_spawned_jobs(spawn_count);
             scope.steal_till_jobs_complete();
         }
     });
@@ -260,7 +258,6 @@ impl<'scope> Scope<'scope> {
             debug_assert!(!WorkerThread::current().is_null());
 
             let worker_thread = &*worker_thread;
-            worker_thread.bump_spawn_count();
             worker_thread.push(job_ref);
         }
     }
@@ -308,14 +305,8 @@ impl<'scope> Scope<'scope> {
     }
 
     unsafe fn steal_till_jobs_complete(&self) {
-        // at this point, we have popped all tasks spawned since the scope
-        // began. So either we've executed everything on this thread, or one of
-        // those was stolen. If one of them was stolen, then everything below us on
-        // the deque must have been stolen too, so we should just go ahead and steal.
-        debug_assert!(self.job_completed_latch.probe() || (*self.owner_thread).pop().is_none());
-
         // wait for job counter to reach 0:
-        (*self.owner_thread).steal_until(&self.job_completed_latch);
+        (*self.owner_thread).wait_until(&self.job_completed_latch);
 
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed

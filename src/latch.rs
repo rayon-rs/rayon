@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, Condvar};
-use std::thread;
 
 /// We define various kinds of latches, which are all a primitive signaling
 /// mechanism. A latch starts as false. Eventually someone calls `set()` and
@@ -36,14 +35,6 @@ impl SpinLatch {
     #[inline]
     pub fn new() -> SpinLatch {
         SpinLatch { b: AtomicBool::new(false) }
-    }
-
-    /// Block until latch is set. Use with caution, this burns CPU.
-    #[inline]
-    pub fn spin(&self) {
-        while !self.probe() {
-            thread::yield_now();
-        }
     }
 }
 
