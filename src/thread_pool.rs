@@ -7,10 +7,12 @@ use latch::{Latch, LockLatch};
 use log::Event::*;
 use rand::{self, Rng};
 use std::cell::{Cell, UnsafeCell};
+use std::env;
 use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::collections::VecDeque;
 use std::mem;
+use std::str::FromStr;
 use unwind;
 use util::leak;
 use num_cpus;
@@ -69,7 +71,10 @@ impl Registry {
     pub fn new(num_threads: Option<usize>) -> Arc<Registry> {
         let limit_value = match num_threads {
             Some(value) => value,
-            None => num_cpus::get(),
+            None => match env::var("RAYON_RS_NUM_CPUS") {
+                Ok(s) => usize::from_str(&s).expect("invalid value for RAYON_RS_NUM_CPUS"),
+                Err(_) => num_cpus::get(),
+            },
         };
 
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque::new()).unzip();
