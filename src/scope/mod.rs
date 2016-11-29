@@ -257,7 +257,7 @@ unsafe fn scope_not_in_worker<'scope, OP>(op: OP)
     let mut result = None;
     {
         let job = StackJob::new(|| result = Some(scope(op)), LockLatch::new());
-        thread_pool::get_registry().inject(&[job.as_job_ref()]);
+        thread_pool::global_registry().inject(&[job.as_job_ref()]);
         job.latch.wait();
     }
     result.unwrap()

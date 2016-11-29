@@ -32,13 +32,13 @@ struct RegistryState {
 /// ////////////////////////////////////////////////////////////////////////
 /// Initialization
 
-static mut THE_REGISTRY: Option<&'static Registry> = None;
+static mut THE_REGISTRY: Option<&'static Arc<Registry>> = None;
 static THE_REGISTRY_SET: Once = ONCE_INIT;
 
 /// Starts the worker threads (if that has not already happened). If
 /// initialization has not already occurred, use the default
 /// configuration.
-pub fn get_registry() -> &'static Registry {
+pub fn global_registry() -> &'static Arc<Registry> {
     THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()) });
     unsafe { THE_REGISTRY.unwrap() }
 }
@@ -55,7 +55,7 @@ pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
 unsafe fn init_registry(config: Configuration) {
-    let registry = leak(Registry::new(config.num_threads()));
+    let registry = leak(Arc::new(Registry::new(config.num_threads())));
     THE_REGISTRY = Some(registry);
 }
 
