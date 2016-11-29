@@ -13,11 +13,22 @@ The current design for parallel iterators has two distinct modes in
 which they can be used; as we will see, not all iterators support both
 modes (which is why there are two):
 
-- **Pull mode** (the `Producer` trait): in this mode, the iterator is
-  asked to produce the next item using a call to `next`. This is
-  basically like a normal iterator, but with a twist: you can split
-  the iterator at a given point by calling `split_at`, which produces
-  two iterators.
+- **Pull mode** (the `Producer` and `UnindexedProducer` traits): in this mode,
+  the iterator is asked to produce the next item using a call to `next`. This
+  is basically like a normal iterator, but with a twist: you can split the
+  iterator in half to produce disjoint items in separate threads.
+  - in the `Producer` trait, splitting is done with `split_at`, which accepts
+    an index where the split should be performed. Only indexed iterators can
+    work in this mode, as they know exactly how much data they will produce,
+    and how to locate the requested index.
+  - in the `UnindexedProducer` trait, splitting is done with `split`, which
+    simply requests that the producer divide itself *approximately* in half.
+    This is useful when the exact length and/or layout is unknown, as with
+    `String` characters, or when the length might exceed `usize`, as with
+    `Range<u64>` on 32-bit platforms.
+    - In theory, any `Producer` could act unindexed, but we don't currently
+      use that possibility.  When you know the exact length, a `split` can
+      simply be implemented as `split_at(length/2)`.
 - **Push mode** (the `Consumer` and `UnindexedConsumer` traits): in
   this mode, the iterator instead is *given* each item in turn, which
   is then processed. This is the opposite of a normal iterator. It's
@@ -120,16 +131,9 @@ feed them to the consumer.
 ## The base case
 
 The other time that `bridge` gets used is when we bottom out in an
-indexed producer, such as a slice or range.
-
-## Why is there no `UnindexedProducer`?
-
-You may be wondering why there is no `UnindexedProducer` trait.  The
-answer is that there isn't really a need for one: the
-`drive_unindexed` method basically *is* an unindexed producer. As it
-happens, in the current code base, all parallel iterators bottom out
-in something indexed (a slice, a range, etc), but we may extend that
-in the future, no problem.
+indexed producer, such as a slice or range.  There is also a
+`bridge_unindexed` equivalent for - you guessed it - unindexed producers,
+such as string characters.
 
 ## What on earth is `ProducerCallback`?
 
