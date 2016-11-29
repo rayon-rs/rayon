@@ -2,50 +2,39 @@ use super::super::len::*;
 use super::super::internal::*;
 use super::super::noop::*;
 use std::ptr;
+use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-pub struct CollectConsumer<'c, ITEM: Send> {
+pub struct CollectConsumer<'c, ITEM: Send + 'c> {
     /// Tracks how many items we successfully wrote. Used to guarantee
     /// safety in the face of panics or buggy parallel iterators.
     writes: &'c AtomicUsize,
 
-    target: *mut ITEM,
-
-    /// Invariant: we can safely write from `target` .. `target+len`
-    len: usize,
+    /// A slice covering the target memory, not yet initialized!
+    target: &'c mut [ITEM],
 }
 
-pub struct CollectFolder<'c, ITEM: Send> {
-    consumer: CollectConsumer<'c, ITEM>,
+pub struct CollectFolder<'c, ITEM: Send + 'c> {
+    global_writes: &'c AtomicUsize,
+    local_writes: usize,
 
-    /// Number of items pushed to the consumer so far. For simplicity,
-    /// can only split when this is zero.
-    ///
-    /// Invariant: `self.offset <= self.len`
-    offset: usize,
+    /// An iterator over the *uninitialized* target memory.
+    target: slice::IterMut<'c, ITEM>,
 }
 
 
-/// Safe to send because all `CollectConsumer` instances have disjoint
-/// `target` regions (as limited by `len`).
-unsafe impl<'c, ITEM: Send> Send for CollectConsumer<'c, ITEM> {}
-
-impl<'c, ITEM: Send> CollectConsumer<'c, ITEM> {
-    /// Unsafe because caller must assert that `target..target+len` is
-    /// an unaliased, writable region.
-    pub unsafe fn new(writes: &'c AtomicUsize,
-                      target: *mut ITEM,
-                      len: usize)
-                      -> CollectConsumer<ITEM> {
+impl<'c, ITEM: Send + 'c> CollectConsumer<'c, ITEM> {
+    /// The target memory is considered uninitialized, and will be
+    /// overwritten without dropping anything.
+    pub fn new(writes: &'c AtomicUsize, target: &'c mut [ITEM]) -> CollectConsumer<'c, ITEM> {
         CollectConsumer {
             writes: writes,
             target: target,
-            len: len,
         }
     }
 }
 
-impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
+impl<'c, ITEM: Send + 'c> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
     type Folder = CollectFolder<'c, ITEM>;
     type Reducer = NoopReducer;
     type Result = ();
@@ -58,62 +47,49 @@ impl<'c, ITEM: Send> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
         // instances Read in the fields from `self` and then
         // forget `self`, since it has been legitimately consumed
         // (and not dropped during unwinding).
-        let CollectConsumer { writes, target, len } = self;
+        let CollectConsumer { writes, target } = self;
 
-        // Check that user is using the protocol correctly.
-        assert!(index <= len, "out of bounds index in collect");
-
-        // Produce new consumers. Here we are asserting that the
+        // Produce new consumers. Normal slicing ensures that the
         // memory range given to each consumer is disjoint.
-        unsafe {
-            (CollectConsumer::new(writes, target, index),
-             CollectConsumer::new(writes, target.offset(index as isize), len - index),
-             NoopReducer)
-        }
+        let (left, right) = target.split_at_mut(index);
+        (CollectConsumer::new(writes, left), CollectConsumer::new(writes, right), NoopReducer)
     }
 
     fn into_folder(self) -> CollectFolder<'c, ITEM> {
         CollectFolder {
-            consumer: self,
-            offset: 0,
+            global_writes: self.writes,
+            local_writes: 0,
+            target: self.target.into_iter(),
         }
     }
 }
 
-impl<'c, ITEM: Send> Folder<ITEM> for CollectFolder<'c, ITEM> {
+impl<'c, ITEM: Send + 'c> Folder<ITEM> for CollectFolder<'c, ITEM> {
     type Result = ();
 
     fn consume(mut self, item: ITEM) -> CollectFolder<'c, ITEM> {
-        // Assert that struct invariants hold, and hence computing
-        // `target` and writing to it is valid.
-        assert!(self.offset < self.consumer.len,
-                "too many values pushed to consumer");
-
-        // Compute target pointer and write to it. Safe because of
-        // struct invariants and because we asserted that `offset < len`.
+        // Compute target pointer and write to it. Safe because the iterator
+        // does all the bounds checking; we're only avoiding the target drop.
+        let head = self.target.next().expect("too many values pushed to consumer");
         unsafe {
-            let target = self.consumer.target.offset(self.offset as isize);
-            ptr::write(target, item);
+            ptr::write(head, item);
         }
 
-        // Maintains struct invariants because we know `offset < len`.
-        self.offset += 1;
-
+        self.local_writes += 1;
         self
     }
 
     fn complete(self) {
-        assert!(self.offset == self.consumer.len,
-                "too few values pushed to consumer");
+        assert!(self.target.len() == 0, "too few values pushed to consumer");
 
         // track total values written
-        self.consumer.writes.fetch_add(self.consumer.len, Ordering::SeqCst);
+        self.global_writes.fetch_add(self.local_writes, Ordering::Relaxed);
     }
 }
 
 /// Pretend to be unindexed for `special_collect_into`,
 /// but we should never actually get used that way...
-impl<'c, ITEM: Send> UnindexedConsumer<ITEM> for CollectConsumer<'c, ITEM> {
+impl<'c, ITEM: Send + 'c> UnindexedConsumer<ITEM> for CollectConsumer<'c, ITEM> {
     fn split_off(&self) -> Self {
         unreachable!("CollectConsumer must be indexed!")
     }
