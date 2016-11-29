@@ -2,7 +2,7 @@ use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, JobMode, StackJob};
-use latch::{Latch, LockLatch};
+use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -28,7 +28,6 @@ pub struct Registry {
 
 struct RegistryState {
     terminate: bool,
-    threads_at_work: usize,
     injected_jobs: VecDeque<JobRef>,
 }
 
@@ -60,12 +59,6 @@ pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
 unsafe fn init_registry(config: Configuration) {
     let registry = leak(Arc::new(Registry::new(config.num_threads())));
     THE_REGISTRY = Some(registry);
-}
-
-enum Work {
-    None,
-    Job(JobRef),
-    Terminate,
 }
 
 impl Registry {
@@ -123,15 +116,6 @@ impl Registry {
     /// So long as all of the worker threads are hanging out in their
     /// top-level loop, there is no work to be done.
 
-    fn start_working(&self, index: usize) {
-        log!(StartWorking { index: index });
-        {
-            let mut state = self.state.lock().unwrap();
-            state.threads_at_work += 1;
-        }
-        self.work_available.notify_all();
-    }
-
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
@@ -146,45 +130,11 @@ impl Registry {
 
             state.injected_jobs.extend(injected_jobs);
         }
-        self.work_available.notify_all();
     }
 
-    fn wait_for_work(&self, _worker: usize, was_active: bool) -> Work {
-        log!(WaitForWork {
-            worker: _worker,
-            was_active: was_active,
-        });
-
+    fn pop_injected_job(&self) -> Option<JobRef> {
         let mut state = self.state.lock().unwrap();
-
-        if was_active {
-            state.threads_at_work -= 1;
-        }
-
-        loop {
-            // Check if we need to terminate.
-            if state.terminate {
-                return Work::Terminate;
-            }
-
-            // Otherwise, if anything was injected from outside,
-            // return that.  Note that this gives preference to
-            // injected items over stealing from others, which is a
-            // bit dubious, but then so is the opposite.
-            if let Some(job) = state.injected_jobs.pop_front() {
-                state.threads_at_work += 1;
-                self.work_available.notify_all();
-                return Work::Job(job);
-            }
-
-            // If any of the threads are running a job, we should spin
-            // up, since they may generate subworkitems.
-            if state.threads_at_work > 0 {
-                return Work::None;
-            }
-
-            state = self.work_available.wait(state).unwrap();
-        }
+        state.injected_jobs.pop_front()
     }
 
     pub fn terminate(&self) {
@@ -209,7 +159,6 @@ pub struct RegistryId {
 impl RegistryState {
     pub fn new() -> RegistryState {
         RegistryState {
-            threads_at_work: 0,
             injected_jobs: VecDeque::new(),
             terminate: false,
         }
@@ -321,7 +270,7 @@ impl WorkerThread {
             if self.pop_or_steal_and_execute() {
                 log!(FoundWork { worker: self.index });
             } else {
-                log!(DidNotFindWork { worker: self.index, });
+                log!(DidNotFindWork { worker: self.index });
                 thread::yield_now();
             }
         }
@@ -353,6 +302,13 @@ impl WorkerThread {
     unsafe fn pop_or_steal(&self) -> Option<JobRef> {
         self.pop()
             .or_else(|| self.steal())
+            .or_else(|| match self.registry.pop_injected_job() {
+                None => None,
+                Some(job) => {
+                    log!(UninjectedWork { worker: self.index });
+                    Some(job)
+                }
+            })
     }
 
     /// Try to steal a single job and return it.
@@ -425,27 +381,8 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     // **user code** panics, we should catch that and redirect.
     let abort_guard = unwind::AbortIfPanic;
 
-    let mut was_active = false;
-    loop {
-        match registry.wait_for_work(index, was_active) {
-            Work::Job(injected_job) => {
-                worker_thread.execute(injected_job);
-                was_active = true;
-                continue;
-            }
-            Work::Terminate => break,
-            Work::None => {}
-        }
-
-        was_active = false;
-        while let Some(stolen_job) = worker_thread.pop_or_steal() {
-            if !was_active {
-                registry.start_working(index);
-            }
-            worker_thread.execute(stolen_job);
-            was_active = true;
-        }
-    }
+    let dummy_latch = SpinLatch::new();
+    worker_thread.wait_until(&dummy_latch);
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
