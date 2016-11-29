@@ -11,6 +11,7 @@ mod log;
 
 mod api;
 mod latch;
+mod join;
 mod job;
 pub mod par_iter;
 pub mod prelude;
@@ -26,7 +27,7 @@ pub use api::Configuration;
 pub use api::InitError;
 pub use api::dump_stats;
 pub use api::initialize;
-pub use api::join;
 pub use api::ThreadPool;
+pub use join::join;
 #[cfg(feature = "unstable")]
 pub use scope::{scope, Scope};

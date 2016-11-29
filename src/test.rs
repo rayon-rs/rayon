@@ -2,7 +2,7 @@
 
 extern crate compiletest_rs as compiletest;
 
-use api::*;
+use ::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::path::PathBuf;
 use std::error::Error;
