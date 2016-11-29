@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, Condvar};
 use std::thread;
 
@@ -97,5 +97,41 @@ impl Latch for LockLatch {
         let mut guard = self.m.lock().unwrap();
         *guard = true;
         self.v.notify_all();
+    }
+}
+
+/// Counting latches are used to implement scopes. They track a
+/// counter. Unlike other latches, calling `set()` does not
+/// necessarily make the latch be considered `set()`; instead, it just
+/// decrements the counter. The latch is only "set" (in the sense that
+/// `probe()` returns true) once the counter reaches zero.
+pub struct CountLatch {
+    counter: AtomicUsize,
+}
+
+impl CountLatch {
+    #[inline]
+    pub fn new() -> CountLatch {
+        CountLatch { counter: AtomicUsize::new(1) }
+    }
+
+    #[inline]
+    pub fn increment(&self) {
+        debug_assert!(!self.probe());
+        self.counter.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+impl Latch for CountLatch {
+    #[inline]
+    fn probe(&self) -> bool {
+        // Need to acquire any memory reads before latch was set:
+        self.counter.load(Ordering::Acquire) == 0
+    }
+
+    /// Set the latch to true, releasing all threads who are waiting.
+    #[inline]
+    fn set(&self) {
+        self.counter.fetch_sub(1, Ordering::Release);
     }
 }

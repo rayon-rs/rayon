@@ -1,10 +1,10 @@
-use latch::{Latch, SpinLatch};
+use latch::{Latch, CountLatch};
 use job::{JobMode, HeapJob};
 use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
 use thread_pool::{in_worker, WorkerThread};
 use unwind;
 
@@ -17,15 +17,12 @@ pub struct Scope<'scope> {
     /// should always be within the same pool of threads)
     owner_thread: *const WorkerThread,
 
-    /// number of jobs created that have not yet completed or errored
-    counter: AtomicUsize,
-
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
     panic: AtomicPtr<Box<Any + Send + 'static>>,
 
     /// latch to set when the counter drops to zero (and hence this scope is complete)
-    job_completed_latch: SpinLatch,
+    job_completed_latch: CountLatch,
 
     /// you can think of a scope as containing a list of closures to
     /// execute, all of which outlive `'scope`
@@ -230,10 +227,9 @@ pub fn scope<'scope, OP>(op: OP)
     in_worker(|owner_thread| {
         unsafe {
             let scope: Scope<'scope> = Scope {
-                owner_thread: owner_thread as *const WorkerThread as *mut WorkerThread,
-                counter: AtomicUsize::new(1),
+                owner_thread: owner_thread,
                 panic: AtomicPtr::new(ptr::null_mut()),
-                job_completed_latch: SpinLatch::new(),
+                job_completed_latch: CountLatch::new(),
                 marker: PhantomData,
             };
             let spawn_count = (*owner_thread).current_spawn_count();
@@ -254,8 +250,7 @@ impl<'scope> Scope<'scope> {
         where BODY: FnOnce(&Scope<'scope>) + 'scope
     {
         unsafe {
-            let old_value = self.counter.fetch_add(1, Ordering::SeqCst);
-            assert!(old_value > 0); // scope can't have completed yet
+            self.job_completed_latch.increment();
             let job_ref = Box::new(HeapJob::new(move |mode| self.execute_job(body, mode)))
                 .as_job_ref();
             let worker_thread = WorkerThread::current();
@@ -309,26 +304,7 @@ impl<'scope> Scope<'scope> {
     }
 
     unsafe fn job_completed_ok(&self) {
-        let old_value = self.counter.fetch_sub(1, Ordering::Release);
-        if old_value == 1 {
-            // Important: grab the lock here to avoid a data race with
-            // the `block_till_jobs_complete` code. Consider what could
-            // otherwise happen:
-            //
-            // ```
-            //    Us          Them
-            //              Acquire lock
-            //              Read counter: 1
-            // Dec counter
-            // Notify all
-            //              Wait on job_completed_cvar
-            // ```
-            //
-            // By holding the lock, we ensure that the "read counter"
-            // and "wait on job_completed_cvar" occur atomically with respect to the
-            // notify.
-            self.job_completed_latch.set();
-        }
+        self.job_completed_latch.set();
     }
 
     unsafe fn steal_till_jobs_complete(&self) {
