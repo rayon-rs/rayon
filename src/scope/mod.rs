@@ -15,7 +15,7 @@ pub struct Scope<'scope> {
     /// thread where `scope()` was executed (note that individual jobs
     /// may be executing on different worker threads, though they
     /// should always be within the same pool of threads)
-    owner_thread: *mut WorkerThread,
+    owner_thread: *const WorkerThread,
 
     /// number of jobs created that have not yet completed or errored
     counter: AtomicUsize,
