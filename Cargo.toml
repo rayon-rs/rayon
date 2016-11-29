@@ -18,7 +18,9 @@ libc = "0.2.16"
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
+docopt = "0.6"
 num = "0.1.30"
+rustc-serialize = "0.3"
 
 [features]
 # Unstable APIs that have not yet
