@@ -2,7 +2,7 @@ use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, JobMode};
-use latch::{Latch, LockLatch, SpinLatch};
+use latch::{Latch, LockLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -368,12 +368,15 @@ impl WorkerThread {
 
     /// Keep stealing jobs until the latch is set.
     #[cold]
-    pub unsafe fn steal_until(&mut self, latch: &SpinLatch) {
+    pub unsafe fn steal_until<L: Latch>(&mut self, latch: &L) {
         let spawn_count = self.spawn_count.get();
 
-        // If another thread stole our job when we panic, we must halt unwinding
-        // until that thread is finished using it.
-        let guard = unwind::finally(&latch, |latch| latch.spin());
+        // the code below should swallow all panics and hence never
+        // unwind; but if something does wrong, we want to abort,
+        // because otherwise other code in rayon may assume that the
+        // latch has been signaled, and hence that permit random
+        // memory accesses, which would be *very bad*
+        let abort_guard = unwind::AbortIfPanic;
         while !latch.probe() {
             if let Some(job) = self.steal_work() {
                 debug_assert!(self.spawn_count.get() == spawn_count);
@@ -383,7 +386,7 @@ impl WorkerThread {
                 thread::yield_now();
             }
         }
-        mem::forget(guard);
+        mem::forget(abort_guard);
     }
 
     /// Steal a single job and return it.
