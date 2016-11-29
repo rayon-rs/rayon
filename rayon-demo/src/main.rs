@@ -21,6 +21,7 @@ mod tsp;
 #[cfg(test)] mod pythagoras;
 #[cfg(test)] mod fibonacci;
 #[cfg(test)] mod find;
+#[cfg(test)] mod join_microbench;
 
 extern crate rayon; // all
 extern crate docopt; // all
