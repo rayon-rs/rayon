@@ -2,6 +2,8 @@
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
 extern crate deque;
+#[macro_use]
+extern crate lazy_static;
 extern crate libc;
 extern crate num_cpus;
 extern crate rand;
