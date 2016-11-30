@@ -1,7 +1,7 @@
 use super::{ParallelIterator, ExactParallelIterator, IntoParallelIterator};
 use super::from_par_iter::FromParallelIterator;
 use std::collections::LinkedList;
-use std::isize;
+use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod consumer;
@@ -31,17 +31,17 @@ fn special_collect_into<PAR_ITER, T>(pi: PAR_ITER, len: usize, v: &mut Vec<T>)
     where PAR_ITER: ParallelIterator<Item = T>,
           T: Send
 {
-    assert!(len < isize::MAX as usize);
-
     v.truncate(0); // clear any old data
     v.reserve(len); // reserve enough space
-    let target = v.as_mut_ptr(); // get a raw ptr
     let writes = AtomicUsize::new(0);
-    let consumer = unsafe {
-        // assert that target..target+len is unique and writable
-        CollectConsumer::new(&writes, target, len)
-    };
-    pi.drive_unindexed(consumer);
+
+    {
+        // Get a correct borrow, then extend it to the original length.
+        let mut slice = v.as_mut_slice();
+        slice = unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr(), len) };
+        let consumer = CollectConsumer::new(&writes, slice);
+        pi.drive_unindexed(consumer);
+    }
 
     unsafe {
         // Here, we assert that `v` is fully initialized. This is
