@@ -24,11 +24,11 @@ pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     state: Mutex<RegistryState>,
     sleep: Sleep,
+    terminate_latch: SpinLatch,
     job_uninjector: Stealer<JobRef>,
 }
 
 struct RegistryState {
-    terminate: bool,
     job_injector: Worker<JobRef>,
 }
 
@@ -82,6 +82,7 @@ impl Registry {
             state: Mutex::new(RegistryState::new(inj_worker)),
             sleep: Sleep::new(),
             job_uninjector: inj_stealer,
+            terminate_latch: SpinLatch::new(),
         });
 
         for (index, worker) in workers.into_iter().enumerate() {
@@ -129,7 +130,7 @@ impl Registry {
             // drops) a `ThreadPool`; and, in that case, they cannot be
             // calling `inject()` later, since they dropped their
             // `ThreadPool`.
-            assert!(!state.terminate, "inject() sees state.terminate as true");
+            assert!(!self.terminate_latch.probe(), "inject() sees state.terminate as true");
 
             for &job_ref in injected_jobs {
                 state.job_injector.push(job_ref);
@@ -151,14 +152,17 @@ impl Registry {
         }
     }
 
+    /// Tear down the threadpool. All extant work is either executed
+    /// or aborted. Any attempt to inject new work will panic.  Never
+    /// used on the global registry. Only used for custom threadpools,
+    /// once they are dropped.
     pub fn terminate(&self) {
-        {
-            let mut state = self.state.lock().unwrap();
-            state.terminate = true;
-            while let Some(job) = state.job_injector.pop() {
-                unsafe {
-                    job.execute(JobMode::Abort);
-                }
+        self.terminate_latch.set();
+
+        let state = self.state.lock().unwrap();
+        while let Some(job) = state.job_injector.pop() {
+            unsafe {
+                job.execute(JobMode::Abort);
             }
         }
     }
@@ -173,7 +177,6 @@ impl RegistryState {
     pub fn new(job_injector: Worker<JobRef>) -> RegistryState {
         RegistryState {
             job_injector: job_injector,
-            terminate: false,
         }
     }
 }
@@ -385,8 +388,12 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     // **user code** panics, we should catch that and redirect.
     let abort_guard = unwind::AbortIfPanic;
 
-    let dummy_latch = SpinLatch::new();
-    worker_thread.wait_until(&dummy_latch);
+    worker_thread.wait_until(&registry.terminate_latch);
+
+    // Drain and abort any jobs remaining in our deque.
+    while let Some(job) = worker_thread.pop() {
+        job.execute(JobMode::Abort);
+    }
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
