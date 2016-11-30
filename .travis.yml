@@ -1,5 +1,6 @@
 language: rust
 rust:
+  - 1.12.0
   - stable
   - nightly
 script:
