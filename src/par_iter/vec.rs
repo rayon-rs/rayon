@@ -123,9 +123,8 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
 impl<'data, T: 'data> Drop for SliceDrain<'data, T> {
     fn drop(&mut self) {
         for ptr in &mut self.iter {
-            // use drop_in_place once stable
             unsafe {
-                std::ptr::read(ptr);
+                std::ptr::drop_in_place(ptr);
             }
         }
     }
