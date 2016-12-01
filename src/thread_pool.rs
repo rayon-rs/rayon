@@ -6,11 +6,11 @@ use latch::{Latch, LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
+use sleep::Sleep;
 use std::cell::{Cell, UnsafeCell};
-use std::collections::VecDeque;
 use std::env;
 use std::str::FromStr;
-use std::sync::{Arc, Condvar, Mutex, Once, ONCE_INIT};
+use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
 use std::usize;
@@ -23,12 +23,13 @@ use num_cpus;
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     state: Mutex<RegistryState>,
-    work_available: Condvar,
+    sleep: Sleep,
+    job_uninjector: Stealer<JobRef>,
 }
 
 struct RegistryState {
     terminate: bool,
-    injected_jobs: VecDeque<JobRef>,
+    job_injector: Worker<JobRef>,
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -71,14 +72,16 @@ impl Registry {
             },
         };
 
+        let (inj_worker, inj_stealer) = deque::new();
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque::new()).unzip();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter()
                 .map(|s| ThreadInfo::new(s))
                 .collect(),
-            state: Mutex::new(RegistryState::new()),
-            work_available: Condvar::new(),
+            state: Mutex::new(RegistryState::new(inj_worker)),
+            sleep: Sleep::new(),
+            job_uninjector: inj_stealer,
         });
 
         for (index, worker) in workers.into_iter().enumerate() {
@@ -119,7 +122,7 @@ impl Registry {
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
-            let mut state = self.state.lock().unwrap();
+            let state = self.state.lock().unwrap();
 
             // It should not be possible for `state.terminate` to be true
             // here. It is only set to true when the user creates (and
@@ -128,26 +131,36 @@ impl Registry {
             // `ThreadPool`.
             assert!(!state.terminate, "inject() sees state.terminate as true");
 
-            state.injected_jobs.extend(injected_jobs);
+            for &job_ref in injected_jobs {
+                state.job_injector.push(job_ref);
+            }
         }
+        self.sleep.tickle(usize::MAX);
     }
 
-    fn pop_injected_job(&self) -> Option<JobRef> {
-        let mut state = self.state.lock().unwrap();
-        state.injected_jobs.pop_front()
+    fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
+        loop {
+            match self.job_uninjector.steal() {
+                Stolen::Empty => return None,
+                Stolen::Abort => (), // retry
+                Stolen::Data(v) => {
+                    log!(UninjectedWork { worker: worker_index });
+                    return Some(v);
+                }
+            }
+        }
     }
 
     pub fn terminate(&self) {
         {
             let mut state = self.state.lock().unwrap();
             state.terminate = true;
-            for job in state.injected_jobs.drain(..) {
+            while let Some(job) = state.job_injector.pop() {
                 unsafe {
                     job.execute(JobMode::Abort);
                 }
             }
         }
-        self.work_available.notify_all();
     }
 }
 
@@ -157,9 +170,9 @@ pub struct RegistryId {
 }
 
 impl RegistryState {
-    pub fn new() -> RegistryState {
+    pub fn new(job_injector: Worker<JobRef>) -> RegistryState {
         RegistryState {
-            injected_jobs: VecDeque::new(),
+            job_injector: job_injector,
             terminate: false,
         }
     }
@@ -237,6 +250,7 @@ impl WorkerThread {
     #[inline]
     pub unsafe fn push(&self, job: JobRef) {
         self.worker.push(job);
+        self.registry.sleep.tickle(self.index);
     }
 
     /// Pop `job` from top of stack, returning `false` if it has been
@@ -261,54 +275,44 @@ impl WorkerThread {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the
-        // latch has been signaled, and hence that permit random
-        // memory accesses, which would be *very bad*
+        // latch has been signaled, and that can lead to random memory
+        // accesses, which would be *very bad*
         let abort_guard = unwind::AbortIfPanic;
 
+        let mut yields = 0;
         while !latch.probe() {
-            // if not, try to steal some more
-            if self.pop_or_steal_and_execute() {
-                log!(FoundWork { worker: self.index });
+            // Try to find some work to do. We give preference first
+            // to things in our local deque, then in other workers
+            // deques, and finally to injected jobs from the
+            // outside. The idea is to finish what we started before
+            // we take on something new.
+            if let Some(job) = self.pop()
+                                   .or_else(|| self.steal())
+                                   .or_else(|| self.registry.pop_injected_job(self.index)) {
+                yields = self.registry.sleep.work_found(self.index, yields);
+                self.execute(job);
             } else {
-                log!(DidNotFindWork { worker: self.index });
-                thread::yield_now();
+                yields = self.registry.sleep.no_work_found(self.index, yields);
             }
         }
+
+        // If we were sleepy, we are not anymore. We "found work" --
+        // whatever the surrounding thread was doing before it had to
+        // wait.
+        self.registry.sleep.work_found(self.index, yields);
 
         log!(LatchSet { worker: self.index });
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
-    /// Try to steal a single job. If successful, execute it and
-    /// return true. Else return false.
-    unsafe fn pop_or_steal_and_execute(&self) -> bool {
-        if let Some(job) = self.pop_or_steal() {
-            self.execute(job);
-            true
-        } else {
-            false
-        }
-    }
-
     pub unsafe fn execute(&self, job: JobRef) {
         job.execute(JobMode::Execute);
-    }
 
-    /// Try to pop a job locally; if none is found, try to steal a job.
-    ///
-    /// This is only used in the main worker loop or when stealing:
-    /// code elsewhere never pops indiscriminantly, but always with
-    /// some notion of the current stack depth.
-    unsafe fn pop_or_steal(&self) -> Option<JobRef> {
-        self.pop()
-            .or_else(|| self.steal())
-            .or_else(|| match self.registry.pop_injected_job() {
-                None => None,
-                Some(job) => {
-                    log!(UninjectedWork { worker: self.index });
-                    Some(job)
-                }
-            })
+        // Subtle: executing this job will have `set()` some of its
+        // latches.  This may mean that a sleepy (or sleeping) worker
+        // can now make progress. So we have to tickle them to let
+        // them know.
+        self.registry.sleep.tickle(self.index);
     }
 
     /// Try to steal a single job and return it.

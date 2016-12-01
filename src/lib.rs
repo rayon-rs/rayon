@@ -19,6 +19,7 @@ pub mod prelude;
 mod test;
 #[cfg(feature = "unstable")]
 mod scope;
+mod sleep;
 mod thread_pool;
 mod unwind;
 mod util;
