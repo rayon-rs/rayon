@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 use std::f64;
 
 pub struct FlatMap<M, MAP_OP> {

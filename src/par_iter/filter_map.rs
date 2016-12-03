@@ -1,6 +1,6 @@
-use super::*;
-use super::len::*;
 use super::internal::*;
+use super::len::*;
+use super::*;
 
 pub struct FilterMap<M, FILTER_OP> {
     base: M,

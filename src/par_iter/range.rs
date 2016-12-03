@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 use std::ops::Range;
 
 pub struct RangeIter<T> {

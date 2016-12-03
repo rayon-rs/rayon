@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 use std;
 
 pub struct VecIter<T: Send> {

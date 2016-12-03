@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use super::*;
-use super::len::*;
 use super::internal::*;
+use super::len::*;
+use super::*;
 
 pub fn find<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
     where PAR_ITER: ParallelIterator,

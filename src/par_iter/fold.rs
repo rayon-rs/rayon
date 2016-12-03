@@ -1,6 +1,6 @@
-use super::*;
-use super::len::*;
 use super::internal::*;
+use super::len::*;
+use super::*;
 
 pub fn fold<U, BASE, IDENTITY, FOLD_OP>(base: BASE,
                                         identity: IDENTITY,
