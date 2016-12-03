@@ -16,6 +16,17 @@ use std::sync::{Mutex, Condvar};
 ///
 /// It'd probably be better to refactor the API into two paired types,
 /// but that's a bit of work, and this is not a public API.
+///
+/// ## Memory ordering
+///
+/// Latches need to guarantee two things:
+///
+/// - Once `probe()` returns true, all memory effects from the `set()`
+///   are visible (in other words, the set should synchronize-with
+///   the probe).
+/// - Once `set()` occurs, the next `probe()` *will* observe it.  This
+///   typically requires a seq-cst ordering. See [the "tickle-then-get-sleepy" scenario in the sleep
+///   README](/src/sleep/README.md#tickle-then-get-sleepy) for details.
 pub trait Latch {
     /// Test if the latch is set.
     fn probe(&self) -> bool;
@@ -41,12 +52,12 @@ impl SpinLatch {
 impl Latch for SpinLatch {
     #[inline]
     fn probe(&self) -> bool {
-        self.b.load(Ordering::Acquire)
+        self.b.load(Ordering::SeqCst)
     }
 
     #[inline]
     fn set(&self) {
-        self.b.store(true, Ordering::Release);
+        self.b.store(true, Ordering::SeqCst);
     }
 }
 
@@ -117,12 +128,12 @@ impl Latch for CountLatch {
     #[inline]
     fn probe(&self) -> bool {
         // Need to acquire any memory reads before latch was set:
-        self.counter.load(Ordering::Acquire) == 0
+        self.counter.load(Ordering::SeqCst) == 0
     }
 
     /// Set the latch to true, releasing all threads who are waiting.
     #[inline]
     fn set(&self) {
-        self.counter.fetch_sub(1, Ordering::Release);
+        self.counter.fetch_sub(1, Ordering::SeqCst);
     }
 }

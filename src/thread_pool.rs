@@ -13,6 +13,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
+use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
@@ -208,7 +209,6 @@ impl ThreadInfo {
 
 pub struct WorkerThread {
     worker: Worker<JobRef>,
-    stealers: Vec<(usize, Stealer<JobRef>)>,
     index: usize,
 
     /// A weak random number generator.
@@ -333,9 +333,12 @@ impl WorkerThread {
         debug_assert!(self.worker.pop().is_none());
 
         // otherwise, try to steal
-        if self.stealers.is_empty() {
+        let num_threads = self.registry.thread_infos.len();
+        if num_threads <= 1 {
             return None;
         }
+        assert!(num_threads < (u32::MAX as usize),
+                "we do not support more than u32::MAX worker threads");
 
         let start = {
             // OK to use this UnsafeCell because (a) this data is
@@ -343,14 +346,15 @@ impl WorkerThread {
             // nor Sync and (b) rand crate will not call back into
             // this method.
             let rng = &mut *self.rng.get();
-            rng.next_u32() % self.stealers.len() as u32
-        };
-        let (lo, hi) = self.stealers.split_at(start as usize);
-        hi.iter()
-            .chain(lo)
-            .filter_map(|&(victim_index, ref stealer)| {
+            rng.next_u32() % num_threads as u32
+        } as usize;
+        (start .. num_threads)
+            .chain(0 .. start)
+            .filter(|&i| i != self.index)
+            .filter_map(|victim_index| {
+                let victim = &self.registry.thread_infos[victim_index];
                 loop {
-                    match stealer.steal() {
+                    match victim.stealer.steal() {
                         Stolen::Empty => return None,
                         Stolen::Abort => (), // retry
                         Stolen::Data(v) => {
@@ -367,19 +371,8 @@ impl WorkerThread {
 /// ////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
-    let stealers = registry.thread_infos
-        .iter()
-        .enumerate()
-        .filter(|&(i, _)| i != index)
-        .map(|(i, ti)| (i, ti.stealer.clone()))
-        .collect::<Vec<_>>();
-
-    assert!(stealers.len() < ::std::u32::MAX as usize,
-            "We assume this is not going to happen!");
-
     let worker_thread = WorkerThread {
         worker: worker,
-        stealers: stealers,
         index: index,
         rng: UnsafeCell::new(rand::weak_rng()),
         registry: registry.clone(),
