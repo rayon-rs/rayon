@@ -1,8 +1,8 @@
 use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
-use job::{JobRef, JobMode, StackJob};
-use latch::{Latch, LockLatch, SpinLatch};
+use job::{JobRef, StackJob};
+use latch::{Latch, CountLatch, LockLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -24,8 +24,22 @@ pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     state: Mutex<RegistryState>,
     sleep: Sleep,
-    terminate_latch: SpinLatch,
     job_uninjector: Stealer<JobRef>,
+
+    // When this latch reaches 0, it means that all work on this
+    // registry must be complete. This is ensured in the following ways:
+    //
+    // - if this is the global registry, there is a ref-count that never
+    //   gets released.
+    // - if this is a user-created thread-pool, then so long as the thread-pool
+    //   exists, it holds a reference.
+    // - when we inject a "blocking job" into the registry with `ThreadPool::install()`,
+    //   no adjustment is needed; the `ThreadPool` holds the reference, and since we won't
+    //   return until the blocking job is complete, that ref will continue to be held.
+    // - when `join()` or `scope()` is invoked, similarly, no adjustments are needed.
+    //   These are always owned by some other job (e.g., one injected by `ThreadPool::install()`)
+    //   and that job will keep the pool alive.
+    terminate_latch: CountLatch,
 }
 
 struct RegistryState {
@@ -82,7 +96,7 @@ impl Registry {
             state: Mutex::new(RegistryState::new(inj_worker)),
             sleep: Sleep::new(),
             job_uninjector: inj_stealer,
-            terminate_latch: SpinLatch::new(),
+            terminate_latch: CountLatch::new(),
         });
 
         for (index, worker) in workers.into_iter().enumerate() {
@@ -152,19 +166,11 @@ impl Registry {
         }
     }
 
-    /// Tear down the threadpool. All extant work is either executed
-    /// or aborted. Any attempt to inject new work will panic.  Never
-    /// used on the global registry. Only used for custom threadpools,
-    /// once they are dropped.
+    /// Signals that the thread-pool which owns this registry has been
+    /// dropped. The worker threads will gradually terminate, once any
+    /// extant work is completed.
     pub fn terminate(&self) {
         self.terminate_latch.set();
-
-        let state = self.state.lock().unwrap();
-        while let Some(job) = state.job_injector.pop() {
-            unsafe {
-                job.execute(JobMode::Abort);
-            }
-        }
     }
 }
 
@@ -309,7 +315,7 @@ impl WorkerThread {
     }
 
     pub unsafe fn execute(&self, job: JobRef) {
-        job.execute(JobMode::Execute);
+        job.execute();
 
         // Subtle: executing this job will have `set()` some of its
         // latches.  This may mean that a sleepy (or sleeping) worker
@@ -390,10 +396,8 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     worker_thread.wait_until(&registry.terminate_latch);
 
-    // Drain and abort any jobs remaining in our deque.
-    while let Some(job) = worker_thread.pop() {
-        job.execute(JobMode::Abort);
-    }
+    // Should not be any work left in our queue.
+    debug_assert!(worker_thread.pop().is_none());
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);

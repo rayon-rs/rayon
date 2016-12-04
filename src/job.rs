@@ -16,12 +16,7 @@ pub enum JobResult<T> {
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
 pub trait Job {
-    unsafe fn execute(this: *const Self, mode: JobMode);
-}
-
-pub enum JobMode {
-    Execute,
-    Abort,
+    unsafe fn execute(this: *const Self);
 }
 
 /// Effectively a Job trait object. Each JobRef **must** be executed
@@ -33,7 +28,7 @@ pub enum JobMode {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct JobRef {
     pointer: *const (),
-    execute_fn: unsafe fn(*const (), mode: JobMode),
+    execute_fn: unsafe fn(*const ()),
 }
 
 unsafe impl Send for JobRef {}
@@ -43,10 +38,10 @@ impl JobRef {
     pub unsafe fn new<T>(data: *const T) -> JobRef
         where T: Job
     {
-        let fn_ptr: unsafe fn(*const T, JobMode) = <T as Job>::execute;
+        let fn_ptr: unsafe fn(*const T) = <T as Job>::execute;
 
         // erase types:
-        let fn_ptr: unsafe fn(*const (), JobMode) = mem::transmute(fn_ptr);
+        let fn_ptr: unsafe fn(*const ()) = mem::transmute(fn_ptr);
         let pointer = data as *const ();
 
         JobRef {
@@ -56,8 +51,8 @@ impl JobRef {
     }
 
     #[inline]
-    pub unsafe fn execute(&self, mode: JobMode) {
-        (self.execute_fn)(self.pointer, mode)
+    pub unsafe fn execute(&self) {
+        (self.execute_fn)(self.pointer)
     }
 }
 
@@ -97,23 +92,16 @@ impl<L: Latch, F, R> StackJob<L, F, R>
 impl<L: Latch, F, R> Job for StackJob<L, F, R>
     where F: FnOnce() -> R
 {
-    unsafe fn execute(this: *const Self, mode: JobMode) {
+    unsafe fn execute(this: *const Self) {
         let this = &*this;
-        match mode {
-            JobMode::Execute => {
-                let abort = unwind::AbortIfPanic;
-                let func = (*this.func.get()).take().unwrap();
-                (*this.result.get()) = match unwind::halt_unwinding(|| func()) {
-                    Ok(x) => JobResult::Ok(x),
-                    Err(x) => JobResult::Panic(x),
-                };
-                this.latch.set();
-                mem::forget(abort);
-            }
-            JobMode::Abort => {
-                this.latch.set();
-            }
-        }
+        let abort = unwind::AbortIfPanic;
+        let func = (*this.func.get()).take().unwrap();
+        (*this.result.get()) = match unwind::halt_unwinding(|| func()) {
+            Ok(x) => JobResult::Ok(x),
+            Err(x) => JobResult::Panic(x),
+        };
+        this.latch.set();
+        mem::forget(abort);
     }
 }
 
@@ -124,13 +112,13 @@ impl<L: Latch, F, R> Job for StackJob<L, F, R>
 ///
 /// (Probably `StackJob` should be refactored in a similar fashion.)
 pub struct HeapJob<BODY>
-    where BODY: FnOnce(JobMode)
+    where BODY: FnOnce()
 {
     job: UnsafeCell<Option<BODY>>,
 }
 
 impl<BODY> HeapJob<BODY>
-    where BODY: FnOnce(JobMode)
+    where BODY: FnOnce()
 {
     pub fn new(func: BODY) -> Self {
         HeapJob { job: UnsafeCell::new(Some(func)) }
@@ -146,12 +134,12 @@ impl<BODY> HeapJob<BODY>
 }
 
 impl<BODY> Job for HeapJob<BODY>
-    where BODY: FnOnce(JobMode)
+    where BODY: FnOnce()
 {
-    unsafe fn execute(this: *const Self, mode: JobMode) {
+    unsafe fn execute(this: *const Self) {
         let this: Box<Self> = mem::transmute(this);
         let job = (*this.job.get()).take().unwrap();
-        job(mode);
+        job();
     }
 }
 

@@ -1,5 +1,5 @@
 use latch::{Latch, CountLatch};
-use job::{JobMode, HeapJob};
+use job::{HeapJob};
 use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
@@ -249,7 +249,7 @@ impl<'scope> Scope<'scope> {
     {
         unsafe {
             self.job_completed_latch.increment();
-            let job_ref = Box::new(HeapJob::new(move |mode| self.execute_job(body, mode)))
+            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
                 .as_job_ref();
             let worker_thread = WorkerThread::current();
 
@@ -266,13 +266,10 @@ impl<'scope> Scope<'scope> {
     /// appropriate.
     ///
     /// Unsafe because it must be executed on a worker thread.
-    unsafe fn execute_job<FUNC>(&self, func: FUNC, mode: JobMode)
+    unsafe fn execute_job<FUNC>(&self, func: FUNC)
         where FUNC: FnOnce(&Scope<'scope>) + 'scope
     {
-        match mode {
-            JobMode::Execute => self.execute_job_closure(func),
-            JobMode::Abort => self.job_completed_ok(),
-        }
+        self.execute_job_closure(func)
     }
 
     /// Executes `func` as a job in scope. Adjusts the "job completed"
