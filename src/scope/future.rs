@@ -263,10 +263,12 @@ impl<F: Future + Send> ScopeFutureContents<F> {
         self.unpark = None;
         self.sender.take().unwrap().complete(value);
         let this = self.this.take().unwrap();
-        let state = this.state.load(Acquire);
-        debug_assert!(state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
-                      "cannot complete when not executing (state = {})",
-                      state);
+        if cfg!(debug_assertions) {
+            let state = this.state.load(Relaxed);
+            debug_assert!(state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
+                          "cannot complete when not executing (state = {})",
+                          state);
+        }
         this.state.store(STATE_COMPLETE, Release);
     }
 }
