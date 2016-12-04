@@ -399,8 +399,8 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     mem::forget(abort_guard);
 }
 
-pub fn in_worker<OP>(op: OP)
-    where OP: FnOnce(&WorkerThread) + Send
+pub fn in_worker<OP, R>(op: OP) -> R
+    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
 {
     unsafe {
         let owner_thread = WorkerThread::current();
@@ -408,20 +408,24 @@ pub fn in_worker<OP>(op: OP)
             // Perfectly valid to give them a `&T`: this is the
             // current thread, so we know the data structure won't be
             // invalidated until we return.
-            op(&*owner_thread);
+            return op(&*owner_thread);
         } else {
-            in_worker_cold(op);
+            return in_worker_cold(op);
         }
     }
 }
 
 #[cold]
-unsafe fn in_worker_cold<OP>(op: OP)
-    where OP: FnOnce(&WorkerThread) + Send
+unsafe fn in_worker_cold<OP, R>(op: OP) -> R
+    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
 {
     // never run from a worker thread; just shifts over into worker threads
     debug_assert!(WorkerThread::current().is_null());
-    let job = StackJob::new(|| in_worker(op), LockLatch::new());
-    global_registry().inject(&[job.as_job_ref()]);
-    job.latch.wait();
+    let mut result = None;
+    {
+        let job = StackJob::new(|| result = Some(in_worker(op)), LockLatch::new());
+        global_registry().inject(&[job.as_job_ref()]);
+        job.latch.wait();
+    }
+    result.unwrap()
 }

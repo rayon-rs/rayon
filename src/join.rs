@@ -1,4 +1,4 @@
-use latch::{Latch, LockLatch, SpinLatch};
+use latch::{Latch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
@@ -16,16 +16,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
           RA: Send,
           RB: Send
 {
-    unsafe {
-        let worker_thread = WorkerThread::current();
-
-        // Slow path: not yet in the thread pool.
-        if worker_thread.is_null() {
-            return join_inject(oper_a, oper_b);
-        }
-
-        let worker_thread = &*worker_thread;
-
+    thread_pool::in_worker(|worker_thread| unsafe {
         log!(Join { worker: worker_thread.index() });
 
         // Create virtual wrapper for task b; this all has to be
@@ -70,25 +61,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
         }
 
         return (result_a, job_b.into_result());
-    }
-}
-
-#[cold] // cold path
-unsafe fn join_inject<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
-    where A: FnOnce() -> RA + Send,
-          B: FnOnce() -> RB + Send,
-          RA: Send,
-          RB: Send
-{
-    let job_a = StackJob::new(oper_a, LockLatch::new());
-    let job_b = StackJob::new(oper_b, LockLatch::new());
-
-    thread_pool::global_registry().inject(&[job_a.as_job_ref(), job_b.as_job_ref()]);
-
-    job_a.latch.wait();
-    job_b.latch.wait();
-
-    (job_a.into_result(), job_b.into_result())
+    })
 }
 
 /// If job A panics, we still cannot return until we are sure that job
