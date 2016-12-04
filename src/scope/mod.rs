@@ -1,5 +1,6 @@
 use latch::{Latch, CountLatch};
-use job::{HeapJob};
+use log::Event::*;
+use job::HeapJob;
 use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
@@ -303,13 +304,18 @@ impl<'scope> Scope<'scope> {
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
         if self.panic.compare_and_swap(nil, &mut *err, Ordering::SeqCst).is_null() {
+            log!(JobPanickedErrorStored { owner_thread: (*self.owner_thread).index() });
             mem::forget(err); // ownership now transferred into self.panic
+        } else {
+            log!(JobPanickedErrorNotStored { owner_thread: (*self.owner_thread).index() });
         }
 
-        self.job_completed_ok()
+
+        self.job_completed_latch.set();
     }
 
     unsafe fn job_completed_ok(&self) {
+        log!(JobCompletedOk { owner_thread: (*self.owner_thread).index() });
         self.job_completed_latch.set();
     }
 
@@ -322,8 +328,11 @@ impl<'scope> Scope<'scope> {
         // ordering:
         let panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
         if !panic.is_null() {
+            log!(ScopeCompletePanicked { owner_thread: (*self.owner_thread).index() });
             let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);
             unwind::resume_unwinding(*value);
+        } else {
+            log!(ScopeCompleteNoPanic { owner_thread: (*self.owner_thread).index() });
         }
     }
 }
