@@ -303,7 +303,7 @@ impl<'scope> Scope<'scope> {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
-        if self.panic.compare_and_swap(nil, &mut *err, Ordering::SeqCst).is_null() {
+        if self.panic.compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed).is_ok() {
             log!(JobPanickedErrorStored { owner_thread: (*self.owner_thread).index() });
             mem::forget(err); // ownership now transferred into self.panic
         } else {
