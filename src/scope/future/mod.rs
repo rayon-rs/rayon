@@ -2,6 +2,7 @@ use latch::{CountLatch, Latch, LatchProbe};
 #[allow(warnings)]
 use log::Event::*;
 use futures::{Async, Future, Poll};
+use futures::executor;
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task, Unpark};
 use job::{Job, JobRef};
@@ -62,6 +63,14 @@ impl<T, E> RayonFuture<T, E> {
 impl<T, E> Future for RayonFuture<T, E> {
     type Item = T;
     type Error = E;
+
+    fn wait(self) -> Result<T, E> {
+        if unsafe { WorkerThread::current().is_null() } {
+            executor::spawn(self).wait_future()
+        } else {
+            panic!("using  `wait()` in a Rayon thread is unwise; try `rayon_wait()`")
+        }
+    }
 
     fn poll(&mut self) -> Poll<T, E> {
         match self.inner.poll() {
