@@ -27,7 +27,16 @@ pub struct RayonFuture<T, E> {
     inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>,
 }
 
-/// This is a free fn so that we can expose `RayonFuture` as public API.
+/// Create a `RayonFuture` that will execute `F` and yield its result,
+/// propagating any panics.
+///
+/// Unsafe because caller asserts that all references in `F` will
+/// remain valid at least until `counter` is decremented via `set()`.
+/// In practice, this is ensured by the `scope()` API, which ensures
+/// that `F: 'scope` and that `'scope` does not end until `counter`
+/// reaches 0.
+///
+/// NB. This is a free fn so that we can expose `RayonFuture` as public API.
 pub unsafe fn new_rayon_future<F>(future: F,
                                   counter: *const CountLatch)
                                   -> RayonFuture<F::Item, F::Error>
@@ -44,11 +53,13 @@ unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
 
 impl<T, E> RayonFuture<T, E> {
     pub fn rayon_wait(mut self) -> Result<T, E> {
-        unsafe {
-            let worker_thread = WorkerThread::current();
-            if worker_thread.is_null() {
-                self.wait()
-            } else {
+        let worker_thread = WorkerThread::current();
+        if worker_thread.is_null() {
+            self.wait()
+        } else {
+            // Assert that uses of `worker_thread` pointer below are
+            // valid (because we are on the worker-thread).
+            unsafe {
                 (*worker_thread).wait_until(&*self.inner);
                 debug_assert!(self.inner.probe());
                 self.poll().map(|a_v| match a_v {
@@ -65,7 +76,7 @@ impl<T, E> Future for RayonFuture<T, E> {
     type Error = E;
 
     fn wait(self) -> Result<T, E> {
-        if unsafe { WorkerThread::current().is_null() } {
+        if WorkerThread::current().is_null() {
             executor::spawn(self).wait_future()
         } else {
             panic!("using  `wait()` in a Rayon thread is unwise; try `rayon_wait()`")
@@ -179,6 +190,13 @@ impl<F: Future + Send> ScopeFuture<F> {
         // Unfortunately, as `Unpark` currently requires `'static`, we
         // have to do an indirection and this ultimately requires a
         // fresh allocation.
+        //
+        // Here we assert that hiding the lifetimes in this fashion is
+        // safe: we claim this is true because the lifetimes we are
+        // hiding are part of `F`, and we now that any lifetimes in
+        // `F` outlive `counter`. And we can see from `complete()`
+        // that we drop all values of type `F` before decrementing
+        // `counter`.
         unsafe {
             let ping: PingUnpark = PingUnpark::new(this.clone());
             let ping: PingUnpark<'static> = mem::transmute(ping);
@@ -199,6 +217,12 @@ impl<F: Future + Send> ScopeFuture<F> {
                         // previous execution might have moved us to the
                         // PARKED state but not yet released the lock.
                         let contents = self.contents.lock().unwrap();
+
+                        // Assert that `job_ref` remains valid until
+                        // it is executed.  That's true because
+                        // `job_ref` holds a ref on the `Arc` and
+                        // because, until `job_ref` completes, the
+                        // references in the future are valid.
                         unsafe {
                             let job_ref = Self::into_job_ref(contents.this.clone().unwrap());
                             self.registry.inject(&[job_ref]);
@@ -346,7 +370,9 @@ impl<F: Future + Send> ScopeFutureContents<F> {
             waiting_task.unpark();
         }
 
-        // allow the enclosing scope to end
+        // Allow the enclosing scope to end. Asserts that
+        // `self.counter` is still valid, which we know because caller
+        // to `new_rayon_future()` ensures it for us.
         unsafe {
             (*self.counter).set();
         }

@@ -144,6 +144,8 @@ impl Registry {
     /// So long as all of the worker threads are hanging out in their
     /// top-level loop, there is no work to be done.
 
+    /// Unsafe: caller asserts that injected jobs will remain valid
+    /// until they are executed.
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
@@ -250,7 +252,7 @@ impl WorkerThread {
     /// NULL if this is not a worker thread. This pointer is valid
     /// anywhere on the current thread.
     #[inline]
-    pub unsafe fn current() -> *const WorkerThread {
+    pub fn current() -> *const WorkerThread {
         WORKER_THREAD_STATE.with(|t| t.get())
     }
 
