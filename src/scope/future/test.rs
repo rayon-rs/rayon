@@ -1,6 +1,6 @@
 use futures::{self, Future};
 use futures::future::lazy;
-use ::scope;
+use ::*;
 
 #[test]
 fn future_test() {
@@ -49,3 +49,20 @@ fn future_escape_ref() {
     assert_eq!(data[0], "Hello, world!");
 }
 
+#[test]
+#[should_panic]
+fn future_panic_prop() {
+    // need 2 threads so we can call `wait()` reliably
+    ThreadPool::new(Configuration::new().set_num_threads(2)).unwrap().install(|| {
+        scope(|s| {
+            let future = s.spawn_future(lazy(move || Ok::<(), ()>(argh())));
+            let _ = future.wait(); // should panic, not return a value
+        });
+    });
+
+    fn argh() -> () {
+        if true {
+            panic!("Hello, world!");
+        }
+    }
+}
