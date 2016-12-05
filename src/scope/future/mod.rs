@@ -1,4 +1,4 @@
-use latch::{CountLatch, Latch};
+use latch::{CountLatch, Latch, LatchProbe};
 #[allow(warnings)]
 use log::Event::*;
 use futures::{Async, Future, Poll};
@@ -39,6 +39,24 @@ pub unsafe fn new_rayon_future<F>(future: F,
 unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
                                   -> Arc<ScopeFutureTrait<T, E>> {
     mem::transmute(x)
+}
+
+impl<T, E> RayonFuture<T, E> {
+    pub fn rayon_wait(mut self) -> Result<T, E> {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if worker_thread.is_null() {
+                self.wait()
+            } else {
+                (*worker_thread).wait_until(&*self.inner);
+                debug_assert!(self.inner.probe());
+                self.poll().map(|a_v| match a_v {
+                    Async::Ready(v) => v,
+                    Async::NotReady => panic!("probe() returned true but poll not ready")
+                })
+            }
+        }
+    }
 }
 
 impl<T, E> Future for RayonFuture<T, E> {
@@ -342,7 +360,15 @@ impl Unpark for PingUnpark<'static> {
     }
 }
 
-pub trait ScopeFutureTrait<T, E>: Send + Sync {
+impl<F> LatchProbe for ScopeFuture<F>
+    where F: Future + Send
+{
+    fn probe(&self) -> bool {
+        self.state.load(Acquire) == STATE_COMPLETE
+    }
+}
+
+pub trait ScopeFutureTrait<T, E>: Send + Sync + LatchProbe {
     fn poll(&self) -> Poll<T, E>;
     fn cancel(&self);
 }

@@ -290,7 +290,7 @@ impl WorkerThread {
     /// Wait until the latch is set. Try to keep busy by popping and
     /// stealing tasks as necessary.
     #[inline]
-    pub unsafe fn wait_until<L: LatchProbe>(&self, latch: &L) {
+    pub unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
         log!(WaitUntil { worker: self.index });
         if !latch.probe() {
             self.wait_until_cold(latch);
@@ -298,7 +298,7 @@ impl WorkerThread {
     }
 
     #[cold]
-    unsafe fn wait_until_cold<L: LatchProbe>(&self, latch: &L) {
+    unsafe fn wait_until_cold<L: LatchProbe + ?Sized>(&self, latch: &L) {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the

@@ -66,3 +66,20 @@ fn future_panic_prop() {
         }
     }
 }
+
+#[test]
+#[should_panic]
+fn future_panic_prop_1_thread() {
+    ThreadPool::new(Configuration::new().set_num_threads(1)).unwrap().install(|| {
+        scope(|s| {
+            let future = s.spawn_future(lazy(move || Ok::<(), ()>(argh())));
+            let _ = future.rayon_wait(); // should panic, not return a value
+        });
+    });
+
+    fn argh() -> () {
+        if true {
+            panic!("Hello, world!");
+        }
+    }
+}
