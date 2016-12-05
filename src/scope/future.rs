@@ -1,17 +1,19 @@
 use latch::{CountLatch, Latch};
+#[allow(warnings)]
+use log::Event::*;
 use futures::{Async, Future, Poll};
 use futures::future::CatchUnwind;
-use futures::sync::oneshot::{channel, Sender, Receiver};
-use futures::task::{self, Spawn, Unpark};
+use futures::task::{self, Spawn, Task, Unpark};
 use job::{Job, JobRef};
-use std::panic::{self, AssertUnwindSafe};
+use std::any::Any;
+use std::panic::AssertUnwindSafe;
 use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
-use std::thread;
 use thread_pool::{Registry, WorkerThread};
+use unwind;
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
@@ -21,7 +23,7 @@ const STATE_COMPLETE: usize = 4;
 
 // Warning: Public end-user API.
 pub struct RayonFuture<T, E> {
-    receiver: Receiver<thread::Result<Result<T, E>>>,
+    inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>
 }
 
 /// This is a free fn so that we can expose `RayonFuture` as public API.
@@ -30,9 +32,13 @@ pub unsafe fn new_rayon_future<F>(future: F,
                                   -> RayonFuture<F::Item, F::Error>
     where F: Future + Send
 {
-    let (tx, rx) = channel();
-    ScopeFuture::spawn(future, tx, counter);
-    RayonFuture { receiver: rx }
+    let inner = ScopeFuture::spawn(future, counter);
+    RayonFuture { inner: hide_lifetime(inner) }
+}
+
+unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
+                                  -> Arc<ScopeFutureTrait<T, E>> {
+    mem::transmute(x)
 }
 
 impl<T, E> Future for RayonFuture<T, E> {
@@ -40,12 +46,18 @@ impl<T, E> Future for RayonFuture<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        match self.receiver.poll().expect("shouldn't be canceled") {
-            Async::Ready(Ok(Ok(e))) => Ok(e.into()),
-            Async::Ready(Ok(Err(e))) => Err(e),
-            Async::Ready(Err(e)) => panic::resume_unwind(e),
-            Async::NotReady => Ok(Async::NotReady),
+        match self.inner.poll() {
+            Ok(Async::Ready(Ok(v))) => Ok(Async::Ready(v)),
+            Ok(Async::Ready(Err(e))) => Err(e),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(e) => unwind::resume_unwinding(e),
         }
+    }
+}
+
+impl<T, E> Drop for RayonFuture<T, E> {
+    fn drop(&mut self) {
+        self.inner.cancel();
     }
 }
 
@@ -61,7 +73,6 @@ type CU<F> = CatchUnwind<AssertUnwindSafe<F>>;
 
 struct ScopeFutureContents<F: Future + Send> {
     spawn: Option<Spawn<CU<F>>>,
-    sender: Option<Sender<thread::Result<Result<F::Item, F::Error>>>>,
     unpark: Option<Arc<Unpark>>,
 
     // Pointer to ourselves. We `None` this out when we are finished
@@ -72,6 +83,9 @@ struct ScopeFutureContents<F: Future + Send> {
     // counter reaches zero, and we hold a ref in this counter, we are
     // assured that this pointer remains valid
     counter: *const CountLatch,
+
+    waiting_task: Option<Task>,
+    result: Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error>,
 }
 
 trait Ping: Send + Sync {
@@ -86,8 +100,8 @@ impl<F: Future + Send> ScopeFuture<F> {
     // Unsafe: Caller asserts that `future` and `counter` will remain
     // valid until we invoke `counter.set()`.
     unsafe fn spawn(future: F,
-                    sender: Sender<thread::Result<Result<F::Item, F::Error>>>,
-                    counter: *const CountLatch) {
+                    counter: *const CountLatch)
+                    -> Arc<Self> {
         let worker_thread = WorkerThread::current();
         debug_assert!(!worker_thread.is_null());
 
@@ -103,8 +117,9 @@ impl<F: Future + Send> ScopeFuture<F> {
                 spawn: None,
                 unpark: None,
                 this: None,
-                sender: Some(sender),
                 counter: counter,
+                waiting_task: None,
+                result: Ok(Async::NotReady),
             }),
         });
 
@@ -119,6 +134,8 @@ impl<F: Future + Send> ScopeFuture<F> {
         }
 
         future.ping();
+
+        future
     }
 
     /// Creates a `JobRef` from this job -- note that this hides all
@@ -234,18 +251,23 @@ impl<F: Future + Send> Job for ScopeFuture<F> {
         // and re-executed, before we have time to return from this fn
         let mut contents = this.contents.lock().unwrap();
 
+        log!(FutureExecute { state: this.state.load(Relaxed) });
+
         this.begin_execute_state();
         loop {
             match contents.poll() {
                 Ok(Async::Ready(v)) => {
-                    return contents.complete(Ok(v));
+                    log!(FutureExecuteReady);
+                    return contents.complete(Ok(Async::Ready(v)));
                 }
                 Ok(Async::NotReady) => {
+                    log!(FutureExecuteNotReady);
                     if this.end_execute_state() {
                         return;
                     }
                 }
                 Err(err) => {
+                    log!(FutureExecuteErr);
                     return contents.complete(Err(err));
                 }
             }
@@ -259,9 +281,19 @@ impl<F: Future + Send> ScopeFutureContents<F> {
         self.spawn.as_mut().unwrap().poll_future(unpark)
     }
 
-    fn complete(&mut self, value: thread::Result<Result<F::Item, F::Error>>) {
+    fn complete(&mut self, value: Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error>) {
+        log!(FutureComplete);
+
+        // So, this is subtle. We know that the type `F` may have some
+        // data which is only valid until the end of the scope, and we
+        // also know that the scope doesn't end until `self.counter`
+        // is decremented below. So we want to be sure to drop
+        // `self.future` first, lest its dtor try to access some of
+        // that state or something!
+        self.spawn.take().unwrap();
+
         self.unpark = None;
-        self.sender.take().unwrap().complete(value);
+        self.result = value;
         let this = self.this.take().unwrap();
         if cfg!(debug_assertions) {
             let state = this.state.load(Relaxed);
@@ -270,26 +302,15 @@ impl<F: Future + Send> ScopeFutureContents<F> {
                           state);
         }
         this.state.store(STATE_COMPLETE, Release);
-    }
-}
 
-impl<F: Future + Send> Drop for ScopeFuture<F> {
-    fn drop(&mut self) {
+        if let Some(waiting_task) = self.waiting_task.take() {
+            log!(FutureUnparkWaitingTask);
+            waiting_task.unpark();
+        }
+
+        // allow the enclosing scope to end
         unsafe {
-            // can't be any contention for this lock in drop
-            let mut contents = self.contents.try_lock().unwrap();
-
-            // So, this is subtle. We know that the type `F` may have
-            // some data which is only valid until the end of the
-            // scope, and we also know that the scope doesn't end
-            // until `self.counter` is decremented below. So we want
-            // to be sure to drop `self.future` first.
-            mem::drop(contents.spawn.take());
-
-            // Set the latch. By the struct invariant, we know that
-            // the counter pointer will remain valid until this ref is
-            // dropped.
-            (*contents.counter).set();
+            (*self.counter).set();
         }
     }
 }
@@ -309,3 +330,48 @@ impl Unpark for PingUnpark<'static> {
         self.ping.ping()
     }
 }
+
+pub trait ScopeFutureTrait<T, E>: Send + Sync {
+    fn poll(&self) -> Poll<T, E>;
+    fn cancel(&self);
+}
+
+impl<F> ScopeFutureTrait<<CU<F> as Future>::Item, <CU<F> as Future>::Error> for ScopeFuture<F>
+    where F: Future + Send
+{
+    fn poll(&self) -> Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error> {
+        // Important: due to transmute hackery, not all the fields are
+        // truly known to be valid at this point. In particular, the
+        // type F is erased. But the `state` and `result` fields
+        // should be valid.
+        let mut contents = self.contents.lock().unwrap();
+        let state = self.state.load(Relaxed);
+        if state == STATE_COMPLETE {
+            let r = mem::replace(&mut contents.result, Ok(Async::NotReady));
+            return r;
+        } else {
+            assert!(contents.waiting_task.is_none());
+            log!(FutureInstallWaitingTask { state: state });
+            contents.waiting_task = Some(task::park());
+            Ok(Async::NotReady)
+        }
+    }
+
+    fn cancel(&self) {
+        loop {
+            let state = self.state.load(Relaxed);
+            if state == STATE_COMPLETE {
+                // no need to do anything
+                return;
+            } else {
+                log!(FutureCancel { state: state });
+                let mut contents = self.contents.lock().unwrap();
+                if self.state.compare_exchange_weak(state, STATE_COMPLETE, Release, Relaxed).is_ok() {
+                    contents.complete(Ok(Async::NotReady));
+                    return;
+                }
+            }
+        }
+    }
+}
+
