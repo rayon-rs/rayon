@@ -23,7 +23,7 @@ const STATE_COMPLETE: usize = 4;
 
 // Warning: Public end-user API.
 pub struct RayonFuture<T, E> {
-    inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>
+    inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>,
 }
 
 /// This is a free fn so that we can expose `RayonFuture` as public API.
@@ -99,9 +99,7 @@ unsafe impl<F: Future + Send> Sync for ScopeFuture<F> {}
 impl<F: Future + Send> ScopeFuture<F> {
     // Unsafe: Caller asserts that `future` and `counter` will remain
     // valid until we invoke `counter.set()`.
-    unsafe fn spawn(future: F,
-                    counter: *const CountLatch)
-                    -> Arc<Self> {
+    unsafe fn spawn(future: F, counter: *const CountLatch) -> Arc<Self> {
         let worker_thread = WorkerThread::current();
         debug_assert!(!worker_thread.is_null());
 
@@ -163,33 +161,43 @@ impl<F: Future + Send> ScopeFuture<F> {
 
     fn unpark_inherent(&self) {
         loop {
-            let state = self.state.load(Acquire);
-            if {
-                state == STATE_PARKED &&
-                self.state
-                    .compare_exchange_weak(state, STATE_UNPARKED, Release, Relaxed)
-                    .is_ok()
-            } {
-                // Contention here is unlikely but possible: a
-                // previous execution might have moved us to the
-                // PARKED state but not yet released the lock.
-                let contents = self.contents.lock().unwrap();
-                unsafe {
-                    let job_ref = Self::into_job_ref(contents.this.clone().unwrap());
-                    self.registry.inject(&[job_ref]);
+            match self.state.load(Relaxed) {
+                STATE_PARKED => {
+                    if {
+                        self.state
+                            .compare_exchange_weak(STATE_PARKED, STATE_UNPARKED, Release, Relaxed)
+                            .is_ok()
+                    } {
+                        // Contention here is unlikely but possible: a
+                        // previous execution might have moved us to the
+                        // PARKED state but not yet released the lock.
+                        let contents = self.contents.lock().unwrap();
+                        unsafe {
+                            let job_ref = Self::into_job_ref(contents.this.clone().unwrap());
+                            self.registry.inject(&[job_ref]);
+                        }
+                        return;
+                    }
                 }
-                return;
-            } else if {
-                state == STATE_EXECUTING &&
-                self.state
-                    .compare_exchange_weak(state, STATE_EXECUTING_UNPARKED, Release, Relaxed)
-                    .is_ok()
-            } {
-                return;
-            } else {
-                debug_assert!(state == STATE_UNPARKED || state == STATE_EXECUTING_UNPARKED ||
-                              state == STATE_COMPLETE);
-                return;
+
+                STATE_EXECUTING => {
+                    if {
+                        self.state
+                            .compare_exchange_weak(STATE_EXECUTING,
+                                                   STATE_EXECUTING_UNPARKED,
+                                                   Release,
+                                                   Relaxed)
+                            .is_ok()
+                    } {
+                        return;
+                    }
+                }
+
+                state => {
+                    debug_assert!(state == STATE_UNPARKED || state == STATE_EXECUTING_UNPARKED ||
+                                  state == STATE_COMPLETE);
+                    return;
+                }
             }
         }
     }
@@ -207,29 +215,32 @@ impl<F: Future + Send> ScopeFuture<F> {
 
     fn end_execute_state(&self) -> bool {
         loop {
-            let state = self.state.load(Acquire);
-            if state == STATE_EXECUTING {
-                if {
-                    self.state
-                        .compare_exchange_weak(state, STATE_PARKED, Release, Relaxed)
-                        .is_ok()
-                } {
-                    // We put ourselves into parked state, no need to
-                    // re-execute.  We'll just wait for the Unpark.
-                    return true;
+            match self.state.load(Relaxed) {
+                STATE_EXECUTING => {
+                    if {
+                        self.state
+                            .compare_exchange_weak(STATE_EXECUTING, STATE_PARKED, Release, Relaxed)
+                            .is_ok()
+                    } {
+                        // We put ourselves into parked state, no need to
+                        // re-execute.  We'll just wait for the Unpark.
+                        return true;
+                    }
                 }
-            } else {
-                debug_assert_eq!(state, STATE_EXECUTING_UNPARKED);
-                if {
-                    self.state
-                        .compare_exchange_weak(state, STATE_EXECUTING, Release, Relaxed)
-                        .is_ok()
-                } {
-                    // We finished executing, but an unpark request
-                    // came in the meantime.  We need to execute
-                    // again. Return false as we failed to end the
-                    // execution phase.
-                    return false;
+
+                state => {
+                    debug_assert_eq!(state, STATE_EXECUTING_UNPARKED);
+                    if {
+                        self.state
+                            .compare_exchange_weak(state, STATE_EXECUTING, Release, Relaxed)
+                            .is_ok()
+                    } {
+                        // We finished executing, but an unpark request
+                        // came in the meantime.  We need to execute
+                        // again. Return false as we failed to end the
+                        // execution phase.
+                        return false;
+                    }
                 }
             }
         }
@@ -358,20 +369,33 @@ impl<F> ScopeFutureTrait<<CU<F> as Future>::Item, <CU<F> as Future>::Error> for 
     }
 
     fn cancel(&self) {
+        // Fast-path: check if this is already complete and return if
+        // so. A relaxed load suffices since we are not going to
+        // access any data as a result of this action.
+        if self.state.load(Relaxed) == STATE_COMPLETE {
+            return;
+        }
+
+        // Slow-path. Get the lock and everything.
+        let mut contents = self.contents.lock().unwrap();
         loop {
-            let state = self.state.load(Relaxed);
-            if state == STATE_COMPLETE {
-                // no need to do anything
-                return;
-            } else {
-                log!(FutureCancel { state: state });
-                let mut contents = self.contents.lock().unwrap();
-                if self.state.compare_exchange_weak(state, STATE_COMPLETE, Release, Relaxed).is_ok() {
-                    contents.complete(Ok(Async::NotReady));
+            match self.state.load(Relaxed) {
+                STATE_COMPLETE => {
                     return;
+                }
+
+                state => {
+                    log!(FutureCancel { state: state });
+                    if {
+                        self.state
+                            .compare_exchange_weak(state, STATE_COMPLETE, Release, Relaxed)
+                            .is_ok()
+                    } {
+                        contents.complete(Ok(Async::NotReady));
+                        return;
+                    }
                 }
             }
         }
     }
 }
-
