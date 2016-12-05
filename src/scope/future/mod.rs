@@ -399,3 +399,6 @@ impl<F> ScopeFutureTrait<<CU<F> as Future>::Item, <CU<F> as Future>::Error> for 
         }
     }
 }
+
+#[cfg(test)]
+mod test;
