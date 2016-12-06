@@ -931,6 +931,7 @@ pub fn check_chain() {
         .enumerate()
         .map(|(a, (b, c))| (a, b, c))
         .weight_max()
+        .chain(None)
         .collect_into(&mut res);
 
     assert_eq!(res,
@@ -947,7 +948,7 @@ pub fn check_chain() {
                     (10, 'z', -10)]);
 
     // unindexed is ok too
-    let sum = Some(1i32)
+    let res: Vec<i32> = Some(1i32)
         .into_par_iter()
         .chain((2i32..4)
             .into_par_iter()
@@ -957,8 +958,11 @@ pub fn check_chain() {
                 .flat_map(|(a, b)| a..b))
             .filter(|x| x & 1 == 1))
         .weight_max()
-        .sum();
-    assert_eq!(sum, 2500);
+        .collect();
+    let other: Vec<i32> = (0..100)
+        .filter(|x| x & 1 == 1)
+        .collect();
+    assert_eq!(res, other);
 }
 
 
