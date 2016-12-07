@@ -35,10 +35,15 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
     }
 
     fn opt_len(&mut self) -> Option<usize> {
-        match (self.a.opt_len(), self.b.opt_len()) {
-            (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
-            _ => None,
-        }
+        // NB: Even though we could compute the indexed length as below,
+        // we can't support collect's faux `UnindexedConsumer` in our
+        // `drive_unindexed`, so we must leave this un-"specialized".
+        //
+        // match (self.a.opt_len(), self.b.opt_len()) {
+        //     (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
+        //     _ => None,
+        // }
+        None
     }
 }
 

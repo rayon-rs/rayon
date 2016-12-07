@@ -12,8 +12,9 @@ pub fn collect_into<PAR_ITER, T>(mut pi: PAR_ITER, v: &mut Vec<T>)
     where PAR_ITER: ExactParallelIterator<Item = T>,
           T: Send
 {
-    let len = pi.len();
-    special_collect_into(pi, len, v);
+    let mut collect = Collect::new(v, pi.len());
+    pi.drive(collect.as_consumer());
+    collect.complete();
 }
 
 /// Collects the results of the iterator into the specified vector.
@@ -31,34 +32,59 @@ fn special_collect_into<PAR_ITER, T>(pi: PAR_ITER, len: usize, v: &mut Vec<T>)
     where PAR_ITER: ParallelIterator<Item = T>,
           T: Send
 {
-    v.truncate(0); // clear any old data
-    v.reserve(len); // reserve enough space
-    let writes = AtomicUsize::new(0);
+    let mut collect = Collect::new(v, len);
+    pi.drive_unindexed(collect.as_consumer());
+    collect.complete();
+}
 
-    {
-        // Get a correct borrow, then extend it to the original length.
-        let mut slice = v.as_mut_slice();
-        slice = unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr(), len) };
-        let consumer = CollectConsumer::new(&writes, slice);
-        pi.drive_unindexed(consumer);
+
+/// Manage the collection vector.
+struct Collect<'c, T: Send + 'c> {
+    writes: AtomicUsize,
+    vec: &'c mut Vec<T>,
+    len: usize,
+}
+
+impl<'c, T: Send + 'c> Collect<'c, T> {
+    fn new(vec: &'c mut Vec<T>, len: usize) -> Self {
+        vec.truncate(0); // clear any old data
+        vec.reserve(len); // reserve enough space
+
+        Collect {
+            writes: AtomicUsize::new(0),
+            vec: vec,
+            len: len,
+        }
     }
 
-    unsafe {
-        // Here, we assert that `v` is fully initialized. This is
-        // checked by the following assert, which counts how many
-        // total writes occurred. Since we know that the consumer
-        // cannot have escaped from `drive` (by parametricity,
-        // essentially), we know that any stores that will happen,
-        // have happened. Unless some code is buggy, that means we
-        // should have seen `len` total writes.
-        let actual_writes = writes.load(Ordering::Relaxed);
-        assert!(actual_writes == len,
-                "expected {} total writes, but got {}",
-                len,
-                actual_writes);
-        v.set_len(len);
+    /// Create a consumer on a slice of our memory.
+    fn as_consumer(&mut self) -> CollectConsumer<T> {
+        // Get a correct borrow, then extend it to the original length.
+        let mut slice = self.vec.as_mut_slice();
+        slice = unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr(), self.len) };
+        CollectConsumer::new(&self.writes, slice)
+    }
+
+    /// Update the final vector length.
+    fn complete(mut self) {
+        unsafe {
+            // Here, we assert that `v` is fully initialized. This is
+            // checked by the following assert, which counts how many
+            // total writes occurred. Since we know that the consumer
+            // cannot have escaped from `drive` (by parametricity,
+            // essentially), we know that any stores that will happen,
+            // have happened. Unless some code is buggy, that means we
+            // should have seen `len` total writes.
+            let actual_writes = self.writes.load(Ordering::Relaxed);
+            assert!(actual_writes == self.len,
+                    "expected {} total writes, but got {}",
+                    self.len,
+                    actual_writes);
+            self.vec.set_len(self.len);
+        }
     }
 }
+
 
 /// Collect items from a parallel iterator into a freshly allocated vector.
 impl<T> FromParallelIterator<T> for Vec<T>
