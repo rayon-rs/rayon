@@ -234,6 +234,21 @@ impl ThreadPool {
             job_a.into_result()
         }
     }
+
+    /// Returns the number of threads in the thread pool.
+    pub fn num_threads(&self) -> usize {
+        self.registry.num_threads()
+    }
+
+    /// Returns the index of the current thread in the thread pool. Panics if
+    /// the current thread is not in this thread pool.
+    pub fn current_thread_index(&self) -> usize {
+        unsafe {
+            let curr = WorkerThread::current();
+            assert!(!curr.is_null());
+            (*curr).index()
+        }
+    }
 }
 
 impl Drop for ThreadPool {
