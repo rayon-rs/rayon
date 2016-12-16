@@ -131,6 +131,9 @@ pub fn dump_stats() {
     dump_stats!();
 }
 
+/// The `join` function takes two closures and potentially runs them in parallel but is not
+/// guaranteed to. However, the call to `join` incurs low overhead and is much different compared
+/// to spawning two separate threads.
 pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     where A: FnOnce() -> RA + Send,
           B: FnOnce() -> RB + Send,
