@@ -131,9 +131,11 @@ pub const SUM: &'static SumOp = &SumOp;
 macro_rules! sum_rule {
     ($i:ty, $z:expr) => {
         impl ReduceOp<$i> for SumOp {
+            #[inline]
             fn start_value(&self) -> $i {
                 $z
             }
+            #[inline]
             fn reduce(&self, value1: $i, value2: $i) -> $i {
                 value1 + value2
             }
@@ -161,9 +163,11 @@ pub const PRODUCT: &'static ProductOp = &ProductOp;
 macro_rules! product_rule {
     ($i:ty, $z:expr) => {
         impl ReduceOp<$i> for ProductOp {
+            #[inline]
             fn start_value(&self) -> $i {
                 $z
             }
+            #[inline]
             fn reduce(&self, value1: $i, value2: $i) -> $i {
                 value1 * value2
             }
