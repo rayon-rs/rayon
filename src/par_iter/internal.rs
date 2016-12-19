@@ -28,6 +28,22 @@ pub trait Producer: IntoIterator + Send + Sized {
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than `N`.
     fn split_at(self, index: usize) -> (Self, Self);
+
+    /// Iterate the producer, feeding each element to `folder`, and
+    /// stop when the folder is full (or all elements have been consumed).
+    ///
+    /// The provided implementation is sufficient for most iterables.
+    fn fold_with<F>(self, mut folder: F) -> F
+        where F: Folder<Self::Item>,
+    {
+        for item in self {
+            folder = folder.consume(item);
+            if folder.full() {
+                break;
+            }
+        }
+        folder
+    }
 }
 
 /// A consumer which consumes items that are fed to it.
@@ -95,6 +111,22 @@ pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
 pub trait UnindexedProducer: IntoIterator + Send + Sized {
     fn can_split(&self) -> bool;
     fn split(self) -> (Self, Self);
+
+    /// Iterate the producer, feeding each element to `folder`, and
+    /// stop when the folder is full (or all elements have been consumed).
+    ///
+    /// The provided implementation is sufficient for most iterables.
+    fn fold_with<F>(self, mut folder: F) -> F
+        where F: Folder<Self::Item>,
+    {
+        for item in self {
+            folder = folder.consume(item);
+            if folder.full() {
+                break;
+            }
+        }
+        folder
+    }
 }
 
 /// A splitter controls the policy for splitting into smaller work items.
@@ -207,14 +239,7 @@ pub fn bridge_producer_consumer<P, C>(len: usize, mut producer: P, mut consumer:
                      || helper(len - mid, splitter, right_producer, right_consumer));
             reducer.reduce(left_result, right_result)
         } else {
-            let mut folder = consumer.into_folder();
-            for item in producer {
-                folder = folder.consume(item);
-                if folder.full() {
-                    break;
-                }
-            }
-            folder.complete()
+            producer.fold_with(consumer.into_folder()).complete()
         }
     }
 }
@@ -245,13 +270,6 @@ fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
                  || bridge_unindexed_producer_consumer(splitter, right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {
-        let mut folder = consumer.into_folder();
-        for item in producer {
-            folder = folder.consume(item);
-            if folder.full() {
-                break;
-            }
-        }
-        folder.complete()
+        producer.fold_with(consumer.into_folder()).complete()
     }
 }
