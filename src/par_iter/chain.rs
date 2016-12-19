@@ -185,6 +185,17 @@ impl<A, B> Producer for ChainProducer<A, B>
              ChainProducer::new(0, a_right, b_right))
         }
     }
+
+    fn fold_with<F>(self, mut folder: F) -> F
+        where F: Folder<A::Item>,
+    {
+        folder = self.a.fold_with(folder);
+        if folder.full() {
+            folder
+        } else {
+            self.b.fold_with(folder)
+        }
+    }
 }
 
 impl<A, B> IntoIterator for ChainProducer<A, B>
