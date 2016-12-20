@@ -20,7 +20,10 @@ fn run_dir(b: &mut test::Bencher,
         solution = Some(solver.into_result());
     });
     let (path, weight) = solution.unwrap();
-    let path: Vec<usize> = path.unwrap().iter().map(|n| n.index()).collect();
+    let mut path: Vec<usize> = path.unwrap().iter().map(|n| n.index()).collect();
+    if path.iter().rev().lt(&path) {
+        path.reverse(); // normalize the direction
+    }
     assert_eq!(exp_weight, weight.to_usize(),
                "actual weight ({:?}) did not match expectation ({:?})", weight, exp_weight);
     assert_eq!(exp_path, path,
