@@ -1,6 +1,6 @@
-use super::*;
-use super::len::*;
 use super::internal::*;
+use super::len::*;
+use super::*;
 
 pub trait MapOp<In>: Sync {
     type Output: Send;

@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 use std::iter;
 use std::ops::RangeFrom;
 

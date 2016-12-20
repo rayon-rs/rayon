@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 
 pub struct SliceIter<'data, T: 'data + Sync> {
     slice: &'data [T],

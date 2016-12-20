@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::*;
 use super::internal::*;
+use super::*;
 
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;

@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 use std::str::Chars;
 
 /// Test if a byte is the start of a UTF-8 character.

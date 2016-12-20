@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 
 pub struct Weight<M> {
     base: M,

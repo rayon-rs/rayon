@@ -1,5 +1,5 @@
-use super::*;
 use super::internal::*;
+use super::*;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {
     slice: &'data mut [T],
