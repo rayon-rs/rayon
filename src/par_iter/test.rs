@@ -69,6 +69,26 @@ pub fn execute_strings() {
 }
 
 #[test]
+pub fn execute_strings_split() {
+    // char testcases from `str::split` examples,
+    // plus a large self-test for good measure.
+    let tests = vec![("Mary had a little lamb", ' '),
+                     ("", 'X'),
+                     ("lionXXtigerXleopard", 'X'),
+                     ("||||a||b|c", '|'),
+                     ("(///)", '/'),
+                     ("010", '0'),
+                     ("    a  b c", ' '),
+                     (include_str!("test.rs"), ' ')];
+
+    for (string, separator) in tests {
+        let serial: Vec<_> = string.split(separator).collect();
+        let parallel: Vec<_> = string.par_split(separator).collect();
+        assert_eq!(serial, parallel);
+    }
+}
+
+#[test]
 pub fn check_map_exact_and_bounded() {
     let a = [1, 2, 3];
     is_bounded(a.par_iter().map(|x| x));
