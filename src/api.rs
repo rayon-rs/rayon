@@ -237,6 +237,42 @@ impl ThreadPool {
             job_a.into_result()
         }
     }
+
+    /// Returns the number of threads in the thread pool.
+    pub fn num_threads(&self) -> usize {
+        self.registry.num_threads()
+    }
+
+    /// If called from a Rayon worker thread in this thread-pool,
+    /// returns the index of that thread; if not called from a Rayon
+    /// thread, or called from a Rayon thread that belongs to a
+    /// different thread-pool, returns `None`.
+    ///
+    /// The index for a given thread will not change over the thread's
+    /// lifetime. However, multiple threads may share the same index if
+    /// they are in distinct thread-pools.
+    ///
+    /// ### Future compatibility note
+    ///
+    /// Currently, every thread-pool (including the global thread-pool)
+    /// has a fixed number of threads, but this may change in future Rayon
+    /// versions. In that case, the index for a thread would not change
+    /// during its lifetime, but thread indices may wind up being reused
+    /// if threads are terminated and restarted. (If this winds up being
+    /// an untenable policy, then a semver-incompatible version can be
+    /// used.)
+    pub fn current_thread_index(&self) -> Option<usize> {
+        unsafe {
+            let curr = WorkerThread::current();
+            if curr.is_null() {
+                None
+            } else if (*curr).registry().id() != self.registry.id() {
+                None
+            } else {
+                Some((*curr).index())
+            }
+        }
+    }
 }
 
 impl Drop for ThreadPool {
