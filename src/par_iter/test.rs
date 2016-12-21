@@ -70,7 +70,7 @@ pub fn execute_strings() {
 
 #[test]
 pub fn execute_strings_split() {
-    // char testcases from `str::split` and `split_terminator` examples,
+    // char testcases from examples in `str::split` etc.,
     // plus a large self-test for good measure.
     let tests = vec![("Mary had a little lamb", ' '),
                      ("", 'X'),
@@ -81,6 +81,8 @@ pub fn execute_strings_split() {
                      ("    a  b c", ' '),
                      ("A.B.", '.'),
                      ("A..B..", '.'),
+                     ("foo\r\nbar\n\nbaz\n", '\n'),
+                     ("foo\nbar\n\r\nbaz", '\n'),
                      (include_str!("test.rs"), ' ')];
 
     for &(string, separator) in &tests {
@@ -92,6 +94,12 @@ pub fn execute_strings_split() {
     for &(string, separator) in &tests {
         let serial: Vec<_> = string.split_terminator(separator).collect();
         let parallel: Vec<_> = string.par_split_terminator(separator).collect();
+        assert_eq!(serial, parallel);
+    }
+
+    for &(string, _) in &tests {
+        let serial: Vec<_> = string.lines().collect();
+        let parallel: Vec<_> = string.par_lines().collect();
         assert_eq!(serial, parallel);
     }
 }

@@ -43,6 +43,12 @@ pub trait ParallelString {
     /// equivalent to `par_split`, except it doesn't produce an empty
     /// substring after a trailing terminator.
     fn par_split_terminator(&self, char) -> ParSplitTerminator;
+
+    /// Returns a parallel iterator over the lines of a string, ending with an
+    /// optional carriage return and with a newline (`\r\n` or just `\n`).
+    /// The final line ending is optional, and line endings are not included in
+    /// the output strings.
+    fn par_lines(&self) -> ParLines;
 }
 
 impl ParallelString for str {
@@ -56,6 +62,10 @@ impl ParallelString for str {
 
     fn par_split_terminator(&self, terminator: char) -> ParSplitTerminator {
         ParSplitTerminator::new(self, terminator)
+    }
+
+    fn par_lines(&self) -> ParLines {
+        ParLines(self)
     }
 }
 
@@ -256,5 +266,26 @@ impl<'a> IntoIterator for ParSplitTerminator<'a> {
         }
 
         iter
+    }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+pub struct ParLines<'a>(&'a str);
+
+impl<'a> ParallelIterator for ParLines<'a> {
+    type Item = &'a str;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        self.0.par_split_terminator('\n').map(|line| {
+            if line.ends_with('\r') {
+                &line[..line.len() - 1]
+            } else {
+                line
+            }
+        }).drive_unindexed(consumer)
     }
 }
