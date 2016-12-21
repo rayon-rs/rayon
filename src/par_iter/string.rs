@@ -240,7 +240,10 @@ impl<'a> UnindexedProducer for ParSplitTerminator<'a> {
         self.splitter.split().map(|right| {
             let endpoint = self.endpoint;
             self.endpoint = false;
-            ParSplitTerminator { splitter: right, endpoint: endpoint }
+            ParSplitTerminator {
+                splitter: right,
+                endpoint: endpoint,
+            }
         })
     }
 }
@@ -280,12 +283,15 @@ impl<'a> ParallelIterator for ParLines<'a> {
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        self.0.par_split_terminator('\n').map(|line| {
-            if line.ends_with('\r') {
-                &line[..line.len() - 1]
-            } else {
-                line
-            }
-        }).drive_unindexed(consumer)
+        self.0
+            .par_split_terminator('\n')
+            .map(|line| {
+                if line.ends_with('\r') {
+                    &line[..line.len() - 1]
+                } else {
+                    line
+                }
+            })
+            .drive_unindexed(consumer)
     }
 }
