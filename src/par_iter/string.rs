@@ -29,6 +29,19 @@ fn find_char_midpoint(chars: &str) -> usize {
 }
 
 
+/// Parallel extensions for strings.
+pub trait ParallelString {
+    type Chars: ParallelIterator;
+    type Split: ParallelIterator;
+
+    /// Returns a parallel iterator over the characters of a string.
+    fn par_chars(self) -> Self::Chars;
+
+    /// Returns a parallel iterator over substrings separated by a
+    /// given character, similar to `str::split`.
+    fn par_split(self, char) -> Self::Split;
+}
+
 impl<'a> ParallelString for &'a str {
     type Chars = ParChars<'a>;
     type Split = ParSplit<'a>;
