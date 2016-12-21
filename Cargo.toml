@@ -1,6 +1,6 @@
 [package]
 name = "rayon"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 description = "Simple work-stealing parallelism for Rust"
 license = "Apache-2.0/MIT"

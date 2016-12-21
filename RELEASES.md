@@ -1,3 +1,45 @@
+# Release 0.6
+
+This release includes a lot of progress towards the goal of parity
+with the sequential iterator API, though there are still a few methods
+that are not yet complete. If you'd like to help with that effort,
+[check out the milestone](https://github.com/nikomatsakis/rayon/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22Parity+with+the+%60Iterator%60+trait%22)
+to see the remaining issues.
+
+**Announcement:** @cuviper has been added as a collaborator to the
+Rayon repository for all of his outstanding work on Rayon, which
+includes both internal refactoring and helping to shape the public
+API. Thanks @cuviper! Keep it up.
+
+- We now support `collect()` and not just `collect_with()`.
+  You can use `collect()` to build a number of collections,
+  including vectors, maps, and sets. Moreover, when building a vector
+  with `collect()`, you are no longer limited to exact parallel iterators.
+  Thanks @nikomatsakis, @cuviper!
+- We now support `skip()` and `take()` on parallel iterators.
+  Thanks @martinhath!
+- **Breaking change:** We now match the sequential APIs for `min()` and `max()`.
+  We also support `min_by_key()` and `max_by_key()`. Thanks @tapeinosyne!
+- **Breaking change:** The `mul()` method is now renamed to `product()`,
+  to match sequential iterators. Thanks @jonathandturner!
+- We now support parallel iterator over ranges on `u64` values. Thanks @cuviper!  
+- We now offer a `par_chars()` method on strings for iterating over characters
+  in parallel. Thanks @cuviper!
+- We now have new demos: a traveling salesman problem solver as well as matrix
+  multiplication. Thanks @nikomatsakis, @edre!
+- We are now documenting our minimum rustc requirement (currently
+  v1.12.0).  We will attempt to maintain compatibility with rustc
+  stable v1.12.0 as long as it remains convenient, but if new features
+  are stabilized or added that would be helpful to Rayon, or there are
+  bug fixes that we need, we will bump to the most recent rustc. Thanks @cuviper!
+- The `reduce()` functionality now has better inlining.
+  Thanks @bluss!
+- The `join()` function now has some documentation. Thanks @gsquire!
+- The project source has now been fully run through rustfmt.
+  Thanks @ChristopherDavenport!
+- Exposed helper methods for accessing the current thread index.
+  Thanks @bholley!
+
 # Release 0.5
 
 - **Breaking change:** The `reduce` method has been vastly
