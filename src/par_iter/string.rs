@@ -59,17 +59,15 @@ impl<'a> ParallelIterator for ParChars<'a> {
 }
 
 impl<'a> UnindexedProducer for ParChars<'a> {
-    fn can_split(&self) -> bool {
-        // This is pessimistic, as we only *know* there are multiple characters
-        // when it's longer than Unicode's maximum UTF-8 length of 4.  There
-        // could be smaller characters, but it's ok not to split maximally.
-        self.chars.len() > 4
-    }
-
-    fn split(self) -> (Self, Self) {
+    fn split(&mut self) -> Option<Self> {
         let index = find_char_midpoint(self.chars);
-        let (left, right) = self.chars.split_at(index);
-        (ParChars { chars: left }, ParChars { chars: right })
+        if index > 0 {
+            let (left, right) = self.chars.split_at(index);
+            self.chars = left;
+            Some(ParChars { chars: right })
+        } else {
+            None
+        }
     }
 }
 
@@ -116,13 +114,12 @@ impl<'a> ParallelIterator for ParSplit<'a> {
 }
 
 impl<'a> UnindexedProducer for ParSplit<'a> {
-    fn can_split(&self) -> bool {
-        self.first.is_some()
-    }
-
-    fn split(self) -> (Self, Self) {
-        let ParSplit { chars, separator, first } = self;
-        let first = first.expect("error: splitting with no separator present!");
+    fn split(&mut self) -> Option<Self> {
+        let ParSplit { chars, separator, first } = *self;
+        let first = match first {
+            None => return None,
+            Some(first) => first,
+        };
 
         // First find a suitable UTF-8 boundary in the unsearched region.
         let char_index = find_char_midpoint(&chars[first..]) + first;
@@ -133,30 +130,25 @@ impl<'a> UnindexedProducer for ParSplit<'a> {
             .map(|i| i + first)
             .unwrap_or(first);
 
-        // Create the left side of the split.  It might not have a `first` anymore
-        // if that's the exact separator we're splitting on now.
-        let left_first = if first < index { Some(first) } else { None };
-        let left_split = ParSplit {
-            chars: &chars[..index],
-            separator: separator,
-            first: left_first,
-        };
+        // Update `self` as the left side of the split.  It might not have a
+        // `first` anymore if that's the exact separator we're splitting on now.
+        self.chars = &chars[..index];
+        if first == index {
+            self.first = None;
+        }
 
-        // Create the right side of the split starting just after this separator.
+        // Return the right side of the split starting just after this separator.
         // We find its `first` starting from the `char_index` already scanned above.
         let right_index = index + separator.len_utf8();
         let right_search = max(char_index, right_index);
         let right_first = chars[right_search..]
             .find(separator)
             .map(|i| i + (right_search - right_index));
-        let right_split = ParSplit {
+        Some(ParSplit {
             chars: &chars[right_index..],
             separator: separator,
             first: right_first,
-        };
-
-        // All done, now we are two!
-        (left_split, right_split)
+        })
     }
 }
 
