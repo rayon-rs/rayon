@@ -37,6 +37,12 @@ pub trait ParallelString {
     /// Returns a parallel iterator over substrings separated by a
     /// given character, similar to `str::split`.
     fn par_split(&self, char) -> ParSplit;
+
+    /// Returns a parallel iterator over substrings terminated by a
+    /// given character, similar to `str::split_terminator`.  It's
+    /// equivalent to `par_split`, except it doesn't produce an empty
+    /// substring after a trailing terminator.
+    fn par_split_terminator(&self, char) -> ParSplitTerminator;
 }
 
 impl ParallelString for str {
@@ -46,6 +52,10 @@ impl ParallelString for str {
 
     fn par_split(&self, separator: char) -> ParSplit {
         ParSplit::new(self, separator)
+    }
+
+    fn par_split_terminator(&self, terminator: char) -> ParSplitTerminator {
+        ParSplitTerminator::new(self, terminator)
     }
 }
 
@@ -185,5 +195,66 @@ impl<'a> IntoIterator for ParSplit<'a> {
             Iterator::last(&mut empty);
             empty.chain(Some(chars))
         }
+    }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+pub struct ParSplitTerminator<'a> {
+    splitter: ParSplit<'a>,
+    endpoint: bool,
+}
+
+impl<'a> ParSplitTerminator<'a> {
+    fn new(chars: &'a str, terminator: char) -> Self {
+        ParSplitTerminator {
+            splitter: ParSplit::new(chars, terminator),
+            endpoint: true,
+        }
+    }
+}
+
+impl<'a> ParallelIterator for ParSplitTerminator<'a> {
+    type Item = &'a str;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        bridge_unindexed(self, consumer)
+    }
+}
+
+impl<'a> UnindexedProducer for ParSplitTerminator<'a> {
+    fn split(&mut self) -> Option<Self> {
+        self.splitter.split().map(|right| {
+            let endpoint = self.endpoint;
+            self.endpoint = false;
+            ParSplitTerminator { splitter: right, endpoint: endpoint }
+        })
+    }
+}
+
+impl<'a> IntoIterator for ParSplitTerminator<'a> {
+    type Item = &'a str;
+    type IntoIter = Chain<Split<'a, char>, OptionIter<&'a str>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let skip_last = if self.endpoint {
+            let chars = self.splitter.chars;
+            let terminator = self.splitter.separator;
+            chars.is_empty() || chars.ends_with(terminator)
+        } else {
+            false
+        };
+
+        let mut iter = self.splitter.into_iter();
+
+        if skip_last {
+            // eat the empty trailing substring
+            iter.next_back();
+        }
+
+        iter
     }
 }
