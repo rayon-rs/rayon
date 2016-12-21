@@ -1,7 +1,8 @@
 use super::internal::*;
 use super::*;
-use std::cmp::max;
-use std::iter::{self, Chain, Once};
+use std::cmp::min;
+use std::iter::Chain;
+use std::option::IntoIter as OptionIter;
 use std::str::{Chars, Split};
 
 /// Test if a byte is the start of a UTF-8 character.
@@ -87,10 +88,8 @@ pub struct ParSplit<'a> {
     chars: &'a str,
     separator: char,
 
-    /// Keeps track of the first separator found in the string.  This lets us
-    /// quickly answer `can_split`, and it also corresponds to what parts we've
-    /// already scanned as we keep splitting smaller.
-    first: Option<usize>,
+    /// Marks the endpoint beyond which we've already found no separators.
+    tail: usize,
 }
 
 impl<'a> ParSplit<'a> {
@@ -98,7 +97,7 @@ impl<'a> ParSplit<'a> {
         ParSplit {
             chars: chars,
             separator: separator,
-            first: chars.find(separator),
+            tail: chars.len(),
         }
     }
 }
@@ -115,61 +114,69 @@ impl<'a> ParallelIterator for ParSplit<'a> {
 
 impl<'a> UnindexedProducer for ParSplit<'a> {
     fn split(&mut self) -> Option<Self> {
-        let ParSplit { chars, separator, first } = *self;
-        let first = match first {
-            None => return None,
-            Some(first) => first,
-        };
+        let ParSplit { chars, separator, tail } = *self;
 
         // First find a suitable UTF-8 boundary in the unsearched region.
-        let char_index = find_char_midpoint(&chars[first..]) + first;
+        let char_index = find_char_midpoint(&chars[..tail]);
 
-        // Find a separator in reverse, towards the `first` that we know exists.
-        let index = chars[first..char_index]
-            .rfind(separator)
-            .map(|i| i + first)
-            .unwrap_or(first);
-
-        // Update `self` as the left side of the split.  It might not have a
-        // `first` anymore if that's the exact separator we're splitting on now.
-        self.chars = &chars[..index];
-        if first == index {
-            self.first = None;
-        }
-
-        // Return the right side of the split starting just after this separator.
-        // We find its `first` starting from the `char_index` already scanned above.
-        let right_index = index + separator.len_utf8();
-        let right_search = max(char_index, right_index);
-        let right_first = chars[right_search..]
+        // Look forward for the separator, and failing that look backward.
+        let index = chars[char_index..tail]
             .find(separator)
-            .map(|i| i + (right_search - right_index));
-        Some(ParSplit {
-            chars: &chars[right_index..],
-            separator: separator,
-            first: right_first,
-        })
+            .map(|i| char_index + i)
+            .or_else(|| chars[..char_index].rfind(separator));
+
+        if let Some(index) = index {
+            // Update `self` as the region before the separator.
+            self.chars = &chars[..index];
+            self.tail = min(char_index, index);
+
+            // Create the right split following the separator.
+            let right_index = index + separator.len_utf8();
+            let mut right = ParSplit {
+                chars: &chars[right_index..],
+                separator: separator,
+                tail: tail - right_index,
+            };
+
+            // If we scanned backwards to find the separator, everything in
+            // the right side is exhausted, with no separators left to find.
+            if index < char_index {
+                right.tail = 0;
+            }
+
+            Some(right)
+
+        } else {
+            self.tail = 0;
+            None
+        }
     }
 }
 
 impl<'a> IntoIterator for ParSplit<'a> {
     type Item = &'a str;
-    type IntoIter = Chain<Once<&'a str>, Split<'a, char>>;
+    type IntoIter = Chain<Split<'a, char>, OptionIter<&'a str>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if let Some(first) = self.first {
-            // We know where the first separator is, so start with that
-            // and then let `str::split` find the rest.
-            let head = &self.chars[..first];
-            let tail = &self.chars[first + self.separator.len_utf8()..];
-            iter::once(head).chain(tail.split(self.separator))
+        let ParSplit { chars, separator, tail } = self;
+
+        if tail == chars.len() {
+            // No tail section, so just let `str::split` handle it.
+            chars.split(separator).chain(None)
+
+        } else if let Some(index) = chars[..tail].rfind(separator) {
+            // We found the last separator to complete the tail, so
+            // end with that slice after `str::split` finds the rest.
+            let head = &chars[..index];
+            let last = &chars[index + separator.len_utf8()..];
+            head.split(separator).chain(Some(last))
+
         } else {
             // We know there are no separators at all.  Return our whole string,
             // but for type correctness we need to chain an emptied `Split` too.
-            let head = self.chars;
-            let mut tail = "".split('\0');
-            Iterator::last(&mut tail);
-            iter::once(head).chain(tail)
+            let mut empty = "".split('\0');
+            Iterator::last(&mut empty);
+            empty.chain(Some(chars))
         }
     }
 }
