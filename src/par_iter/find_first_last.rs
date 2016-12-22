@@ -23,6 +23,14 @@ enum MatchPosition {
     Rightmost,
 }
 
+// Returns true if pos1 is a better match than pos2 according to MatchPosition
+fn better_position(pos1: usize, pos2: usize, mp: MatchPosition) -> bool {
+    match mp {
+        MatchPosition::Leftmost => pos1 < pos2,
+        MatchPosition::Rightmost => pos1 > pos2,
+    }
+}
+
 pub fn find_first<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
     where PAR_ITER: ParallelIterator,
           FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync
@@ -61,6 +69,13 @@ impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
             best_found: best_found,
         }
     }
+
+    fn current_index(&self) -> usize {
+        match self.match_position {
+            MatchPosition::Leftmost => self.lower_bound.get(),
+            MatchPosition::Rightmost => self.upper_bound
+        }
+    }
 }
 
 impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
@@ -85,10 +100,7 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
     fn into_folder(self) -> Self::Folder {
         FindFolder {
             find_op: self.find_op,
-            boundary: match self.match_position {
-                MatchPosition::Leftmost => self.lower_bound.get(),
-                MatchPosition::Rightmost => self.upper_bound
-            },
+            boundary: self.current_index(),
             match_position: self.match_position,
             best_found: self.best_found,
             item: None,
@@ -96,13 +108,11 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
     }
 
     fn full(&self) -> bool {
-        let best = self.best_found.load(Ordering::Relaxed);
-        match self.match_position {
-            // can stop consuming if the best found index so far is *strictly*
-            // better than anything this consumer will find
-            MatchPosition::Leftmost => best < self.lower_bound.get(),
-            MatchPosition::Rightmost => best > self.upper_bound
-        }
+        // can stop consuming if the best found index so far is *strictly*
+        // better than anything this consumer will find
+        better_position(self.best_found.load(Ordering::Relaxed),
+                        self.current_index(),
+                        self.match_position)
     }
 }
 
@@ -161,11 +171,9 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
     }
 
     fn full(&self) -> bool {
-        let best_found = self.best_found.load(Ordering::Relaxed);
-        match self.match_position {
-            MatchPosition::Leftmost => best_found < self.boundary,
-            MatchPosition::Rightmost => best_found > self.boundary,
-        }
+        better_position(self.best_found.load(Ordering::Relaxed),
+                        self.boundary,
+                        self.match_position)
     }
 }
 
