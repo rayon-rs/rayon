@@ -4,18 +4,22 @@ use super::internal::*;
 use super::*;
 use super::len::*;
 
-// The consumer for find_first/find_last has fake indexes representing the lower
-// and upper bounds of the "range" of data it consumes. This range does not
-// correspond to indexes from the consumed iterator but rather indicate the
-// consumer's position relative to other consumers. The purpose is to allow a
-// consumer to know it should stop consuming items when another consumer finds a
-// better match.
-
-// An indexed consumer could specialize to use the real indexes instead, but we
-// don't implement that for now. The only downside of the current approach is
-// that in some cases, iterators very close to each other will have the same
-// range and therefore not be able to stop processing if one of them finds a
-// better match than the others.
+// The key optimization for find_first is that a consumer can stop its search if
+// some consumer to its left already found a match (and similarly for consumers
+// to the right for find_last). To make this work, all consumers need some
+// notion of their position in the data relative to other consumers, including
+// unindexed consumers that have no built-in notion of position.
+//
+// To solve this, we assign each consumer a lower and upper bound for an
+// imaginary "range" of data that it consumes. The initial consumer starts with
+// the range 0..usize::max_value(). The split divides this range in half so that
+// one resulting consumer has the range 0..(usize::max_value() / 2), and the
+// other has (usize::max_value() / 2)..usize::max_value(). Every subsequent
+// split divides the range in half again until it cannot be split anymore
+// (i.e. its length is 1), in which case the split returns two consumers with
+// the same range. In that case both consumers will continue to consume all
+// their data regardless of whether a better match is found, but the reducer
+// will still return the correct answer.
 
 #[derive(Copy, Clone)]
 enum MatchPosition {
@@ -124,7 +128,11 @@ impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
         // Upper bound for one consumer will be lower bound for the other. This
         // overlap is okay, because only one of the bounds will be used for
         // comparing against best_found; the other is kept only to be able to
-        // divide the range in half
+        // divide the range in half.
+        //
+        // This code assumes that the caller of split_off will use the result as
+        // the *left* side of this iterator, and the remainder of self as the
+        // *right* side.
         let old_lower_bound = self.lower_bound.get();
         let median = old_lower_bound + ((self.upper_bound - old_lower_bound) / 2);
         self.lower_bound.set(median);

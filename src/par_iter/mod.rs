@@ -599,7 +599,7 @@ pub trait ParallelIterator: Sized {
     }
 
     #[doc(hidden)]
-    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`")]
+    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, `find_first`, or `find_last`")]
     fn find<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
         where FIND_OP: Fn(&Self::Item) -> bool + Sync
     {
@@ -880,7 +880,7 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     }
 
     #[doc(hidden)]
-    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`")]
+    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, `position_first`, or `position_last`")]
     fn position<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
         where POSITION_OP: Fn(Self::Item) -> bool + Sync
     {
