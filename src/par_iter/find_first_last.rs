@@ -163,12 +163,17 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
     type Result = Option<ITEM>;
 
     fn consume(mut self, item: ITEM) -> Self {
-        if (self.find_op)(&item) {
+        let found_best_in_range = match self.match_position {
+            MatchPosition::Leftmost => self.item.is_some(),
+            MatchPosition::Rightmost => false,
+        };
+
+        if !found_best_in_range && (self.find_op)(&item) {
             // Continuously try to set best_found until we succeed or we
             // discover a better match was already found.
             let mut current = self.best_found.load(Ordering::Relaxed);
             let mut exchange_result = Result::Err(0);
-            while better_position(self.boundary, current, self.match_position) &&
+            while !better_position(current, self.boundary, self.match_position) &&
                   exchange_result.is_err() {
                 exchange_result = self.best_found.compare_exchange_weak(current,
                                                                         self.boundary,
@@ -191,10 +196,48 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
     }
 
     fn full(&self) -> bool {
-        better_position(self.best_found.load(Ordering::Relaxed),
-                        self.boundary,
-                        self.match_position)
+        let found_best_in_range = match self.match_position {
+            MatchPosition::Leftmost => self.item.is_some(),
+            MatchPosition::Rightmost => false,
+        };
+
+        found_best_in_range ||
+            better_position(self.best_found.load(Ordering::Relaxed),
+                            self.boundary,
+                            self.match_position)
     }
+}
+
+// These tests requires that a folder be assigned to an iterator with more than
+// one element. We can't necessarily determine when that will happen for a given
+// input to find_first/find_last, so we test the folder directly here instead.
+#[test]
+pub fn find_first_folder_does_not_clobber_first_found() {
+    let best_found = AtomicUsize::new(usize::max_value());
+    let f = FindFolder {
+        find_op: &(|&x: &i32| -> bool { true }),
+        boundary: 0,
+        match_position: MatchPosition::Leftmost,
+        best_found: &best_found,
+        item: None,
+    };
+    let f = f.consume(0_i32).consume(1_i32).consume(2_i32);
+    assert!(f.full());
+    assert_eq!(f.complete(), Some(0_i32));
+}
+
+#[test]
+pub fn find_last_folder_yields_last_match() {
+    let best_found = AtomicUsize::new(0);
+    let f = FindFolder {
+        find_op: &(|&x: &i32| -> bool { true }),
+        boundary: 0,
+        match_position: MatchPosition::Rightmost,
+        best_found: &best_found,
+        item: None,
+    };
+    let f = f.consume(0_i32).consume(1_i32).consume(2_i32);
+    assert_eq!(f.complete(), Some(2_i32));
 }
 
 struct FindReducer {
