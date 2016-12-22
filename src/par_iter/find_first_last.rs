@@ -156,12 +156,24 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
 
     fn consume(mut self, item: ITEM) -> Self {
         if (self.find_op)(&item) {
-            // This may sometimes set best_found to a worse index than it was
-            // before, depending on timing. This means more consumers will
-            // continue to run than necessary, but the reducer will still ensure
-            // the correct value is returned.
-            self.best_found.swap(self.boundary, Ordering::Relaxed);
-            self.item = Some(item);
+            // Continuously try to set best_found until we succeed or we
+            // discover a better match was already found.
+            let mut current = self.best_found.load(Ordering::Relaxed);
+            let mut exchange_result = Result::Err(0);
+            while better_position(self.boundary, current, self.match_position) &&
+                  exchange_result.is_err() {
+                exchange_result = self.best_found.compare_exchange_weak(current,
+                                                                        self.boundary,
+                                                                        Ordering::Relaxed,
+                                                                        Ordering::Relaxed);
+                if exchange_result.is_err() {
+                    current = self.best_found.load(Ordering::Relaxed);
+                }
+            }
+
+            if exchange_result.is_ok() {
+                self.item = Some(item);
+            }
         }
         self
     }
