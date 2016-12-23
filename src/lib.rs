@@ -11,7 +11,7 @@ extern crate rand;
 #[macro_use]
 mod log;
 
-mod api;
+mod configuration;
 mod latch;
 mod join;
 mod job;
@@ -23,14 +23,15 @@ mod registry;
 #[cfg(feature = "unstable")]
 mod scope;
 mod sleep;
+mod thread_pool;
 mod unwind;
 mod util;
 
-pub use api::Configuration;
-pub use api::InitError;
-pub use api::dump_stats;
-pub use api::initialize;
-pub use api::ThreadPool;
+pub use configuration::Configuration;
+pub use configuration::InitError;
+pub use configuration::dump_stats;
+pub use configuration::initialize;
+pub use thread_pool::ThreadPool;
 pub use join::join;
 #[cfg(feature = "unstable")]
 pub use scope::{scope, Scope};
