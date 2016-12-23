@@ -1,9 +1,9 @@
 //! Tests for the join code.
 
-#![cfg(test)]
-
-use ::*;
+use configuration::*;
+use join::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use thread_pool::*;
 use unwind;
 
 fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {

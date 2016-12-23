@@ -2,9 +2,10 @@
 
 extern crate compiletest_rs as compiletest;
 
-use ::*;
+use configuration::*;
 use std::path::PathBuf;
 use std::error::Error;
+use thread_pool::*;
 
 #[test]
 fn error_in_pool() {

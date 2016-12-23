@@ -6,6 +6,7 @@ use registry::{self, WorkerThread};
 use std::any::Any;
 use unwind;
 
+#[cfg(test)]
 mod test;
 
 /// The `join` function takes two closures and *potentially* runs them
