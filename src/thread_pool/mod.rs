@@ -6,6 +6,8 @@ use job::StackJob;
 use std::sync::Arc;
 use registry::{Registry, WorkerThread};
 
+mod test;
+
 pub struct ThreadPool {
     registry: Arc<Registry>,
 }
@@ -19,8 +21,19 @@ impl ThreadPool {
         Ok(ThreadPool { registry: Registry::new(configuration.num_threads()) })
     }
 
-    /// Executes `op` within the threadpool. Any attempts to `join`
-    /// which occur there will then operate within that threadpool.
+    /// Executes `op` within the threadpool. Any attempts to use
+    /// `join`, `scope`, or parallel iterators will then operate
+    /// within that threadpool.
+    ///
+    /// # Warning: thread-local data
+    ///
+    /// Because `op` is executing within the Rayon thread-pool,
+    /// thread-local data from the current thread will not be
+    /// accessible.
+    ///
+    /// # Panics
+    ///
+    /// If `op` should panic, that panic will be propagated.
     pub fn install<OP, R>(&self, op: OP) -> R
         where OP: FnOnce() -> R + Send
     {

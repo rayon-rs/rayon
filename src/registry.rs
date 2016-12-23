@@ -129,6 +129,15 @@ impl Registry {
         }
     }
 
+    /// Waits for the worker threads to stop. This is used for testing
+    /// -- so we can check that termination actually works.
+    #[cfg(test)]
+    pub fn wait_until_stopped(&self) {
+        for info in &self.thread_infos {
+            info.stopped.wait();
+        }
+    }
+
     /// ////////////////////////////////////////////////////////////////////////
     /// MAIN LOOP
     ///
@@ -189,9 +198,16 @@ impl RegistryState {
 }
 
 struct ThreadInfo {
-    // latch is set once thread has started and we are entering into
-    // the main loop
+    /// Latch set once thread has started and we are entering into the
+    /// main loop. Used to wait for worker threads to become primed,
+    /// primarily of interest for benchmarking.
     primed: LockLatch,
+
+    /// Latch is set once worker thread has completed. Used to wait
+    /// until workers have stopped; only used for tests.
+    stopped: LockLatch,
+
+    /// the "stealer" half of the worker's deque
     stealer: Stealer<JobRef>,
 }
 
@@ -199,6 +215,7 @@ impl ThreadInfo {
     fn new(stealer: Stealer<JobRef>) -> ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
+            stopped: LockLatch::new(),
             stealer: stealer,
         }
     }
@@ -391,6 +408,9 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     // Should not be any work left in our queue.
     debug_assert!(worker_thread.pop().is_none());
+
+    // let registry know we are done
+    registry.thread_infos[index].stopped.set();
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
