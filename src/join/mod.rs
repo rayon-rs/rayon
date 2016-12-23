@@ -6,6 +6,8 @@ use thread_pool::{self, WorkerThread};
 use std::any::Any;
 use unwind;
 
+mod test;
+
 /// The `join` function takes two closures and *potentially* runs them
 /// in parallel. It returns a pair of the results from those closures.
 /// However, the call to `join` incurs low overhead and is much
