@@ -141,8 +141,12 @@ fn same_range_consumers_return_correct_answer() {
     let left_first_folder = first_consumer.split_off().into_folder();
     let right_first_folder = first_consumer.into_folder();
 
-    let right_first_folder = right_first_folder.consume(2).consume(3);
     let left_first_folder = left_first_folder.consume(0).consume(1);
+    assert_eq!(left_first_folder.boundary, right_first_folder.boundary);
+    // expect not full even though a better match has been found because the
+    // ranges are the same
+    assert!(!right_first_folder.full());
+    let right_first_folder = right_first_folder.consume(2).consume(3);
     assert_eq!(first_reducer.reduce(left_first_folder.complete(),
                                     right_first_folder.complete()),
                Some(0));
@@ -157,9 +161,17 @@ fn same_range_consumers_return_correct_answer() {
     }
 
     let last_reducer = last_consumer.to_reducer();
+    // due to the exact calculation in split_off, the very last consumer has a
+    // range of width 2, so we use the second-to-last consumer instead to get
+    // the same boundary on both folders
+    let last_consumer = last_consumer.split_off();
     let left_last_folder = last_consumer.split_off().into_folder();
     let right_last_folder = last_consumer.into_folder();
     let right_last_folder = right_last_folder.consume(2).consume(3);
+    assert_eq!(left_last_folder.boundary, right_last_folder.boundary);
+    // expect not full even though a better match has been found because the
+    // ranges are the same
+    assert!(!left_last_folder.full());
     let left_last_folder = left_last_folder.consume(0).consume(1);
     assert_eq!(last_reducer.reduce(left_last_folder.complete(),
                                    right_last_folder.complete()),
@@ -175,6 +187,13 @@ impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
         // overlap is okay, because only one of the bounds will be used for
         // comparing against best_found; the other is kept only to be able to
         // divide the range in half.
+        //
+        // When the resolution of usize has been exhausted (i.e. when
+        // upper_bound = lower_bound), both results of this split will have the
+        // same range. When that happens, we lose the ability to tell one
+        // consumer to stop working when the other finds a better match, but the
+        // reducer ensures that the best answer is still returned (see the test
+        // above).
         //
         // This code assumes that the caller of split_off will use the result as
         // the *left* side of this iterator, and the remainder of self as the
