@@ -120,6 +120,52 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
     }
 }
 
+#[test]
+fn same_range_consumers_return_correct_answer() {
+    let find_op = |x: &i32| x % 2 == 0;
+
+    let first_found = AtomicUsize::new(usize::max_value());
+    let first_consumer = FindConsumer::new(&find_op,
+                                           MatchPosition::Leftmost,
+                                           &first_found);
+
+    // split until we have an indivisible range
+    let bits_in_usize = usize::min_value().count_zeros();
+    for i in 0..bits_in_usize {
+        first_consumer.split_off();
+    }
+
+    let first_reducer = first_consumer.to_reducer();
+    // the left and right folders should now have the same range, having
+    // exhausted the resolution of usize
+    let left_first_folder = first_consumer.split_off().into_folder();
+    let right_first_folder = first_consumer.into_folder();
+
+    let right_first_folder = right_first_folder.consume(2).consume(3);
+    let left_first_folder = left_first_folder.consume(0).consume(1);
+    assert_eq!(first_reducer.reduce(left_first_folder.complete(),
+                                    right_first_folder.complete()),
+               Some(0));
+
+    // same test, but for find_last
+    let last_found = AtomicUsize::new(0);
+    let last_consumer = FindConsumer::new(&find_op,
+                                          MatchPosition::Rightmost,
+                                          &last_found);
+    for i in 0..bits_in_usize {
+        last_consumer.split_off();
+    }
+
+    let last_reducer = last_consumer.to_reducer();
+    let left_last_folder = last_consumer.split_off().into_folder();
+    let right_last_folder = last_consumer.into_folder();
+    let right_last_folder = right_last_folder.consume(2).consume(3);
+    let left_last_folder = left_last_folder.consume(0).consume(1);
+    assert_eq!(last_reducer.reduce(left_last_folder.complete(),
+                                   right_last_folder.complete()),
+               Some(2));
+}
+
 impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
     where ITEM: Send,
           FIND_OP: Fn(&ITEM) -> bool + Sync
@@ -212,7 +258,7 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
 // one element. We can't necessarily determine when that will happen for a given
 // input to find_first/find_last, so we test the folder directly here instead.
 #[test]
-pub fn find_first_folder_does_not_clobber_first_found() {
+fn find_first_folder_does_not_clobber_first_found() {
     let best_found = AtomicUsize::new(usize::max_value());
     let f = FindFolder {
         find_op: &(|&x: &i32| -> bool { true }),
@@ -227,7 +273,7 @@ pub fn find_first_folder_does_not_clobber_first_found() {
 }
 
 #[test]
-pub fn find_last_folder_yields_last_match() {
+fn find_last_folder_yields_last_match() {
     let best_found = AtomicUsize::new(0);
     let f = FindFolder {
         find_op: &(|&x: &i32| -> bool { true }),
