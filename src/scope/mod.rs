@@ -221,6 +221,17 @@ pub struct Scope<'scope> {
 ///     s.spawn(|_| println!("ok: {:?}", ok)); // we too can borrow `ok`
 /// });
 /// ```
+///
+/// ### Panics
+///
+/// If a panic occurs, either in the closure given to `scope()` or in
+/// any of the spawned jobs, that panic will be propagated and the
+/// call to `scope()` will panic. If multiple panics occurs, it is
+/// non-deterministic which of their panic values will propagate.
+/// Regardless, once a task is spawned using `scope.spawn()`, it will
+/// execute, even if the spawning task should later panic. `scope()`
+/// returns once all spawned jobs have completed, and any panics are
+/// propagated at that point.
 pub fn scope<'scope, OP>(op: OP)
     where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
 {
