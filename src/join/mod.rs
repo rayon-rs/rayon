@@ -2,7 +2,7 @@ use latch::{Latch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
-use thread_pool::{self, WorkerThread};
+use registry::{self, WorkerThread};
 use std::any::Any;
 use unwind;
 
@@ -42,7 +42,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
           RA: Send,
           RB: Send
 {
-    thread_pool::in_worker(|worker_thread| unsafe {
+    registry::in_worker(|worker_thread| unsafe {
         log!(Join { worker: worker_thread.index() });
 
         // Create virtual wrapper for task b; this all has to be

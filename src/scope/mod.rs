@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
-use thread_pool::{in_worker, WorkerThread};
+use registry::{in_worker, WorkerThread};
 use unwind;
 
 #[cfg(test)]

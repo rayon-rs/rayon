@@ -19,10 +19,10 @@ pub mod par_iter;
 pub mod prelude;
 #[cfg(test)]
 mod test;
+mod registry;
 #[cfg(feature = "unstable")]
 mod scope;
 mod sleep;
-mod thread_pool;
 mod unwind;
 mod util;
 

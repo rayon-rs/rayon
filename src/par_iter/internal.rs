@@ -6,7 +6,7 @@
 use join;
 use super::IndexedParallelIterator;
 use super::len::*;
-use thread_pool::global_registry;
+use registry::global_registry;
 
 pub trait ProducerCallback<ITEM> {
     type Output;

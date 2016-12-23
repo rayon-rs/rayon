@@ -5,7 +5,7 @@ use job::StackJob;
 use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
-use thread_pool::{self, Registry, WorkerThread};
+use registry::{self, Registry, WorkerThread};
 
 /// Custom error type for the rayon thread pool configuration.
 #[derive(Debug,PartialEq)]
@@ -110,7 +110,7 @@ pub fn initialize(config: Configuration) -> Result<(), InitError> {
 
     let num_threads = config.num_threads;
 
-    let registry = thread_pool::get_registry_with_config(config);
+    let registry = registry::get_registry_with_config(config);
 
     if let Some(value) = num_threads {
         if value != registry.num_threads() {
