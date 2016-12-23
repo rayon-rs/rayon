@@ -4,6 +4,7 @@
 
 use ::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use unwind;
 
 fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -70,3 +71,29 @@ fn sort_in_pool() {
     }
 }
 
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_a() {
+    join(|| panic!("Hello, world!"), || ());
+}
+
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_b() {
+    join(|| (), || panic!("Hello, world!"));
+}
+
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_both() {
+    join(|| panic!("Hello, world!"), || panic!("Goodbye, world!"));
+}
+
+#[test]
+fn panic_b_still_executes() {
+    let mut x = false;
+    match unwind::halt_unwinding(|| join(|| panic!("Hello, world!"), || x = true)) {
+        Ok(_) => panic!("failed to propagate panic from closure A,"),
+        Err(_) => assert!(x, "closure b failed to execute"),
+    }
+}

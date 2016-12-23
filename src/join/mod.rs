@@ -10,8 +10,32 @@ mod test;
 
 /// The `join` function takes two closures and *potentially* runs them
 /// in parallel. It returns a pair of the results from those closures.
-/// However, the call to `join` incurs low overhead and is much
-/// different compared to spawning two separate threads.
+///
+/// Conceptually, calling `join()` is similar to spawning two threads,
+/// one executing each of the two closures. However, the
+/// implementation is quite different and incurs very low
+/// overhead. The underlying technique is called "work stealing": the
+/// Rayon runtime uses a fixed pool of worker threads and attempts to
+/// only execute code in parallel when there are idle CPUs to handle
+/// it.
+///
+/// ### Warning about blocking I/O
+///
+/// The assumption is that the closures given to `join()` are
+/// CPU-bound tasks that to do not perform I/O or other blocking
+/// operations. If you do perform I/O, and that I/O should block
+/// (e.g., waiting for a network request), the overall performance may
+/// be poor.  Moreover, if you cause one closure to be blocked waiting
+/// on another (for example, using a channel), that could lead to a
+/// deadlock.
+///
+/// ### Panics
+///
+/// No matter what happens, both closures will always be executed.  If
+/// a single closure panics, whether it be the first or second
+/// closure, that panic will be propagated and hence `join()` will
+/// panic with the same panic value. If both closures panic, `join()`
+/// will panic with the panic value from the first closure.
 pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     where A: FnOnce() -> RA + Send,
           B: FnOnce() -> RB + Send,
