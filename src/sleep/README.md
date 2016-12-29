@@ -365,7 +365,7 @@ ordering. This is for several reasons:
   we could create a dummy `AtomicBool` for each deque and do a seqcst write to it
   (with whatever value) after we push to the deque, and a seqcst load whenever
   we steal from the deque.
-- The cost of using a dummary variable was found to be quite high for some benchmarks:
+- The cost of using a dummy variable was found to be quite high for some benchmarks:
   - 8-10% overhead on nbody-parreduce
   - 15% overhead on increment-all
   - 40% overhead on join-recursively
