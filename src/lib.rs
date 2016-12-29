@@ -27,6 +27,8 @@ pub use api::InitError;
 pub use api::dump_stats;
 pub use api::initialize;
 pub use api::join;
+#[cfg(feature = "unstable")]
+pub use api::spawn_async;
 pub use api::ThreadPool;
 #[cfg(feature = "unstable")]
 pub use scope::{scope, Scope};
