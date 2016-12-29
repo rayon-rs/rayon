@@ -109,8 +109,8 @@ pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
 /// An unindexed producer that doesn't know its exact length.
 /// (or can't represent its known length in a `usize`)
 pub trait UnindexedProducer: IntoIterator + Send + Sized {
-    fn can_split(&self) -> bool;
-    fn split(self) -> (Self, Self);
+    /// Split midway into a new producer if possible, otherwise return `None`.
+    fn split(&mut self) -> Option<Self>;
 
     /// Iterate the producer, feeding each element to `folder`, and
     /// stop when the folder is full (or all elements have been consumed).
@@ -181,6 +181,13 @@ impl Splitter {
                 }
             }
         }
+    }
+
+    #[inline]
+    fn try_unindexed<P>(&mut self, producer: &mut P) -> Option<P>
+        where P: UnindexedProducer
+    {
+        if self.try() { producer.split() } else { None }
     }
 }
 
@@ -253,7 +260,7 @@ pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
 }
 
 fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
-                                            producer: P,
+                                            mut producer: P,
                                             consumer: C)
                                             -> C::Result
     where P: UnindexedProducer,
@@ -261,12 +268,11 @@ fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
 {
     if consumer.full() {
         consumer.into_folder().complete()
-    } else if producer.can_split() && splitter.try() {
-        let (left_producer, right_producer) = producer.split();
+    } else if let Some(right_producer) = splitter.try_unindexed(&mut producer) {
         let (reducer, left_consumer, right_consumer) =
             (consumer.to_reducer(), consumer.split_off(), consumer);
         let (left_result, right_result) =
-            join(|| bridge_unindexed_producer_consumer(splitter, left_producer, left_consumer),
+            join(|| bridge_unindexed_producer_consumer(splitter, producer, left_consumer),
                  || bridge_unindexed_producer_consumer(splitter, right_producer, right_consumer));
         reducer.reduce(left_result, right_result)
     } else {

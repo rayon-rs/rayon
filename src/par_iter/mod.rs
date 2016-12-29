@@ -29,6 +29,8 @@ use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
+pub use self::string::ParallelString;
+
 pub mod find;
 pub mod chain;
 pub mod collect;
@@ -130,14 +132,6 @@ pub trait ToParallelChunksMut<'data> {
     /// implementation should strive to maximize chunk size when
     /// possible.
     fn par_chunks_mut(&'data mut self, size: usize) -> Self::Iter;
-}
-
-/// Parallel extensions for strings.
-pub trait ParallelString {
-    type Chars;
-
-    /// Returns a parallel iterator over the characters of a string.
-    fn par_chars(self) -> Self::Chars;
 }
 
 /// The `ParallelIterator` interface.
