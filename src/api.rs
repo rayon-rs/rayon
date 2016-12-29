@@ -2,6 +2,7 @@ use latch::{LockLatch, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
+use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
@@ -278,5 +279,45 @@ impl ThreadPool {
 impl Drop for ThreadPool {
     fn drop(&mut self) {
         self.registry.terminate();
+    }
+}
+
+/// Stack-scoped thread-local storage for thread pools.
+pub struct ScopedTLS<'a, T: Send> {
+    _pool: &'a ThreadPool,
+    slots: Box<[RefCell<Option<T>>]>,
+}
+
+unsafe impl<'a, T: Send> Sync for ScopedTLS<'a, T> {}
+
+impl<'a, T: Send> ScopedTLS<'a, T> {
+    pub fn new(p: &'a ThreadPool) -> Self {
+        let mut v = Vec::new();
+        for _ in 0..p.registry.num_threads() {
+            v.push(RefCell::new(None));
+        }
+
+        ScopedTLS {
+            _pool: p,
+            slots: v.into_boxed_slice(),
+        }
+    }
+
+    pub fn borrow(&self) -> Ref<Option<T>> {
+        let idx = current_thread_index();
+        self.slots[idx].borrow()
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<Option<T>> {
+        let idx = current_thread_index();
+        self.slots[idx].borrow_mut()
+    }
+}
+
+fn current_thread_index() -> usize {
+    unsafe {
+        let curr = WorkerThread::current();
+        assert!(!curr.is_null());
+        (*curr).index()
     }
 }
