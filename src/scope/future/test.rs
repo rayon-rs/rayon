@@ -1,6 +1,6 @@
 use futures::{self, Future};
 use futures::future::lazy;
-use ::*;
+use ::{scope, ThreadPool, Configuration};
 
 /// Basic test of using futures to data on the stack frame.
 #[test]
