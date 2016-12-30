@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
 const USAGE: &'static str = "
-Usage: quicksort bench [--size N]
+Usage: quicksort bench [options]
        quicksort --help
 
 Parallel quicksort. Only the main recursive step is parallelized.
@@ -11,6 +11,7 @@ Commands:
 
 Options:
     --size N           Number of 32-bit words to sort [default: 250000000] (1GB)
+    --par-only         Skip the sequential sort.
     -h, --help         Show this message.
 ";
 
@@ -18,6 +19,7 @@ Options:
 pub struct Args {
     cmd_bench: bool,
     flag_size: usize,
+    flag_par_only: bool,
 }
 
 use docopt::Docopt;
@@ -123,10 +125,14 @@ pub fn main(args: &[String]) {
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        let seq = timed_sort(args.flag_size, quick_sort::<Sequential, u32>, "seq");
-        let par = timed_sort(args.flag_size, quick_sort::<Parallel, u32>, "par");
-        let speedup = seq as f64 / par as f64;
-        println!("speedup: {:.2}x", speedup);
+        if args.flag_par_only {
+            timed_sort(args.flag_size, quick_sort::<Parallel, u32>, "par");
+        } else {
+            let seq = timed_sort(args.flag_size, quick_sort::<Sequential, u32>, "seq");
+            let par = timed_sort(args.flag_size, quick_sort::<Parallel, u32>, "par");
+            let speedup = seq as f64 / par as f64;
+            println!("speedup: {:.2}x", speedup);
+        }
     }
 }
 

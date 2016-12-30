@@ -1,11 +1,11 @@
-use latch::{Latch, SpinLatch, LockLatch};
-use job::{JobMode, HeapJob, StackJob};
+use latch::{Latch, CountLatch};
+use job::{HeapJob};
 use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
-use thread_pool::{self, WorkerThread};
+use std::sync::atomic::{AtomicPtr, Ordering};
+use registry::{in_worker, WorkerThread};
 use unwind;
 
 #[cfg(test)]
@@ -15,17 +15,14 @@ pub struct Scope<'scope> {
     /// thread where `scope()` was executed (note that individual jobs
     /// may be executing on different worker threads, though they
     /// should always be within the same pool of threads)
-    owner_thread: *mut WorkerThread,
-
-    /// number of jobs created that have not yet completed or errored
-    counter: AtomicUsize,
+    owner_thread: *const WorkerThread,
 
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
     panic: AtomicPtr<Box<Any + Send + 'static>>,
 
     /// latch to set when the counter drops to zero (and hence this scope is complete)
-    job_completed_latch: SpinLatch,
+    job_completed_latch: CountLatch,
 
     /// you can think of a scope as containing a list of closures to
     /// execute, all of which outlive `'scope`
@@ -224,45 +221,33 @@ pub struct Scope<'scope> {
 ///     s.spawn(|_| println!("ok: {:?}", ok)); // we too can borrow `ok`
 /// });
 /// ```
+///
+/// ### Panics
+///
+/// If a panic occurs, either in the closure given to `scope()` or in
+/// any of the spawned jobs, that panic will be propagated and the
+/// call to `scope()` will panic. If multiple panics occurs, it is
+/// non-deterministic which of their panic values will propagate.
+/// Regardless, once a task is spawned using `scope.spawn()`, it will
+/// execute, even if the spawning task should later panic. `scope()`
+/// returns once all spawned jobs have completed, and any panics are
+/// propagated at that point.
 pub fn scope<'scope, OP>(op: OP)
     where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
 {
-    unsafe {
-        let owner_thread = WorkerThread::current();
-        if !owner_thread.is_null() {
+    in_worker(|owner_thread| {
+        unsafe {
             let scope: Scope<'scope> = Scope {
-                owner_thread: owner_thread,
-                counter: AtomicUsize::new(1),
+                owner_thread: owner_thread as *const WorkerThread as *mut WorkerThread,
                 panic: AtomicPtr::new(ptr::null_mut()),
-                job_completed_latch: SpinLatch::new(),
+                job_completed_latch: CountLatch::new(),
                 marker: PhantomData,
             };
-            let spawn_count = (*owner_thread).current_spawn_count();
             scope.execute_job_closure(op);
-            (*owner_thread).pop_spawned_jobs(spawn_count);
             scope.steal_till_jobs_complete();
-        } else {
-            scope_not_in_worker(op)
         }
-    }
+    });
 }
-
-#[cold]
-unsafe fn scope_not_in_worker<'scope, OP>(op: OP)
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
-{
-    // never run from a worker thread; just shifts over into worker threads
-    debug_assert!(WorkerThread::current().is_null());
-
-    let mut result = None;
-    {
-        let job = StackJob::new(|| result = Some(scope(op)), LockLatch::new());
-        thread_pool::get_registry().inject(&[job.as_job_ref()]);
-        job.latch.wait();
-    }
-    result.unwrap()
-}
-
 
 impl<'scope> Scope<'scope> {
     /// Spawns a job into the fork-join scope `self`. This job will
@@ -274,9 +259,8 @@ impl<'scope> Scope<'scope> {
         where BODY: FnOnce(&Scope<'scope>) + 'scope
     {
         unsafe {
-            let old_value = self.counter.fetch_add(1, Ordering::SeqCst);
-            assert!(old_value > 0); // scope can't have completed yet
-            let job_ref = Box::new(HeapJob::new(move |mode| self.execute_job(body, mode)))
+            self.job_completed_latch.increment();
+            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
                 .as_job_ref();
             let worker_thread = WorkerThread::current();
 
@@ -285,7 +269,6 @@ impl<'scope> Scope<'scope> {
             debug_assert!(!WorkerThread::current().is_null());
 
             let worker_thread = &*worker_thread;
-            worker_thread.bump_spawn_count();
             worker_thread.push(job_ref);
         }
     }
@@ -294,13 +277,10 @@ impl<'scope> Scope<'scope> {
     /// appropriate.
     ///
     /// Unsafe because it must be executed on a worker thread.
-    unsafe fn execute_job<FUNC>(&self, func: FUNC, mode: JobMode)
+    unsafe fn execute_job<FUNC>(&self, func: FUNC)
         where FUNC: FnOnce(&Scope<'scope>) + 'scope
     {
-        match mode {
-            JobMode::Execute => self.execute_job_closure(func),
-            JobMode::Abort => self.job_completed_ok(),
-        }
+        self.execute_job_closure(func)
     }
 
     /// Executes `func` as a job in scope. Adjusts the "job completed"
@@ -329,37 +309,12 @@ impl<'scope> Scope<'scope> {
     }
 
     unsafe fn job_completed_ok(&self) {
-        let old_value = self.counter.fetch_sub(1, Ordering::Release);
-        if old_value == 1 {
-            // Important: grab the lock here to avoid a data race with
-            // the `block_till_jobs_complete` code. Consider what could
-            // otherwise happen:
-            //
-            // ```
-            //    Us          Them
-            //              Acquire lock
-            //              Read counter: 1
-            // Dec counter
-            // Notify all
-            //              Wait on job_completed_cvar
-            // ```
-            //
-            // By holding the lock, we ensure that the "read counter"
-            // and "wait on job_completed_cvar" occur atomically with respect to the
-            // notify.
-            self.job_completed_latch.set();
-        }
+        self.job_completed_latch.set();
     }
 
     unsafe fn steal_till_jobs_complete(&self) {
-        // at this point, we have popped all tasks spawned since the scope
-        // began. So either we've executed everything on this thread, or one of
-        // those was stolen. If one of them was stolen, then everything below us on
-        // the deque must have been stolen too, so we should just go ahead and steal.
-        debug_assert!(self.job_completed_latch.probe() || (*self.owner_thread).pop().is_none());
-
         // wait for job counter to reach 0:
-        (*self.owner_thread).steal_until(&self.job_completed_latch);
+        (*self.owner_thread).wait_until(&self.job_completed_latch);
 
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed

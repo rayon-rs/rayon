@@ -15,10 +15,13 @@ rand = "0.3"
 num_cpus = "1.0"
 deque = "0.3.1"
 libc = "0.2.16"
+lazy_static = "0.2.2"
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
+docopt = "0.6"
 num = "0.1.30"
+rustc-serialize = "0.3"
 
 [features]
 # Unstable APIs that have not yet

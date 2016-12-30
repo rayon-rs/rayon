@@ -9,6 +9,7 @@ use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use unwind;
 
 #[test]
 fn scope_empty() {
@@ -191,5 +192,85 @@ fn the_final_countdown<'scope>(s: &Scope<'scope>,
 
     if n > 0 {
         s.spawn(move |s| the_final_countdown(s, bottom_of_stack, max, n - 1));
+    }
+}
+
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_scope() {
+    scope(|_| panic!("Hello, world!"));
+}
+
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_spawn() {
+    scope(|s| s.spawn(|_| panic!("Hello, world!")));
+}
+
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_nested_spawn() {
+    scope(|s| s.spawn(|s| s.spawn(|s| s.spawn(|_| panic!("Hello, world!")))));
+}
+
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panic_propagate_nested_scope_spawn() {
+    scope(|s| s.spawn(|_| scope(|s| s.spawn(|_| panic!("Hello, world!")))));
+}
+
+#[test]
+fn panic_propagate_still_execute_1() {
+    let mut x = false;
+    match unwind::halt_unwinding(|| {
+        scope(|s| {
+            s.spawn(|_| panic!("Hello, world!")); // job A
+            s.spawn(|_| x = true); // job B, should still execute even though A panics
+        });
+    }) {
+        Ok(_) => panic!("failed to propagate panic"),
+        Err(_) => assert!(x, "job b failed to execute"),
+    }
+}
+
+#[test]
+fn panic_propagate_still_execute_2() {
+    let mut x = false;
+    match unwind::halt_unwinding(|| {
+        scope(|s| {
+            s.spawn(|_| x = true); // job B, should still execute even though A panics
+            s.spawn(|_| panic!("Hello, world!")); // job A
+        });
+    }) {
+        Ok(_) => panic!("failed to propagate panic"),
+        Err(_) => assert!(x, "job b failed to execute"),
+    }
+}
+
+#[test]
+fn panic_propagate_still_execute_3() {
+    let mut x = false;
+    match unwind::halt_unwinding(|| {
+        scope(|s| {
+            s.spawn(|_| x = true); // spanwed job should still execute despite later panic
+            panic!("Hello, world!");
+        });
+    }) {
+        Ok(_) => panic!("failed to propagate panic"),
+        Err(_) => assert!(x, "panic after spawn, spawn failed to execute"),
+    }
+}
+
+#[test]
+fn panic_propagate_still_execute_4() {
+    let mut x = false;
+    match unwind::halt_unwinding(|| {
+        scope(|s| {
+            s.spawn(|_| panic!("Hello, world!"));
+            x = true;
+        });
+    }) {
+        Ok(_) => panic!("failed to propagate panic"),
+        Err(_) => assert!(x, "panic in spawn tainted scope"),
     }
 }
