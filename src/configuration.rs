@@ -64,7 +64,7 @@ impl Configuration {
     /// Set the number of threads to be used in the rayon threadpool.
     /// The argument `num_threads` must not be zero. If you do not
     /// call this function, rayon will select a suitable default
-    /// (currently, the default is one thread per CPU core).
+    /// (currently, the default is one thread per logical CPU).
     pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
         self.num_threads = Some(num_threads);
         self
