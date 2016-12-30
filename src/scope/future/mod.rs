@@ -43,12 +43,12 @@ pub unsafe fn new_rayon_future<F>(future: F,
     where F: Future + Send
 {
     let inner = ScopeFuture::spawn(future, counter);
-    RayonFuture { inner: hide_lifetime(inner) }
-}
+    return RayonFuture { inner: hide_lifetime(inner) };
 
-unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
-                                  -> Arc<ScopeFutureTrait<T, E>> {
-    mem::transmute(x)
+    unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
+                                      -> Arc<ScopeFutureTrait<T, E>> {
+        mem::transmute(x)
+    }
 }
 
 impl<T, E> RayonFuture<T, E> {
@@ -126,10 +126,6 @@ struct ScopeFutureContents<F: Future + Send> {
     result: Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error>,
 }
 
-trait Ping: Send + Sync {
-    fn ping(&self);
-}
-
 // Assert that the `*const` is safe to transmit between threads:
 unsafe impl<F: Future + Send> Send for ScopeFuture<F> {}
 unsafe impl<F: Future + Send> Sync for ScopeFuture<F> {}
@@ -169,7 +165,7 @@ impl<F: Future + Send> ScopeFuture<F> {
             contents.this = Some(future.clone());
         }
 
-        future.ping();
+        future.unpark();
 
         future
     }
@@ -198,9 +194,11 @@ impl<F: Future + Send> ScopeFuture<F> {
         // that we drop all values of type `F` before decrementing
         // `counter`.
         unsafe {
-            let ping: PingUnpark = PingUnpark::new(this.clone());
-            let ping: PingUnpark<'static> = mem::transmute(ping);
-            Arc::new(ping)
+            return hide_lifetime(this.clone());
+        }
+
+        unsafe fn hide_lifetime<'l>(x: Arc<Unpark + 'l>) -> Arc<Unpark> {
+            mem::transmute(x)
         }
     }
 
@@ -298,8 +296,8 @@ impl<F: Future + Send> ScopeFuture<F> {
     }
 }
 
-impl<F: Future + Send> Ping for ScopeFuture<F> {
-    fn ping(&self) {
+impl<F: Future + Send> Unpark for ScopeFuture<F> {
+    fn unpark(&self) {
         self.unpark_inherent();
     }
 }
@@ -376,22 +374,6 @@ impl<F: Future + Send> ScopeFutureContents<F> {
         unsafe {
             (*self.counter).set();
         }
-    }
-}
-
-struct PingUnpark<'l> {
-    ping: Arc<Ping + 'l>,
-}
-
-impl<'l> PingUnpark<'l> {
-    fn new(ping: Arc<Ping + 'l>) -> PingUnpark {
-        PingUnpark { ping: ping }
-    }
-}
-
-impl Unpark for PingUnpark<'static> {
-    fn unpark(&self) {
-        self.ping.ping()
     }
 }
 
