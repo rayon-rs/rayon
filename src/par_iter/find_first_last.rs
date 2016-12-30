@@ -121,60 +121,59 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 }
 
 #[test]
-fn same_range_consumers_return_correct_answer() {
+fn same_range_first_consumers_return_correct_answer() {
     let find_op = |x: &i32| x % 2 == 0;
-
     let first_found = AtomicUsize::new(usize::max_value());
-    let first_consumer = FindConsumer::new(&find_op,
-                                           MatchPosition::Leftmost,
-                                           &first_found);
+    let consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &first_found);
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
     for i in 0..bits_in_usize {
-        first_consumer.split_off();
+        consumer.split_off();
     }
 
-    let first_reducer = first_consumer.to_reducer();
+    let reducer = consumer.to_reducer();
     // the left and right folders should now have the same range, having
     // exhausted the resolution of usize
-    let left_first_folder = first_consumer.split_off().into_folder();
-    let right_first_folder = first_consumer.into_folder();
+    let left_folder = consumer.split_off().into_folder();
+    let right_folder = consumer.into_folder();
 
-    let left_first_folder = left_first_folder.consume(0).consume(1);
-    assert_eq!(left_first_folder.boundary, right_first_folder.boundary);
+    let left_folder = left_folder.consume(0).consume(1);
+    assert_eq!(left_folder.boundary, right_folder.boundary);
     // expect not full even though a better match has been found because the
     // ranges are the same
-    assert!(!right_first_folder.full());
-    let right_first_folder = right_first_folder.consume(2).consume(3);
-    assert_eq!(first_reducer.reduce(left_first_folder.complete(),
-                                    right_first_folder.complete()),
+    assert!(!right_folder.full());
+    let right_folder = right_folder.consume(2).consume(3);
+    assert_eq!(reducer.reduce(left_folder.complete(), right_folder.complete()),
                Some(0));
+}
 
-    // same test, but for find_last
+#[test]
+fn same_range_last_consumers_return_correct_answer() {
+    let find_op = |x: &i32| x % 2 == 0;
     let last_found = AtomicUsize::new(0);
-    let last_consumer = FindConsumer::new(&find_op,
-                                          MatchPosition::Rightmost,
-                                          &last_found);
+    let consumer = FindConsumer::new(&find_op, MatchPosition::Rightmost, &last_found);
+
+    // split until we have an indivisible range
+    let bits_in_usize = usize::min_value().count_zeros();
     for i in 0..bits_in_usize {
-        last_consumer.split_off();
+        consumer.split_off();
     }
 
-    let last_reducer = last_consumer.to_reducer();
+    let reducer = consumer.to_reducer();
     // due to the exact calculation in split_off, the very last consumer has a
     // range of width 2, so we use the second-to-last consumer instead to get
     // the same boundary on both folders
-    let last_consumer = last_consumer.split_off();
-    let left_last_folder = last_consumer.split_off().into_folder();
-    let right_last_folder = last_consumer.into_folder();
-    let right_last_folder = right_last_folder.consume(2).consume(3);
-    assert_eq!(left_last_folder.boundary, right_last_folder.boundary);
+    let consumer = consumer.split_off();
+    let left_folder = consumer.split_off().into_folder();
+    let right_folder = consumer.into_folder();
+    let right_folder = right_folder.consume(2).consume(3);
+    assert_eq!(left_folder.boundary, right_folder.boundary);
     // expect not full even though a better match has been found because the
     // ranges are the same
-    assert!(!left_last_folder.full());
-    let left_last_folder = left_last_folder.consume(0).consume(1);
-    assert_eq!(last_reducer.reduce(left_last_folder.complete(),
-                                   right_last_folder.complete()),
+    assert!(!left_folder.full());
+    let left_folder = left_folder.consume(0).consume(1);
+    assert_eq!(reducer.reduce(left_folder.complete(), right_folder.complete()),
                Some(2));
 }
 
