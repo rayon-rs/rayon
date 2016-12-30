@@ -232,8 +232,8 @@ pub struct Scope<'scope> {
 /// execute, even if the spawning task should later panic. `scope()`
 /// returns once all spawned jobs have completed, and any panics are
 /// propagated at that point.
-pub fn scope<'scope, OP>(op: OP)
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) + 'scope + Send
+pub fn scope<'scope, OP, R>(op: OP) -> R
+    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send,
 {
     in_worker(|owner_thread| {
         unsafe {
@@ -243,10 +243,11 @@ pub fn scope<'scope, OP>(op: OP)
                 job_completed_latch: CountLatch::new(),
                 marker: PhantomData,
             };
-            scope.execute_job_closure(op);
+            let result = scope.execute_job_closure(op);
             scope.steal_till_jobs_complete();
+            result.unwrap() // only None if `op` panicked, and that would have been propagated
         }
-    });
+    })
 }
 
 impl<'scope> Scope<'scope> {
@@ -280,7 +281,7 @@ impl<'scope> Scope<'scope> {
     unsafe fn execute_job<FUNC>(&self, func: FUNC)
         where FUNC: FnOnce(&Scope<'scope>) + 'scope
     {
-        self.execute_job_closure(func)
+        let _: Option<()> = self.execute_job_closure(func);
     }
 
     /// Executes `func` as a job in scope. Adjusts the "job completed"
@@ -288,12 +289,12 @@ impl<'scope> Scope<'scope> {
     /// `scope`.
     ///
     /// Unsafe because this must be executed on a worker thread.
-    unsafe fn execute_job_closure<FUNC>(&self, func: FUNC)
-        where FUNC: FnOnce(&Scope<'scope>) + 'scope
+    unsafe fn execute_job_closure<FUNC, R>(&self, func: FUNC) -> Option<R>
+        where FUNC: FnOnce(&Scope<'scope>) -> R + 'scope
     {
         match unwind::halt_unwinding(move || func(self)) {
-            Ok(()) => self.job_completed_ok(),
-            Err(err) => self.job_panicked(err),
+            Ok(r) => { self.job_completed_ok(); Some(r) }
+            Err(err) => { self.job_panicked(err); None }
         }
     }
 
