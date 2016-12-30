@@ -124,7 +124,11 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 fn same_range_first_consumers_return_correct_answer() {
     let find_op = |x: &i32| x % 2 == 0;
     let first_found = AtomicUsize::new(usize::max_value());
-    let consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &first_found);
+    let far_right_consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &first_found);
+
+    // We save a consumer that will be far to the right of the main consumer (and therefore not
+    // sharing an index range with that consumer) for fullness testing
+    let consumer = far_right_consumer.split_off();
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
@@ -143,6 +147,7 @@ fn same_range_first_consumers_return_correct_answer() {
     // expect not full even though a better match has been found because the
     // ranges are the same
     assert!(!right_folder.full());
+    assert!(far_right_consumer.full());
     let right_folder = right_folder.consume(2).consume(3);
     assert_eq!(reducer.reduce(left_folder.complete(), right_folder.complete()),
                Some(0));
@@ -153,6 +158,10 @@ fn same_range_last_consumers_return_correct_answer() {
     let find_op = |x: &i32| x % 2 == 0;
     let last_found = AtomicUsize::new(0);
     let consumer = FindConsumer::new(&find_op, MatchPosition::Rightmost, &last_found);
+
+    // We save a consumer that will be far to the left of the main consumer (and therefore not
+    // sharing an index range with that consumer) for fullness testing
+    let far_left_consumer = consumer.split_off();
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
@@ -172,6 +181,7 @@ fn same_range_last_consumers_return_correct_answer() {
     // expect not full even though a better match has been found because the
     // ranges are the same
     assert!(!left_folder.full());
+    assert!(far_left_consumer.full());
     let left_folder = left_folder.consume(0).consume(1);
     assert_eq!(reducer.reduce(left_folder.complete(), right_folder.complete()),
                Some(2));
