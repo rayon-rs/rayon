@@ -6,6 +6,7 @@ use futures::executor;
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task, Unpark};
 use job::{Job, JobRef};
+use registry::{Registry, WorkerThread};
 use std::any::Any;
 use std::panic::AssertUnwindSafe;
 use std::mem;
@@ -13,7 +14,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
-use thread_pool::{Registry, WorkerThread};
 use unwind;
 
 const STATE_PARKED: usize = 0;
