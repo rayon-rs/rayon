@@ -32,6 +32,7 @@ use self::zip::ZipIter;
 pub use self::string::ParallelString;
 
 pub mod find;
+pub mod find_first_last;
 pub mod chain;
 pub mod collect;
 pub mod enumerate;
@@ -569,8 +570,30 @@ pub trait ParallelIterator: Sized {
         find::find(self, predicate)
     }
 
+    /// Searches for the **first** item in the parallel iterator that
+    /// matches the given predicate and returns it.
+    ///
+    /// Once a match is found, all attempts to the right of the match
+    /// will be stopped, while attempts to the left must continue in case
+    /// an earlier match is found.
+    fn find_first<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
+        where FIND_OP: Fn(&Self::Item) -> bool + Sync {
+        find_first_last::find_first(self, predicate)
+    }
+
+    /// Searches for the **last** item in the parallel iterator that
+    /// matches the given predicate and returns it.
+    ///
+    /// Once a match is found, all attempts to the left of the match
+    /// will be stopped, while attempts to the right must continue in case
+    /// a later match is found.
+    fn find_last<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
+        where FIND_OP: Fn(&Self::Item) -> bool + Sync {
+        find_first_last::find_last(self, predicate)
+    }
+
     #[doc(hidden)]
-    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`")]
+    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, `find_first`, or `find_last`")]
     fn find<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
         where FIND_OP: Fn(&Self::Item) -> bool + Sync
     {
@@ -818,8 +841,40 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
             .map(|(i, _)| i)
     }
 
+    /// Searches for the **first** item in the parallel iterator that
+    /// matches the given predicate, and returns its index.
+    ///
+    /// Like `ParallelIterator::find_first`, once a match is found,
+    /// all attempts to the right of the match will be stopped, while
+    /// attempts to the left must continue in case an earlier match
+    /// is found.
+    fn position_first<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
+        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate)
+            .enumerate()
+            .find_first(|&(_, p)| p)
+            .map(|(i, _)| i)
+    }
+
+    /// Searches for the **last** item in the parallel iterator that
+    /// matches the given predicate, and returns its index.
+    ///
+    /// Like `ParallelIterator::find_last`, once a match is found,
+    /// all attempts to the left of the match will be stopped, while
+    /// attempts to the right must continue in case a later match
+    /// is found.
+    fn position_last<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
+        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    {
+        self.map(predicate)
+            .enumerate()
+            .find_last(|&(_, p)| p)
+            .map(|(i, _)| i)
+    }
+
     #[doc(hidden)]
-    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`")]
+    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, `position_first`, or `position_last`")]
     fn position<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
         where POSITION_OP: Fn(Self::Item) -> bool + Sync
     {
