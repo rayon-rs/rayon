@@ -1,6 +1,5 @@
 use Configuration;
-use deque;
-use deque::{Worker, Stealer, Stolen};
+use crossbeam::sync::chase_lev::{Worker, Stealer, Steal, deque};
 use job::{JobRef, StackJob};
 use latch::{Latch, CountLatch, LockLatch};
 #[allow(unused_imports)]
@@ -87,8 +86,8 @@ impl Registry {
             },
         };
 
-        let (inj_worker, inj_stealer) = deque::new();
-        let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque::new()).unzip();
+        let (inj_worker, inj_stealer) = deque();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque()).unzip();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter()
@@ -147,7 +146,7 @@ impl Registry {
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
-            let state = self.state.lock().unwrap();
+            let mut state = self.state.lock().unwrap();
 
             // It should not be possible for `state.terminate` to be true
             // here. It is only set to true when the user creates (and
@@ -166,9 +165,9 @@ impl Registry {
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
         loop {
             match self.job_uninjector.steal() {
-                Stolen::Empty => return None,
-                Stolen::Abort => (), // retry
-                Stolen::Data(v) => {
+                Steal::Empty => return None,
+                Steal::Abort => (), // retry
+                Steal::Data(v) => {
                     log!(UninjectedWork { worker: worker_index });
                     return Some(v);
                 }
@@ -225,7 +224,7 @@ impl ThreadInfo {
 /// WorkerThread identifiers
 
 pub struct WorkerThread {
-    worker: Worker<JobRef>,
+    worker: UnsafeCell<Worker<JobRef>>,
     index: usize,
 
     /// A weak random number generator.
@@ -275,7 +274,7 @@ impl WorkerThread {
 
     #[inline]
     pub unsafe fn push(&self, job: JobRef) {
-        self.worker.push(job);
+        (*self.worker.get()).push(job);
         self.registry.sleep.tickle(self.index);
     }
 
@@ -283,7 +282,7 @@ impl WorkerThread {
     /// stolen.
     #[inline]
     pub unsafe fn pop(&self) -> Option<JobRef> {
-        self.worker.pop()
+        (*self.worker.get()).try_pop()
     }
 
     /// Wait until the latch is set. Try to keep busy by popping and
@@ -347,7 +346,7 @@ impl WorkerThread {
     /// local work to do.
     unsafe fn steal(&self) -> Option<JobRef> {
         // we only steal when we don't have any work to do locally
-        debug_assert!(self.worker.pop().is_none());
+        debug_assert!(self.pop().is_none());
 
         // otherwise, try to steal
         let num_threads = self.registry.thread_infos.len();
@@ -372,9 +371,9 @@ impl WorkerThread {
                 let victim = &self.registry.thread_infos[victim_index];
                 loop {
                     match victim.stealer.steal() {
-                        Stolen::Empty => return None,
-                        Stolen::Abort => (), // retry
-                        Stolen::Data(v) => {
+                        Steal::Empty => return None,
+                        Steal::Abort => (), // retry
+                        Steal::Data(v) => {
                             log!(StoleWork { worker: self.index, victim: victim_index });
                             return Some(v);
                         }
@@ -389,7 +388,7 @@ impl WorkerThread {
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
-        worker: worker,
+        worker: worker.into(),
         index: index,
         rng: UnsafeCell::new(rand::weak_rng()),
         registry: registry.clone(),
