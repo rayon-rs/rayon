@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
-extern crate deque;
+extern crate crossbeam;
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;

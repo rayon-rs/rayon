@@ -13,7 +13,7 @@ members = [ "rayon-demo" ]
 [dependencies]
 rand = "0.3"
 num_cpus = "1.0"
-deque = "0.3.1"
+crossbeam = "0.2.10"
 libc = "0.2.16"
 lazy_static = "0.2.2"
 
