@@ -246,20 +246,20 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
             // Continuously try to set best_found until we succeed or we
             // discover a better match was already found.
             let mut current = self.best_found.load(Ordering::Relaxed);
-            let mut exchange_result = Result::Err(0);
-            while !better_position(current, self.boundary, self.match_position) &&
-                  exchange_result.is_err() {
-                exchange_result = self.best_found.compare_exchange_weak(current,
-                                                                        self.boundary,
-                                                                        Ordering::Relaxed,
-                                                                        Ordering::Relaxed);
-                if exchange_result.is_err() {
-                    current = self.best_found.load(Ordering::Relaxed);
+            loop {
+                if better_position(current, self.boundary, self.match_position) {
+                    break;
                 }
-            }
-
-            if exchange_result.is_ok() {
-                self.item = Some(item);
+                match self.best_found.compare_exchange_weak(current,
+                                                            self.boundary,
+                                                            Ordering::Relaxed,
+                                                            Ordering::Relaxed) {
+                    Ok(_) => {
+                        self.item = Some(item);
+                        break;
+                    },
+                    Err(v) => current = v,
+                }
             }
         }
         self
