@@ -12,7 +12,7 @@ members = [ "rayon-demo" ]
 
 [dependencies]
 rand = "0.3"
-num_cpus = "1.0"
+num_cpus = "1.2"
 deque = "0.3.1"
 libc = "0.2.16"
 lazy_static = "0.2.2"
