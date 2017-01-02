@@ -20,7 +20,6 @@ pub mod prelude;
 #[cfg(test)]
 mod test;
 mod registry;
-#[cfg(feature = "unstable")]
 mod scope;
 mod sleep;
 mod thread_pool;
@@ -33,5 +32,4 @@ pub use configuration::dump_stats;
 pub use configuration::initialize;
 pub use thread_pool::ThreadPool;
 pub use join::join;
-#[cfg(feature = "unstable")]
 pub use scope::{scope, Scope};
