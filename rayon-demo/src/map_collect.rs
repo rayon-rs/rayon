@@ -47,6 +47,32 @@ mod util {
         mutex.into_inner().unwrap()
     }
 
+    /// Use a system mutex.
+    pub fn atomic<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        let mut map = HashMap::new();
+        pi.for_each(atomically!(|(k, v)| {
+            map.insert(k, v);
+        }));
+        map
+    }
+
+    /// Use a flat-combining atomic over a folded vec.
+    pub fn atomic_vec<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        let mut map = HashMap::new();
+        pi.fold(|| Vec::new(),
+                |mut vec, elem| { vec.push(elem); vec })
+          .for_each(atomically!(|vec| map.extend(vec)));
+        map
+    }
+
     /// Use a linked list intermediary.
     pub fn linked_list<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
@@ -153,6 +179,22 @@ macro_rules! make_bench {
             use map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::mutex_vec($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
+        fn with_atomic(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::atomic($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
+        fn with_atomic_vec(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::atomic_vec($generate())));
             $check(&map.unwrap());
         }
 

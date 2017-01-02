@@ -11,6 +11,9 @@ extern crate rand;
 #[macro_use]
 mod log;
 
+#[cfg(feature = "unstable")]
+mod atomic;
+mod caslist;
 mod configuration;
 mod latch;
 mod join;
@@ -33,5 +36,7 @@ pub use configuration::dump_stats;
 pub use configuration::initialize;
 pub use thread_pool::ThreadPool;
 pub use join::join;
+#[cfg(feature = "unstable")]
+pub use atomic::Atomic;
 #[cfg(feature = "unstable")]
 pub use scope::{scope, Scope};
