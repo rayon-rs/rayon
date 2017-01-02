@@ -40,7 +40,7 @@ impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
     }
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
-        (self.split_off(), self, FindReducer)
+        (self.split_off_left(), self, FindReducer)
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -61,7 +61,7 @@ impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP
     where ITEM: Send,
           FIND_OP: Fn(&ITEM) -> bool + Sync
 {
-    fn split_off(&self) -> Self {
+    fn split_off_left(&self) -> Self {
         FindConsumer::new(self.find_op, self.found)
     }
 

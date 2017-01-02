@@ -37,7 +37,7 @@ impl<ITEM> Folder<ITEM> for NoopConsumer {
 }
 
 impl<ITEM> UnindexedConsumer<ITEM> for NoopConsumer {
-    fn split_off(&self) -> Self {
+    fn split_off_left(&self) -> Self {
         NoopConsumer
     }
 

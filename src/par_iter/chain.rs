@@ -29,8 +29,8 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let a = self.a.drive_unindexed(consumer.split_off());
-        let b = self.b.drive_unindexed(consumer.split_off());
+        let a = self.a.drive_unindexed(consumer.split_off_left());
+        let b = self.b.drive_unindexed(consumer.split_off_left());
         consumer.to_reducer().reduce(a, b)
     }
 

@@ -99,7 +99,7 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
         let dir = self.match_position;
-        (self.split_off(),
+        (self.split_off_left(),
          self,
          FindReducer { match_position: dir })
     }
@@ -127,7 +127,7 @@ impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
     where ITEM: Send,
           FIND_OP: Fn(&ITEM) -> bool + Sync
 {
-    fn split_off(&self) -> Self {
+    fn split_off_left(&self) -> Self {
         // Upper bound for one consumer will be lower bound for the other. This
         // overlap is okay, because only one of the bounds will be used for
         // comparing against best_found; the other is kept only to be able to
@@ -139,10 +139,6 @@ impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
         // consumer to stop working when the other finds a better match, but the
         // reducer ensures that the best answer is still returned (see the test
         // above).
-        //
-        // This code assumes that the caller of split_off will use the result as
-        // the *left* side of this iterator, and the remainder of self as the
-        // *right* side.
         let old_lower_bound = self.lower_bound.get();
         let median = old_lower_bound + ((self.upper_bound - old_lower_bound) / 2);
         self.lower_bound.set(median);
