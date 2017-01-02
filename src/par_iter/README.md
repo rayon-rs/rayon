@@ -41,10 +41,10 @@ modes (which is why there are two):
     accepts an index where the split should be performed. All
     iterators can work in this mode. The resulting halves thus have an
     idea about how much data they expect to consume.
-  - in the `UnindexedConsumer` trait, splitting is done with `split`.
-    There is no index: the resulting halves must be prepared to
-    process any amount of data, and they don't know where that data
-    falls in the overall stream.
+  - in the `UnindexedConsumer` trait, splitting is done with
+    `split_off_left`.  There is no index: the resulting halves must be
+    prepared to process any amount of data, and they don't know where that
+    data falls in the overall stream.
     - Not all consumers can operate in this mode. It works for
       `for_each` and `reduce`, for example, but it does not work for
       `collect_into`, since in that case the position of each item is
