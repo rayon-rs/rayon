@@ -29,9 +29,10 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
+        let reducer = consumer.to_reducer();
         let a = self.a.drive_unindexed(consumer.split_off_left());
-        let b = self.b.drive_unindexed(consumer.split_off_left());
-        consumer.to_reducer().reduce(a, b)
+        let b = self.b.drive_unindexed(consumer);
+        reducer.reduce(a, b)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
