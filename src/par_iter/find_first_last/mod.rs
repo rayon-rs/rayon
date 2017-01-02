@@ -225,7 +225,7 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
 fn find_first_folder_does_not_clobber_first_found() {
     let best_found = AtomicUsize::new(usize::max_value());
     let f = FindFolder {
-        find_op: &(|&x: &i32| -> bool { true }),
+        find_op: &(|&_: &i32| -> bool { true }),
         boundary: 0,
         match_position: MatchPosition::Leftmost,
         best_found: &best_found,
@@ -240,7 +240,7 @@ fn find_first_folder_does_not_clobber_first_found() {
 fn find_last_folder_yields_last_match() {
     let best_found = AtomicUsize::new(0);
     let f = FindFolder {
-        find_op: &(|&x: &i32| -> bool { true }),
+        find_op: &(|&_: &i32| -> bool { true }),
         boundary: 0,
         match_position: MatchPosition::Rightmost,
         best_found: &best_found,

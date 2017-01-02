@@ -13,7 +13,7 @@ fn same_range_first_consumers_return_correct_answer() {
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
-    for i in 0..bits_in_usize {
+    for _ in 0..bits_in_usize {
         consumer.split_off();
     }
 
@@ -46,7 +46,7 @@ fn same_range_last_consumers_return_correct_answer() {
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
-    for i in 0..bits_in_usize {
+    for _ in 0..bits_in_usize {
         consumer.split_off();
     }
 
