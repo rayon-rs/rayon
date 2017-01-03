@@ -256,8 +256,8 @@ impl<'m, ITEM, C, MAP_OP> UnindexedConsumer<ITEM> for MapConsumer<'m, C, MAP_OP>
     where C: UnindexedConsumer<MAP_OP::Output>,
           MAP_OP: MapOp<ITEM>
 {
-    fn split_off(&self) -> Self {
-        MapConsumer::new(self.base.split_off(), &self.map_op)
+    fn split_off_left(&self) -> Self {
+        MapConsumer::new(self.base.split_off_left(), &self.map_op)
     }
 
     fn to_reducer(&self) -> Self::Reducer {

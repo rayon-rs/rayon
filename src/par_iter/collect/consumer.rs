@@ -90,7 +90,7 @@ impl<'c, ITEM: Send + 'c> Folder<ITEM> for CollectFolder<'c, ITEM> {
 /// Pretend to be unindexed for `special_collect_into`,
 /// but we should never actually get used that way...
 impl<'c, ITEM: Send + 'c> UnindexedConsumer<ITEM> for CollectConsumer<'c, ITEM> {
-    fn split_off(&self) -> Self {
+    fn split_off_left(&self) -> Self {
         unreachable!("CollectConsumer must be indexed!")
     }
     fn to_reducer(&self) -> Self::Reducer {

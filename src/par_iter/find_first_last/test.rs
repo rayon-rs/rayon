@@ -9,18 +9,19 @@ fn same_range_first_consumers_return_correct_answer() {
 
     // We save a consumer that will be far to the right of the main consumer (and therefore not
     // sharing an index range with that consumer) for fullness testing
-    let consumer = far_right_consumer.split_off();
+    let consumer = far_right_consumer.split_off_left();
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
+
     for _ in 0..bits_in_usize {
-        consumer.split_off();
+        consumer.split_off_left();
     }
 
     let reducer = consumer.to_reducer();
     // the left and right folders should now have the same range, having
     // exhausted the resolution of usize
-    let left_folder = consumer.split_off().into_folder();
+    let left_folder = consumer.split_off_left().into_folder();
     let right_folder = consumer.into_folder();
 
     let left_folder = left_folder.consume(0).consume(1);
@@ -42,20 +43,20 @@ fn same_range_last_consumers_return_correct_answer() {
 
     // We save a consumer that will be far to the left of the main consumer (and therefore not
     // sharing an index range with that consumer) for fullness testing
-    let far_left_consumer = consumer.split_off();
+    let far_left_consumer = consumer.split_off_left();
 
     // split until we have an indivisible range
     let bits_in_usize = usize::min_value().count_zeros();
     for _ in 0..bits_in_usize {
-        consumer.split_off();
+        consumer.split_off_left();
     }
 
     let reducer = consumer.to_reducer();
-    // due to the exact calculation in split_off, the very last consumer has a
+    // due to the exact calculation in split_off_left, the very last consumer has a
     // range of width 2, so we use the second-to-last consumer instead to get
     // the same boundary on both folders
-    let consumer = consumer.split_off();
-    let left_folder = consumer.split_off().into_folder();
+    let consumer = consumer.split_off_left();
+    let left_folder = consumer.split_off_left().into_folder();
     let right_folder = consumer.into_folder();
     let right_folder = right_folder.consume(2).consume(3);
     assert_eq!(left_folder.boundary, right_folder.boundary);

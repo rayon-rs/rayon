@@ -629,9 +629,9 @@ pub trait ParallelIterator: Sized {
     /// statically. This can be used by consumers to trigger special fast
     /// paths. Therefore, if `Some(_)` is returned, this iterator must only
     /// use the (indexed) `Consumer` methods when driving a consumer, such
-    /// as `split_at()`. Calling `UnindexedConsumer::split_off()` or other
-    /// `UnindexedConsumer` methods -- or returning an inaccurate value --
-    /// may result in panics.
+    /// as `split_at()`. Calling `UnindexedConsumer::split_off_left()` or
+    /// other `UnindexedConsumer` methods -- or returning an inaccurate
+    /// value -- may result in panics.
     ///
     /// This is hidden & considered internal for now, until we decide
     /// whether it makes sense for a public API.  Right now it is only used

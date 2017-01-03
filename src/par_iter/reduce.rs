@@ -81,7 +81,7 @@ impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<ITEM> for ReduceConsumer<'r, REDUCE_
     where REDUCE_OP: ReduceOp<ITEM>,
           ITEM: Send
 {
-    fn split_off(&self) -> Self {
+    fn split_off_left(&self) -> Self {
         ReduceConsumer { reduce_op: self.reduce_op }
     }
 

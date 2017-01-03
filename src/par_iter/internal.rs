@@ -102,7 +102,10 @@ pub trait Reducer<Result> {
 
 /// A stateless consumer can be freely copied.
 pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
-    fn split_off(&self) -> Self;
+    // The result of split_off_left should be used for the left side of the
+    // data it consumes, and the remaining consumer for the right side
+    // (this matters for methods like find_first).
+    fn split_off_left(&self) -> Self;
     fn to_reducer(&self) -> Self::Reducer;
 }
 
@@ -270,7 +273,7 @@ fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
         consumer.into_folder().complete()
     } else if let Some(right_producer) = splitter.try_unindexed(&mut producer) {
         let (reducer, left_consumer, right_consumer) =
-            (consumer.to_reducer(), consumer.split_off(), consumer);
+            (consumer.to_reducer(), consumer.split_off_left(), consumer);
         let (left_result, right_result) =
             join(|| bridge_unindexed_producer_consumer(splitter, producer, left_consumer),
                  || bridge_unindexed_producer_consumer(splitter, right_producer, right_consumer));

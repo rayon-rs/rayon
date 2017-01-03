@@ -106,8 +106,8 @@ impl<'r, U, ITEM, C, IDENTITY, FOLD_OP> UnindexedConsumer<ITEM>
           IDENTITY: Fn() -> U + Sync,
           U: Send
 {
-    fn split_off(&self) -> Self {
-        FoldConsumer { base: self.base.split_off(), ..*self }
+    fn split_off_left(&self) -> Self {
+        FoldConsumer { base: self.base.split_off_left(), ..*self }
     }
 
     fn to_reducer(&self) -> Self::Reducer {
