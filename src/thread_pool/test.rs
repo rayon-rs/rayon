@@ -34,3 +34,22 @@ fn workers_stop() {
     // should lead to worker threads stopping
     registry.wait_until_stopped();
 }
+
+#[test]
+fn sleeper_stop() {
+    use std::{thread, time};
+
+    let registry;
+
+    { // once we exit this block, thread-pool will be dropped
+        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
+        registry = thread_pool.registry.clone();
+
+        // Give time for at least some of the thread pool to fall asleep.
+        thread::sleep(time::Duration::from_secs(1));
+    }
+
+    // once thread-pool is dropped, registry should terminate, which
+    // should lead to worker threads stopping
+    registry.wait_until_stopped();
+}
