@@ -181,6 +181,7 @@ impl Registry {
     /// extant work is completed.
     pub fn terminate(&self) {
         self.terminate_latch.set();
+        self.sleep.tickle(usize::MAX);
     }
 }
 
