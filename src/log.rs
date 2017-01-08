@@ -38,7 +38,6 @@ pub enum Event {
     FutureExecuteErr,
     FutureInstallWaitingTask { state: usize },
     FutureUnparkWaitingTask,
-    FutureCancel { state: usize },
     FutureComplete,
 }
 

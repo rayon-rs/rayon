@@ -124,6 +124,8 @@ struct ScopeFutureContents<F: Future + Send> {
 
     waiting_task: Option<Task>,
     result: Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error>,
+
+    canceled: bool,
 }
 
 // Assert that the `*const` is safe to transmit between threads:
@@ -152,6 +154,7 @@ impl<F: Future + Send> ScopeFuture<F> {
                 counter: counter,
                 waiting_task: None,
                 result: Ok(Async::NotReady),
+                canceled: false,
             }),
         });
 
@@ -315,20 +318,24 @@ impl<F: Future + Send> Job for ScopeFuture<F> {
 
         this.begin_execute_state();
         loop {
-            match contents.poll() {
-                Ok(Async::Ready(v)) => {
-                    log!(FutureExecuteReady);
-                    return contents.complete(Ok(Async::Ready(v)));
-                }
-                Ok(Async::NotReady) => {
-                    log!(FutureExecuteNotReady);
-                    if this.end_execute_state() {
-                        return;
+            if contents.canceled {
+                return contents.complete(Ok(Async::NotReady));
+            } else {
+                match contents.poll() {
+                    Ok(Async::Ready(v)) => {
+                        log!(FutureExecuteReady);
+                        return contents.complete(Ok(Async::Ready(v)));
                     }
-                }
-                Err(err) => {
-                    log!(FutureExecuteErr);
-                    return contents.complete(Err(err));
+                    Ok(Async::NotReady) => {
+                        log!(FutureExecuteNotReady);
+                        if this.end_execute_state() {
+                            return;
+                        }
+                    }
+                    Err(err) => {
+                        log!(FutureExecuteErr);
+                        return contents.complete(Err(err));
+                    }
                 }
             }
         }
@@ -419,26 +426,19 @@ impl<F> ScopeFutureTrait<<CU<F> as Future>::Item, <CU<F> as Future>::Error> for 
             return;
         }
 
-        // Slow-path. Get the lock and everything.
-        let mut contents = self.contents.lock().unwrap();
-        loop {
-            match self.state.load(Relaxed) {
-                STATE_COMPLETE => {
-                    return;
-                }
+        // Slow-path. Get the lock and set the canceled flag to
+        // true. Also grab the `unpark` instance (which may be `None`,
+        // if the future completes before we get the lack).
+        let unpark = {
+            let mut contents = self.contents.lock().unwrap();
+            contents.canceled = true;
+            contents.unpark.clone()
+        };
 
-                state => {
-                    log!(FutureCancel { state: state });
-                    if {
-                        self.state
-                            .compare_exchange_weak(state, STATE_COMPLETE, Release, Relaxed)
-                            .is_ok()
-                    } {
-                        contents.complete(Ok(Async::NotReady));
-                        return;
-                    }
-                }
-            }
+        // If the `unpark` we grabbed was not `None`, then signal it.
+        // This will schedule the future.
+        if let Some(u) = unpark {
+            u.unpark();
         }
     }
 }
