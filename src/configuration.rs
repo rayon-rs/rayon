@@ -43,11 +43,10 @@ impl Error for InitError {
 }
 
 /// Contains the rayon thread pool configuration.
-#[derive(Clone, Debug)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool. Must not be zero.
     num_threads: Option<usize>,
-    base_thread_name: Option<String>,
+    get_base_thread_name: Option<Box<FnMut(usize) -> String>>,
 }
 
 impl Configuration {
@@ -55,7 +54,7 @@ impl Configuration {
     pub fn new() -> Configuration {
         Configuration {
             num_threads: None,
-            base_thread_name: None,
+            get_base_thread_name: None,
         }
     }
 
@@ -65,15 +64,16 @@ impl Configuration {
         self.num_threads
     }
 
-    /// Get the base thread name for this configuration.
-    pub fn base_thread_name(&self) -> Option<&str> {
-        self.base_thread_name.as_ref().map(String::as_str)
+    /// Get the base thread name for the given index.
+    pub fn base_thread_name(&mut self, index: usize) -> Option<String> {
+        self.get_base_thread_name.as_mut().map(|c| c(index))
     }
 
-    /// Set the base thread name. Each thread will get
-    /// the name `format!("{}{}", base_name, i)`.
-    pub fn set_base_thread_name(mut self, base_thread_name: String) -> Self {
-        self.base_thread_name = Some(base_thread_name);
+    /// Set a closure which takes the thread index and return
+    /// the threads name.
+    pub fn set_base_thread_name<F>(mut self, closure: F) -> Self
+    where F: FnMut(usize) -> String + 'static {
+        self.get_base_thread_name = Some(Box::new(closure));
         self
     }
 

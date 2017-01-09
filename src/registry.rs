@@ -78,7 +78,7 @@ unsafe fn init_registry(config: Configuration) {
 }
 
 impl Registry {
-    pub fn new(configuration: Configuration) -> Arc<Registry> {
+    pub fn new(mut configuration: Configuration) -> Arc<Registry> {
         let limit_value = match configuration.num_threads() {
             Some(value) => value,
             None => {
@@ -104,9 +104,9 @@ impl Registry {
 
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
-            if let Some(name) = configuration.base_thread_name() {
+            if let Some(name) = configuration.base_thread_name(index) {
                 let _ = thread::Builder::new()
-                    .name(format!("{}{}", name, index))
+                    .name(name)
                     .spawn(move || unsafe { main_loop(worker, registry, index) });
             } else {
                 thread::spawn(move || unsafe { main_loop(worker, registry, index) });
