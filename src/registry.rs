@@ -73,18 +73,20 @@ pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
 unsafe fn init_registry(config: Configuration) {
-    let registry = leak(Arc::new(Registry::new(config.num_threads())));
+    let registry = leak(Arc::new(Registry::new(config)));
     THE_REGISTRY = Some(registry);
 }
 
 impl Registry {
-    pub fn new(num_threads: Option<usize>) -> Arc<Registry> {
-        let limit_value = match num_threads {
+    pub fn new(configuration: Configuration) -> Arc<Registry> {
+        let limit_value = match configuration.num_threads() {
             Some(value) => value,
-            None => match env::var("RAYON_RS_NUM_CPUS") {
-                Ok(s) => usize::from_str(&s).expect("invalid value for RAYON_RS_NUM_CPUS"),
-                Err(_) => num_cpus::get(),
-            },
+            None => {
+                match env::var("RAYON_RS_NUM_CPUS") {
+                    Ok(s) => usize::from_str(&s).expect("invalid value for RAYON_RS_NUM_CPUS"),
+                    Err(_) => num_cpus::get(),
+                }
+            }
         };
 
         let (inj_worker, inj_stealer) = deque::new();
@@ -102,7 +104,13 @@ impl Registry {
 
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
-            thread::spawn(move || unsafe { main_loop(worker, registry, index) });
+            if let Some(name) = configuration.base_thread_name() {
+                let _ = thread::Builder::new()
+                    .name(format!("{}{}", name, index))
+                    .spawn(move || unsafe { main_loop(worker, registry, index) });
+            } else {
+                thread::spawn(move || unsafe { main_loop(worker, registry, index) });
+            }
         }
 
         registry
