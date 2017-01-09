@@ -8,11 +8,12 @@ Rayon is a data-parallelism library for Rust. It is extremely
 lightweight and makes it easy to convert a sequential computation into
 a parallel one. It also guarantees data-race freedom. (You may also
 enjoy [this blog post][blog] about Rayon, which gives more background
-and details about how it works.) Rayon is
+and details about how it works, or [this video][video], from the Rust Belt Rust conference.) Rayon is
 [available on crates.io](https://crates.io/crates/rayon), and
 [API Documentation is available on docs.rs](https://docs.rs/rayon/).
 
 [blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
+[video]: https://www.youtube.com/watch?v=gof_OEv71Aw
 
 You can use Rayon in two ways. Which way you will want will depend on
 what you are doing:
