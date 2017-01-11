@@ -190,3 +190,78 @@ will transition the state (atomically, of course) to
 `PARKED` when `F.poll()` returns, the future will simply transition
 right back to `EXECUTING` and try calling `poll()` again. This can
 repeat a few times.
+
+### Lifetime safety
+
+Of course, Rayon's signature feature is that it allows you to use a
+future `F` that includes references, so long as those references
+outlive the lifetime of the scope `'scope`. So why is this safe?
+
+The basic idea of why this is safe is as follows. The `ScopeFuture`
+struct holds a ref on the scope itself (via the field `counter`).
+Until this ref is decremented, the scope will not end (and hence
+`'scope` is still active). This ref is only decremented while the
+future transitions into the *COMPLETE* state -- so anytime before
+then, we know we don't have to worry, the references are still valid.
+
+As we transition into the *COMPLETE* state is where things get more
+interesting. You'll notice that signaling the `self.counter` latch is
+the *last* thing that happens during that transition. Importantly,
+before that is done, we drop all access that we have to the type `F`:
+that is, we store `None` into the fields that might reference values
+of type `F`. This implies that we know that, whatever happens after we
+transition into *COMPLETE*, we can't access any of the references
+found in `F` anymore.
+
+This is good, because there *are* still active refs to the
+`ScopeFuture` after we enter the *COMPLETE* state. There are two
+sources of these: unpark values and the future result.
+
+**Unpark values.** We may have given away `Arc<Unpark>` values --
+these are trait objects, but they are actually refs to our
+`ScopeFuture`. Note that `Arc<Unpark>: 'static`, so these could be
+floating about for any length of time (we had to transmute away the
+lifetimes to give them out). This is ok because (a) the `Arc` keeps
+the `ScopeFuture` alive and (b) the only thing you can do is to call
+`unpark()`, which will promptly return since the state is *COMPLETE*
+(and, anyhow, as we saw above, it doesn't have access to any
+references anyhow).
+
+**Future result.** The other, more interesting reference to the
+`ScopeFuture` is the value that we gave back to the user when we
+spawned the future in the first place. This value is more interesting
+because it can be used to do non-trivial things, unlike the
+`Arc<Unpark>`. If you look carefully at this handle, you will see that
+its type has been designed to hide the type `F`. In fact, it only
+reveals the types `T` and `E` which are the ok/err result types of the
+future `F`.  This is intentonal: suppose that the type `F` includes
+some references, but those references don't appear in the result. We
+want the "result" future to be able to escape the scope, then, to any
+place where the types `T` and `E` are still in scope. If we exposed
+`F` here that would not be possible. (Hiding `F` also requires a
+transmute to an object type, in this case an internal trait called
+`ScopeFutureTrait`.) Note though that it is possible for `T` and `E`
+to have references in them. They could even be references tied to the
+scope.
+
+So what can a user do with this result future? They have two
+operations available: poll and cancel. Let's look at cancel first,
+since it's simpler. If the state is *COMPLETE*, then `cancel()` is an
+immediate no-op, so we know that it can't be used to access any
+references that may be invalid. In any case, the only thing it does is
+to set a field to true and invoke `unpark()`, and we already examined
+the possible effects of `unpark()` in the previous section.q
+
+So what about `poll()`? This is how the user gets the final result out
+of the future. The important thing that it does is to access (and
+effectively nullify) the field `result`, which stores the result of
+the future and hence may have access to `T` and `E` values. These
+values may contain references...so how we know that they are still in
+scope?  The answer is that those types are exposed in the user's type
+of the future, and hence the basic Rust type system should guarantee
+that any references are still valid, or else the user shouldn't be
+able to call `poll()`. (The same is true at the time of cancellation,
+but that's not important, since `cancel()` doesn't do anything of
+interest.)
+
+
