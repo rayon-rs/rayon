@@ -411,7 +411,6 @@ impl<F> ScopeFutureTrait<<CU<F> as Future>::Item, <CU<F> as Future>::Error> for 
             let r = mem::replace(&mut contents.result, Ok(Async::NotReady));
             return r;
         } else {
-            assert!(contents.waiting_task.is_none());
             log!(FutureInstallWaitingTask { state: state });
             contents.waiting_task = Some(task::park());
             Ok(Async::NotReady)
