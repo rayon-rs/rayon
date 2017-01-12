@@ -1,3 +1,4 @@
+#[cfg(feature = "unstable")]
 use futures::Future;
 use latch::{Latch, CountLatch};
 use log::Event::*;
@@ -10,7 +11,9 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use registry::{in_worker, WorkerThread};
 use unwind;
 
+#[cfg(feature = "unstable")]
 mod future;
+#[cfg(feature = "unstable")]
 use self::future::RayonFuture;
 
 #[cfg(test)]
@@ -279,6 +282,7 @@ impl<'scope> Scope<'scope> {
         }
     }
 
+    #[cfg(feature = "unstable")]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'scope
     {
