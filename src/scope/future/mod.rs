@@ -1,4 +1,4 @@
-use latch::{CountLatch, Latch, LatchProbe};
+use latch::{LatchProbe};
 #[allow(warnings)]
 use log::Event::*;
 use futures::{Async, Future, Poll};
@@ -15,6 +15,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
 use unwind;
+
+use super::Scope;
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
@@ -37,12 +39,12 @@ pub struct RayonFuture<T, E> {
 /// reaches 0.
 ///
 /// NB. This is a free fn so that we can expose `RayonFuture` as public API.
-pub unsafe fn new_rayon_future<F>(future: F,
-                                  counter: *const CountLatch)
-                                  -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send
+pub unsafe fn new_rayon_future<'scope, F>(future: F,
+                                          scope: *const Scope<'scope>)
+                                          -> RayonFuture<F::Item, F::Error>
+    where F: Future + Send + 'scope,
 {
-    let inner = ScopeFuture::spawn(future, counter);
+    let inner = ScopeFuture::spawn(future, scope);
     return RayonFuture { inner: hide_lifetime(inner) };
 
     unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
@@ -101,41 +103,43 @@ impl<T, E> Drop for RayonFuture<T, E> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct ScopeFuture<F: Future + Send> {
+struct ScopeFuture<'scope, F: Future + Send + 'scope> {
     state: AtomicUsize,
     registry: Arc<Registry>,
-    contents: Mutex<ScopeFutureContents<F>>,
+    contents: Mutex<ScopeFutureContents<'scope, F>>,
 }
 
 type CU<F> = CatchUnwind<AssertUnwindSafe<F>>;
+type CUItem<F> = <CU<F> as Future>::Item;
+type CUError<F> = <CU<F> as Future>::Error;
 
-struct ScopeFutureContents<F: Future + Send> {
+struct ScopeFutureContents<'scope, F: Future + Send + 'scope> {
     spawn: Option<Spawn<CU<F>>>,
     unpark: Option<Arc<Unpark>>,
 
     // Pointer to ourselves. We `None` this out when we are finished
     // executing, but it's convenient to keep around normally.
-    this: Option<Arc<ScopeFuture<F>>>,
+    this: Option<Arc<ScopeFuture<'scope, F>>>,
 
     // the counter in the scope; since the scope doesn't terminate until
     // counter reaches zero, and we hold a ref in this counter, we are
     // assured that this pointer remains valid
-    counter: *const CountLatch,
+    scope: *const Scope<'scope>,
 
     waiting_task: Option<Task>,
-    result: Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error>,
+    result: Poll<CUItem<F>, CUError<F>>,
 
     canceled: bool,
 }
 
 // Assert that the `*const` is safe to transmit between threads:
-unsafe impl<F: Future + Send> Send for ScopeFuture<F> {}
-unsafe impl<F: Future + Send> Sync for ScopeFuture<F> {}
+unsafe impl<'scope, F: Future + Send> Send for ScopeFuture<'scope, F> {}
+unsafe impl<'scope, F: Future + Send> Sync for ScopeFuture<'scope, F> {}
 
-impl<F: Future + Send> ScopeFuture<F> {
+impl<'scope, F: Future + Send> ScopeFuture<'scope, F> {
     // Unsafe: Caller asserts that `future` and `counter` will remain
     // valid until we invoke `counter.set()`.
-    unsafe fn spawn(future: F, counter: *const CountLatch) -> Arc<Self> {
+    unsafe fn spawn(future: F, scope: *const Scope<'scope>) -> Arc<Self> {
         let worker_thread = WorkerThread::current();
         debug_assert!(!worker_thread.is_null());
 
@@ -151,7 +155,7 @@ impl<F: Future + Send> ScopeFuture<F> {
                 spawn: None,
                 unpark: None,
                 this: None,
-                counter: counter,
+                scope: scope,
                 waiting_task: None,
                 result: Ok(Async::NotReady),
                 canceled: false,
@@ -299,13 +303,13 @@ impl<F: Future + Send> ScopeFuture<F> {
     }
 }
 
-impl<F: Future + Send> Unpark for ScopeFuture<F> {
+impl<'scope, F: Future + Send> Unpark for ScopeFuture<'scope, F> {
     fn unpark(&self) {
         self.unpark_inherent();
     }
 }
 
-impl<F: Future + Send> Job for ScopeFuture<F> {
+impl<'scope, F: Future + Send> Job for ScopeFuture<'scope, F> {
     unsafe fn execute(this: *const Self) {
         let this: Arc<Self> = mem::transmute(this);
 
@@ -342,13 +346,13 @@ impl<F: Future + Send> Job for ScopeFuture<F> {
     }
 }
 
-impl<F: Future + Send> ScopeFutureContents<F> {
-    fn poll(&mut self) -> Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error> {
+impl<'scope, F: Future + Send> ScopeFutureContents<'scope, F> {
+    fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
         let unpark = self.unpark.clone().unwrap();
         self.spawn.as_mut().unwrap().poll_future(unpark)
     }
 
-    fn complete(&mut self, value: Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error>) {
+    fn complete(&mut self, value: Poll<CUItem<F>, CUError<F>>) {
         log!(FutureComplete);
 
         // So, this is subtle. We know that the type `F` may have some
@@ -379,12 +383,12 @@ impl<F: Future + Send> ScopeFutureContents<F> {
         // `self.counter` is still valid, which we know because caller
         // to `new_rayon_future()` ensures it for us.
         unsafe {
-            (*self.counter).set();
+            (*self.scope).job_completed_ok();
         }
     }
 }
 
-impl<F> LatchProbe for ScopeFuture<F>
+impl<'scope, F> LatchProbe for ScopeFuture<'scope, F>
     where F: Future + Send
 {
     fn probe(&self) -> bool {
@@ -397,10 +401,10 @@ pub trait ScopeFutureTrait<T, E>: Send + Sync + LatchProbe {
     fn cancel(&self);
 }
 
-impl<F> ScopeFutureTrait<<CU<F> as Future>::Item, <CU<F> as Future>::Error> for ScopeFuture<F>
+impl<'scope, F> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F>
     where F: Future + Send
 {
-    fn poll(&self) -> Poll<<CU<F> as Future>::Item, <CU<F> as Future>::Error> {
+    fn poll(&self) -> Poll<CUItem<F>, CUError<F>> {
         // Important: due to transmute hackery, not all the fields are
         // truly known to be valid at this point. In particular, the
         // type F is erased. But the `state` and `result` fields

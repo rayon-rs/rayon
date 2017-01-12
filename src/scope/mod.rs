@@ -290,7 +290,7 @@ impl<'scope> Scope<'scope> {
 
         // we assert that we have the future `F` type will remain
         // valid until `job_completed_latch` is fully set
-        let future = unsafe { future::new_rayon_future(future, &self.job_completed_latch) };
+        let future = unsafe { future::new_rayon_future(future, self) };
 
         future
     }

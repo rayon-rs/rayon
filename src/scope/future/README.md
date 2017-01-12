@@ -87,7 +87,7 @@ some way, usually via an `Arc`):
       +---> /---------------------\
       |     | registry:           | ------> [rayon registry]
       |     | contents: --------\ |
-      |     | | counter         | | ------> [rayon scope's counter]
+      |     | | scope         | | ------> [spawning scope]
       |     | | unpark          | | --+
       |     | | this            | | --+ (self references)
       |     | | ...             | |   |
@@ -113,19 +113,19 @@ Let's walk through them:
   the `Registry` from being dropped. In particular, this doesn't
   prevent the threads in a registry from terminating while the future
   is unscheduled etc (though other fields in the future do).
-- The `counter` field is a `*const CountLatch`, but the idea is that
-  when the future is created one "count" on this `CountLatch` is
-  allocated for the future. Once the future has finished executing
-  completely (and hence its data is ready), this count will be
-  released. Typically, this `counter` is pointing at the `CountLatch`
-  associated with a call to `scope()`, and hence also the latch that
-  keeps the scope from ending. This has an interesting relationship to
-  the future `F`, as the type `F` is only valid during the call to
-  `scope()` (i.e., it may have references into the stack which become
-  invalidated once `scope()` returns).
+- The `scope` field is a `*const Scope<'scope>`, and the idea is that
+  when the future is created one job is allocated for this future in
+  the scope. Once the future has finished executing completely (and
+  hence its data is ready), this count will be marked as
+  completed. Until this time, the scope will not terminate. This has
+  an interesting relationship to the future `F`, as the type `F` is
+  known to be valid for *at least* the call to `scope()` (i.e., we
+  know that it outlives `'scope`, though that is all we know; it may
+  have references into the stack which become invalidated once
+  `scope()` returns).
   - All of our data of type `F` is stored in the field `spawn` (not
-    shown here). This field is always set to `None` before the counter
-    is decremented. See the section on lifetime safety for more
+    shown here). This field is always set to `None` before the scope
+    counter is decremented. See the section on lifetime safety for more
     details.
 - The `unpark` and `self` fields both store an `Arc` which is actually
   this same future. Thus the future has a ref count cycle (two of
@@ -198,14 +198,14 @@ future `F` that includes references, so long as those references
 outlive the lifetime of the scope `'scope`. So why is this safe?
 
 The basic idea of why this is safe is as follows. The `ScopeFuture`
-struct holds a ref on the scope itself (via the field `counter`).
+struct holds a ref on the scope itself (via the field `scope`).
 Until this ref is decremented, the scope will not end (and hence
 `'scope` is still active). This ref is only decremented while the
 future transitions into the *COMPLETE* state -- so anytime before
 then, we know we don't have to worry, the references are still valid.
 
 As we transition into the *COMPLETE* state is where things get more
-interesting. You'll notice that signaling the `self.counter` latch is
+interesting. You'll notice that signaling the `self.scope` job as done
 the *last* thing that happens during that transition. Importantly,
 before that is done, we drop all access that we have to the type `F`:
 that is, we store `None` into the fields that might reference values
