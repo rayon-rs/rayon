@@ -44,6 +44,9 @@ pub unsafe fn new_rayon_future<'scope, F>(future: F,
                                           -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'scope,
 {
+    // We always have to have a non-null scope (for now, anyway):
+    debug_assert!(!scope.is_null());
+
     let inner = ScopeFuture::spawn(future, scope);
     return RayonFuture { inner: hide_lifetime(inner) };
 
@@ -374,16 +377,25 @@ impl<'scope, F: Future + Send> ScopeFutureContents<'scope, F> {
         }
         this.state.store(STATE_COMPLETE, Release);
 
+        let mut err = None;
+
         if let Some(waiting_task) = self.waiting_task.take() {
             log!(FutureUnparkWaitingTask);
-            waiting_task.unpark();
+            match unwind::halt_unwinding(|| waiting_task.unpark()) {
+                Ok(()) => { }
+                Err(e) => { err = Some(e); }
+            }
         }
 
         // Allow the enclosing scope to end. Asserts that
         // `self.counter` is still valid, which we know because caller
         // to `new_rayon_future()` ensures it for us.
         unsafe {
-            (*self.scope).job_completed_ok();
+            if let Some(err) = err {
+                (*self.scope).job_panicked(err);
+            } else {
+                (*self.scope).job_completed_ok();
+            }
         }
     }
 }

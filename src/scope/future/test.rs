@@ -124,6 +124,39 @@ fn future_wait_works_outside_rayon_threads() {
     assert_eq!(Ok(()), future.unwrap().wait());
 }
 
+/// Test that invoking `wait` on a `RayonFuture` will not panic if we
+/// are outside a Rayon worker thread.
+#[test]
+#[should_panic(expected = "Hello, world!")]
+fn panicy_unpark() {
+    scope(|s| {
+        let (a_tx, a_rx) = oneshot::channel::<u32>();
+        let rf = s.spawn_future(a_rx);
+
+        let mut spawn = task::spawn(rf);
+        let unpark = Arc::new(PanicUnpark);
+        match spawn.poll_future(unpark.clone()) {
+            Ok(Async::NotReady) => { /* good, we expect not to be ready yet */ }
+            r => panic!("spawn poll returned: {:?}", r),
+        }
+
+        a_tx.complete(22);
+        match spawn.poll_future(unpark) {
+            Ok(Async::Ready(v)) => { assert_eq!(v, 22); }
+            r => panic!("spawn poll returned: {:?}", r)
+        }
+    });
+    panic!("scope failed to panic!");
+}
+
+struct PanicUnpark;
+
+impl Unpark for PanicUnpark {
+    fn unpark(&self) {
+        panic!("Hello, world!");
+    }
+}
+
 struct TrackUnpark {
     value: AtomicUsize
 }
