@@ -136,34 +136,28 @@ fn panicy_unpark() {
         let mut spawn = task::spawn(rf);
         let unpark = Arc::new(PanicUnpark);
         match spawn.poll_future(unpark.clone()) {
-            Ok(Async::NotReady) => { /* good, we expect not to be ready yet */ }
+            Ok(Async::NotReady) => {
+                // good, we expect not to be ready yet
+            }
             r => panic!("spawn poll returned: {:?}", r),
         }
 
         a_tx.complete(22);
         match spawn.poll_future(unpark) {
-            Ok(Async::Ready(v)) => { assert_eq!(v, 22); }
-            r => panic!("spawn poll returned: {:?}", r)
+            Ok(Async::Ready(v)) => {
+                assert_eq!(v, 22);
+            }
+            r => panic!("spawn poll returned: {:?}", r),
         }
     });
     panic!("scope failed to panic!");
-}
 
-struct PanicUnpark;
+    struct PanicUnpark;
 
-impl Unpark for PanicUnpark {
-    fn unpark(&self) {
-        panic!("Hello, world!");
-    }
-}
-
-struct TrackUnpark {
-    value: AtomicUsize
-}
-
-impl Unpark for TrackUnpark {
-    fn unpark(&self) {
-        self.value.fetch_add(1, Ordering::SeqCst);
+    impl Unpark for PanicUnpark {
+        fn unpark(&self) {
+            panic!("Hello, world!");
+        }
     }
 }
 
@@ -180,10 +174,16 @@ fn double_unpark() {
 
         // test that we don't panic if people try to install a task many times;
         // even if they are different tasks
-        for i in 0 .. 22 {
-            let u = if i % 2 == 0 { unpark0.clone() } else { unpark1.clone() };
+        for i in 0..22 {
+            let u = if i % 2 == 0 {
+                unpark0.clone()
+            } else {
+                unpark1.clone()
+            };
             match spawn.poll_future(u) {
-                Ok(Async::NotReady) => { /* good, we expect not to be ready yet */ }
+                Ok(Async::NotReady) => {
+                    // good, we expect not to be ready yet
+                }
                 r => panic!("spawn poll returned: {:?}", r),
             }
         }
@@ -201,4 +201,14 @@ fn double_unpark() {
 
     // unpark0 was not the last unpark supplied, so it will never be signalled
     assert_eq!(unpark0.value.load(Ordering::SeqCst), 0);
+
+    struct TrackUnpark {
+        value: AtomicUsize,
+    }
+
+    impl Unpark for TrackUnpark {
+        fn unpark(&self) {
+            self.value.fetch_add(1, Ordering::SeqCst);
+        }
+    }
 }

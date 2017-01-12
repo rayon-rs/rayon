@@ -364,7 +364,7 @@ impl<'scope, F: Future + Send> ScopeFutureContents<'scope, F> {
         // is decremented below. So we want to be sure to drop
         // `self.future` first, lest its dtor try to access some of
         // that state or something!
-        self.spawn.take().unwrap();
+        mem::drop(self.spawn.take().unwrap());
 
         self.unpark = None;
         self.result = value;
@@ -377,8 +377,10 @@ impl<'scope, F: Future + Send> ScopeFutureContents<'scope, F> {
         }
         this.state.store(STATE_COMPLETE, Release);
 
+        // `unpark()` here is arbitrary user-code, so it may well
+        // panic. We try to capture that panic and forward it
+        // somewhere useful if we can.
         let mut err = None;
-
         if let Some(waiting_task) = self.waiting_task.take() {
             log!(FutureUnparkWaitingTask);
             match unwind::halt_unwinding(|| waiting_task.unpark()) {
