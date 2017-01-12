@@ -188,7 +188,7 @@ impl<A, B> Producer for ChainProducer<A, B>
     }
 
     fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<A::Item>,
+        where F: Folder<A::Item>
     {
         folder = self.a.fold_with(folder);
         if folder.full() {

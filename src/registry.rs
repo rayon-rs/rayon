@@ -161,7 +161,8 @@ impl Registry {
             // drops) a `ThreadPool`; and, in that case, they cannot be
             // calling `inject()` later, since they dropped their
             // `ThreadPool`.
-            assert!(!self.terminate_latch.probe(), "inject() sees state.terminate as true");
+            assert!(!self.terminate_latch.probe(),
+                    "inject() sees state.terminate as true");
 
             for &job_ref in injected_jobs {
                 state.job_injector.push(job_ref);
@@ -194,14 +195,12 @@ impl Registry {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RegistryId {
-    addr: usize
+    addr: usize,
 }
 
 impl RegistryState {
     pub fn new(job_injector: Worker<JobRef>) -> RegistryState {
-        RegistryState {
-            job_injector: job_injector,
-        }
+        RegistryState { job_injector: job_injector }
     }
 }
 
@@ -321,8 +320,8 @@ impl WorkerThread {
             // outside. The idea is to finish what we started before
             // we take on something new.
             if let Some(job) = self.pop()
-                                   .or_else(|| self.steal())
-                                   .or_else(|| self.registry.pop_injected_job(self.index)) {
+                .or_else(|| self.steal())
+                .or_else(|| self.registry.pop_injected_job(self.index)) {
                 yields = self.registry.sleep.work_found(self.index, yields);
                 self.execute(job);
             } else {
@@ -373,8 +372,8 @@ impl WorkerThread {
             let rng = &mut *self.rng.get();
             rng.next_u32() % num_threads as u32
         } as usize;
-        (start .. num_threads)
-            .chain(0 .. start)
+        (start..num_threads)
+            .chain(0..start)
             .filter(|&i| i != self.index)
             .filter_map(|victim_index| {
                 let victim = &self.registry.thread_infos[victim_index];
@@ -383,7 +382,10 @@ impl WorkerThread {
                         Stolen::Empty => return None,
                         Stolen::Abort => (), // retry
                         Stolen::Data(v) => {
-                            log!(StoleWork { worker: self.index, victim: victim_index });
+                            log!(StoleWork {
+                                worker: self.index,
+                                victim: victim_index,
+                            });
                             return Some(v);
                         }
                     }
@@ -429,7 +431,8 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 /// `op` completes and return its return value. If `op` panics, that
 /// panic will be propagated as well.
 pub fn in_worker<OP, R>(op: OP) -> R
-    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+    where OP: FnOnce(&WorkerThread) -> R + Send,
+          R: Send
 {
     unsafe {
         let owner_thread = WorkerThread::current();
@@ -446,7 +449,8 @@ pub fn in_worker<OP, R>(op: OP) -> R
 
 #[cold]
 unsafe fn in_worker_cold<OP, R>(op: OP) -> R
-    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+    where OP: FnOnce(&WorkerThread) -> R + Send,
+          R: Send
 {
     // never run from a worker thread; just shifts over into worker threads
     debug_assert!(WorkerThread::current().is_null());

@@ -1042,7 +1042,8 @@ pub fn find_first_or_last() {
                Some(&742_i32));
     assert_eq!(a.par_iter().find_first(|&&x| x < 0), None);
 
-    assert_eq!(a.par_iter().position_first(|&x| x % 42 == 41), Some(41_usize));
+    assert_eq!(a.par_iter().position_first(|&x| x % 42 == 41),
+               Some(41_usize));
     assert_eq!(a.par_iter().position_first(|&x| x % 19 == 1 && x % 53 == 0),
                Some(742_usize));
     assert_eq!(a.par_iter().position_first(|&x| x < 0), None);
@@ -1052,7 +1053,8 @@ pub fn find_first_or_last() {
                Some(&742_i32));
     assert_eq!(a.par_iter().find_last(|&&x| x < 0), None);
 
-    assert_eq!(a.par_iter().position_last(|&x| x % 42 == 41), Some(1007_usize));
+    assert_eq!(a.par_iter().position_last(|&x| x % 42 == 41),
+               Some(1007_usize));
     assert_eq!(a.par_iter().position_last(|&x| x % 19 == 1 && x % 53 == 0),
                Some(742_usize));
     assert_eq!(a.par_iter().position_last(|&x| x < 0), None);

@@ -34,10 +34,9 @@ pub struct Args {
 }
 
 fn main() {
-    let args: &Args =
-        &Docopt::new(USAGE)
-            .and_then(|d| d.argv(env::args()).decode())
-            .unwrap_or_else(|e| e.exit());
+    let args: &Args = &Docopt::new(USAGE)
+        .and_then(|d| d.argv(env::args()).decode())
+        .unwrap_or_else(|e| e.exit());
 
     match &args.arg_scenario[..] {
         "tasks_ended" => tasks_ended(args),

@@ -141,4 +141,3 @@ pub fn initialize(config: Configuration) -> Result<(), InitError> {
 pub fn dump_stats() {
     dump_stats!();
 }
-
