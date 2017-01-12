@@ -104,13 +104,11 @@ impl Registry {
 
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
+            let mut b = thread::Builder::new();
             if let Some(name) = configuration.base_thread_name(index) {
-                let _ = thread::Builder::new()
-                    .name(name)
-                    .spawn(move || unsafe { main_loop(worker, registry, index) });
-            } else {
-                thread::spawn(move || unsafe { main_loop(worker, registry, index) });
+                b = b.name(name);
             }
+            b.spawn(move || unsafe { main_loop(worker, registry, index) });
         }
 
         registry
