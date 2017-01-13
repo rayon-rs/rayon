@@ -18,7 +18,7 @@ impl ThreadPool {
     /// result.  See `InitError` for more details.
     pub fn new(configuration: Configuration) -> Result<ThreadPool, InitError> {
         try!(configuration.validate());
-        Ok(ThreadPool { registry: Registry::new(configuration.num_threads()) })
+        Ok(ThreadPool { registry: Registry::new(configuration) })
     }
 
     /// Executes `op` within the threadpool. Any attempts to use

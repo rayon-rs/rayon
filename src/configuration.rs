@@ -43,22 +43,38 @@ impl Error for InitError {
 }
 
 /// Contains the rayon thread pool configuration.
-#[derive(Clone, Debug)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool. Must not be zero.
     num_threads: Option<usize>,
+    get_base_thread_name: Option<Box<FnMut(usize) -> String>>,
 }
 
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
-        Configuration { num_threads: None }
+        Configuration {
+            num_threads: None,
+            get_base_thread_name: None,
+        }
     }
 
     /// Get the number of threads that will be used for the thread
     /// pool. See `set_num_threads` for more information.
     pub fn num_threads(&self) -> Option<usize> {
         self.num_threads
+    }
+
+    /// Get the base thread name for the given index.
+    pub fn base_thread_name(&mut self, index: usize) -> Option<String> {
+        self.get_base_thread_name.as_mut().map(|c| c(index))
+    }
+
+    /// Set a closure which takes the thread index and return
+    /// the threads name.
+    pub fn set_base_thread_name<F>(mut self, closure: F) -> Self
+    where F: FnMut(usize) -> String + 'static {
+        self.get_base_thread_name = Some(Box::new(closure));
+        self
     }
 
     /// Set the number of threads to be used in the rayon threadpool.
