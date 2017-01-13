@@ -64,13 +64,13 @@ impl Configuration {
         self.num_threads
     }
 
-    /// Get the base thread name for the given index.
+    /// Get the thread name for the thread with the given index.
     pub fn thread_name(&mut self, index: usize) -> Option<String> {
         self.get_thread_name.as_mut().map(|c| c(index))
     }
 
-    /// Set a closure which takes the thread index and return
-    /// the threads name.
+    /// Set a closure which takes a thread index and returns
+    /// the thread's name.
     pub fn set_thread_name<F>(mut self, closure: F) -> Self
     where F: FnMut(usize) -> String + 'static {
         self.get_thread_name = Some(Box::new(closure));
