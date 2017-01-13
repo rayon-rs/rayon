@@ -105,7 +105,7 @@ impl Registry {
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
-            if let Some(name) = configuration.base_thread_name(index) {
+            if let Some(name) = configuration.thread_name(index) {
                 b = b.name(name);
             }
             // FIXME(#205) recover from this error

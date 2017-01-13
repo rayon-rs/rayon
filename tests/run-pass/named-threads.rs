@@ -5,12 +5,8 @@ use std::collections::HashSet;
 use rayon::*;
 use rayon::prelude::*;
 
-fn long_function() {
-    ::std::thread::sleep(::std::time::Duration::new(4, 0))
-}
-
 fn main() {
-    let result = initialize(Configuration::new().set_base_thread_name(|i| format!("hello-name-test-{}", i)));
+    let result = initialize(Configuration::new().set_thread_name(|i| format!("hello-name-test-{}", i)));
 
     const N: usize = 10000;
 
