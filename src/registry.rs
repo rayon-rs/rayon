@@ -108,7 +108,8 @@ impl Registry {
             if let Some(name) = configuration.base_thread_name(index) {
                 b = b.name(name);
             }
-            b.spawn(move || unsafe { main_loop(worker, registry, index) });
+            // FIXME(#205) recover from this error
+            b.spawn(move || unsafe { main_loop(worker, registry, index) }).unwrap();
         }
 
         registry
