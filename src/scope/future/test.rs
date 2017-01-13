@@ -133,6 +133,9 @@ fn panicy_unpark() {
         let (a_tx, a_rx) = oneshot::channel::<u32>();
         let rf = s.spawn_future(a_rx);
 
+        // invoke `poll_future` with a `PanicUnpark` instance;
+        // this should get installed as a 'waiting task' on the
+        // Rayon future `rf`
         let mut spawn = task::spawn(rf);
         let unpark = Arc::new(PanicUnpark);
         match spawn.poll_future(unpark.clone()) {
@@ -142,13 +145,16 @@ fn panicy_unpark() {
             r => panic!("spawn poll returned: {:?}", r),
         }
 
+        // this should trigger the future `a_rx` to be awoken
+        // and executing in a Rayon background thread
         a_tx.complete(22);
-        match spawn.poll_future(unpark) {
-            Ok(Async::Ready(v)) => {
-                assert_eq!(v, 22);
-            }
-            r => panic!("spawn poll returned: {:?}", r),
-        }
+
+        // now we wait for `rf` to complete; when it does, it will
+        // also signal the `PanicUnpark` to wake up (that is
+        // *supposed* to be what triggers us to `poll` again, but
+        // we are sidestepping that)
+        let v = spawn.into_inner().rayon_wait().unwrap();
+        assert_eq!(v, 22);
     });
     panic!("scope failed to panic!");
 
