@@ -576,6 +576,9 @@ pub trait ParallelIterator: Sized {
     /// Once a match is found, all attempts to the right of the match
     /// will be stopped, while attempts to the left must continue in case
     /// an earlier match is found.
+    ///
+    /// Note that not all parallel iterators have a useful order, much like
+    /// sequential `HashMap` iteration, so "first" may be nebulous.
     fn find_first<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
         where FIND_OP: Fn(&Self::Item) -> bool + Sync {
         find_first_last::find_first(self, predicate)
@@ -587,6 +590,9 @@ pub trait ParallelIterator: Sized {
     /// Once a match is found, all attempts to the left of the match
     /// will be stopped, while attempts to the right must continue in case
     /// a later match is found.
+    ///
+    /// Note that not all parallel iterators have a useful order, much like
+    /// sequential `HashMap` iteration, so "last" may be nebulous.
     fn find_last<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
         where FIND_OP: Fn(&Self::Item) -> bool + Sync {
         find_first_last::find_last(self, predicate)
@@ -848,6 +854,9 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// all attempts to the right of the match will be stopped, while
     /// attempts to the left must continue in case an earlier match
     /// is found.
+    ///
+    /// Note that not all parallel iterators have a useful order, much like
+    /// sequential `HashMap` iteration, so "first" may be nebulous.
     fn position_first<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
         where POSITION_OP: Fn(Self::Item) -> bool + Sync
     {
@@ -864,6 +873,9 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// all attempts to the left of the match will be stopped, while
     /// attempts to the right must continue in case a later match
     /// is found.
+    ///
+    /// Note that not all parallel iterators have a useful order, much like
+    /// sequential `HashMap` iteration, so "last" may be nebulous.
     fn position_last<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
         where POSITION_OP: Fn(Self::Item) -> bool + Sync
     {
