@@ -238,6 +238,8 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     /// Example:
     ///
     /// ```
+    /// # extern crate rayon_core as rayon;
+    /// # fn main() {
     /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
     /// // and use reduce to compute one pair `(x0 + ... + xN, y0 + ... + yN)`
     /// // where the first/second elements are summed separately.
@@ -248,6 +250,7 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     ///            .reduce(|| (0, 0), // the "identity" is 0 in both columns
     ///                    |a, b| (a.0 + b.0, a.1 + b.1));
     /// assert_eq!(sums, (0 + 5 + 16 + 8, 1 + 6 + 2 + 9));
+    /// # }
     /// ```
     ///
     /// **Note:** unlike a sequential `fold` operation, the order in
@@ -372,6 +375,8 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     /// map/reduce, you might try this:
     ///
     /// ```
+    /// # extern crate rayon_core as rayon;
+    /// # fn main() {
     /// use rayon::prelude::*;
     /// let s =
     ///     ['a', 'b', 'c', 'd', 'e']
@@ -380,6 +385,7 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     ///     .reduce(|| String::new(),
     ///             |mut a: String, b: String| { a.push_str(&b); a });
     /// assert_eq!(s, "abcde");
+    /// # }
     /// ```
     ///
     /// Because reduce produces the same type of element as its input,
@@ -389,6 +395,8 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     /// do this instead:
     ///
     /// ```
+    /// # extern crate rayon_core as rayon;
+    /// # fn main() {
     /// use rayon::prelude::*;
     /// let s =
     ///     ['a', 'b', 'c', 'd', 'e']
@@ -398,6 +406,7 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     ///     .reduce(|| String::new(),
     ///             |mut a: String, b: String| { a.push_str(&b); a });
     /// assert_eq!(s, "abcde");
+    /// # }
     /// ```
     ///
     /// Now `fold` will process groups of our characters at a time,
@@ -418,12 +427,15 @@ pub trait ParallelIterator: ParallelIteratorImpl {
     /// combination in effect:
     ///
     /// ```
+    /// # extern crate rayon_core as rayon;
+    /// # fn main() {
     /// use rayon::prelude::*;
     /// let bytes = 0..22_u8; // series of u8 bytes
     /// let sum = bytes.into_par_iter()
     ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
     ///                .sum();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
+    /// # }
     /// ```
     fn fold<IDENTITY_ITEM, IDENTITY, FOLD_OP>(self,
                                               identity: IDENTITY,

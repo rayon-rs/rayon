@@ -6,7 +6,7 @@ rust:
 script:
   - cargo build
   - |
-    ( cd rayon-stable && cargo build )
+    ( cd rayon-stable && cargo build && cargo clean )
   - |
     [ $TRAVIS_RUST_VERSION != nightly ] ||
     cargo test && cargo clean
