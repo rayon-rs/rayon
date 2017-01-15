@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::cmp::min;
 
@@ -16,7 +15,7 @@ impl<M> Take<M>
     }
 }
 
-impl<M> ParallelIterator for Take<M>
+impl<M> ParallelIteratorImpl for Take<M>
     where M: IndexedParallelIterator
 {
     type Item = M::Item;
@@ -32,18 +31,18 @@ impl<M> ParallelIterator for Take<M>
     }
 }
 
-impl<M> ExactParallelIterator for Take<M>
+impl<M> ExactParallelIteratorImpl for Take<M>
     where M: IndexedParallelIterator
 {
-    fn len(&mut self) -> usize {
+    fn impl_len(&mut self) -> usize {
         self.n
     }
 }
 
-impl<M> BoundedParallelIterator for Take<M>
+impl<M> BoundedParallelIteratorImpl for Take<M>
     where M: IndexedParallelIterator
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.len()
     }
 
@@ -52,7 +51,7 @@ impl<M> BoundedParallelIterator for Take<M>
     }
 }
 
-impl<M> IndexedParallelIterator for Take<M>
+impl<M> IndexedParallelIteratorImpl for Take<M>
     where M: IndexedParallelIterator
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output

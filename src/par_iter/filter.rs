@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::len::*;
 use super::*;
 
@@ -16,8 +15,8 @@ impl<M, FILTER_OP> Filter<M, FILTER_OP> {
     }
 }
 
-impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
-    where M: ParallelIterator,
+impl<M, FILTER_OP> ParallelIteratorImpl for Filter<M, FILTER_OP>
+    where M: ParallelIteratorImpl,
           FILTER_OP: Fn(&M::Item) -> bool + Sync
 {
     type Item = M::Item;
@@ -30,11 +29,11 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
     }
 }
 
-impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
-    where M: BoundedParallelIterator,
+impl<M, FILTER_OP> BoundedParallelIteratorImpl for Filter<M, FILTER_OP>
+    where M: BoundedParallelIteratorImpl,
           FILTER_OP: Fn(&M::Item) -> bool + Sync
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 

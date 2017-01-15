@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::iter;
 use std::ops::RangeFrom;
@@ -13,7 +12,7 @@ impl<M> Enumerate<M> {
     }
 }
 
-impl<M> ParallelIterator for Enumerate<M>
+impl<M> ParallelIteratorImpl for Enumerate<M>
     where M: IndexedParallelIterator
 {
     type Item = (usize, M::Item);
@@ -29,10 +28,10 @@ impl<M> ParallelIterator for Enumerate<M>
     }
 }
 
-impl<M> BoundedParallelIterator for Enumerate<M>
+impl<M> BoundedParallelIteratorImpl for Enumerate<M>
     where M: IndexedParallelIterator
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.len()
     }
 
@@ -41,15 +40,15 @@ impl<M> BoundedParallelIterator for Enumerate<M>
     }
 }
 
-impl<M> ExactParallelIterator for Enumerate<M>
+impl<M> ExactParallelIteratorImpl for Enumerate<M>
     where M: IndexedParallelIterator
 {
-    fn len(&mut self) -> usize {
+    fn impl_len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M> IndexedParallelIterator for Enumerate<M>
+impl<M> IndexedParallelIteratorImpl for Enumerate<M>
     where M: IndexedParallelIterator
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output

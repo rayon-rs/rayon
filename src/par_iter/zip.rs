@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::cmp::min;
 use std::iter;
@@ -14,7 +13,7 @@ impl<A: IndexedParallelIterator, B: IndexedParallelIterator> ZipIter<A, B> {
     }
 }
 
-impl<A, B> ParallelIterator for ZipIter<A, B>
+impl<A, B> ParallelIteratorImpl for ZipIter<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
@@ -31,11 +30,11 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     }
 }
 
-impl<A, B> BoundedParallelIterator for ZipIter<A, B>
+impl<A, B> BoundedParallelIteratorImpl for ZipIter<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.len()
     }
 
@@ -46,16 +45,16 @@ impl<A, B> BoundedParallelIterator for ZipIter<A, B>
     }
 }
 
-impl<A, B> ExactParallelIterator for ZipIter<A, B>
+impl<A, B> ExactParallelIteratorImpl for ZipIter<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
-    fn len(&mut self) -> usize {
+    fn impl_len(&mut self) -> usize {
         min(self.a.len(), self.b.len())
     }
 }
 
-impl<A, B> IndexedParallelIterator for ZipIter<A, B>
+impl<A, B> IndexedParallelIteratorImpl for ZipIter<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {

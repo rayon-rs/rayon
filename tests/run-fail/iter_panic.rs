@@ -1,7 +1,7 @@
-extern crate rayon;
+extern crate rayon_core;
 
-use rayon::*;
-use rayon::prelude::*;
+use rayon_core::*;
+use rayon_core::prelude::*;
 
 // error-pattern:boom
 

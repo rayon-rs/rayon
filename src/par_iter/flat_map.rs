@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::f64;
 
@@ -16,8 +15,8 @@ impl<M, MAP_OP> FlatMap<M, MAP_OP> {
     }
 }
 
-impl<M, MAP_OP, PI> ParallelIterator for FlatMap<M, MAP_OP>
-    where M: ParallelIterator,
+impl<M, MAP_OP, PI> ParallelIteratorImpl for FlatMap<M, MAP_OP>
+    where M: ParallelIteratorImpl,
           MAP_OP: Fn(M::Item) -> PI + Sync,
           PI: IntoParallelIterator
 {

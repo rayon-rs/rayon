@@ -1,9 +1,9 @@
-extern crate rayon;
+extern crate rayon_core;
 
 // Check that we can't use the par-iter API to access contents of an
 // `Rc`.
 
-use rayon::par_iter::IntoParallelIterator;
+use rayon_core::par_iter::IntoParallelIterator;
 use std::rc::Rc;
 
 fn main() {

@@ -1,6 +1,6 @@
-extern crate rayon;
+extern crate rayon_core;
 
-use rayon::*;
+use rayon_core::*;
 
 fn main() {
     let result = initialize(Configuration::new().set_num_threads(0));

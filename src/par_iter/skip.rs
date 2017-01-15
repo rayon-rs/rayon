@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::cmp::min;
 
@@ -16,7 +15,7 @@ impl<M> Skip<M>
     }
 }
 
-impl<M> ParallelIterator for Skip<M>
+impl<M> ParallelIteratorImpl for Skip<M>
     where M: IndexedParallelIterator
 {
     type Item = M::Item;
@@ -32,18 +31,18 @@ impl<M> ParallelIterator for Skip<M>
     }
 }
 
-impl<M> ExactParallelIterator for Skip<M>
+impl<M> ExactParallelIteratorImpl for Skip<M>
     where M: IndexedParallelIterator
 {
-    fn len(&mut self) -> usize {
+    fn impl_len(&mut self) -> usize {
         self.base.len() - self.n
     }
 }
 
-impl<M> BoundedParallelIterator for Skip<M>
+impl<M> BoundedParallelIteratorImpl for Skip<M>
     where M: IndexedParallelIterator
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.len()
     }
 
@@ -52,7 +51,7 @@ impl<M> BoundedParallelIterator for Skip<M>
     }
 }
 
-impl<M> IndexedParallelIterator for Skip<M>
+impl<M> IndexedParallelIteratorImpl for Skip<M>
     where M: IndexedParallelIterator
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
@@ -76,7 +75,7 @@ impl<M> IndexedParallelIterator for Skip<M>
                 where P: Producer<Item = ITEM>
             {
                 let (before_skip, after_skip) = base.split_at(self.n);
-                bridge_producer_consumer(self.n, before_skip, noop::NoopConsumer::new());
+                bridge_producer_consumer(self.n, before_skip, NoopConsumer::new());
                 self.callback.callback(after_skip)
             }
         }

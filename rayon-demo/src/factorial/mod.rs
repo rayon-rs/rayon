@@ -1,7 +1,5 @@
 //! Benchmark Factorial N! = 1×2×⋯×N
 
-#![feature(test)]
-
 use num::{One, BigUint};
 use rayon;
 use rayon::prelude::*;

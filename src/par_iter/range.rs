@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::ops::Range;
 
@@ -9,7 +8,7 @@ pub struct RangeIter<T> {
 impl<T> IntoParallelIterator for Range<T>
     where RangeIter<T>: ParallelIterator
 {
-    type Item = <RangeIter<T> as ParallelIterator>::Item;
+    type Item = <RangeIter<T> as ParallelIteratorImpl>::Item;
     type Iter = RangeIter<T>;
 
     fn into_par_iter(self) -> Self::Iter {
@@ -30,7 +29,7 @@ impl<T> IntoIterator for RangeIter<T>
 
 macro_rules! indexed_range_impl {
     ( $t:ty ) => {
-        impl ParallelIterator for RangeIter<$t> {
+        impl ParallelIteratorImpl for RangeIter<$t> {
             type Item = $t;
 
             fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -44,8 +43,8 @@ macro_rules! indexed_range_impl {
             }
         }
 
-        impl BoundedParallelIterator for RangeIter<$t> {
-            fn upper_bound(&mut self) -> usize {
+        impl BoundedParallelIteratorImpl for RangeIter<$t> {
+            fn impl_upper_bound(&mut self) -> usize {
                 ExactParallelIterator::len(self)
             }
 
@@ -56,13 +55,13 @@ macro_rules! indexed_range_impl {
             }
         }
 
-        impl ExactParallelIterator for RangeIter<$t> {
-            fn len(&mut self) -> usize {
+        impl ExactParallelIteratorImpl for RangeIter<$t> {
+            fn impl_len(&mut self) -> usize {
                 self.range.len()
             }
         }
 
-        impl IndexedParallelIterator for RangeIter<$t> {
+        impl IndexedParallelIteratorImpl for RangeIter<$t> {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {
@@ -101,7 +100,7 @@ macro_rules! unindexed_range_impl {
             }
         }
 
-        impl ParallelIterator for RangeIter<$t> {
+        impl ParallelIteratorImpl for RangeIter<$t> {
             type Item = $t;
 
             fn drive_unindexed<C>(self, consumer: C) -> C::Result

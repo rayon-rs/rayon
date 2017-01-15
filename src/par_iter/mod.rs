@@ -20,44 +20,49 @@ use self::enumerate::Enumerate;
 use self::filter::Filter;
 use self::filter_map::FilterMap;
 use self::flat_map::FlatMap;
-use self::from_par_iter::FromParallelIterator;
 use self::map::{Map, MapFn, MapCloned, MapInspect};
 use self::reduce::{reduce, ReduceOp, SumOp, ProductOp, ReduceWithIdentityOp, SUM, PRODUCT};
 use self::skip::Skip;
 use self::take::Take;
-use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
 
+pub use self::from_par_iter::FromParallelIterator;
 pub use self::string::ParallelString;
 
-pub mod find;
-pub mod find_first_last;
-pub mod chain;
-pub mod collect;
-pub mod enumerate;
-pub mod filter;
-pub mod filter_map;
-pub mod flat_map;
-pub mod from_par_iter;
-pub mod internal;
-pub mod len;
-pub mod for_each;
-pub mod fold;
-pub mod reduce;
-pub mod skip;
-pub mod take;
-pub mod slice;
-pub mod slice_mut;
-pub mod string;
-pub mod map;
-pub mod weight;
-pub mod zip;
-pub mod range;
-pub mod vec;
-pub mod option;
-pub mod collections;
-pub mod noop;
+// for implementors only -- not re-exported in rayon-stable!
+pub use self::imp::*;
+pub use self::internal::*;
+pub use self::noop::*;
+
+mod imp;
+mod find;
+mod find_first_last;
+mod chain;
+mod collect;
+mod enumerate;
+mod filter;
+mod filter_map;
+mod flat_map;
+mod from_par_iter;
+mod internal;
+mod len;
+mod for_each;
+mod fold;
+mod reduce;
+mod skip;
+mod take;
+mod slice;
+mod slice_mut;
+mod string;
+mod map;
+mod weight;
+mod zip;
+mod range;
+mod vec;
+mod option;
+mod collections;
+mod noop;
 
 #[cfg(test)]
 mod test;
@@ -136,9 +141,7 @@ pub trait ToParallelChunksMut<'data> {
 }
 
 /// The `ParallelIterator` interface.
-pub trait ParallelIterator: Sized {
-    type Item: Send;
-
+pub trait ParallelIterator: ParallelIteratorImpl {
     /// Indicates the relative "weight" of producing each item in this
     /// parallel iterator. A higher weight will cause finer-grained
     /// parallel subtasks. 1.0 indicates something very cheap and
@@ -184,7 +187,7 @@ pub trait ParallelIterator: Sized {
     /// Creates an iterator which clones all of its elements.  This may be
     /// useful when you have an iterator over `&T`, but you need `T`.
     fn cloned<'a, T>(self) -> Map<Self, MapCloned>
-        where T: 'a + Clone,
+        where T: 'a + Clone + Sync,
               Self: ParallelIterator<Item = &'a T>
     {
         Map::new(self, MapCloned)
@@ -623,27 +626,6 @@ pub trait ParallelIterator: Sized {
         self.map(predicate).find_any(|&p| !p).is_none()
     }
 
-    /// Internal method used to define the behavior of this parallel
-    /// iterator. You should not need to call this directly.
-    #[doc(hidden)]
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
-
-    /// Returns the number of items produced by this iterator, if known
-    /// statically. This can be used by consumers to trigger special fast
-    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
-    /// use the (indexed) `Consumer` methods when driving a consumer, such
-    /// as `split_at()`. Calling `UnindexedConsumer::split_off_left()` or
-    /// other `UnindexedConsumer` methods -- or returning an inaccurate
-    /// value -- may result in panics.
-    ///
-    /// This is hidden & considered internal for now, until we decide
-    /// whether it makes sense for a public API.  Right now it is only used
-    /// to optimize `collect`  for want of true Rust specialization.
-    #[doc(hidden)]
-    fn opt_len(&mut self) -> Option<usize> {
-        None
-    }
-
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
@@ -670,20 +652,15 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// A trait for parallel iterators items where the precise number of
 /// items is not known, but we can at least give an upper-bound. These
 /// sorts of iterators result from filtering.
-pub trait BoundedParallelIterator: ParallelIterator {
+pub trait BoundedParallelIterator: BoundedParallelIteratorImpl {
     fn upper_bound(&mut self) -> usize;
-
-    /// Internal method used to define the behavior of this parallel
-    /// iterator. You should not need to call this directly.
-    #[doc(hidden)]
-    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 }
 
 /// A trait for parallel iterators items where the precise number of
 /// items is known. This occurs when e.g. iterating over a
 /// vector. Knowing precisely how many items will be produced is very
 /// useful.
-pub trait ExactParallelIterator: BoundedParallelIterator {
+pub trait ExactParallelIterator: ExactParallelIteratorImpl {
     /// Produces an exact count of how many items this iterator will
     /// produce, presuming no panic occurs.
     fn len(&mut self) -> usize;
@@ -700,13 +677,7 @@ pub trait ExactParallelIterator: BoundedParallelIterator {
 /// An iterator that supports "random access" to its data, meaning
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
-pub trait IndexedParallelIterator: ExactParallelIterator {
-    /// Internal method to convert this parallel iterator into a
-    /// producer that can be used to request the items. Users of the
-    /// API never need to know about this fn.
-    #[doc(hidden)]
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
-
+pub trait IndexedParallelIterator: IndexedParallelIteratorImpl {
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two

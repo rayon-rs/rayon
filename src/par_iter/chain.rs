@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::cmp::min;
 use std::iter;
@@ -20,9 +19,9 @@ impl<A, B> ChainIter<A, B>
     }
 }
 
-impl<A, B> ParallelIterator for ChainIter<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+impl<A, B> ParallelIteratorImpl for ChainIter<A, B>
+    where A: ParallelIteratorImpl,
+          B: ParallelIteratorImpl<Item = A::Item>
 {
     type Item = A::Item;
 
@@ -48,12 +47,12 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> BoundedParallelIterator for ChainIter<A, B>
-    where A: BoundedParallelIterator,
-          B: BoundedParallelIterator<Item = A::Item>
+impl<A, B> BoundedParallelIteratorImpl for ChainIter<A, B>
+    where A: BoundedParallelIteratorImpl,
+          B: BoundedParallelIteratorImpl<Item = A::Item>
 {
-    fn upper_bound(&mut self) -> usize {
-        self.a.upper_bound() + self.b.upper_bound()
+    fn impl_upper_bound(&mut self) -> usize {
+        self.a.impl_upper_bound() + self.b.impl_upper_bound()
     }
 
     fn drive<C>(mut self, consumer: C) -> C::Result
@@ -66,18 +65,18 @@ impl<A, B> BoundedParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> ExactParallelIterator for ChainIter<A, B>
-    where A: ExactParallelIterator,
-          B: ExactParallelIterator<Item = A::Item>
+impl<A, B> ExactParallelIteratorImpl for ChainIter<A, B>
+    where A: ExactParallelIteratorImpl,
+          B: ExactParallelIteratorImpl<Item = A::Item>
 {
-    fn len(&mut self) -> usize {
-        self.a.len() + self.b.len()
+    fn impl_len(&mut self) -> usize {
+        self.a.impl_len() + self.b.impl_len()
     }
 }
 
-impl<A, B> IndexedParallelIterator for ChainIter<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator<Item = A::Item>
+impl<A, B> IndexedParallelIteratorImpl for ChainIter<A, B>
+    where A: IndexedParallelIteratorImpl,
+          B: IndexedParallelIteratorImpl<Item = A::Item>
 {
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
@@ -96,7 +95,7 @@ impl<A, B> IndexedParallelIterator for ChainIter<A, B>
         }
 
         impl<CB, B> ProducerCallback<B::Item> for CallbackA<CB, B>
-            where B: IndexedParallelIterator,
+            where B: IndexedParallelIteratorImpl,
                   CB: ProducerCallback<B::Item>
         {
             type Output = CB::Output;

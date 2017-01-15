@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std;
 
@@ -62,7 +61,7 @@ impl<'a, T: Send, E> IntoParallelIterator for &'a mut Result<T, E> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-impl<T: Send> ParallelIterator for OptionIter<T> {
+impl<T: Send> ParallelIteratorImpl for OptionIter<T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -76,8 +75,8 @@ impl<T: Send> ParallelIterator for OptionIter<T> {
     }
 }
 
-impl<T: Send> BoundedParallelIterator for OptionIter<T> {
-    fn upper_bound(&mut self) -> usize {
+impl<T: Send> BoundedParallelIteratorImpl for OptionIter<T> {
+    fn impl_upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
@@ -88,8 +87,8 @@ impl<T: Send> BoundedParallelIterator for OptionIter<T> {
     }
 }
 
-impl<T: Send> ExactParallelIterator for OptionIter<T> {
-    fn len(&mut self) -> usize {
+impl<T: Send> ExactParallelIteratorImpl for OptionIter<T> {
+    fn impl_len(&mut self) -> usize {
         match self.opt {
             Some(_) => 1,
             None => 0,
@@ -97,7 +96,7 @@ impl<T: Send> ExactParallelIterator for OptionIter<T> {
     }
 }
 
-impl<T: Send> IndexedParallelIterator for OptionIter<T> {
+impl<T: Send> IndexedParallelIteratorImpl for OptionIter<T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

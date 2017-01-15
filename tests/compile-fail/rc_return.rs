@@ -1,9 +1,9 @@
-extern crate rayon;
+extern crate rayon_core;
 
 use std::rc::Rc;
 
 fn main() {
-    rayon::join(|| Rc::new(22), || Rc::new(23));
+    rayon_core::join(|| Rc::new(22), || Rc::new(23));
     //~^ ERROR E0277
     //~| ERROR E0277
 }

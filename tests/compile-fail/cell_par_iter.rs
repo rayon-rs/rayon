@@ -1,8 +1,8 @@
-extern crate rayon;
+extern crate rayon_core;
 
 // Check that we can't use the par-iter API to access contents of a `Cell`.
 
-use rayon::prelude::*;
+use rayon_core::prelude::*;
 use std::cell::Cell;
 
 fn main() {

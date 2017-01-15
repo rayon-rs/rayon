@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std;
 
@@ -15,7 +14,7 @@ impl<T: Send> IntoParallelIterator for Vec<T> {
     }
 }
 
-impl<T: Send> ParallelIterator for VecIter<T> {
+impl<T: Send> ParallelIteratorImpl for VecIter<T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -29,8 +28,8 @@ impl<T: Send> ParallelIterator for VecIter<T> {
     }
 }
 
-impl<T: Send> BoundedParallelIterator for VecIter<T> {
-    fn upper_bound(&mut self) -> usize {
+impl<T: Send> BoundedParallelIteratorImpl for VecIter<T> {
+    fn impl_upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
@@ -41,13 +40,13 @@ impl<T: Send> BoundedParallelIterator for VecIter<T> {
     }
 }
 
-impl<T: Send> ExactParallelIterator for VecIter<T> {
-    fn len(&mut self) -> usize {
+impl<T: Send> ExactParallelIteratorImpl for VecIter<T> {
+    fn impl_len(&mut self) -> usize {
         self.vec.len()
     }
 }
 
-impl<T: Send> IndexedParallelIterator for VecIter<T> {
+impl<T: Send> IndexedParallelIteratorImpl for VecIter<T> {
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

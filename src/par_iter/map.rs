@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::len::*;
 use super::*;
 
@@ -59,8 +58,8 @@ impl<M, MAP_OP> Map<M, MAP_OP> {
     }
 }
 
-impl<M, MAP_OP> ParallelIterator for Map<M, MAP_OP>
-    where M: ParallelIterator,
+impl<M, MAP_OP> ParallelIteratorImpl for Map<M, MAP_OP>
+    where M: ParallelIteratorImpl,
           MAP_OP: MapOp<M::Item>
 {
     type Item = MAP_OP::Output;
@@ -77,11 +76,11 @@ impl<M, MAP_OP> ParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP> BoundedParallelIterator for Map<M, MAP_OP>
-    where M: BoundedParallelIterator,
+impl<M, MAP_OP> BoundedParallelIteratorImpl for Map<M, MAP_OP>
+    where M: BoundedParallelIteratorImpl,
           MAP_OP: MapOp<M::Item>
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 
@@ -93,17 +92,17 @@ impl<M, MAP_OP> BoundedParallelIterator for Map<M, MAP_OP>
     }
 }
 
-impl<M, MAP_OP> ExactParallelIterator for Map<M, MAP_OP>
-    where M: ExactParallelIterator,
+impl<M, MAP_OP> ExactParallelIteratorImpl for Map<M, MAP_OP>
+    where M: ExactParallelIteratorImpl,
           MAP_OP: MapOp<M::Item>
 {
-    fn len(&mut self) -> usize {
+    fn impl_len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
-    where M: IndexedParallelIterator,
+impl<M, MAP_OP> IndexedParallelIteratorImpl for Map<M, MAP_OP>
+    where M: IndexedParallelIteratorImpl,
           MAP_OP: MapOp<M::Item>
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
