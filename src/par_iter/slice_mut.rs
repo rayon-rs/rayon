@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 
 pub struct SliceIterMut<'data, T: 'data + Send> {
@@ -35,7 +34,7 @@ impl<'data, T: Send + 'data> ToParallelChunksMut<'data> for [T] {
     }
 }
 
-impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> ParallelIteratorImpl for SliceIterMut<'data, T> {
     type Item = &'data mut T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -49,8 +48,8 @@ impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> {
-    fn upper_bound(&mut self) -> usize {
+impl<'data, T: Send + 'data> BoundedParallelIteratorImpl for SliceIterMut<'data, T> {
+    fn impl_upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
@@ -61,13 +60,13 @@ impl<'data, T: Send + 'data> BoundedParallelIterator for SliceIterMut<'data, T> 
     }
 }
 
-impl<'data, T: Send + 'data> ExactParallelIterator for SliceIterMut<'data, T> {
-    fn len(&mut self) -> usize {
+impl<'data, T: Send + 'data> ExactParallelIteratorImpl for SliceIterMut<'data, T> {
+    fn impl_len(&mut self) -> usize {
         self.slice.len()
     }
 }
 
-impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> {
+impl<'data, T: Send + 'data> IndexedParallelIteratorImpl for SliceIterMut<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
@@ -80,7 +79,7 @@ pub struct ChunksMutIter<'data, T: 'data + Send> {
     slice: &'data mut [T],
 }
 
-impl<'data, T: Send + 'data> ParallelIterator for ChunksMutIter<'data, T> {
+impl<'data, T: Send + 'data> ParallelIteratorImpl for ChunksMutIter<'data, T> {
     type Item = &'data mut [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -94,8 +93,8 @@ impl<'data, T: Send + 'data> ParallelIterator for ChunksMutIter<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> BoundedParallelIterator for ChunksMutIter<'data, T> {
-    fn upper_bound(&mut self) -> usize {
+impl<'data, T: Send + 'data> BoundedParallelIteratorImpl for ChunksMutIter<'data, T> {
+    fn impl_upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
@@ -106,13 +105,13 @@ impl<'data, T: Send + 'data> BoundedParallelIterator for ChunksMutIter<'data, T>
     }
 }
 
-impl<'data, T: Send + 'data> ExactParallelIterator for ChunksMutIter<'data, T> {
-    fn len(&mut self) -> usize {
+impl<'data, T: Send + 'data> ExactParallelIteratorImpl for ChunksMutIter<'data, T> {
+    fn impl_len(&mut self) -> usize {
         (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
     }
 }
 
-impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMutIter<'data, T> {
+impl<'data, T: Send + 'data> IndexedParallelIteratorImpl for ChunksMutIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

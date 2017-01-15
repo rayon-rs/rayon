@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::len::*;
 use super::*;
 
@@ -24,8 +23,8 @@ pub struct Fold<BASE, IDENTITY, FOLD_OP> {
     fold_op: FOLD_OP,
 }
 
-impl<U, BASE, IDENTITY, FOLD_OP> ParallelIterator for Fold<BASE, IDENTITY, FOLD_OP>
-    where BASE: ParallelIterator,
+impl<U, BASE, IDENTITY, FOLD_OP> ParallelIteratorImpl for Fold<BASE, IDENTITY, FOLD_OP>
+    where BASE: ParallelIteratorImpl,
           FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
           IDENTITY: Fn() -> U + Sync,
           U: Send
@@ -44,13 +43,13 @@ impl<U, BASE, IDENTITY, FOLD_OP> ParallelIterator for Fold<BASE, IDENTITY, FOLD_
     }
 }
 
-impl<U, BASE, IDENTITY, FOLD_OP> BoundedParallelIterator for Fold<BASE, IDENTITY, FOLD_OP>
-    where BASE: BoundedParallelIterator,
+impl<U, BASE, IDENTITY, FOLD_OP> BoundedParallelIteratorImpl for Fold<BASE, IDENTITY, FOLD_OP>
+    where BASE: BoundedParallelIteratorImpl,
           FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
           IDENTITY: Fn() -> U + Sync,
           U: Send
 {
-    fn upper_bound(&mut self) -> usize {
+    fn impl_upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 

@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 use std::cmp::min;
 use std::iter::Chain;
@@ -76,7 +75,7 @@ pub struct ParChars<'a> {
     chars: &'a str,
 }
 
-impl<'a> ParallelIterator for ParChars<'a> {
+impl<'a> ParallelIteratorImpl for ParChars<'a> {
     type Item = char;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -129,7 +128,7 @@ impl<'a> ParSplit<'a> {
     }
 }
 
-impl<'a> ParallelIterator for ParSplit<'a> {
+impl<'a> ParallelIteratorImpl for ParSplit<'a> {
     type Item = &'a str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -225,7 +224,7 @@ impl<'a> ParSplitTerminator<'a> {
     }
 }
 
-impl<'a> ParallelIterator for ParSplitTerminator<'a> {
+impl<'a> ParallelIteratorImpl for ParSplitTerminator<'a> {
     type Item = &'a str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -277,7 +276,7 @@ impl<'a> IntoIterator for ParSplitTerminator<'a> {
 
 pub struct ParLines<'a>(&'a str);
 
-impl<'a> ParallelIterator for ParLines<'a> {
+impl<'a> ParallelIteratorImpl for ParLines<'a> {
     type Item = &'a str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result

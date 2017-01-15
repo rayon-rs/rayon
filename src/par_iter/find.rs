@@ -1,5 +1,4 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use super::internal::*;
 use super::len::*;
 use super::*;
 

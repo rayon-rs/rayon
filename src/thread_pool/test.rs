@@ -17,12 +17,13 @@ fn panic_propagate() {
 fn workers_stop() {
     let registry;
 
-    { // once we exit this block, thread-pool will be dropped
+    {
+        // once we exit this block, thread-pool will be dropped
         let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
         registry = thread_pool.install(|| {
             // do some work on these threads
-            let s1 = (0..10*1024).into_par_iter().sum();
-            let s2 = (0..10*1024).sum();
+            let s1 = (0..10 * 1024).into_par_iter().sum();
+            let s2 = (0..10 * 1024).sum();
             assert_eq!(s1, s2);
 
             thread_pool.registry.clone()
@@ -41,7 +42,8 @@ fn sleeper_stop() {
 
     let registry;
 
-    { // once we exit this block, thread-pool will be dropped
+    {
+        // once we exit this block, thread-pool will be dropped
         let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
         registry = thread_pool.registry.clone();
 

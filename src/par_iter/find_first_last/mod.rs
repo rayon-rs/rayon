@@ -1,6 +1,5 @@
 use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use super::internal::*;
 use super::*;
 use super::len::*;
 
@@ -67,7 +66,8 @@ struct FindConsumer<'f, FIND_OP: 'f> {
 impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
     fn new(find_op: &'f FIND_OP,
            match_position: MatchPosition,
-           best_found: &'f AtomicUsize) -> Self {
+           best_found: &'f AtomicUsize)
+           -> Self {
         FindConsumer {
             find_op: find_op,
             lower_bound: Cell::new(0),
@@ -80,7 +80,7 @@ impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
     fn current_index(&self) -> usize {
         match self.match_position {
             MatchPosition::Leftmost => self.lower_bound.get(),
-            MatchPosition::Rightmost => self.upper_bound
+            MatchPosition::Rightmost => self.upper_bound,
         }
     }
 }
@@ -99,9 +99,7 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
         let dir = self.match_position;
-        (self.split_off_left(),
-         self,
-         FindReducer { match_position: dir })
+        (self.split_off_left(), self, FindReducer { match_position: dir })
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -189,7 +187,7 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
                     Ok(_) => {
                         self.item = Some(item);
                         break;
-                    },
+                    }
                     Err(v) => current = v,
                 }
             }
@@ -208,9 +206,9 @@ impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, 
         };
 
         found_best_in_range ||
-            better_position(self.best_found.load(Ordering::Relaxed),
-                            self.boundary,
-                            self.match_position)
+        better_position(self.best_found.load(Ordering::Relaxed),
+                        self.boundary,
+                        self.match_position)
     }
 }
 
@@ -247,14 +245,14 @@ fn find_last_folder_yields_last_match() {
 }
 
 struct FindReducer {
-    match_position: MatchPosition
+    match_position: MatchPosition,
 }
 
 impl<ITEM> Reducer<Option<ITEM>> for FindReducer {
     fn reduce(self, left: Option<ITEM>, right: Option<ITEM>) -> Option<ITEM> {
         match self.match_position {
             MatchPosition::Leftmost => left.or(right),
-            MatchPosition::Rightmost => right.or(left)
+            MatchPosition::Rightmost => right.or(left),
         }
     }
 }

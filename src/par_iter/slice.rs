@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 
 pub struct SliceIter<'data, T: 'data + Sync> {
@@ -35,7 +34,7 @@ impl<'data, T: Sync + 'data> ToParallelChunks<'data> for [T] {
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> ParallelIteratorImpl for SliceIter<'data, T> {
     type Item = &'data T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -49,8 +48,8 @@ impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
-    fn upper_bound(&mut self) -> usize {
+impl<'data, T: Sync + 'data> BoundedParallelIteratorImpl for SliceIter<'data, T> {
+    fn impl_upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
@@ -61,13 +60,13 @@ impl<'data, T: Sync + 'data> BoundedParallelIterator for SliceIter<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> ExactParallelIterator for SliceIter<'data, T> {
-    fn len(&mut self) -> usize {
+impl<'data, T: Sync + 'data> ExactParallelIteratorImpl for SliceIter<'data, T> {
+    fn impl_len(&mut self) -> usize {
         self.slice.len()
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
+impl<'data, T: Sync + 'data> IndexedParallelIteratorImpl for SliceIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
@@ -80,7 +79,7 @@ pub struct ChunksIter<'data, T: 'data + Sync> {
     slice: &'data [T],
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for ChunksIter<'data, T> {
+impl<'data, T: Sync + 'data> ParallelIteratorImpl for ChunksIter<'data, T> {
     type Item = &'data [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -94,8 +93,8 @@ impl<'data, T: Sync + 'data> ParallelIterator for ChunksIter<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> BoundedParallelIterator for ChunksIter<'data, T> {
-    fn upper_bound(&mut self) -> usize {
+impl<'data, T: Sync + 'data> BoundedParallelIteratorImpl for ChunksIter<'data, T> {
+    fn impl_upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
 
@@ -106,13 +105,13 @@ impl<'data, T: Sync + 'data> BoundedParallelIterator for ChunksIter<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> ExactParallelIterator for ChunksIter<'data, T> {
-    fn len(&mut self) -> usize {
+impl<'data, T: Sync + 'data> ExactParallelIteratorImpl for ChunksIter<'data, T> {
+    fn impl_len(&mut self) -> usize {
         (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for ChunksIter<'data, T> {
+impl<'data, T: Sync + 'data> IndexedParallelIteratorImpl for ChunksIter<'data, T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

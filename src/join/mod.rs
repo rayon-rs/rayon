@@ -98,8 +98,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
 unsafe fn join_recover_from_panic(worker_thread: &WorkerThread,
                                   job_b_latch: &SpinLatch,
                                   err: Box<Any + Send>)
-                                  -> !
-{
+                                  -> ! {
     worker_thread.wait_until(job_b_latch);
     unwind::resume_unwinding(err)
 }

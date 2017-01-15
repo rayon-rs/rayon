@@ -1,5 +1,5 @@
 extern crate docopt;
-extern crate rayon;
+extern crate rayon_core as rayon;
 extern crate rustc_serialize;
 
 use docopt::Docopt;
@@ -34,10 +34,9 @@ pub struct Args {
 }
 
 fn main() {
-    let args: &Args =
-        &Docopt::new(USAGE)
-            .and_then(|d| d.argv(env::args()).decode())
-            .unwrap_or_else(|e| e.exit());
+    let args: &Args = &Docopt::new(USAGE)
+        .and_then(|d| d.argv(env::args()).decode())
+        .unwrap_or_else(|e| e.exit());
 
     match &args.arg_scenario[..] {
         "tasks_ended" => tasks_ended(args),
@@ -88,7 +87,7 @@ fn task_stall_scope(args: &Args) {
 }
 
 #[cfg(not(feature = "unstable"))]
-fn task_stall_scope(args: &Args) {
+fn task_stall_scope(_args: &Args) {
     println!("try `cargo run` with `--features unstable`");
     process::exit(1);
 }

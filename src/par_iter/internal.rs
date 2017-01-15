@@ -34,7 +34,7 @@ pub trait Producer: IntoIterator + Send + Sized {
     ///
     /// The provided implementation is sufficient for most iterables.
     fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<Self::Item>,
+        where F: Folder<Self::Item>
     {
         for item in self {
             folder = folder.consume(item);
@@ -120,7 +120,7 @@ pub trait UnindexedProducer: IntoIterator + Send + Sized {
     ///
     /// The provided implementation is sufficient for most iterables.
     fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<Self::Item>,
+        where F: Folder<Self::Item>
     {
         for item in self {
             folder = folder.consume(item);

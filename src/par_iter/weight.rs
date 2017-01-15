@@ -1,4 +1,3 @@
-use super::internal::*;
 use super::*;
 
 pub struct Weight<M> {
@@ -15,8 +14,8 @@ impl<M> Weight<M> {
     }
 }
 
-impl<M> ParallelIterator for Weight<M>
-    where M: ParallelIterator
+impl<M> ParallelIteratorImpl for Weight<M>
+    where M: ParallelIteratorImpl
 {
     type Item = M::Item;
 
@@ -32,8 +31,8 @@ impl<M> ParallelIterator for Weight<M>
     }
 }
 
-impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
-    fn upper_bound(&mut self) -> usize {
+impl<M: BoundedParallelIteratorImpl> BoundedParallelIteratorImpl for Weight<M> {
+    fn impl_upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
 
@@ -45,13 +44,13 @@ impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     }
 }
 
-impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
-    fn len(&mut self) -> usize {
+impl<M: ExactParallelIteratorImpl> ExactParallelIteratorImpl for Weight<M> {
+    fn impl_len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
+impl<M: IndexedParallelIteratorImpl> IndexedParallelIteratorImpl for Weight<M> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

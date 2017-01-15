@@ -1,5 +1,5 @@
 use latch::{Latch, CountLatch};
-use job::{HeapJob};
+use job::HeapJob;
 use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
@@ -50,6 +50,7 @@ pub struct Scope<'scope> {
 /// it would be less efficient than the real implementation:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// pub fn join<A,B,RA,RB>(oper_a: A, oper_b: B) -> (RA, RB)
 ///     where A: FnOnce() -> RA + Send,
 ///           B: FnOnce() -> RB + Send,
@@ -90,6 +91,7 @@ pub struct Scope<'scope> {
 /// To see how and when tasks are joined, consider this example:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// // point start
 /// rayon::scope(|s| {
 ///     s.spawn(|s| { // task s.1
@@ -143,6 +145,7 @@ pub struct Scope<'scope> {
 /// spawned task.
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -166,6 +169,7 @@ pub struct Scope<'scope> {
 /// in this case including both `ok` *and* `bad`:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -186,6 +190,7 @@ pub struct Scope<'scope> {
 /// is a borrow of `ok` and capture *that*:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -207,6 +212,7 @@ pub struct Scope<'scope> {
 /// of individual variables:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -233,7 +239,8 @@ pub struct Scope<'scope> {
 /// returns once all spawned jobs have completed, and any panics are
 /// propagated at that point.
 pub fn scope<'scope, OP, R>(op: OP) -> R
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send,
+    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send,
+          R: Send
 {
     in_worker(|owner_thread| {
         unsafe {
@@ -261,8 +268,7 @@ impl<'scope> Scope<'scope> {
     {
         unsafe {
             self.job_completed_latch.increment();
-            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
-                .as_job_ref();
+            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body))).as_job_ref();
             let worker_thread = WorkerThread::current();
 
             // the `Scope` is not send or sync, and we only give out
@@ -293,8 +299,14 @@ impl<'scope> Scope<'scope> {
         where FUNC: FnOnce(&Scope<'scope>) -> R + 'scope
     {
         match unwind::halt_unwinding(move || func(self)) {
-            Ok(r) => { self.job_completed_ok(); Some(r) }
-            Err(err) => { self.job_panicked(err); None }
+            Ok(r) => {
+                self.job_completed_ok();
+                Some(r)
+            }
+            Err(err) => {
+                self.job_panicked(err);
+                None
+            }
         }
     }
 

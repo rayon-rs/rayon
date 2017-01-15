@@ -1,6 +1,6 @@
-extern crate rayon;
+extern crate rayon_core;
 
-use rayon::prelude::*;
+use rayon_core::prelude::*;
 
 // zip requires data of exact size, but filter yields only bounded
 // size, so check that we cannot apply it.
