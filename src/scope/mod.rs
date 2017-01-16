@@ -7,8 +7,9 @@ use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
-use registry::{in_worker, WorkerThread};
+use registry::{in_worker, Registry, WorkerThread};
 use unwind;
 
 #[cfg(feature = "unstable")]
@@ -313,6 +314,12 @@ impl<'scope> Scope<'scope> {
         /// method is called, and that `'scope` will not end until
         /// that point.
         unsafe impl<'scope> future::FutureScope<'scope> for ScopeFutureScope<'scope> {
+            fn registry(&self) -> Arc<Registry> {
+                unsafe {
+                    (*(*self.scope).owner_thread).registry().clone()
+                }
+            }
+
             fn future_completed(self) {
                 unsafe {
                     (*self.scope).job_completed_ok();

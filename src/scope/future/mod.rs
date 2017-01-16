@@ -30,10 +30,11 @@ pub struct RayonFuture<T, E> {
 /// Unsafe because implementor must guarantee:
 ///
 /// 1. That the type `Self` remains dynamically valid until one of the
-///    methods is called.
+///    completion methods is called.
 /// 2. That the lifetime `'scope` cannot end until one of those
 ///    methods is called.
 pub unsafe trait FutureScope<'scope> {
+    fn registry(&self) -> Arc<Registry>;
     fn future_panicked(self, err: Box<Any + Send>);
     fn future_completed(self);
 }
@@ -157,9 +158,6 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
     // Unsafe: Caller asserts that `future` and `counter` will remain
     // valid until we invoke `counter.set()`.
     unsafe fn spawn(future: F, scope: S) -> Arc<Self> {
-        let worker_thread = WorkerThread::current();
-        debug_assert!(!worker_thread.is_null());
-
         // Using `AssertUnwindSafe` is valid here because (a) the data
         // is `Send + Sync`, which is our usual boundary and (b)
         // panics will be propagated when the `RayonFuture` is polled.
@@ -167,7 +165,7 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
 
         let future: Arc<Self> = Arc::new(ScopeFuture::<F, S> {
             state: AtomicUsize::new(STATE_PARKED),
-            registry: (*worker_thread).registry().clone(),
+            registry: scope.registry(),
             contents: Mutex::new(ScopeFutureContents {
                 spawn: None,
                 unpark: None,
