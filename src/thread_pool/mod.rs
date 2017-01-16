@@ -3,6 +3,7 @@ use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
+use spawn_async;
 use std::sync::Arc;
 use registry::{Registry, WorkerThread};
 
@@ -79,6 +80,14 @@ impl ThreadPool {
                 Some((*curr).index())
             }
         }
+    }
+
+    /// Spawns an asynchronous task in this thread-pool. See
+    /// `spawn_async()` for more details.
+    pub fn spawn_async<OP>(&self, op: OP)
+        where OP: FnOnce() + Send + 'static
+    {
+        spawn_async::spawn_async_in(op, &self.registry);
     }
 }
 
