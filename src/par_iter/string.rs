@@ -1,9 +1,6 @@
 use super::internal::*;
 use super::*;
 use std::cmp::min;
-use std::iter::Chain;
-use std::option::IntoIter as OptionIter;
-use std::str::{Chars, Split};
 
 /// Test if a byte is the start of a UTF-8 character.
 /// (extracted from `str::is_char_boundary`)
@@ -87,6 +84,8 @@ impl<'a> ParallelIterator for ParChars<'a> {
 }
 
 impl<'a> UnindexedProducer for ParChars<'a> {
+    type Item = char;
+
     fn split(&mut self) -> Option<Self> {
         let index = find_char_midpoint(self.chars);
         if index > 0 {
@@ -97,14 +96,11 @@ impl<'a> UnindexedProducer for ParChars<'a> {
             None
         }
     }
-}
 
-impl<'a> IntoIterator for ParChars<'a> {
-    type Item = char;
-    type IntoIter = Chars<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.chars.chars()
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        folder.consume_iter(self.chars.chars())
     }
 }
 
@@ -127,6 +123,43 @@ impl<'a> ParSplit<'a> {
             tail: chars.len(),
         }
     }
+
+    /// Common `fold_with` implementation, integrating `ParSplitTerminator`'s
+    /// need to sometimes skip its final empty item.
+    fn fold_with<F>(self, folder: F, skip_last: bool) -> F
+        where F: Folder<<Self as UnindexedProducer>::Item>
+    {
+        let ParSplit { chars, separator, tail } = self;
+
+        if tail == chars.len() {
+            // No tail section, so just let `str::split` handle it.
+            let mut split = chars.split(separator);
+            if skip_last {
+                split.next_back();
+            }
+            folder.consume_iter(split)
+
+        } else if let Some(index) = chars[..tail].rfind(separator) {
+            // We found the last separator to complete the tail, so
+            // end with that slice after `str::split` finds the rest.
+            let head = &chars[..index];
+            let folder = folder.consume_iter(head.split(separator));
+            if skip_last || folder.full() {
+                folder
+            } else {
+                let last = &chars[index + separator.len_utf8()..];
+                folder.consume(last)
+            }
+
+        } else {
+            // We know there are no separators at all.  Return our whole string.
+            if skip_last {
+                folder
+            } else {
+                folder.consume(chars)
+            }
+        }
+    }
 }
 
 impl<'a> ParallelIterator for ParSplit<'a> {
@@ -140,6 +173,8 @@ impl<'a> ParallelIterator for ParSplit<'a> {
 }
 
 impl<'a> UnindexedProducer for ParSplit<'a> {
+    type Item = &'a str;
+
     fn split(&mut self) -> Option<Self> {
         let ParSplit { chars, separator, tail } = *self;
 
@@ -178,33 +213,11 @@ impl<'a> UnindexedProducer for ParSplit<'a> {
             None
         }
     }
-}
 
-impl<'a> IntoIterator for ParSplit<'a> {
-    type Item = &'a str;
-    type IntoIter = Chain<Split<'a, char>, OptionIter<&'a str>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let ParSplit { chars, separator, tail } = self;
-
-        if tail == chars.len() {
-            // No tail section, so just let `str::split` handle it.
-            chars.split(separator).chain(None)
-
-        } else if let Some(index) = chars[..tail].rfind(separator) {
-            // We found the last separator to complete the tail, so
-            // end with that slice after `str::split` finds the rest.
-            let head = &chars[..index];
-            let last = &chars[index + separator.len_utf8()..];
-            head.split(separator).chain(Some(last))
-
-        } else {
-            // We know there are no separators at all.  Return our whole string,
-            // but for type correctness we need to chain an emptied `Split` too.
-            let mut empty = "".split('\0');
-            Iterator::last(&mut empty);
-            empty.chain(Some(chars))
-        }
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.fold_with(folder, false)
     }
 }
 
@@ -236,6 +249,8 @@ impl<'a> ParallelIterator for ParSplitTerminator<'a> {
 }
 
 impl<'a> UnindexedProducer for ParSplitTerminator<'a> {
+    type Item = &'a str;
+
     fn split(&mut self) -> Option<Self> {
         self.splitter.split().map(|right| {
             let endpoint = self.endpoint;
@@ -246,13 +261,11 @@ impl<'a> UnindexedProducer for ParSplitTerminator<'a> {
             }
         })
     }
-}
 
-impl<'a> IntoIterator for ParSplitTerminator<'a> {
-    type Item = &'a str;
-    type IntoIter = Chain<Split<'a, char>, OptionIter<&'a str>>;
-
-    fn into_iter(self) -> Self::IntoIter {
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        // See if we need to eat the empty trailing substring
         let skip_last = if self.endpoint {
             let chars = self.splitter.chars;
             let terminator = self.splitter.separator;
@@ -261,14 +274,7 @@ impl<'a> IntoIterator for ParSplitTerminator<'a> {
             false
         };
 
-        let mut iter = self.splitter.into_iter();
-
-        if skip_last {
-            // eat the empty trailing substring
-            iter.next_back();
-        }
-
-        iter
+        self.splitter.fold_with(folder, skip_last)
     }
 }
 

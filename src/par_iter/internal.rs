@@ -33,16 +33,10 @@ pub trait Producer: IntoIterator + Send + Sized {
     /// stop when the folder is full (or all elements have been consumed).
     ///
     /// The provided implementation is sufficient for most iterables.
-    fn fold_with<F>(self, mut folder: F) -> F
+    fn fold_with<F>(self, folder: F) -> F
         where F: Folder<Self::Item>,
     {
-        for item in self {
-            folder = folder.consume(item);
-            if folder.full() {
-                break;
-            }
-        }
-        folder
+        folder.consume_iter(self)
     }
 }
 
@@ -78,11 +72,24 @@ pub trait Consumer<Item>: Send + Sized {
     }
 }
 
-pub trait Folder<Item> {
+pub trait Folder<Item>: Sized {
     type Result;
 
     /// Consume next item and return new sequential state.
     fn consume(self, item: Item) -> Self;
+
+    /// Consume items from the iterator until full, and return new sequential state.
+    fn consume_iter<I>(mut self, iter: I) -> Self
+        where I: IntoIterator<Item=Item>
+    {
+        for item in iter {
+            self = self.consume(item);
+            if self.full() {
+                break;
+            }
+        }
+        self
+    }
 
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
@@ -111,25 +118,15 @@ pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
 
 /// An unindexed producer that doesn't know its exact length.
 /// (or can't represent its known length in a `usize`)
-pub trait UnindexedProducer: IntoIterator + Send + Sized {
+pub trait UnindexedProducer: Send + Sized {
+    type Item;
+
     /// Split midway into a new producer if possible, otherwise return `None`.
     fn split(&mut self) -> Option<Self>;
 
     /// Iterate the producer, feeding each element to `folder`, and
     /// stop when the folder is full (or all elements have been consumed).
-    ///
-    /// The provided implementation is sufficient for most iterables.
-    fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<Self::Item>,
-    {
-        for item in self {
-            folder = folder.consume(item);
-            if folder.full() {
-                break;
-            }
-        }
-        folder
-    }
+    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item>;
 }
 
 /// A splitter controls the policy for splitting into smaller work items.

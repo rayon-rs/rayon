@@ -112,6 +112,8 @@ macro_rules! unindexed_range_impl {
         }
 
         impl UnindexedProducer for RangeIter<$t> {
+            type Item = $t;
+
             fn split(&mut self) -> Option<Self> {
                 let index = self.len() / 2;
                 if index > 0 {
@@ -122,6 +124,12 @@ macro_rules! unindexed_range_impl {
                 } else {
                     None
                 }
+            }
+
+            fn fold_with<F>(self, folder: F) -> F
+                where F: Folder<Self::Item>
+            {
+                folder.consume_iter(self)
             }
         }
     }
