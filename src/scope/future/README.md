@@ -113,16 +113,22 @@ Let's walk through them:
   the `Registry` from being dropped. In particular, this doesn't
   prevent the threads in a registry from terminating while the future
   is unscheduled etc (though other fields in the future do).
-- The `scope` field is a `*const Scope<'scope>`, and the idea is that
-  when the future is created one job is allocated for this future in
-  the scope. Once the future has finished executing completely (and
-  hence its data is ready), this count will be marked as
-  completed. Until this time, the scope will not terminate. This has
-  an interesting relationship to the future `F`, as the type `F` is
-  known to be valid for *at least* the call to `scope()` (i.e., we
-  know that it outlives `'scope`, though that is all we know; it may
-  have references into the stack which become invalidated once
-  `scope()` returns).
+- The `scope` field (of type `S`) is the "enclosing scope". This scope
+  is an abstract value that implements the `FutureScope<'scope>` trait
+  -- this means that it is responsible for ensuring that `'scope` does
+  not end until one of the `FutureScope` methods are invoked (which
+  occurs when the future has finished executing). For example, if the
+  future is spawned inside a `scope()` call, then the `S` will be a
+  wrapper (`ScopeFutureScope`) around a `*const Scope<'scope>`.  When
+  the future is created one job is allocated for this future in the
+  scope, and the scope counter is decremented once the future is
+  marked as completing.
+  - In general, the job of the `scope` field is to ensure that the
+    future type (`F`) remains valid. After all, since `F: 'scope`, `F`
+    is known to be valid until the lifetime `'scope` ends, and that
+    lifetime cannot end until the `scope` methods are invoked, so we
+    know that `F` must stay valid until one of those methods are
+    invoked.
   - All of our data of type `F` is stored in the field `spawn` (not
     shown here). This field is always set to `None` before the scope
     counter is decremented. See the section on lifetime safety for more

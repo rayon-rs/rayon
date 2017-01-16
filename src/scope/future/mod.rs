@@ -16,8 +16,6 @@ use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
 use unwind;
 
-use super::Scope;
-
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
 const STATE_EXECUTING: usize = 2;
@@ -27,6 +25,17 @@ const STATE_COMPLETE: usize = 4;
 // Warning: Public end-user API.
 pub struct RayonFuture<T, E> {
     inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>,
+}
+
+/// Unsafe because implementor must guarantee:
+///
+/// 1. That the type `Self` remains dynamically valid until one of the
+///    methods is called.
+/// 2. That the lifetime `'scope` cannot end until one of those
+///    methods is called.
+pub unsafe trait FutureScope<'scope> {
+    fn future_panicked(self, err: Box<Any + Send>);
+    fn future_completed(self);
 }
 
 /// Create a `RayonFuture` that will execute `F` and yield its result,
@@ -39,14 +48,9 @@ pub struct RayonFuture<T, E> {
 /// reaches 0.
 ///
 /// NB. This is a free fn so that we can expose `RayonFuture` as public API.
-pub unsafe fn new_rayon_future<'scope, F>(future: F,
-                                          scope: *const Scope<'scope>)
-                                          -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'scope,
+pub unsafe fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Item, F::Error>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
 {
-    // We always have to have a non-null scope (for now, anyway):
-    debug_assert!(!scope.is_null());
-
     let inner = ScopeFuture::spawn(future, scope);
     return RayonFuture { inner: hide_lifetime(inner) };
 
@@ -106,28 +110,32 @@ impl<T, E> Drop for RayonFuture<T, E> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct ScopeFuture<'scope, F: Future + Send + 'scope> {
+struct ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{
     state: AtomicUsize,
     registry: Arc<Registry>,
-    contents: Mutex<ScopeFutureContents<'scope, F>>,
+    contents: Mutex<ScopeFutureContents<'scope, F, S>>,
 }
 
 type CU<F> = CatchUnwind<AssertUnwindSafe<F>>;
 type CUItem<F> = <CU<F> as Future>::Item;
 type CUError<F> = <CU<F> as Future>::Error;
 
-struct ScopeFutureContents<'scope, F: Future + Send + 'scope> {
+struct ScopeFutureContents<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{
     spawn: Option<Spawn<CU<F>>>,
     unpark: Option<Arc<Unpark>>,
 
     // Pointer to ourselves. We `None` this out when we are finished
     // executing, but it's convenient to keep around normally.
-    this: Option<Arc<ScopeFuture<'scope, F>>>,
+    this: Option<Arc<ScopeFuture<'scope, F, S>>>,
 
     // the counter in the scope; since the scope doesn't terminate until
     // counter reaches zero, and we hold a ref in this counter, we are
     // assured that this pointer remains valid
-    scope: *const Scope<'scope>,
+    scope: Option<S>,
 
     waiting_task: Option<Task>,
     result: Poll<CUItem<F>, CUError<F>>,
@@ -136,13 +144,19 @@ struct ScopeFutureContents<'scope, F: Future + Send + 'scope> {
 }
 
 // Assert that the `*const` is safe to transmit between threads:
-unsafe impl<'scope, F: Future + Send> Send for ScopeFuture<'scope, F> {}
-unsafe impl<'scope, F: Future + Send> Sync for ScopeFuture<'scope, F> {}
+unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{}
+unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{}
 
-impl<'scope, F: Future + Send> ScopeFuture<'scope, F> {
+impl<'scope, F, S> ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{
     // Unsafe: Caller asserts that `future` and `counter` will remain
     // valid until we invoke `counter.set()`.
-    unsafe fn spawn(future: F, scope: *const Scope<'scope>) -> Arc<Self> {
+    unsafe fn spawn(future: F, scope: S) -> Arc<Self> {
         let worker_thread = WorkerThread::current();
         debug_assert!(!worker_thread.is_null());
 
@@ -151,14 +165,14 @@ impl<'scope, F: Future + Send> ScopeFuture<'scope, F> {
         // panics will be propagated when the `RayonFuture` is polled.
         let spawn = task::spawn(AssertUnwindSafe(future).catch_unwind());
 
-        let future: Arc<Self> = Arc::new(ScopeFuture::<F> {
+        let future: Arc<Self> = Arc::new(ScopeFuture::<F, S> {
             state: AtomicUsize::new(STATE_PARKED),
             registry: (*worker_thread).registry().clone(),
             contents: Mutex::new(ScopeFutureContents {
                 spawn: None,
                 unpark: None,
                 this: None,
-                scope: scope,
+                scope: Some(scope),
                 waiting_task: None,
                 result: Ok(Async::NotReady),
                 canceled: false,
@@ -306,13 +320,17 @@ impl<'scope, F: Future + Send> ScopeFuture<'scope, F> {
     }
 }
 
-impl<'scope, F: Future + Send> Unpark for ScopeFuture<'scope, F> {
+impl<'scope, F, S> Unpark for ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{
     fn unpark(&self) {
         self.unpark_inherent();
     }
 }
 
-impl<'scope, F: Future + Send> Job for ScopeFuture<'scope, F> {
+impl<'scope, F, S> Job for ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{
     unsafe fn execute(this: *const Self) {
         let this: Arc<Self> = mem::transmute(this);
 
@@ -349,7 +367,9 @@ impl<'scope, F: Future + Send> Job for ScopeFuture<'scope, F> {
     }
 }
 
-impl<'scope, F: Future + Send> ScopeFutureContents<'scope, F> {
+impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
+    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+{
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
         let unpark = self.unpark.clone().unwrap();
         self.spawn.as_mut().unwrap().poll_future(unpark)
@@ -392,18 +412,17 @@ impl<'scope, F: Future + Send> ScopeFutureContents<'scope, F> {
         // Allow the enclosing scope to end. Asserts that
         // `self.counter` is still valid, which we know because caller
         // to `new_rayon_future()` ensures it for us.
-        unsafe {
-            if let Some(err) = err {
-                (*self.scope).job_panicked(err);
-            } else {
-                (*self.scope).job_completed_ok();
-            }
+        let scope = self.scope.take().unwrap();
+        if let Some(err) = err {
+            scope.future_panicked(err);
+        } else {
+            scope.future_completed();
         }
     }
 }
 
-impl<'scope, F> LatchProbe for ScopeFuture<'scope, F>
-    where F: Future + Send
+impl<'scope, F, S> LatchProbe for ScopeFuture<'scope, F, S>
+    where F: Future + Send, S: FutureScope<'scope>,
 {
     fn probe(&self) -> bool {
         self.state.load(Acquire) == STATE_COMPLETE
@@ -415,8 +434,8 @@ pub trait ScopeFutureTrait<T, E>: Send + Sync + LatchProbe {
     fn cancel(&self);
 }
 
-impl<'scope, F> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F>
-    where F: Future + Send
+impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F, S>
+    where F: Future + Send, S: FutureScope<'scope>,
 {
     fn poll(&self) -> Poll<CUItem<F>, CUError<F>> {
         // Important: due to transmute hackery, not all the fields are
