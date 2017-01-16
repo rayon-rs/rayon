@@ -1,4 +1,4 @@
-use latch::{Latch, SpinLatch};
+use latch::{LatchProbe, SpinLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;

@@ -27,12 +27,14 @@ use std::sync::{Mutex, Condvar};
 /// - Once `set()` occurs, the next `probe()` *will* observe it.  This
 ///   typically requires a seq-cst ordering. See [the "tickle-then-get-sleepy" scenario in the sleep
 ///   README](/src/sleep/README.md#tickle-then-get-sleepy) for details.
-pub trait Latch {
-    /// Test if the latch is set.
-    fn probe(&self) -> bool;
-
+pub trait Latch: LatchProbe {
     /// Set the latch, signalling others.
     fn set(&self);
+}
+
+pub trait LatchProbe {
+    /// Test if the latch is set.
+    fn probe(&self) -> bool;
 }
 
 /// Spin latches are the simplest, most efficient kind, but they do
@@ -49,12 +51,14 @@ impl SpinLatch {
     }
 }
 
-impl Latch for SpinLatch {
+impl LatchProbe for SpinLatch {
     #[inline]
     fn probe(&self) -> bool {
         self.b.load(Ordering::SeqCst)
     }
+}
 
+impl Latch for SpinLatch {
     #[inline]
     fn set(&self) {
         self.b.store(true, Ordering::SeqCst);
@@ -86,14 +90,16 @@ impl LockLatch {
     }
 }
 
-impl Latch for LockLatch {
+impl LatchProbe for LockLatch {
     #[inline]
     fn probe(&self) -> bool {
         // Not particularly efficient, but we don't really use this operation
         let guard = self.m.lock().unwrap();
         *guard
     }
+}
 
+impl Latch for LockLatch {
     #[inline]
     fn set(&self) {
         let mut guard = self.m.lock().unwrap();
@@ -124,13 +130,15 @@ impl CountLatch {
     }
 }
 
-impl Latch for CountLatch {
+impl LatchProbe for CountLatch {
     #[inline]
     fn probe(&self) -> bool {
         // Need to acquire any memory reads before latch was set:
         self.counter.load(Ordering::SeqCst) == 0
     }
+}
 
+impl Latch for CountLatch {
     /// Set the latch to true, releasing all threads who are waiting.
     #[inline]
     fn set(&self) {

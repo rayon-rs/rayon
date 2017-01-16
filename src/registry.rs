@@ -2,7 +2,7 @@ use Configuration;
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
-use latch::{Latch, CountLatch, LockLatch};
+use latch::{LatchProbe, Latch, CountLatch, LockLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -151,6 +151,8 @@ impl Registry {
     /// So long as all of the worker threads are hanging out in their
     /// top-level loop, there is no work to be done.
 
+    /// Unsafe: caller asserts that injected jobs will remain valid
+    /// until they are executed.
     pub unsafe fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
@@ -257,7 +259,7 @@ impl WorkerThread {
     /// NULL if this is not a worker thread. This pointer is valid
     /// anywhere on the current thread.
     #[inline]
-    pub unsafe fn current() -> *const WorkerThread {
+    pub fn current() -> *const WorkerThread {
         WORKER_THREAD_STATE.with(|t| t.get())
     }
 
@@ -297,7 +299,7 @@ impl WorkerThread {
     /// Wait until the latch is set. Try to keep busy by popping and
     /// stealing tasks as necessary.
     #[inline]
-    pub unsafe fn wait_until<L: Latch>(&self, latch: &L) {
+    pub unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
         log!(WaitUntil { worker: self.index });
         if !latch.probe() {
             self.wait_until_cold(latch);
@@ -305,7 +307,7 @@ impl WorkerThread {
     }
 
     #[cold]
-    unsafe fn wait_until_cold<L: Latch>(&self, latch: &L) {
+    unsafe fn wait_until_cold<L: LatchProbe + ?Sized>(&self, latch: &L) {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the
