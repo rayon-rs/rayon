@@ -120,6 +120,32 @@ impl Registry {
         registry
     }
 
+    pub fn current() -> Arc<Registry> {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if worker_thread.is_null() {
+                global_registry().clone()
+            } else {
+                (*worker_thread).registry.clone()
+            }
+        }
+    }
+
+    /// Returns the number of threads in the current registry.  This
+    /// is better than `Registry::current().num_threads()` because it
+    /// avoids incrementing the `Arc`.
+    pub fn current_num_threads() -> usize {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if worker_thread.is_null() {
+                global_registry().num_threads()
+            } else {
+                (*worker_thread).registry.num_threads()
+            }
+        }
+    }
+
+
     /// Returns an opaque identifier for this registry.
     pub fn id(&self) -> RegistryId {
         // We can rely on `self` not to change since we only ever create
