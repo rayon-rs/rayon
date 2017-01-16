@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use latch::{Latch, SpinLatch};
 use job::*;
-use registry::{Registry, WorkerThread};
+use registry::Registry;
 use std::mem;
 use std::sync::Arc;
 use unwind;
@@ -73,12 +73,7 @@ pub fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
         // enqueued into some deque for later execution.
         let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
         let job_ref = HeapJob::as_job_ref(async_job);
-        let worker_thread = WorkerThread::current();
-        if !worker_thread.is_null() && (*worker_thread).registry().id() == registry.id() {
-            (*worker_thread).push(job_ref);
-        } else {
-            registry.inject(&[job_ref]);
-        }
+        registry.inject_or_push(job_ref);
         mem::forget(abort_guard);
     }
 }

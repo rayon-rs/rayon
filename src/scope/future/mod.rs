@@ -247,7 +247,7 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                         // references in the future are valid.
                         unsafe {
                             let job_ref = Self::into_job_ref(contents.this.clone().unwrap());
-                            self.registry.inject(&[job_ref]);
+                            self.registry.inject_or_push(job_ref);
                         }
                         return;
                     }
