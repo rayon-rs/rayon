@@ -232,6 +232,30 @@ impl Registry {
         }
     }
 
+    /// Increment the terminate counter. This increment should be
+    /// balanced by a call to `terminate`, which will decrement. This
+    /// is used when spawning asynchronous work, which needs to
+    /// prevent the registry from terminating so long as it is active.
+    ///
+    /// Note that blocking functions such as `join` and `scope` do not
+    /// need to concern themselves with this fn; their context is
+    /// responsible for ensuring the current thread-pool will not
+    /// terminate until they return.
+    ///
+    /// The global thread-pool always has an outstanding reference
+    /// (the initial one). Custom thread-pools have one outstanding
+    /// reference that is dropped when the `ThreadPool` is dropped:
+    /// since installing the thread-pool blocks until any joins/scopes
+    /// complete, this ensures that joins/scopes are covered.
+    ///
+    /// The exception is `spawn_async()`, which can create a job
+    /// outside of any blocking scope. In that case, the job itself
+    /// holds a terminate count and is responsible for invoking
+    /// `terminate()` when finished.
+    pub fn increment_terminate_count(&self) {
+        self.terminate_latch.increment();
+    }
+
     /// Signals that the thread-pool which owns this registry has been
     /// dropped. The worker threads will gradually terminate, once any
     /// extant work is completed.
