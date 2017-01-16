@@ -1,4 +1,4 @@
-use Configuration;
+use {Configuration, PanicHandler};
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
@@ -7,6 +7,7 @@ use latch::{LatchProbe, Latch, CountLatch, LockLatch};
 use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
+use std::any::Any;
 use std::cell::{Cell, UnsafeCell};
 use std::env;
 use std::str::FromStr;
@@ -26,6 +27,7 @@ pub struct Registry {
     state: Mutex<RegistryState>,
     sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
+    panic_handler: Option<PanicHandler>,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -79,6 +81,8 @@ unsafe fn init_registry(config: Configuration) {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Arc<Registry> {
+        debug_assert!(configuration.validate().is_ok());
+
         let limit_value = match configuration.num_threads() {
             Some(value) => value,
             None => {
@@ -100,6 +104,7 @@ impl Registry {
             sleep: Sleep::new(),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
+            panic_handler: configuration.panic_handler(),
         });
 
         for (index, worker) in workers.into_iter().enumerate() {
@@ -124,6 +129,22 @@ impl Registry {
 
     pub fn num_threads(&self) -> usize {
         self.thread_infos.len()
+    }
+
+    pub fn handle_panic(&self, err: Box<Any + Send>) {
+        match self.panic_handler {
+            Some(ref handler) => {
+                // If the customizable panic handler itself panics,
+                // then we abort.
+                let abort_guard = unwind::AbortIfPanic;
+                handler(err);
+                mem::forget(abort_guard);
+            }
+            None => {
+                // Default panic handler aborts.
+                let _ = unwind::AbortIfPanic; // let this drop.
+            }
+        }
     }
 
     /// Waits for the worker threads to get up and running.  This is
