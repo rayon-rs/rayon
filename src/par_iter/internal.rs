@@ -33,16 +33,10 @@ pub trait Producer: IntoIterator + Send + Sized {
     /// stop when the folder is full (or all elements have been consumed).
     ///
     /// The provided implementation is sufficient for most iterables.
-    fn fold_with<F>(self, mut folder: F) -> F
+    fn fold_with<F>(self, folder: F) -> F
         where F: Folder<Self::Item>,
     {
-        for item in self {
-            folder = folder.consume(item);
-            if folder.full() {
-                break;
-            }
-        }
-        folder
+        folder.consume_iter(self)
     }
 }
 
@@ -78,11 +72,24 @@ pub trait Consumer<Item>: Send + Sized {
     }
 }
 
-pub trait Folder<Item> {
+pub trait Folder<Item>: Sized {
     type Result;
 
     /// Consume next item and return new sequential state.
     fn consume(self, item: Item) -> Self;
+
+    /// Consume items from the iterator until full, and return new sequential state.
+    fn consume_iter<I>(mut self, iter: I) -> Self
+        where I: IntoIterator<Item=Item>
+    {
+        for item in iter {
+            self = self.consume(item);
+            if self.full() {
+                break;
+            }
+        }
+        self
+    }
 
     /// Finish consuming items, produce final result.
     fn complete(self) -> Self::Result;
@@ -119,16 +126,10 @@ pub trait UnindexedProducer: IntoIterator + Send + Sized {
     /// stop when the folder is full (or all elements have been consumed).
     ///
     /// The provided implementation is sufficient for most iterables.
-    fn fold_with<F>(self, mut folder: F) -> F
+    fn fold_with<F>(self, folder: F) -> F
         where F: Folder<Self::Item>,
     {
-        for item in self {
-            folder = folder.consume(item);
-            if folder.full() {
-                break;
-            }
-        }
-        folder
+        folder.consume_iter(self)
     }
 }
 
