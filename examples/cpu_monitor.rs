@@ -88,7 +88,7 @@ fn task_stall_scope(args: &Args) {
 }
 
 #[cfg(not(feature = "unstable"))]
-fn task_stall_scope(args: &Args) {
+fn task_stall_scope(_args: &Args) {
     println!("try `cargo run` with `--features unstable`");
     process::exit(1);
 }

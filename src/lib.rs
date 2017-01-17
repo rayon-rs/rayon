@@ -1,6 +1,11 @@
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
+// If you're not compiling the unstable code, it often happens that
+// there is stuff that is considered "dead code" and so forth. So
+// disable warnings in that scenario.
+#![cfg_attr(not(feature = "unstable"), allow(warnings))]
+
 extern crate deque;
 #[macro_use]
 extern crate lazy_static;

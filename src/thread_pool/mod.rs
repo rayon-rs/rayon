@@ -5,6 +5,7 @@ use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
+#[cfg(feature = "unstable")]
 use spawn_async;
 use std::sync::Arc;
 use registry::{Registry, WorkerThread};
