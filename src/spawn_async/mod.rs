@@ -1,7 +1,9 @@
+use future::{self, Future, RayonFuture};
 #[allow(unused_imports)]
 use latch::{Latch, SpinLatch};
 use job::*;
 use registry::Registry;
+use std::any::Any;
 use std::mem;
 use std::sync::Arc;
 use unwind;
@@ -78,6 +80,66 @@ pub fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
     }
 }
 
+/// Spawns a future, scheduling it to execute on Rayon's threadpool.
+/// Returns a new future that can be used to poll for the result.
+///
+/// # Panic handling
+///
+/// If this future should panic, that panic will be propagated when
+/// `poll()` is invoked on the return value.
+pub fn spawn_future_async<F>(future: F) -> RayonFuture<F::Item, F::Error>
+    where F: Future + Send + 'static
+{
+    spawn_future_async_in(future, Registry::current())
+}
+
+/// Internal helper function.
+pub fn spawn_future_async_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
+    where F: Future + Send + 'static
+{
+    /// We assert that the current registry cannot yet have terminated.
+    let scope = unsafe { StaticFutureScope::new(registry.clone()) };
+
+    unsafe { future::new_rayon_future(future, scope) }
+}
+
+struct StaticFutureScope {
+    registry: Arc<Registry>
+}
+
+impl StaticFutureScope {
+    /// Caller asserts that the registry has not yet terminated.
+    unsafe fn new(registry: Arc<Registry>) -> Self {
+        registry.increment_terminate_count();
+        StaticFutureScope { registry: registry }
+    }
+}
+
+/// We assert that:
+///
+/// (a) the scope valid remains valid until a completion method
+///     is called. In this case, "remains valid" means that the
+///     registry is not terminated. This is true because we
+///     acquire a "termination count" in `StaticFutureScope::new()`
+///     which is not released until `future_panicked()` or
+///     `future_completed()` is invoked.
+/// (b) the lifetime `'static` will not end until a completion
+///     method is called. This is true because `'static` doesn't
+///     end until the end of the program.
+unsafe impl future::FutureScope<'static> for StaticFutureScope {
+    fn registry(&self) -> Arc<Registry> {
+        self.registry.clone()
+    }
+
+    fn future_panicked(self, err: Box<Any + Send>) {
+        self.registry.handle_panic(err);
+        self.registry.terminate();
+    }
+
+    fn future_completed(self) {
+        self.registry.terminate();
+    }
+}
 
 #[cfg(test)]
 mod test;
