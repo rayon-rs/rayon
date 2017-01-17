@@ -1,9 +1,11 @@
+use futures::{lazy, Future};
+
 use scope;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 
 use {Configuration, PanicHandler, ThreadPool};
-use super::spawn_async;
+use super::{spawn_async, spawn_future_async};
 
 #[test]
 fn spawn_then_join_in_worker() {
@@ -44,4 +46,23 @@ fn panic_fwd() {
     ThreadPool::new(configuration).unwrap().spawn_async(move || panic!("Hello, world!"));
 
     assert_eq!(1, rx.recv().unwrap());
+}
+
+#[test]
+fn async_future_map() {
+    let data = Arc::new(Mutex::new(format!("Hello, ")));
+
+    let a = spawn_future_async(lazy({
+        let data = data.clone();
+        move || Ok::<_, ()>(data)
+    }));
+    let future = spawn_future_async(a.map(|data| {
+        let mut v = data.lock().unwrap();
+        v.push_str("world!");
+    }));
+    let () = future.wait().unwrap();
+
+    // future must have executed for the scope to have ended, even
+    // though we never invoked `wait` to observe its result
+    assert_eq!(&data.lock().unwrap()[..], "Hello, world!");
 }
