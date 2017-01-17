@@ -22,6 +22,7 @@ pub mod prelude;
 #[cfg(test)]
 mod test;
 mod registry;
+mod future;
 mod scope;
 mod sleep;
 mod spawn_async;
@@ -38,3 +39,4 @@ pub use thread_pool::ThreadPool;
 pub use join::join;
 pub use scope::{scope, Scope};
 pub use spawn_async::spawn_async;
+pub use future::RayonFuture;

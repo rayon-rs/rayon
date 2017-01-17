@@ -1,3 +1,8 @@
+//! Future support in Rayon. This module *primary* consists of
+//! internal APIs that are exposed through `Scope::spawn_future` and
+//! `spawn_future_async`.  However, the type `RayonFuture` is a public
+//! type exposed to all users.
+
 use latch::{LatchProbe};
 #[allow(warnings)]
 use log::Event::*;
@@ -22,8 +27,15 @@ const STATE_EXECUTING: usize = 2;
 const STATE_EXECUTING_UNPARKED: usize = 3;
 const STATE_COMPLETE: usize = 4;
 
-// Warning: Public end-user API.
+/// Represents the result of a future that has been spawned in the
+/// Rayon threadpool.
+///
+/// # Panic behavior
+///
+/// Any panics that occur while computing the spawned future will be
+/// propagated when this future is polled.
 pub struct RayonFuture<T, E> {
+    // Warning: Public end-user API!
     inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>,
 }
 

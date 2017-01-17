@@ -1,5 +1,5 @@
 #[cfg(feature = "unstable")]
-use futures::Future;
+use future::{self, Future, RayonFuture};
 use latch::{Latch, CountLatch};
 use log::Event::*;
 use job::HeapJob;
@@ -11,11 +11,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use registry::{in_worker, Registry, WorkerThread};
 use unwind;
-
-#[cfg(feature = "unstable")]
-mod future;
-#[cfg(feature = "unstable")]
-use self::future::RayonFuture;
 
 #[cfg(test)]
 mod test;
@@ -292,9 +287,7 @@ impl<'scope> Scope<'scope> {
         // valid until the scope ends.
         let future_scope = unsafe { ScopeFutureScope::new(self) };
 
-        // We assert that we have the future `F` type will remain
-        // valid until `job_completed_latch` is fully set
-        return unsafe { future::new_rayon_future(future, future_scope) };
+        return future::new_rayon_future(future, future_scope);
 
         struct ScopeFutureScope<'scope> {
             scope: *const Scope<'scope>
