@@ -2,11 +2,13 @@
 //! internal APIs that are exposed through `Scope::spawn_future` and
 //! `spawn_future_async`.  However, the type `RayonFuture` is a public
 //! type exposed to all users.
+//!
+//! See `README.md` for details.
 
 use latch::{LatchProbe};
 #[allow(warnings)]
 use log::Event::*;
-use futures::{Async, Future, Poll};
+use futures::{Async, Poll};
 use futures::executor;
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task, Unpark};
@@ -20,6 +22,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
 use unwind;
+
+pub use futures::Future;
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
@@ -45,6 +49,8 @@ pub struct RayonFuture<T, E> {
 ///    completion methods is called.
 /// 2. That the lifetime `'scope` cannot end until one of those
 ///    methods is called.
+///
+/// NB. Although this is public, it is not exposed to outside users.
 pub unsafe trait FutureScope<'scope> {
     fn registry(&self) -> Arc<Registry>;
     fn future_panicked(self, err: Box<Any + Send>);
@@ -54,18 +60,21 @@ pub unsafe trait FutureScope<'scope> {
 /// Create a `RayonFuture` that will execute `F` and yield its result,
 /// propagating any panics.
 ///
-/// Unsafe because caller asserts that all references in `F` will
-/// remain valid at least until `counter` is decremented via `set()`.
-/// In practice, this is ensured by the `scope()` API, which ensures
-/// that `F: 'scope` and that `'scope` does not end until `counter`
-/// reaches 0.
-///
-/// NB. This is a free fn so that we can expose `RayonFuture` as public API.
-pub unsafe fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Item, F::Error>
+/// NB. Although this is public, it is not exposed to outside users.
+pub fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'scope, S: FutureScope<'scope>,
 {
     let inner = ScopeFuture::spawn(future, scope);
-    return RayonFuture { inner: hide_lifetime(inner) };
+
+    // We assert that it is safe to hide the type `F` (and, in
+    // particular, the lifetimes in it). This is true because the API
+    // offered by a `RayonFuture` only permits access to the result of
+    // the future (of type `F::Item` or `F::Error`) and those types
+    // *are* exposed in the `RayonFuture<F::Item, F::Error>` type. See
+    // README.md for details.
+    unsafe {
+        return RayonFuture { inner: hide_lifetime(inner) };
+    }
 
     unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
                                       -> Arc<ScopeFutureTrait<T, E>> {
@@ -75,6 +84,7 @@ pub unsafe fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture
 
 impl<T, E> RayonFuture<T, E> {
     pub fn rayon_wait(mut self) -> Result<T, E> {
+        // NB: End-user API!
         let worker_thread = WorkerThread::current();
         if worker_thread.is_null() {
             self.wait()
@@ -167,9 +177,7 @@ unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
     where F: Future + Send + 'scope, S: FutureScope<'scope>,
 {
-    // Unsafe: Caller asserts that `future` and `counter` will remain
-    // valid until we invoke `counter.set()`.
-    unsafe fn spawn(future: F, scope: S) -> Arc<Self> {
+    fn spawn(future: F, scope: S) -> Arc<Self> {
         // Using `AssertUnwindSafe` is valid here because (a) the data
         // is `Send + Sync`, which is our usual boundary and (b)
         // panics will be propagated when the `RayonFuture` is polled.
@@ -439,6 +447,7 @@ impl<'scope, F, S> LatchProbe for ScopeFuture<'scope, F, S>
     }
 }
 
+/// NB. Although this is public, it is not exposed to outside users.
 pub trait ScopeFutureTrait<T, E>: Send + Sync + LatchProbe {
     fn poll(&self) -> Poll<T, E>;
     fn cancel(&self);
