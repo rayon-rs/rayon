@@ -22,9 +22,11 @@ pub mod prelude;
 #[cfg(test)]
 mod test;
 mod registry;
+#[cfg(feature = "unstable")]
 mod future;
 mod scope;
 mod sleep;
+#[cfg(feature = "unstable")]
 mod spawn_async;
 mod thread_pool;
 mod unwind;
@@ -38,5 +40,7 @@ pub use configuration::initialize;
 pub use thread_pool::ThreadPool;
 pub use join::join;
 pub use scope::{scope, Scope};
+#[cfg(feature = "unstable")]
 pub use spawn_async::spawn_async;
+#[cfg(feature = "unstable")]
 pub use future::RayonFuture;
