@@ -90,7 +90,8 @@ impl ThreadPool {
     pub fn spawn_async<OP>(&self, op: OP)
         where OP: FnOnce() + Send + 'static
     {
-        spawn_async::spawn_async_in(op, &self.registry);
+        // We assert that `self.registry` has not terminated.
+        unsafe { spawn_async::spawn_async_in(op, &self.registry) }
     }
 
     /// Spawns an asynchronous task in this thread-pool. See
@@ -99,7 +100,8 @@ impl ThreadPool {
     pub fn spawn_future_async<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'static
     {
-        spawn_async::spawn_future_async_in(future, self.registry.clone());
+        // We assert that `self.registry` has not yet terminated.
+        unsafe { spawn_async::spawn_future_async_in(future, self.registry.clone()) }
     }
 }
 

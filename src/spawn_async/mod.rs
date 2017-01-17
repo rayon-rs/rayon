@@ -42,42 +42,45 @@ use unwind;
 pub fn spawn_async<F>(func: F)
     where F: FnOnce() + Send + 'static
 {
-    spawn_async_in(func, &Registry::current());
+    // We assert that current registry has not terminated.
+    unsafe { spawn_async_in(func, &Registry::current()) }
 }
 
-// Not a public API, but used elsewhere in Rayon.
-pub fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
+/// Spawn an asynchronous job in `registry.`
+///
+/// Unsafe because `registry` must not yet have terminated.
+///
+/// Not a public API, but used elsewhere in Rayon.
+pub unsafe fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
     where F: FnOnce() + Send + 'static
 {
-    unsafe {
-        // Ensure that registry cannot terminate until this job has
-        // executed. This ref is decremented at the (*) below.
-        registry.increment_terminate_count();
+    // Ensure that registry cannot terminate until this job has
+    // executed. This ref is decremented at the (*) below.
+    registry.increment_terminate_count();
 
-        let async_job = Box::new(HeapJob::new({
-            let registry = registry.clone();
-            move || {
-                match unwind::halt_unwinding(func) {
-                    Ok(()) => {
-                    }
-                    Err(err) => {
-                        registry.handle_panic(err);
-                    }
+    let async_job = Box::new(HeapJob::new({
+        let registry = registry.clone();
+        move || {
+            match unwind::halt_unwinding(func) {
+                Ok(()) => {
                 }
-                registry.terminate(); // (*) permit registry to terminate now
+                Err(err) => {
+                    registry.handle_panic(err);
+                }
             }
-        }));
+            registry.terminate(); // (*) permit registry to terminate now
+        }
+    }));
 
-        // We assert that this does not hold any references (we know
-        // this because of the `'static` bound in the inferface);
-        // moreover, we assert that the code below is not supposed to
-        // be able to panic, and hence the data won't leak but will be
-        // enqueued into some deque for later execution.
-        let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
-        let job_ref = HeapJob::as_job_ref(async_job);
-        registry.inject_or_push(job_ref);
-        mem::forget(abort_guard);
-    }
+    // We assert that this does not hold any references (we know
+    // this because of the `'static` bound in the inferface);
+    // moreover, we assert that the code below is not supposed to
+    // be able to panic, and hence the data won't leak but will be
+    // enqueued into some deque for later execution.
+    let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
+    let job_ref = HeapJob::as_job_ref(async_job);
+    registry.inject_or_push(job_ref);
+    mem::forget(abort_guard);
 }
 
 /// Spawns a future, scheduling it to execute on Rayon's threadpool.
@@ -90,17 +93,19 @@ pub fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
 pub fn spawn_future_async<F>(future: F) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'static
 {
-    spawn_future_async_in(future, Registry::current())
+    /// We assert that the current registry cannot yet have terminated.
+    unsafe { spawn_future_async_in(future, Registry::current()) }
 }
 
 /// Internal helper function.
-pub fn spawn_future_async_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
+///
+/// Unsafe because caller must guarantee that `registry` has not yet terminated.
+pub unsafe fn spawn_future_async_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'static
 {
-    /// We assert that the current registry cannot yet have terminated.
-    let scope = unsafe { StaticFutureScope::new(registry.clone()) };
+    let scope = StaticFutureScope::new(registry.clone());
 
-    unsafe { future::new_rayon_future(future, scope) }
+    future::new_rayon_future(future, scope)
 }
 
 struct StaticFutureScope {
