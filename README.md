@@ -396,6 +396,6 @@ interjected into our execution!
 ## License
 
 Rayon is distributed under the terms of both the MIT license and the
-Apache License (Version 2.0). See [LICENSE-APACHE](LICENSE-APACHE) for
+Apache License (Version 2.0). See [LICENSE-APACHE](LICENSE-APACHE) and
 [LICENSE-MIT](LICENSE-MIT) for details. Opening a pull requests is
 assumed to signal agreement with these licensing terms.
