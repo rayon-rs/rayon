@@ -89,11 +89,21 @@ pub fn execute_strings_split() {
         let serial: Vec<_> = string.split(separator).collect();
         let parallel: Vec<_> = string.par_split(separator).collect();
         assert_eq!(serial, parallel);
+
+        let serial_fn: Vec<_> = string.split(|c| c == separator).collect();
+        let parallel_fn: Vec<_> = string.par_split(|c| c == separator).collect();
+        assert_eq!(serial_fn, parallel_fn);
     }
 
     for &(string, separator) in &tests {
         let serial: Vec<_> = string.split_terminator(separator).collect();
         let parallel: Vec<_> = string.par_split_terminator(separator).collect();
+        assert_eq!(serial, parallel);
+    }
+
+    for &(string, separator) in &tests {
+        let serial: Vec<_> = string.split_terminator(|c| c == separator).collect();
+        let parallel: Vec<_> = string.par_split_terminator(|c| c == separator).collect();
         assert_eq!(serial, parallel);
     }
 

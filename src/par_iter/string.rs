@@ -103,6 +103,30 @@ impl Pattern for char {
     }
 }
 
+impl<FN: Sync + Fn(char) -> bool> Pattern for FN {
+    fn find_in(&self, chars: &str) -> Option<usize> {
+        chars.find(self)
+    }
+
+    fn rfind_in(&self, chars: &str) -> Option<usize> {
+        chars.rfind(self)
+    }
+
+    fn is_suffix_of(&self, chars: &str) -> bool {
+        chars.ends_with(self)
+    }
+
+    fn fold_with<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
+        where F: Folder<&'ch str>
+    {
+        let mut split = chars.split(self);
+        if skip_last {
+            split.next_back();
+        }
+        folder.consume_iter(split)
+    }
+}
+
 
 // /////////////////////////////////////////////////////////////////////////
 
