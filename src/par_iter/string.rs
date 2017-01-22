@@ -2,6 +2,13 @@ use super::internal::*;
 use super::*;
 use std::cmp::min;
 
+mod private {
+    /// If this type is pub but not publically rechable, third parties can't
+    /// name it and can't implement traits using it.
+    pub struct PrivateMarker;
+} 
+
+
 /// Test if a byte is the start of a UTF-8 character.
 /// (extracted from `str::is_char_boundary`)
 fn is_char_boundary(b: u8) -> bool {
@@ -28,6 +35,11 @@ fn find_char_midpoint(chars: &str) -> usize {
 
 /// Parallel extensions for strings.
 pub trait ParallelString {
+    /// This trait is private; this method exists to make it impossible
+    /// to implement outside the crate.
+    #[doc(hidden)]
+    fn private_parallel_string(&self) -> private::PrivateMarker;
+
     /// Returns a parallel iterator over the characters of a string.
     fn par_chars(&self) -> ParChars;
 
@@ -56,6 +68,10 @@ pub trait ParallelString {
 }
 
 impl ParallelString for str {
+    fn private_parallel_string(&self) -> private::PrivateMarker {
+        private::PrivateMarker
+    }
+
     fn par_chars(&self) -> ParChars {
         ParChars { chars: self }
     }
