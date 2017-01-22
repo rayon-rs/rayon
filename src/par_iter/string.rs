@@ -6,7 +6,7 @@ mod private {
     /// If this type is pub but not publically rechable, third parties can't
     /// name it and can't implement traits using it.
     pub struct PrivateMarker;
-} 
+}
 
 
 /// Test if a byte is the start of a UTF-8 character.
@@ -102,8 +102,7 @@ pub trait Pattern: Sized + Sync {
     fn find_in(&self, &str) -> Option<usize>;
     fn rfind_in(&self, &str) -> Option<usize>;
     fn is_suffix_of(&self, &str) -> bool;
-    fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
-        where F: Folder<&'ch str>;
+    fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F where F: Folder<&'ch str>;
 }
 
 impl Pattern for char {
@@ -340,9 +339,7 @@ pub struct ParSplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
 
 impl<'ch, P: Pattern> ParSplitTerminator<'ch, P> {
     fn new(chars: &'ch str, terminator: P) -> Self {
-        ParSplitTerminator {
-            splitter: ParSplit::new(chars, terminator),
-        }
+        ParSplitTerminator { splitter: ParSplit::new(chars, terminator) }
     }
 }
 
