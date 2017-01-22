@@ -46,6 +46,13 @@ pub trait ParallelString {
     /// The final line ending is optional, and line endings are not included in
     /// the output strings.
     fn par_lines(&self) -> ParLines;
+
+    /// Returns a parallel iterator over the sub-slices of a string that are
+    /// separated by any amount of whitespace.
+    ///
+    /// As with `str::split_whitespace`, 'whitespace' is defined according to
+    /// the terms of the Unicode Derived Core Property `White_Space`.
+    fn par_split_whitespace(&self) -> ParSplitWhitespace;
 }
 
 impl ParallelString for str {
@@ -63,6 +70,10 @@ impl ParallelString for str {
 
     fn par_lines(&self) -> ParLines {
         ParLines(self)
+    }
+
+    fn par_split_whitespace(&self) -> ParSplitWhitespace {
+        ParSplitWhitespace(self)
     }
 }
 
@@ -389,6 +400,24 @@ impl<'ch> ParallelIterator for ParLines<'ch> {
                     line
                 }
             })
+            .drive_unindexed(consumer)
+    }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+pub struct ParSplitWhitespace<'ch>(&'ch str);
+
+impl<'ch> ParallelIterator for ParSplitWhitespace<'ch> {
+    type Item = &'ch str;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        self.0
+            .par_split(char::is_whitespace)
+            .filter(|string| !string.is_empty())
             .drive_unindexed(consumer)
     }
 }

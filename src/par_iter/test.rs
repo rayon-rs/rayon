@@ -83,6 +83,8 @@ pub fn execute_strings_split() {
                      ("A..B..", '.'),
                      ("foo\r\nbar\n\nbaz\n", '\n'),
                      ("foo\nbar\n\r\nbaz", '\n'),
+                     ("A few words", ' '),
+                     (" Mary   had\ta\u{2009}little  \n\t lamb", ' '),
                      (include_str!("test.rs"), ' ')];
 
     for &(string, separator) in &tests {
@@ -110,6 +112,12 @@ pub fn execute_strings_split() {
     for &(string, _) in &tests {
         let serial: Vec<_> = string.lines().collect();
         let parallel: Vec<_> = string.par_lines().collect();
+        assert_eq!(serial, parallel);
+    }
+
+    for &(string, _) in &tests {
+        let serial: Vec<_> = string.split_whitespace().collect();
+        let parallel: Vec<_> = string.par_split_whitespace().collect();
         assert_eq!(serial, parallel);
     }
 }
