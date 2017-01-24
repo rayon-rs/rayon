@@ -48,4 +48,6 @@ pub use scope::{scope, Scope};
 #[cfg(feature = "unstable")]
 pub use spawn_async::spawn_async;
 #[cfg(feature = "unstable")]
+pub use spawn_async::spawn_future_async;
+#[cfg(feature = "unstable")]
 pub use future::RayonFuture;
