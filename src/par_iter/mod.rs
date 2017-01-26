@@ -731,12 +731,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     {
         self.zip(other.into_par_iter())
             .map(|(x, y)| Ord::cmp(&x, &y))
-            .reduce(|| Ordering::Equal,
-                    |cmp_a, cmp_b| if cmp_a == Ordering::Equal {
-                        cmp_b
-                    } else {
-                        cmp_a
-                    })
+            .find_first(|&ord| ord != Ordering::Equal)
+            .unwrap_or(Ordering::Equal)
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
@@ -748,11 +744,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     {
         self.zip(other.into_par_iter())
             .map(|(x, y)| PartialOrd::partial_cmp(&x, &y))
-            .reduce(|| Some(Ordering::Equal), |cmp_a, cmp_b| match cmp_a {
-                Some(Ordering::Equal) => cmp_b,
-                Some(_) => cmp_a,
-                None => None,
-            })
+            .find_first(|&ord| ord != Some(Ordering::Equal))
+            .unwrap_or(Some(Ordering::Equal))
     }
 
     /// Determines if the elements of this `ParallelIterator`

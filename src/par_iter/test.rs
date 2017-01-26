@@ -445,6 +445,54 @@ pub fn check_cmp_gt_to_seq() {
 }
 
 #[test]
+pub fn check_cmp_short_circuit() {
+    let a = vec![0; 1024];
+    let mut b = a.clone();
+    b[42] = 1;
+
+    let counter = AtomicUsize::new(0);
+    let result = a.par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .cmp(&b);
+    assert!(result == ::std::cmp::Ordering::Less);
+    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+}
+
+#[test]
+pub fn check_partial_cmp_short_circuit() {
+    let a = vec![0; 1024];
+    let mut b = a.clone();
+    b[42] = 1;
+
+    let counter = AtomicUsize::new(0);
+    let result = a.par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .partial_cmp(&b);
+    assert!(result == Some(::std::cmp::Ordering::Less));
+    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+}
+
+#[test]
+pub fn check_partial_cmp_nan_short_circuit() {
+    let a = vec![0.0; 1024];
+    let mut b = a.clone();
+    b[42] = f64::NAN;
+
+    let counter = AtomicUsize::new(0);
+    let result = a.par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .partial_cmp(&b);
+    assert!(result == None);
+    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+}
+
+#[test]
 pub fn check_partial_cmp_direct() {
     let a = (0..1024).into_par_iter();
     let b = (0..1024).into_par_iter();
