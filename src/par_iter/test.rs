@@ -83,12 +83,18 @@ pub fn execute_strings_split() {
                      ("A..B..", '.'),
                      ("foo\r\nbar\n\nbaz\n", '\n'),
                      ("foo\nbar\n\r\nbaz", '\n'),
+                     ("A few words", ' '),
+                     (" Mary   had\ta\u{2009}little  \n\t lamb", ' '),
                      (include_str!("test.rs"), ' ')];
 
     for &(string, separator) in &tests {
         let serial: Vec<_> = string.split(separator).collect();
         let parallel: Vec<_> = string.par_split(separator).collect();
         assert_eq!(serial, parallel);
+
+        let serial_fn: Vec<_> = string.split(|c| c == separator).collect();
+        let parallel_fn: Vec<_> = string.par_split(|c| c == separator).collect();
+        assert_eq!(serial_fn, parallel_fn);
     }
 
     for &(string, separator) in &tests {
@@ -97,9 +103,21 @@ pub fn execute_strings_split() {
         assert_eq!(serial, parallel);
     }
 
+    for &(string, separator) in &tests {
+        let serial: Vec<_> = string.split_terminator(|c| c == separator).collect();
+        let parallel: Vec<_> = string.par_split_terminator(|c| c == separator).collect();
+        assert_eq!(serial, parallel);
+    }
+
     for &(string, _) in &tests {
         let serial: Vec<_> = string.lines().collect();
         let parallel: Vec<_> = string.par_lines().collect();
+        assert_eq!(serial, parallel);
+    }
+
+    for &(string, _) in &tests {
+        let serial: Vec<_> = string.split_whitespace().collect();
+        let parallel: Vec<_> = string.par_split_whitespace().collect();
         assert_eq!(serial, parallel);
     }
 }
