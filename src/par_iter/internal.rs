@@ -26,7 +26,7 @@ pub trait Producer: IntoIterator + Send + Sized {
     fn cost(&mut self, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
-    /// other `index..N`. Index must be less than `N`.
+    /// other `index..N`. Index must be less than or equal to `N`.
     fn split_at(self, index: usize) -> (Self, Self);
 
     /// Iterate the producer, feeding each element to `folder`, and
