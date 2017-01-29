@@ -600,6 +600,16 @@ pub fn check_partial_cmp_late_nane_to_seq() {
     assert_eq!(par_result, seq_result);
 }
 
+#[test]
+pub fn check_cmp_lengths() {
+    // comparisons should consider length if they are otherwise equal
+    let a = vec![0; 1024];
+    let b = vec![0; 1025];
+
+    assert_eq!(a.par_iter().cmp(&b), a.iter().cmp(&b));
+    assert_eq!(a.par_iter().partial_cmp(&b), a.iter().partial_cmp(&b));
+}
+
 
 #[test]
 pub fn check_eq_direct() {
@@ -631,10 +641,20 @@ pub fn check_ne_direct() {
 
 #[test]
 pub fn check_ne_to_seq() {
-    let par_result = (0..1024).into_par_iter().ne((1..1024).into_par_iter());
-    let seq_result = (0..1024).ne(1..1024);
+    let par_result = (0..1024).into_par_iter().ne((1..1025).into_par_iter());
+    let seq_result = (0..1024).ne(1..1025);
 
     assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ne_lengths() {
+    // equality should consider length too
+    let a = vec![0; 1024];
+    let b = vec![0; 1025];
+
+    assert_eq!(a.par_iter().eq(&b), a.iter().eq(&b));
+    assert_eq!(a.par_iter().ne(&b), a.iter().ne(&b));
 }
 
 #[test]
