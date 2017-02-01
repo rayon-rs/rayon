@@ -463,6 +463,54 @@ pub fn check_cmp_gt_to_seq() {
 }
 
 #[test]
+pub fn check_cmp_short_circuit() {
+    let a = vec![0; 1024];
+    let mut b = a.clone();
+    b[42] = 1;
+
+    let counter = AtomicUsize::new(0);
+    let result = a.par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .cmp(&b);
+    assert!(result == ::std::cmp::Ordering::Less);
+    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+}
+
+#[test]
+pub fn check_partial_cmp_short_circuit() {
+    let a = vec![0; 1024];
+    let mut b = a.clone();
+    b[42] = 1;
+
+    let counter = AtomicUsize::new(0);
+    let result = a.par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .partial_cmp(&b);
+    assert!(result == Some(::std::cmp::Ordering::Less));
+    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+}
+
+#[test]
+pub fn check_partial_cmp_nan_short_circuit() {
+    let a = vec![0.0; 1024];
+    let mut b = a.clone();
+    b[42] = f64::NAN;
+
+    let counter = AtomicUsize::new(0);
+    let result = a.par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .partial_cmp(&b);
+    assert!(result == None);
+    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+}
+
+#[test]
 pub fn check_partial_cmp_direct() {
     let a = (0..1024).into_par_iter();
     let b = (0..1024).into_par_iter();
@@ -570,6 +618,16 @@ pub fn check_partial_cmp_late_nane_to_seq() {
     assert_eq!(par_result, seq_result);
 }
 
+#[test]
+pub fn check_cmp_lengths() {
+    // comparisons should consider length if they are otherwise equal
+    let a = vec![0; 1024];
+    let b = vec![0; 1025];
+
+    assert_eq!(a.par_iter().cmp(&b), a.iter().cmp(&b));
+    assert_eq!(a.par_iter().partial_cmp(&b), a.iter().partial_cmp(&b));
+}
+
 
 #[test]
 pub fn check_eq_direct() {
@@ -601,10 +659,20 @@ pub fn check_ne_direct() {
 
 #[test]
 pub fn check_ne_to_seq() {
-    let par_result = (0..1024).into_par_iter().ne((1..1024).into_par_iter());
-    let seq_result = (0..1024).ne(1..1024);
+    let par_result = (0..1024).into_par_iter().ne((1..1025).into_par_iter());
+    let seq_result = (0..1024).ne(1..1025);
 
     assert_eq!(par_result, seq_result);
+}
+
+#[test]
+pub fn check_ne_lengths() {
+    // equality should consider length too
+    let a = vec![0; 1024];
+    let b = vec![0; 1025];
+
+    assert_eq!(a.par_iter().eq(&b), a.iter().eq(&b));
+    assert_eq!(a.par_iter().ne(&b), a.iter().ne(&b));
 }
 
 #[test]
