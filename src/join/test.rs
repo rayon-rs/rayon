@@ -38,10 +38,10 @@ fn sort() {
 
     match result {
         Ok(_) => {
-            quick_sort(&mut data);
-
             let mut sorted_data = data.clone();
             sorted_data.sort();
+
+            quick_sort(&mut data);
 
             assert_eq!(data, sorted_data);
         }
@@ -58,12 +58,12 @@ fn sort_in_pool() {
 
     match result {
         Ok(pool) => {
+            let mut sorted_data = data.clone();
+            sorted_data.sort();
+
             pool.install(|| {
                 quick_sort(&mut data);
             });
-
-            let mut sorted_data = data.clone();
-            sorted_data.sort();
 
             assert_eq!(data, sorted_data);
         }
