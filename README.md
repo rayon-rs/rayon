@@ -223,7 +223,7 @@ serve a common purpose:
 2. A `RefCell` is kind of like a "single-threaded read-write lock"; it
    can be used with any sort of type `T`. To gain access to the data
    inside, you call `borrow` or `borrow_mut`. Dynamic checks are done
-   to ensure that you have either readers or writers but not both.
+   to ensure that you have either readers or one writer but not both.
 
 While there are threadsafe types that offer similar APIs, caution is
 warranted because, in a threadsafe setting, other threads may
