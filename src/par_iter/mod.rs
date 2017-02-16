@@ -28,6 +28,7 @@ use self::take::Take;
 use self::internal::*;
 use self::weight::Weight;
 use self::zip::ZipIter;
+use self::rev::Rev;
 
 pub use self::string::ParallelString;
 
@@ -58,6 +59,7 @@ pub mod vec;
 pub mod option;
 pub mod collections;
 pub mod noop;
+pub mod rev;
 
 #[cfg(test)]
 mod test;
@@ -891,5 +893,11 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         where POSITION_OP: Fn(Self::Item) -> bool + Sync
     {
         self.position_any(predicate)
+    }
+
+    /// Produces a new iterator with the elements of this iterator in
+    /// reverse order.
+    fn rev(self) -> Rev<Self> {
+        Rev::new(self)
     }
 }

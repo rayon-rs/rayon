@@ -16,7 +16,12 @@ pub trait ProducerCallback<ITEM> {
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer: IntoIterator + Send + Sized {
+pub trait Producer: Send + Sized
+{
+    type Item;
+    type IntoIter: Iterator<Item = Self::Item> + DoubleEndedIterator + ExactSizeIterator;
+    fn into_iter(self) -> Self::IntoIter;
+
     /// Reports whether the producer has explicit weights.
     fn weighted(&self) -> bool {
         false
@@ -36,7 +41,7 @@ pub trait Producer: IntoIterator + Send + Sized {
     fn fold_with<F>(self, folder: F) -> F
         where F: Folder<Self::Item>,
     {
-        folder.consume_iter(self)
+        folder.consume_iter(self.into_iter())
     }
 }
 

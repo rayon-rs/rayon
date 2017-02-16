@@ -120,6 +120,13 @@ pub struct ZipProducer<A: Producer, B: Producer> {
 }
 
 impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
+    type Item = (A::Item, B::Item);
+    type IntoIter = iter::Zip<A::IntoIter, B::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.a.into_iter().zip(self.b.into_iter())
+    }
+
     fn weighted(&self) -> bool {
         self.a.weighted() || self.b.weighted()
     }
@@ -140,14 +147,5 @@ impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
              a: a_right,
              b: b_right,
          })
-    }
-}
-
-impl<A: Producer, B: Producer> IntoIterator for ZipProducer<A, B> {
-    type Item = (A::Item, B::Item);
-    type IntoIter = iter::Zip<A::IntoIter, B::IntoIter>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.a.into_iter().zip(self.b)
     }
 }

@@ -90,6 +90,13 @@ pub struct WeightProducer<P> {
 }
 
 impl<P: Producer> Producer for WeightProducer<P> {
+    type Item = P::Item;
+    type IntoIter = P::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.base.into_iter()
+    }
+
     fn weighted(&self) -> bool {
         true
     }
@@ -108,15 +115,6 @@ impl<P: Producer> Producer for WeightProducer<P> {
              base: right,
              weight: self.weight,
          })
-    }
-}
-
-impl<P: Producer> IntoIterator for WeightProducer<P> {
-    type Item = P::Item;
-    type IntoIter = P::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.base.into_iter()
     }
 }
 

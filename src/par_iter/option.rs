@@ -112,6 +112,13 @@ pub struct OptionProducer<T: Send> {
 }
 
 impl<T: Send> Producer for OptionProducer<T> {
+    type Item = T;
+    type IntoIter = std::option::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.opt.into_iter()
+    }
+
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -123,14 +130,5 @@ impl<T: Send> Producer for OptionProducer<T> {
         } else {
             (self, none)
         }
-    }
-}
-
-impl<T: Send> IntoIterator for OptionProducer<T> {
-    type Item = T;
-    type IntoIter = std::option::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.opt.into_iter()
     }
 }

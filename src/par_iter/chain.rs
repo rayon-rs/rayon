@@ -163,6 +163,13 @@ impl<A, B> Producer for ChainProducer<A, B>
     where A: Producer,
           B: Producer<Item = A::Item>
 {
+    type Item = A::Item;
+    type IntoIter = Chain<A::IntoIter, B::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Chain::new(self.a.into_iter(), self.b.into_iter())
+    }
+
     fn weighted(&self) -> bool {
         self.a.weighted() || self.b.weighted()
     }
@@ -199,14 +206,58 @@ impl<A, B> Producer for ChainProducer<A, B>
     }
 }
 
-impl<A, B> IntoIterator for ChainProducer<A, B>
-    where A: Producer,
-          B: Producer<Item = A::Item>
+/// ////////////////////////////////////////////////////////////////////////
+/// Wrapper for Chain to implement ExactSizeIterator
+
+pub struct Chain<A, B> {
+    chain: iter::Chain<A, B>,
+    len: usize,
+}
+
+impl<A, B> Chain<A, B> {
+    fn new(a: A, b: B) -> Chain<A, B>
+        where A: ExactSizeIterator,
+              B: ExactSizeIterator<Item=A::Item>
+    {
+        let len = a.len() + b.len();
+        Chain {
+            chain: a.chain(b),
+            len: len,
+        }
+    }
+}
+
+impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
+    where A: Iterator,
+          B: Iterator<Item=A::Item>
 {
     type Item = A::Item;
-    type IntoIter = iter::Chain<A::IntoIter, B::IntoIter>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.a.into_iter().chain(self.b)
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.len != 0 {
+            self.len -= 1;
+        }
+        self.chain.next()
+    }
+}
+
+impl<A, B> ExactSizeIterator for Chain<A, B>
+    where A: ExactSizeIterator,
+          B: ExactSizeIterator<Item=A::Item>
+{
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl<A, B> DoubleEndedIterator for Chain<A, B>
+    where A: DoubleEndedIterator,
+          B: DoubleEndedIterator<Item=A::Item>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.len != 0 {
+            self.len -= 1;
+        }
+        self.chain.next_back()
     }
 }

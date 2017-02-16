@@ -74,6 +74,15 @@ pub struct VecProducer<'data, T: 'data + Send> {
 }
 
 impl<'data, T: 'data + Send> Producer for VecProducer<'data, T> {
+    type Item = T;
+    type IntoIter = SliceDrain<'data, T>;
+
+    fn into_iter(mut self) -> Self::IntoIter {
+        // replace the slice so we don't drop it twice
+        let slice = std::mem::replace(&mut self.slice, &mut []);
+        SliceDrain { iter: slice.iter_mut() }
+    }
+
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -83,17 +92,6 @@ impl<'data, T: 'data + Send> Producer for VecProducer<'data, T> {
         let slice = std::mem::replace(&mut self.slice, &mut []);
         let (left, right) = slice.split_at_mut(index);
         (VecProducer { slice: left }, VecProducer { slice: right })
-    }
-}
-
-impl<'data, T: 'data + Send> IntoIterator for VecProducer<'data, T> {
-    type Item = T;
-    type IntoIter = SliceDrain<'data, T>;
-
-    fn into_iter(mut self) -> Self::IntoIter {
-        // replace the slice so we don't drop it twice
-        let slice = std::mem::replace(&mut self.slice, &mut []);
-        SliceDrain { iter: slice.iter_mut() }
     }
 }
 
@@ -117,6 +115,20 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
         self.iter
             .next()
             .map(|ptr| unsafe { std::ptr::read(ptr) })
+    }
+}
+
+impl<'data, T: 'data> DoubleEndedIterator for SliceDrain<'data, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next_back()
+            .map(|ptr| unsafe { std::ptr::read(ptr) })
+    }
+}
+
+impl<'data, T: 'data> ExactSizeIterator for SliceDrain<'data, T> {
+    fn len(&self) -> usize {
+        self.iter.len()
     }
 }
 
