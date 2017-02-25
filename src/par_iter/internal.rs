@@ -18,8 +18,13 @@ pub trait ProducerCallback<ITEM> {
 /// it.
 pub trait Producer: Send + Sized
 {
+    // Rust issue https://github.com/rust-lang/rust/issues/20671
+    // prevents us from declaring the DoubleEndedIterator and
+    // ExactSizeIterator constraints on a required IntoIterator trait,
+    // so we inline IntoIterator here until that issue is fixed.
     type Item;
     type IntoIter: Iterator<Item = Self::Item> + DoubleEndedIterator + ExactSizeIterator;
+
     fn into_iter(self) -> Self::IntoIter;
 
     /// Reports whether the producer has explicit weights.

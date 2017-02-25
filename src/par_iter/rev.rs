@@ -86,6 +86,7 @@ impl<P> Producer for RevProducer<P>
 {
     type Item = P::Item;
     type IntoIter = iter::Rev<P::IntoIter>;
+
     fn into_iter(self) -> Self::IntoIter {
         self.base.into_iter().rev()
     }

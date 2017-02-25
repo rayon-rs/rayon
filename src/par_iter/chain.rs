@@ -53,7 +53,7 @@ impl<A, B> BoundedParallelIterator for ChainIter<A, B>
           B: BoundedParallelIterator<Item = A::Item>
 {
     fn upper_bound(&mut self) -> usize {
-        self.a.upper_bound() + self.b.upper_bound()
+        self.a.upper_bound().checked_add(self.b.upper_bound()).expect("overflow")
     }
 
     fn drive<C>(mut self, consumer: C) -> C::Result
@@ -71,7 +71,7 @@ impl<A, B> ExactParallelIterator for ChainIter<A, B>
           B: ExactParallelIterator<Item = A::Item>
 {
     fn len(&mut self) -> usize {
-        self.a.len() + self.b.len()
+        self.a.len().checked_add(self.b.len()).expect("overflow")
     }
 }
 
@@ -219,7 +219,7 @@ impl<A, B> Chain<A, B> {
         where A: ExactSizeIterator,
               B: ExactSizeIterator<Item=A::Item>
     {
-        let len = a.len() + b.len();
+        let len = a.len().checked_add(b.len()).expect("overflow");
         Chain {
             chain: a.chain(b),
             len: len,
@@ -238,6 +238,10 @@ impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
             self.len -= 1;
         }
         self.chain.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
     }
 }
 
