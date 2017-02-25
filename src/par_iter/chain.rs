@@ -211,7 +211,6 @@ impl<A, B> Producer for ChainProducer<A, B>
 
 pub struct Chain<A, B> {
     chain: iter::Chain<A, B>,
-    len: usize,
 }
 
 impl<A, B> Chain<A, B> {
@@ -219,10 +218,8 @@ impl<A, B> Chain<A, B> {
         where A: ExactSizeIterator,
               B: ExactSizeIterator<Item=A::Item>
     {
-        let len = a.len().checked_add(b.len()).expect("overflow");
         Chain {
             chain: a.chain(b),
-            len: len,
         }
     }
 }
@@ -234,14 +231,11 @@ impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
     type Item = A::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.len != 0 {
-            self.len -= 1;
-        }
         self.chain.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
+        self.chain.size_hint()
     }
 }
 
@@ -249,9 +243,6 @@ impl<A, B> ExactSizeIterator for Chain<A, B>
     where A: ExactSizeIterator,
           B: ExactSizeIterator<Item=A::Item>
 {
-    fn len(&self) -> usize {
-        self.len
-    }
 }
 
 impl<A, B> DoubleEndedIterator for Chain<A, B>
@@ -259,9 +250,6 @@ impl<A, B> DoubleEndedIterator for Chain<A, B>
           B: DoubleEndedIterator<Item=A::Item>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.len != 0 {
-            self.len -= 1;
-        }
         self.chain.next_back()
     }
 }
