@@ -6,7 +6,7 @@
 use join;
 use super::IndexedParallelIterator;
 use super::len::*;
-use registry::global_registry;
+use registry::Registry;
 
 pub trait ProducerCallback<ITEM> {
     type Output;
@@ -162,7 +162,7 @@ impl Splitter {
 
     #[inline]
     fn new_thief() -> Splitter {
-        Splitter::Thief(Splitter::thief_id(), global_registry().num_threads())
+        Splitter::Thief(Splitter::thief_id(), Registry::current_num_threads())
     }
 
     #[inline]
@@ -181,7 +181,7 @@ impl Splitter {
                 let id = Splitter::thief_id();
                 if *origin != id {
                     *origin = id;
-                    *splits = global_registry().num_threads();
+                    *splits = Registry::current_num_threads();
                     true
                 } else if *splits > 0 {
                     *splits /= 2;

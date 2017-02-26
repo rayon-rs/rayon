@@ -1,8 +1,12 @@
 use configuration::{Configuration, InitError};
+#[cfg(feature = "unstable")]
+use future::{Future, RayonFuture};
 use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
+#[cfg(feature = "unstable")]
+use spawn_async;
 use std::sync::Arc;
 use registry::{Registry, WorkerThread};
 
@@ -79,6 +83,26 @@ impl ThreadPool {
                 Some((*curr).index())
             }
         }
+    }
+
+    /// Spawns an asynchronous task in this thread-pool. See
+    /// `spawn_async()` for more details.
+    #[cfg(feature = "unstable")]
+    pub fn spawn_async<OP>(&self, op: OP)
+        where OP: FnOnce() + Send + 'static
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { spawn_async::spawn_async_in(op, &self.registry) }
+    }
+
+    /// Spawns an asynchronous task in this thread-pool. See
+    /// `spawn_future_async()` for more details.
+    #[cfg(feature = "unstable")]
+    pub fn spawn_future_async<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
+        where F: Future + Send + 'static
+    {
+        // We assert that `self.registry` has not yet terminated.
+        unsafe { spawn_async::spawn_future_async_in(future, self.registry.clone()) }
     }
 }
 

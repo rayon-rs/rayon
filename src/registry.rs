@@ -1,4 +1,4 @@
-use Configuration;
+use {Configuration, PanicHandler};
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
@@ -7,6 +7,7 @@ use latch::{LatchProbe, Latch, CountLatch, LockLatch};
 use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
+use std::any::Any;
 use std::cell::{Cell, UnsafeCell};
 use std::env;
 use std::str::FromStr;
@@ -26,6 +27,7 @@ pub struct Registry {
     state: Mutex<RegistryState>,
     sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
+    panic_handler: Option<PanicHandler>,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -79,6 +81,8 @@ unsafe fn init_registry(config: Configuration) {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Arc<Registry> {
+        debug_assert!(configuration.validate().is_ok());
+
         let limit_value = match configuration.num_threads() {
             Some(value) => value,
             None => {
@@ -100,6 +104,7 @@ impl Registry {
             sleep: Sleep::new(),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
+            panic_handler: configuration.panic_handler(),
         });
 
         for (index, worker) in workers.into_iter().enumerate() {
@@ -115,6 +120,32 @@ impl Registry {
         registry
     }
 
+    pub fn current() -> Arc<Registry> {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if worker_thread.is_null() {
+                global_registry().clone()
+            } else {
+                (*worker_thread).registry.clone()
+            }
+        }
+    }
+
+    /// Returns the number of threads in the current registry.  This
+    /// is better than `Registry::current().num_threads()` because it
+    /// avoids incrementing the `Arc`.
+    pub fn current_num_threads() -> usize {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if worker_thread.is_null() {
+                global_registry().num_threads()
+            } else {
+                (*worker_thread).registry.num_threads()
+            }
+        }
+    }
+
+
     /// Returns an opaque identifier for this registry.
     pub fn id(&self) -> RegistryId {
         // We can rely on `self` not to change since we only ever create
@@ -124,6 +155,22 @@ impl Registry {
 
     pub fn num_threads(&self) -> usize {
         self.thread_infos.len()
+    }
+
+    pub fn handle_panic(&self, err: Box<Any + Send>) {
+        match self.panic_handler {
+            Some(ref handler) => {
+                // If the customizable panic handler itself panics,
+                // then we abort.
+                let abort_guard = unwind::AbortIfPanic;
+                handler(err);
+                mem::forget(abort_guard);
+            }
+            None => {
+                // Default panic handler aborts.
+                let _ = unwind::AbortIfPanic; // let this drop.
+            }
+        }
     }
 
     /// Waits for the worker threads to get up and running.  This is
@@ -150,6 +197,20 @@ impl Registry {
     ///
     /// So long as all of the worker threads are hanging out in their
     /// top-level loop, there is no work to be done.
+
+    /// Push a job into the given `registry`. If we are running on a
+    /// worker thread for the registry, this will push onto the
+    /// deque. Else, it will inject from the outside (which is slower).
+    pub fn inject_or_push(&self, job_ref: JobRef) {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if !worker_thread.is_null() && (*worker_thread).registry().id() == self.id() {
+                (*worker_thread).push(job_ref);
+            } else {
+                self.inject(&[job_ref]);
+            }
+        }
+    }
 
     /// Unsafe: caller asserts that injected jobs will remain valid
     /// until they are executed.
@@ -183,6 +244,30 @@ impl Registry {
                 }
             }
         }
+    }
+
+    /// Increment the terminate counter. This increment should be
+    /// balanced by a call to `terminate`, which will decrement. This
+    /// is used when spawning asynchronous work, which needs to
+    /// prevent the registry from terminating so long as it is active.
+    ///
+    /// Note that blocking functions such as `join` and `scope` do not
+    /// need to concern themselves with this fn; their context is
+    /// responsible for ensuring the current thread-pool will not
+    /// terminate until they return.
+    ///
+    /// The global thread-pool always has an outstanding reference
+    /// (the initial one). Custom thread-pools have one outstanding
+    /// reference that is dropped when the `ThreadPool` is dropped:
+    /// since installing the thread-pool blocks until any joins/scopes
+    /// complete, this ensures that joins/scopes are covered.
+    ///
+    /// The exception is `spawn_async()`, which can create a job
+    /// outside of any blocking scope. In that case, the job itself
+    /// holds a terminate count and is responsible for invoking
+    /// `terminate()` when finished.
+    pub fn increment_terminate_count(&self) {
+        self.terminate_latch.increment();
     }
 
     /// Signals that the thread-pool which owns this registry has been

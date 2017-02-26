@@ -1,7 +1,9 @@
 #[allow(unused_imports)]
 use log::Event::*;
+use std::any::Any;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 use registry;
 
 /// Custom error type for the rayon thread pool configuration.
@@ -46,8 +48,18 @@ impl Error for InitError {
 pub struct Configuration {
     /// The number of threads in the rayon thread pool. Must not be zero.
     num_threads: Option<usize>,
+
+    /// Custom closure, if any, to handle a panic that we cannot propagate
+    /// anywhere else.
+    panic_handler: Option<PanicHandler>,
+
+    /// Closure to compute the name of a thread.
     get_thread_name: Option<Box<FnMut(usize) -> String>>,
 }
+
+/// The type for a panic handling closure. Note that this same closure
+/// may be invoked multiple times in parallel.
+pub type PanicHandler = Arc<Fn(Box<Any + Send>) + Send + Sync>;
 
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
@@ -55,6 +67,7 @@ impl Configuration {
         Configuration {
             num_threads: None,
             get_thread_name: None,
+            panic_handler: None,
         }
     }
 
@@ -83,6 +96,32 @@ impl Configuration {
     /// (currently, the default is one thread per logical CPU).
     pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
         self.num_threads = Some(num_threads);
+        self
+    }
+
+    /// Returns (and takes ownership of) the current panic handler.
+    /// After this call, no panic handler is registered in the
+    /// configuration anymore.
+    pub fn panic_handler(&self) -> Option<PanicHandler> {
+        self.panic_handler.clone()
+    }
+
+    /// Normally, whenever Rayon catches a panic, it tries to
+    /// propagate it to someplace sensible, to try and reflect the
+    /// semantics of sequential execution. But in some cases,
+    /// particularly with the `spawn_async()` APIs, there is no
+    /// obvious place where we should propagate the panic to.
+    /// In that case, this panic handler is invoked.
+    ///
+    /// If no panic handler is set, the default is to abort the
+    /// process, under the principle that panics should not go
+    /// unobserved.
+    ///
+    /// If the panic handler itself panics, this will abort the
+    /// process. To prevent this, wrap the body of your panic handler
+    /// in a call to `std::panic::catch_unwind()`.
+    pub fn set_panic_handler(mut self, panic_handler: PanicHandler) -> Configuration {
+        self.panic_handler = Some(panic_handler);
         self
     }
 
@@ -140,5 +179,25 @@ pub fn initialize(config: Configuration) -> Result<(), InitError> {
 /// dump some performance statistics out using `println`.
 pub fn dump_stats() {
     dump_stats!();
+}
+
+impl fmt::Debug for Configuration {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler } = *self;
+
+        // Just print `Some("<closure>")` or `None` to the debug
+        // output.
+        let get_thread_name = get_thread_name.as_ref().map(|_| "<closure>");
+
+        // Just print `Some("<closure>")` or `None` to the debug
+        // output.
+        let panic_handler = panic_handler.as_ref().map(|_| "<closure>");
+
+        f.debug_struct("Configuration")
+         .field("num_threads", num_threads)
+         .field("get_thread_name", &get_thread_name)
+         .field("panic_handler", &panic_handler)
+         .finish()
+    }
 }
 
