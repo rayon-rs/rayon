@@ -1,7 +1,8 @@
 use super::internal::*;
 use super::*;
 use std::iter;
-use std::ops::RangeFrom;
+use std::ops::Range;
+use std::usize;
 
 pub struct Enumerate<M> {
     base: M,
@@ -89,6 +90,17 @@ pub struct EnumerateProducer<P> {
 impl<P> Producer for EnumerateProducer<P>
     where P: Producer
 {
+    type Item = (usize, P::Item);
+    type IntoIter = iter::Zip<Range<usize>, P::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        // Enumerate only works for ExactParallelIterators. Since those
+        // have a max length of usize::MAX, their max index is
+        // usize::MAX - 1, so the range 0..usize::MAX includes all
+        // possible indices
+        (self.offset..usize::MAX).zip(self.base.into_iter())
+    }
+
     fn weighted(&self) -> bool {
         self.base.weighted()
     }
@@ -107,16 +119,5 @@ impl<P> Producer for EnumerateProducer<P>
              base: right,
              offset: self.offset + index,
          })
-    }
-}
-
-impl<P> IntoIterator for EnumerateProducer<P>
-    where P: Producer
-{
-    type Item = (usize, P::Item);
-    type IntoIter = iter::Zip<RangeFrom<usize>, P::IntoIter>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (self.offset..).zip(self.base)
     }
 }

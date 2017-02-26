@@ -1274,3 +1274,14 @@ fn min_max_by() {
                    slice.iter().max_by_key(|x| x.0));
     }
 }
+
+#[test]
+fn check_rev() {
+    let a: Vec<usize> = (0..1024).rev().collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    assert!(a.par_iter()
+            .rev()
+            .zip(b)
+            .all(|(&a, b)| a == b));
+}

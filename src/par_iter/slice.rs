@@ -130,6 +130,13 @@ pub struct SliceProducer<'data, T: 'data + Sync> {
 }
 
 impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
+    type Item = &'data T;
+    type IntoIter = ::std::slice::Iter<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.into_iter()
+    }
+
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -140,21 +147,19 @@ impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
     }
 }
 
-impl<'data, T: 'data + Sync> IntoIterator for SliceProducer<'data, T> {
-    type Item = &'data T;
-    type IntoIter = ::std::slice::Iter<'data, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.slice.into_iter()
-    }
-}
-
 pub struct SliceChunksProducer<'data, T: 'data + Sync> {
     chunk_size: usize,
     slice: &'data [T],
 }
 
 impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
+    type Item = &'data [T];
+    type IntoIter = ::std::slice::Chunks<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.chunks(self.chunk_size)
+    }
+
     fn cost(&mut self, len: usize) -> f64 {
         len as f64
     }
@@ -170,14 +175,5 @@ impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
              chunk_size: self.chunk_size,
              slice: right,
          })
-    }
-}
-
-impl<'data, T: 'data + Sync> IntoIterator for SliceChunksProducer<'data, T> {
-    type Item = &'data [T];
-    type IntoIter = ::std::slice::Chunks<'data, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.slice.chunks(self.chunk_size)
     }
 }

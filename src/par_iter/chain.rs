@@ -53,7 +53,7 @@ impl<A, B> BoundedParallelIterator for ChainIter<A, B>
           B: BoundedParallelIterator<Item = A::Item>
 {
     fn upper_bound(&mut self) -> usize {
-        self.a.upper_bound() + self.b.upper_bound()
+        self.a.upper_bound().checked_add(self.b.upper_bound()).expect("overflow")
     }
 
     fn drive<C>(mut self, consumer: C) -> C::Result
@@ -71,7 +71,7 @@ impl<A, B> ExactParallelIterator for ChainIter<A, B>
           B: ExactParallelIterator<Item = A::Item>
 {
     fn len(&mut self) -> usize {
-        self.a.len() + self.b.len()
+        self.a.len().checked_add(self.b.len()).expect("overflow")
     }
 }
 
@@ -163,6 +163,13 @@ impl<A, B> Producer for ChainProducer<A, B>
     where A: Producer,
           B: Producer<Item = A::Item>
 {
+    type Item = A::Item;
+    type IntoIter = Chain<A::IntoIter, B::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Chain::new(self.a.into_iter(), self.b.into_iter())
+    }
+
     fn weighted(&self) -> bool {
         self.a.weighted() || self.b.weighted()
     }
@@ -199,14 +206,50 @@ impl<A, B> Producer for ChainProducer<A, B>
     }
 }
 
-impl<A, B> IntoIterator for ChainProducer<A, B>
-    where A: Producer,
-          B: Producer<Item = A::Item>
+/// ////////////////////////////////////////////////////////////////////////
+/// Wrapper for Chain to implement ExactSizeIterator
+
+pub struct Chain<A, B> {
+    chain: iter::Chain<A, B>,
+}
+
+impl<A, B> Chain<A, B> {
+    fn new(a: A, b: B) -> Chain<A, B>
+        where A: ExactSizeIterator,
+              B: ExactSizeIterator<Item=A::Item>
+    {
+        Chain {
+            chain: a.chain(b),
+        }
+    }
+}
+
+impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
+    where A: Iterator,
+          B: Iterator<Item=A::Item>
 {
     type Item = A::Item;
-    type IntoIter = iter::Chain<A::IntoIter, B::IntoIter>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.a.into_iter().chain(self.b)
+    fn next(&mut self) -> Option<Self::Item> {
+        self.chain.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.chain.size_hint()
+    }
+}
+
+impl<A, B> ExactSizeIterator for Chain<A, B>
+    where A: ExactSizeIterator,
+          B: ExactSizeIterator<Item=A::Item>
+{
+}
+
+impl<A, B> DoubleEndedIterator for Chain<A, B>
+    where A: DoubleEndedIterator,
+          B: DoubleEndedIterator<Item=A::Item>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.chain.next_back()
     }
 }

@@ -149,6 +149,16 @@ impl<'m, P, MAP_OP> Producer for MapProducer<'m, P, MAP_OP>
     where P: Producer,
           MAP_OP: MapOp<P::Item>
 {
+    type Item = MAP_OP::Output;
+    type IntoIter = MapIter<'m, P::IntoIter, MAP_OP>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MapIter {
+            base: self.base.into_iter(),
+            map_op: self.map_op,
+        }
+    }
+
     fn weighted(&self) -> bool {
         self.base.weighted()
     }
@@ -170,22 +180,6 @@ impl<'m, P, MAP_OP> Producer for MapProducer<'m, P, MAP_OP>
     }
 }
 
-impl<'m, P, MAP_OP> IntoIterator for MapProducer<'m, P, MAP_OP>
-    where P: Producer,
-          MAP_OP: MapOp<P::Item>
-{
-    type Item = MAP_OP::Output;
-    type IntoIter = MapIter<'m, P::IntoIter, MAP_OP>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        MapIter {
-            base: self.base.into_iter(),
-            map_op: self.map_op,
-        }
-    }
-}
-
-
 pub struct MapIter<'m, I, MAP_OP: 'm> {
     base: I,
     map_op: &'m MAP_OP,
@@ -198,6 +192,24 @@ impl<'m, I, MAP_OP> Iterator for MapIter<'m, I, MAP_OP>
     type Item = MAP_OP::Output;
     fn next(&mut self) -> Option<Self::Item> {
         self.base.next().map(|value| self.map_op.map(value))
+    }
+}
+
+impl<'m, I, MAP_OP> DoubleEndedIterator for MapIter<'m, I, MAP_OP>
+    where I: DoubleEndedIterator,
+          MAP_OP: MapOp<I::Item>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back().map(|value| self.map_op.map(value))
+    }
+}
+
+impl<'m, I, MAP_OP> ExactSizeIterator for MapIter<'m, I, MAP_OP>
+    where I: ExactSizeIterator,
+          MAP_OP: MapOp<I::Item>
+{
+    fn len(&self) -> usize {
+        self.base.len()
     }
 }
 

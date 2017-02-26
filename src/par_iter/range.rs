@@ -71,6 +71,13 @@ macro_rules! indexed_range_impl {
         }
 
         impl Producer for RangeIter<$t> {
+
+            type Item = <Range<$t> as Iterator>::Item;
+            type IntoIter = Range<$t>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.range
+            }
+
             fn cost(&mut self, len: usize) -> f64 {
                 len as f64
             }
