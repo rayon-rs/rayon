@@ -54,6 +54,7 @@ pub struct Scope<'scope> {
 /// it would be less efficient than the real implementation:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// pub fn join<A,B,RA,RB>(oper_a: A, oper_b: B) -> (RA, RB)
 ///     where A: FnOnce() -> RA + Send,
 ///           B: FnOnce() -> RB + Send,
@@ -94,6 +95,7 @@ pub struct Scope<'scope> {
 /// To see how and when tasks are joined, consider this example:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// // point start
 /// rayon::scope(|s| {
 ///     s.spawn(|s| { // task s.1
@@ -147,6 +149,7 @@ pub struct Scope<'scope> {
 /// spawned task.
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -170,6 +173,7 @@ pub struct Scope<'scope> {
 /// in this case including both `ok` *and* `bad`:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -190,6 +194,7 @@ pub struct Scope<'scope> {
 /// is a borrow of `ok` and capture *that*:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
@@ -211,6 +216,7 @@ pub struct Scope<'scope> {
 /// of individual variables:
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// let ok: Vec<i32> = vec![1, 2, 3];
 /// rayon::scope(|s| {
 ///     let bad: Vec<i32> = vec![4, 5, 6];
