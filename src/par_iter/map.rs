@@ -140,7 +140,7 @@ impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct MapProducer<'m, P, MAP_OP: 'm> {
+struct MapProducer<'m, P, MAP_OP: 'm> {
     base: P,
     map_op: &'m MAP_OP,
 }

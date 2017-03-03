@@ -69,7 +69,7 @@ impl<T: Send> IndexedParallelIterator for VecIter<T> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct VecProducer<'data, T: 'data + Send> {
+struct VecProducer<'data, T: 'data + Send> {
     slice: &'data mut [T],
 }
 

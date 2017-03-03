@@ -14,52 +14,69 @@
 use std::f64;
 use std::cmp::{self, Ordering};
 use std::ops::Fn;
-use self::chain::ChainIter;
-use self::collect::collect_into;
-use self::enumerate::Enumerate;
-use self::filter::Filter;
-use self::filter_map::FilterMap;
-use self::flat_map::FlatMap;
-use self::from_par_iter::FromParallelIterator;
-use self::map::{Map, MapFn, MapCloned, MapInspect};
-use self::reduce::{reduce, ReduceOp, SumOp, ProductOp, ReduceWithIdentityOp, SUM, PRODUCT};
-use self::skip::Skip;
-use self::take::Take;
 use self::internal::*;
-use self::weight::Weight;
-use self::zip::ZipIter;
-use self::rev::Rev;
 
-pub use self::string::ParallelString;
+// There is a method to the madness here:
+//
+// - Most of these modules are private but expose certain types to the end-user
+//   (e.g., `enumerate::Enumerate`) -- specifically, the types that appear in the
+//   public API surface of the `ParallelIterator` traits.
+// - In **this** module, those public types are always used unprefixed, which forces
+//   us to add a `pub use` and helps identify if we missed anything.
+// - In contrast, items that appear **only** in the body of a method,
+//   e.g. `find::find()`, are always used **prefixed**, so that they
+//   can be readily distinguished.
 
-pub mod find;
-pub mod find_first_last;
-pub mod chain;
-pub mod collect;
-pub mod enumerate;
-pub mod filter;
-pub mod filter_map;
-pub mod flat_map;
-pub mod from_par_iter;
+mod find;
+mod find_first_last;
+mod chain;
+pub use self::chain::ChainIter;
+mod collect;
+mod enumerate;
+pub use self::enumerate::Enumerate;
+mod filter;
+pub use self::filter::Filter;
+mod filter_map;
+pub use self::filter_map::FilterMap;
+mod flat_map;
+pub use self::flat_map::FlatMap;
+mod from_par_iter;
+pub use self::from_par_iter::FromParallelIterator;
 pub mod internal;
 pub mod len;
-pub mod for_each;
-pub mod fold;
-pub mod reduce;
-pub mod skip;
-pub mod take;
-pub mod slice;
-pub mod slice_mut;
-pub mod string;
-pub mod map;
-pub mod weight;
-pub mod zip;
-pub mod range;
-pub mod vec;
-pub mod option;
-pub mod collections;
-pub mod noop;
-pub mod rev;
+mod for_each;
+mod fold;
+pub use self::fold::Fold;
+mod reduce;
+pub use self::reduce::{ReduceOp, SumOp, ProductOp};
+mod skip;
+pub use self::skip::Skip;
+mod take;
+pub use self::take::Take;
+mod slice;
+pub use self::slice::{SliceIter, ChunksIter};
+mod slice_mut;
+pub use self::slice_mut::{SliceIterMut, ChunksMutIter};
+mod string;
+pub use self::string::{ParallelString, Pattern, ParChars, ParSplit,
+                       ParSplitTerminator, ParLines,
+                       ParSplitWhitespace};
+mod map;
+pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
+mod weight;
+pub use self::weight::Weight;
+mod zip;
+pub use self::zip::ZipIter;
+mod range;
+pub use self::range::RangeIter;
+mod vec;
+pub use self::vec::{VecIter, SliceDrain};
+mod option;
+pub use self::option::OptionIter;
+mod collections;
+mod noop;
+mod rev;
+pub use self::rev::Rev;
 
 #[cfg(test)]
 mod test;
@@ -262,7 +279,7 @@ pub trait ParallelIterator: Sized {
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
               IDENTITY: Fn() -> Self::Item + Sync
     {
-        reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
+        reduce::reduce(self, &reduce::ReduceWithIdentityOp::new(&identity, &op))
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -452,7 +469,7 @@ pub trait ParallelIterator: Sized {
     fn sum(self) -> Self::Item
         where SumOp: ReduceOp<Self::Item>
     {
-        reduce(self, SUM)
+        reduce::reduce(self, reduce::SUM)
     }
 
     /// Multiplies all the items in the iterator.
@@ -470,7 +487,7 @@ pub trait ParallelIterator: Sized {
     fn product(self) -> Self::Item
         where ProductOp: ReduceOp<Self::Item>
     {
-        reduce(self, PRODUCT)
+        reduce::reduce(self, reduce::PRODUCT)
     }
 
     /// DEPRECATED
@@ -479,7 +496,7 @@ pub trait ParallelIterator: Sized {
     fn mul(self) -> Self::Item
         where ProductOp: ReduceOp<Self::Item>
     {
-        reduce(self, PRODUCT)
+        reduce::reduce(self, reduce::PRODUCT)
     }
 
     /// Computes the minimum of all the items in the iterator. If the
@@ -700,7 +717,7 @@ pub trait ExactParallelIterator: BoundedParallelIterator {
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
     fn collect_into(self, target: &mut Vec<Self::Item>) {
-        collect_into(self, target);
+        collect::collect_into(self, target);
     }
 }
 

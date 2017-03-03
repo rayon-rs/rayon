@@ -69,7 +69,7 @@ impl<U, BASE, IDENTITY, FOLD_OP> BoundedParallelIterator for Fold<BASE, IDENTITY
     }
 }
 
-pub struct FoldConsumer<'c, C, IDENTITY: 'c, FOLD_OP: 'c> {
+struct FoldConsumer<'c, C, IDENTITY: 'c, FOLD_OP: 'c> {
     base: C,
     fold_op: &'c FOLD_OP,
     identity: &'c IDENTITY,

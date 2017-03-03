@@ -114,7 +114,7 @@ impl<A, B> IndexedParallelIterator for ZipIter<A, B>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct ZipProducer<A: Producer, B: Producer> {
+struct ZipProducer<A: Producer, B: Producer> {
     a: A,
     b: B,
 }

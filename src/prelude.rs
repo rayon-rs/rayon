@@ -15,4 +15,4 @@ pub use par_iter::ToParallelChunksMut;
 
 pub use par_iter::ParallelString;
 
-pub use par_iter::from_par_iter::FromParallelIterator;
+pub use par_iter::FromParallelIterator;

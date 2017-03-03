@@ -125,7 +125,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMutIter<'data, T>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct SliceMutProducer<'data, T: 'data + Send> {
+struct SliceMutProducer<'data, T: 'data + Send> {
     slice: &'data mut [T],
 }
 
@@ -147,7 +147,7 @@ impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T> {
     }
 }
 
-pub struct SliceChunksMutProducer<'data, T: 'data + Send> {
+struct SliceChunksMutProducer<'data, T: 'data + Send> {
     chunk_size: usize,
     slice: &'data mut [T],
 }

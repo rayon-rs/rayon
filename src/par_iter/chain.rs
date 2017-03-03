@@ -142,7 +142,7 @@ impl<A, B> IndexedParallelIterator for ChainIter<A, B>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct ChainProducer<A, B>
+struct ChainProducer<A, B>
     where A: Producer,
           B: Producer<Item = A::Item>
 {

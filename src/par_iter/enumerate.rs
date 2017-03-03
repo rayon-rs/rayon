@@ -87,7 +87,7 @@ impl<M> IndexedParallelIterator for Enumerate<M>
 /// ////////////////////////////////////////////////////////////////////////
 /// Producer implementation
 
-pub struct EnumerateProducer<P> {
+struct EnumerateProducer<P> {
     base: P,
     offset: usize,
 }

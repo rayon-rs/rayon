@@ -125,7 +125,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for ChunksIter<'data, T> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct SliceProducer<'data, T: 'data + Sync> {
+struct SliceProducer<'data, T: 'data + Sync> {
     slice: &'data [T],
 }
 
@@ -147,7 +147,7 @@ impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
     }
 }
 
-pub struct SliceChunksProducer<'data, T: 'data + Sync> {
+struct SliceChunksProducer<'data, T: 'data + Sync> {
     chunk_size: usize,
     slice: &'data [T],
 }

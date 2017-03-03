@@ -107,7 +107,7 @@ impl<T: Send> IndexedParallelIterator for OptionIter<T> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct OptionProducer<T: Send> {
+struct OptionProducer<T: Send> {
     opt: Option<T>,
 }
 
