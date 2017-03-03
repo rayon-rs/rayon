@@ -2,6 +2,11 @@ use super::internal::*;
 use super::len::*;
 use super::*;
 
+/// `FilterMap` creates an iterator that uses `filter_op` to both filter and map elements.
+/// This struct is created by the [`filter_map()`] method on [`ParallelIterator`].
+///
+/// [`filter_map()`]: trait.ParallelIterator.html#method.filter_map
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct FilterMap<M, FILTER_OP> {
     base: M,
     filter_op: FILTER_OP,

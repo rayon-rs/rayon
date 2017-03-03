@@ -2,6 +2,11 @@ use super::internal::*;
 use super::*;
 use std::f64;
 
+/// `FlatMap` maps each element to an iterator, then flattens these iterators together.
+/// This struct is created by the [`flat_map()`] method on [`ParallelIterator`]
+///
+/// [`flap_map()`]: trait.ParallelIterator.html#method.flat_map
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct FlatMap<M, MAP_OP> {
     base: M,
     map_op: MAP_OP,

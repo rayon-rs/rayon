@@ -2,6 +2,11 @@ use super::internal::*;
 use super::*;
 use std::cmp::min;
 
+/// `Skip` is an iterator that skips over the first `n` elements.
+/// This struct is created by the [`skip()`] method on [`ParallelIterator`]
+///
+/// [`skip()`]: trait.ParallelIterator.html#method.skip
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct Skip<M> {
     base: M,
     n: usize,

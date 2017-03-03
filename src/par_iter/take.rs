@@ -2,6 +2,11 @@ use super::internal::*;
 use super::*;
 use std::cmp::min;
 
+/// `Take` is an iterator that iterates over the first `n` elements.
+/// This struct is created by the [`take()`] method on [`ParallelIterator`]
+///
+/// [`take()`]: trait.ParallelIterator.html#method.take
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct Take<M> {
     base: M,
     n: usize,

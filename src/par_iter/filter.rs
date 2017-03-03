@@ -2,6 +2,11 @@ use super::internal::*;
 use super::len::*;
 use super::*;
 
+/// `Filter` takes a predicate `filter_op` and filters out elements that match.
+/// This struct is created by the [`filter()`] method on [`ParallelIterator`]
+///
+/// [`filter()`]: trait.ParallelIterator.html#method.filter
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct Filter<M, FILTER_OP> {
     base: M,
     filter_op: FILTER_OP,
