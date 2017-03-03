@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use rayon_core::*;
 use super::internal::*;
 use super::*;
 
@@ -1285,3 +1286,35 @@ fn check_rev() {
             .zip(b)
             .all(|(&a, b)| a == b));
 }
+
+#[test]
+fn scope_mix() {
+    let counter_p = &AtomicUsize::new(0);
+    scope(|s| {
+        s.spawn(move |s| {
+            divide_and_conquer(s, counter_p, 1024);
+        });
+        s.spawn(move |_| {
+            let a: Vec<i32> = (0..1024).collect();
+            let r1 = a.par_iter()
+                .weight_max()
+                .map(|&i| i + 1)
+                .reduce_with(|i, j| i + j);
+            let r2 = a.iter()
+                .map(|&i| i + 1)
+                .fold(0, |a, b| a + b);
+            assert_eq!(r1.unwrap(), r2);
+        });
+    });
+}
+
+fn divide_and_conquer<'scope>(scope: &Scope<'scope>, counter: &'scope AtomicUsize, size: usize) {
+    if size > 1 {
+        scope.spawn(move |scope| divide_and_conquer(scope, counter, size / 2));
+        scope.spawn(move |scope| divide_and_conquer(scope, counter, size / 2));
+    } else {
+        // count the leaves
+        counter.fetch_add(1, Ordering::SeqCst);
+    }
+}
+

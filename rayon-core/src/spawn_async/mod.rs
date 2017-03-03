@@ -31,6 +31,7 @@ use unwind;
 /// This code creates a Rayon task that increments a global counter.
 ///
 /// ```rust
+/// # use rayon_core as rayon;
 /// use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 ///
 /// static GLOBAL_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;

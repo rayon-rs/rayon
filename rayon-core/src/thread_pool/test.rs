@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use configuration::Configuration;
-use prelude::*;
+use join;
 use super::ThreadPool;
 
 #[test]
@@ -21,9 +21,7 @@ fn workers_stop() {
         let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
         registry = thread_pool.install(|| {
             // do some work on these threads
-            let s1 = (0..10*1024).into_par_iter().sum();
-            let s2 = (0..10*1024).sum();
-            assert_eq!(s1, s2);
+            join_a_lot(22);
 
             thread_pool.registry.clone()
         });
@@ -33,6 +31,12 @@ fn workers_stop() {
     // once thread-pool is dropped, registry should terminate, which
     // should lead to worker threads stopping
     registry.wait_until_stopped();
+}
+
+fn join_a_lot(n: usize) {
+    if n > 0 {
+        join(|| join_a_lot(n-1), || join_a_lot(n-1));
+    }
 }
 
 #[test]

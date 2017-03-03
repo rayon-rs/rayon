@@ -1,8 +1,6 @@
 //! How many Pythagorean triples exist less than or equal to a million?
 //! i.e. a²+b²=c² and a,b,c ≤ 1000000
 
-#![feature(test)]
-
 use num::Integer;
 use rayon::prelude::*;
 use std::f64::INFINITY;
