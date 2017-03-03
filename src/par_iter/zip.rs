@@ -3,18 +3,18 @@ use super::*;
 use std::cmp::min;
 use std::iter;
 
-pub struct ZipIter<A: IndexedParallelIterator, B: IndexedParallelIterator> {
+pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
     b: B,
 }
 
-impl<A: IndexedParallelIterator, B: IndexedParallelIterator> ZipIter<A, B> {
-    pub fn new(a: A, b: B) -> ZipIter<A, B> {
-        ZipIter { a: a, b: b }
+impl<A: IndexedParallelIterator, B: IndexedParallelIterator> Zip<A, B> {
+    pub fn new(a: A, b: B) -> Zip<A, B> {
+        Zip { a: a, b: b }
     }
 }
 
-impl<A, B> ParallelIterator for ZipIter<A, B>
+impl<A, B> ParallelIterator for Zip<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
@@ -31,7 +31,7 @@ impl<A, B> ParallelIterator for ZipIter<A, B>
     }
 }
 
-impl<A, B> BoundedParallelIterator for ZipIter<A, B>
+impl<A, B> BoundedParallelIterator for Zip<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
@@ -46,7 +46,7 @@ impl<A, B> BoundedParallelIterator for ZipIter<A, B>
     }
 }
 
-impl<A, B> ExactParallelIterator for ZipIter<A, B>
+impl<A, B> ExactParallelIterator for Zip<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
@@ -55,7 +55,7 @@ impl<A, B> ExactParallelIterator for ZipIter<A, B>
     }
 }
 
-impl<A, B> IndexedParallelIterator for ZipIter<A, B>
+impl<A, B> IndexedParallelIterator for Zip<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {

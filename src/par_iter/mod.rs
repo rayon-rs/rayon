@@ -66,7 +66,7 @@ pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
 mod weight;
 pub use self::weight::Weight;
 mod zip;
-pub use self::zip::ZipIter;
+pub use self::zip::Zip;
 mod range;
 pub use self::range::RangeIter;
 mod vec;
@@ -736,11 +736,11 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Like the `zip` method on ordinary iterators, if the two
     /// iterators are of unequal length, you only get the items they
     /// have in common.
-    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
+    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> Zip<Self, ZIP_OP::Iter>
         where ZIP_OP: IntoParallelIterator,
               ZIP_OP::Iter: IndexedParallelIterator
     {
-        ZipIter::new(self, zip_op.into_par_iter())
+        Zip::new(self, zip_op.into_par_iter())
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
