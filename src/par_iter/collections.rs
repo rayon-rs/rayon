@@ -1,5 +1,5 @@
 use super::{IntoParallelIterator, ParallelIterator};
-use super::chain::ChainIter;
+use super::chain::Chain;
 use super::slice::SliceIter;
 use super::slice_mut::SliceIterMut;
 use super::vec::VecIter;
@@ -86,7 +86,7 @@ vectorized!{ impl<T> IntoParallelIterator for VecDeque<T> }
 
 impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
     type Item = &'a T;
-    type Iter = ChainIter<SliceIter<'a, T>, SliceIter<'a, T>>;
+    type Iter = Chain<SliceIter<'a, T>, SliceIter<'a, T>>;
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_slices();
@@ -96,7 +96,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
 
 impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
     type Item = &'a mut T;
-    type Iter = ChainIter<SliceIterMut<'a, T>, SliceIterMut<'a, T>>;
+    type Iter = Chain<SliceIterMut<'a, T>, SliceIterMut<'a, T>>;
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_mut_slices();

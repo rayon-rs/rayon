@@ -3,12 +3,12 @@ use super::*;
 use std::cmp::min;
 use std::iter;
 
-/// `ChainIter` is an iterator that joins `b` after `a` in one continuous iterator.
+/// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
 /// This struct is created by the [`chain()`] method on [`ParallelIterator`]
 ///
 /// [`chain()`]: trait.ParallelIterator.html#method.chain
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct ChainIter<A, B>
+pub struct Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
 {
@@ -16,16 +16,16 @@ pub struct ChainIter<A, B>
     b: B,
 }
 
-impl<A, B> ChainIter<A, B>
+impl<A, B> Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
 {
-    pub fn new(a: A, b: B) -> ChainIter<A, B> {
-        ChainIter { a: a, b: b }
+    pub fn new(a: A, b: B) -> Chain<A, B> {
+        Chain { a: a, b: b }
     }
 }
 
-impl<A, B> ParallelIterator for ChainIter<A, B>
+impl<A, B> ParallelIterator for Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
 {
@@ -53,7 +53,7 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> BoundedParallelIterator for ChainIter<A, B>
+impl<A, B> BoundedParallelIterator for Chain<A, B>
     where A: BoundedParallelIterator,
           B: BoundedParallelIterator<Item = A::Item>
 {
@@ -71,7 +71,7 @@ impl<A, B> BoundedParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> ExactParallelIterator for ChainIter<A, B>
+impl<A, B> ExactParallelIterator for Chain<A, B>
     where A: ExactParallelIterator,
           B: ExactParallelIterator<Item = A::Item>
 {
@@ -80,7 +80,7 @@ impl<A, B> ExactParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> IndexedParallelIterator for ChainIter<A, B>
+impl<A, B> IndexedParallelIterator for Chain<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator<Item = A::Item>
 {
@@ -169,10 +169,10 @@ impl<A, B> Producer for ChainProducer<A, B>
           B: Producer<Item = A::Item>
 {
     type Item = A::Item;
-    type IntoIter = Chain<A::IntoIter, B::IntoIter>;
+    type IntoIter = ChainSeq<A::IntoIter, B::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Chain::new(self.a.into_iter(), self.b.into_iter())
+        ChainSeq::new(self.a.into_iter(), self.b.into_iter())
     }
 
     fn weighted(&self) -> bool {
@@ -214,22 +214,22 @@ impl<A, B> Producer for ChainProducer<A, B>
 /// ////////////////////////////////////////////////////////////////////////
 /// Wrapper for Chain to implement ExactSizeIterator
 
-pub struct Chain<A, B> {
+pub struct ChainSeq<A, B> {
     chain: iter::Chain<A, B>,
 }
 
-impl<A, B> Chain<A, B> {
-    fn new(a: A, b: B) -> Chain<A, B>
+impl<A, B> ChainSeq<A, B> {
+    fn new(a: A, b: B) -> ChainSeq<A, B>
         where A: ExactSizeIterator,
               B: ExactSizeIterator<Item=A::Item>
     {
-        Chain {
+        ChainSeq {
             chain: a.chain(b),
         }
     }
 }
 
-impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
+impl<A, B> Iterator for ChainSeq<A, B> // parameterized over the iterator types
     where A: Iterator,
           B: Iterator<Item=A::Item>
 {
@@ -244,13 +244,13 @@ impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
     }
 }
 
-impl<A, B> ExactSizeIterator for Chain<A, B>
+impl<A, B> ExactSizeIterator for ChainSeq<A, B>
     where A: ExactSizeIterator,
           B: ExactSizeIterator<Item=A::Item>
 {
 }
 
-impl<A, B> DoubleEndedIterator for Chain<A, B>
+impl<A, B> DoubleEndedIterator for ChainSeq<A, B>
     where A: DoubleEndedIterator,
           B: DoubleEndedIterator<Item=A::Item>
 {

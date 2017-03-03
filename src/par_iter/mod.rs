@@ -30,7 +30,7 @@ use self::internal::*;
 mod find;
 mod find_first_last;
 mod chain;
-pub use self::chain::ChainIter;
+pub use self::chain::Chain;
 mod collect;
 mod enumerate;
 pub use self::enumerate::Enumerate;
@@ -568,10 +568,10 @@ pub trait ParallelIterator: Sized {
     }
 
     /// Takes two iterators and creates a new iterator over both.
-    fn chain<CHAIN>(self, chain: CHAIN) -> ChainIter<Self, CHAIN::Iter>
+    fn chain<CHAIN>(self, chain: CHAIN) -> Chain<Self, CHAIN::Iter>
         where CHAIN: IntoParallelIterator<Item = Self::Item>
     {
-        ChainIter::new(self, chain.into_par_iter())
+        Chain::new(self, chain.into_par_iter())
     }
 
     /// Searches for **some** item in the parallel iterator that
