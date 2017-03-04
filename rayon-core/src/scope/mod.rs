@@ -16,7 +16,7 @@ use unwind;
 mod test;
 
 /// Represents a fork-join scope which can be used to spawn any number 
-/// of tasks. See scope() for more information.
+/// of tasks. See [`Scope()`] for more information.
 pub struct Scope<'scope> {
     /// thread where `scope()` was executed (note that individual jobs
     /// may be executing on different worker threads, though they
