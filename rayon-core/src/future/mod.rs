@@ -82,6 +82,11 @@ pub fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Ite
     }
 }
 
+/// Implements a wait method which should not cause race conditions.
+/// Caution should still be used since it is not the most optimum resource
+/// usage.  It is typically better to create and spawn a new future.
+/// Recommend using:
+///   scope.spawn_future(future.and_then(|v| use(v))
 impl<T, E> RayonFuture<T, E> {
     pub fn rayon_wait(mut self) -> Result<T, E> {
         // NB: End-user API!
