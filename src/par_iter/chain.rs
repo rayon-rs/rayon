@@ -3,6 +3,11 @@ use super::*;
 use std::cmp::min;
 use std::iter;
 
+/// `ChainIter` is an iterator that joins `b` after `a` in one continuous iterator.
+/// This struct is created by the [`chain()`] method on [`ParallelIterator`]
+///
+/// [`chain()`]: trait.ParallelIterator.html#method.chain
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct ChainIter<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>

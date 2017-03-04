@@ -4,6 +4,11 @@ use std::iter;
 use std::ops::Range;
 use std::usize;
 
+/// `Enumerate` is an iterator that returns the current count along with the element.
+/// This struct is created by the [`enumerate()`] method on [`ParallelIterator`]
+///
+/// [`enumerate()`]: trait.ParallelIterator.html#method.enumerate
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct Enumerate<M> {
     base: M,
 }

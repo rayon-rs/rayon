@@ -5,6 +5,14 @@ use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
 use std::collections::{BinaryHeap, VecDeque};
 
+/// `FromParallelIterator` implements the conversion from a [`ParallelIterator`].
+/// By implementing `FromParallelIterator` for a type, you define how it will be
+/// created from an iterator.
+///
+/// `FromParallelIterator` is used through [`ParallelIterator`]'s [`collect()`] method.
+///
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`collect()`]: trait.ParallelIterator.html#method.collect
 pub trait FromParallelIterator<ITEM>
     where ITEM: Send
 {

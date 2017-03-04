@@ -18,6 +18,11 @@ pub fn fold<U, BASE, IDENTITY, FOLD_OP>(base: BASE,
     }
 }
 
+/// `Fold` is an iterator that applies a function over an iterator producing a single value.
+/// This struct is created by the [`fold()`] method on [`ParallelIterator`]
+///
+/// [`fold()`]: trait.ParallelIterator.html#method.fold
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct Fold<BASE, IDENTITY, FOLD_OP> {
     base: BASE,
     identity: IDENTITY,
