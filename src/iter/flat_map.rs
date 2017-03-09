@@ -7,17 +7,20 @@ use std::f64;
 ///
 /// [`flap_map()`]: trait.ParallelIterator.html#method.flat_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct FlatMap<M, MAP_OP> {
+pub struct FlatMap<M: ParallelIterator, MAP_OP> {
     base: M,
     map_op: MAP_OP,
 }
 
-impl<M, MAP_OP> FlatMap<M, MAP_OP> {
-    pub fn new(base: M, map_op: MAP_OP) -> FlatMap<M, MAP_OP> {
-        FlatMap {
-            base: base,
-            map_op: map_op,
-        }
+/// Create a new `FlatMap` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M, MAP_OP>(base: M, map_op: MAP_OP) -> FlatMap<M, MAP_OP>
+    where M: ParallelIterator
+{
+    FlatMap {
+        base: base,
+        map_op: map_op,
     }
 }
 

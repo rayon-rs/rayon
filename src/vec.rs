@@ -1,5 +1,9 @@
-use super::internal::*;
-use super::*;
+//! This module contains the parallel iterator types for vectors
+//! (`Vec<T>`). You will rarely need to interact with it directly
+//! unless you have need to name one of those types.
+
+use iter::*;
+use iter::internal::*;
 use std;
 
 pub struct VecIter<T: Send> {
@@ -69,7 +73,7 @@ impl<T: Send> IndexedParallelIterator for VecIter<T> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct VecProducer<'data, T: 'data + Send> {
+struct VecProducer<'data, T: 'data + Send> {
     slice: &'data mut [T],
 }
 

@@ -14,8 +14,14 @@ extern crate num_cpus;
 extern crate rand;
 extern crate rayon_core;
 
-pub mod par_iter;
+pub mod iter;
+pub mod option;
 pub mod prelude;
+pub mod range;
+pub mod slice;
+pub mod string;
+pub mod vec;
+
 mod test;
 
 pub use rayon_core::current_num_threads;

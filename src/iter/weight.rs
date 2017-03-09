@@ -84,7 +84,7 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct WeightProducer<P> {
+struct WeightProducer<P> {
     base: P,
     weight: f64,
 }

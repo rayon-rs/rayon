@@ -3,12 +3,12 @@ use super::*;
 use std::cmp::min;
 use std::iter;
 
-/// `ChainIter` is an iterator that joins `b` after `a` in one continuous iterator.
+/// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
 /// This struct is created by the [`chain()`] method on [`ParallelIterator`]
 ///
 /// [`chain()`]: trait.ParallelIterator.html#method.chain
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct ChainIter<A, B>
+pub struct Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
 {
@@ -16,16 +16,17 @@ pub struct ChainIter<A, B>
     b: B,
 }
 
-impl<A, B> ChainIter<A, B>
+/// Create a new `Chain` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<A, B>(a: A, b: B) -> Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
 {
-    pub fn new(a: A, b: B) -> ChainIter<A, B> {
-        ChainIter { a: a, b: b }
-    }
+    Chain { a: a, b: b }
 }
 
-impl<A, B> ParallelIterator for ChainIter<A, B>
+impl<A, B> ParallelIterator for Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
 {
@@ -53,12 +54,15 @@ impl<A, B> ParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> BoundedParallelIterator for ChainIter<A, B>
+impl<A, B> BoundedParallelIterator for Chain<A, B>
     where A: BoundedParallelIterator,
           B: BoundedParallelIterator<Item = A::Item>
 {
     fn upper_bound(&mut self) -> usize {
-        self.a.upper_bound().checked_add(self.b.upper_bound()).expect("overflow")
+        self.a
+            .upper_bound()
+            .checked_add(self.b.upper_bound())
+            .expect("overflow")
     }
 
     fn drive<C>(mut self, consumer: C) -> C::Result
@@ -71,16 +75,19 @@ impl<A, B> BoundedParallelIterator for ChainIter<A, B>
     }
 }
 
-impl<A, B> ExactParallelIterator for ChainIter<A, B>
+impl<A, B> ExactParallelIterator for Chain<A, B>
     where A: ExactParallelIterator,
           B: ExactParallelIterator<Item = A::Item>
 {
     fn len(&mut self) -> usize {
-        self.a.len().checked_add(self.b.len()).expect("overflow")
+        self.a
+            .len()
+            .checked_add(self.b.len())
+            .expect("overflow")
     }
 }
 
-impl<A, B> IndexedParallelIterator for ChainIter<A, B>
+impl<A, B> IndexedParallelIterator for Chain<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator<Item = A::Item>
 {
@@ -89,10 +96,10 @@ impl<A, B> IndexedParallelIterator for ChainIter<A, B>
     {
         let a_len = self.a.len();
         return self.a.with_producer(CallbackA {
-            callback: callback,
-            a_len: a_len,
-            b: self.b,
-        });
+                                        callback: callback,
+                                        a_len: a_len,
+                                        b: self.b,
+                                    });
 
         struct CallbackA<CB, B> {
             callback: CB,
@@ -110,10 +117,10 @@ impl<A, B> IndexedParallelIterator for ChainIter<A, B>
                 where A: Producer<Item = B::Item>
             {
                 return self.b.with_producer(CallbackB {
-                    callback: self.callback,
-                    a_len: self.a_len,
-                    a_producer: a_producer,
-                });
+                                                callback: self.callback,
+                                                a_len: self.a_len,
+                                                a_producer: a_producer,
+                                            });
             }
         }
 
@@ -142,7 +149,7 @@ impl<A, B> IndexedParallelIterator for ChainIter<A, B>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct ChainProducer<A, B>
+struct ChainProducer<A, B>
     where A: Producer,
           B: Producer<Item = A::Item>
 {
@@ -169,10 +176,10 @@ impl<A, B> Producer for ChainProducer<A, B>
           B: Producer<Item = A::Item>
 {
     type Item = A::Item;
-    type IntoIter = Chain<A::IntoIter, B::IntoIter>;
+    type IntoIter = ChainSeq<A::IntoIter, B::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Chain::new(self.a.into_iter(), self.b.into_iter())
+        ChainSeq::new(self.a.into_iter(), self.b.into_iter())
     }
 
     fn weighted(&self) -> bool {
@@ -200,7 +207,7 @@ impl<A, B> Producer for ChainProducer<A, B>
     }
 
     fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<A::Item>,
+        where F: Folder<A::Item>
     {
         folder = self.a.fold_with(folder);
         if folder.full() {
@@ -214,24 +221,22 @@ impl<A, B> Producer for ChainProducer<A, B>
 /// ////////////////////////////////////////////////////////////////////////
 /// Wrapper for Chain to implement ExactSizeIterator
 
-pub struct Chain<A, B> {
+pub struct ChainSeq<A, B> {
     chain: iter::Chain<A, B>,
 }
 
-impl<A, B> Chain<A, B> {
-    fn new(a: A, b: B) -> Chain<A, B>
+impl<A, B> ChainSeq<A, B> {
+    fn new(a: A, b: B) -> ChainSeq<A, B>
         where A: ExactSizeIterator,
-              B: ExactSizeIterator<Item=A::Item>
+              B: ExactSizeIterator<Item = A::Item>
     {
-        Chain {
-            chain: a.chain(b),
-        }
+        ChainSeq { chain: a.chain(b) }
     }
 }
 
-impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
+impl<A, B> Iterator for ChainSeq<A, B>
     where A: Iterator,
-          B: Iterator<Item=A::Item>
+          B: Iterator<Item = A::Item>
 {
     type Item = A::Item;
 
@@ -244,15 +249,15 @@ impl<A, B> Iterator for Chain<A, B> // parameterized over the iterator types
     }
 }
 
-impl<A, B> ExactSizeIterator for Chain<A, B>
+impl<A, B> ExactSizeIterator for ChainSeq<A, B>
     where A: ExactSizeIterator,
-          B: ExactSizeIterator<Item=A::Item>
+          B: ExactSizeIterator<Item = A::Item>
 {
 }
 
-impl<A, B> DoubleEndedIterator for Chain<A, B>
+impl<A, B> DoubleEndedIterator for ChainSeq<A, B>
     where A: DoubleEndedIterator,
-          B: DoubleEndedIterator<Item=A::Item>
+          B: DoubleEndedIterator<Item = A::Item>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.chain.next_back()

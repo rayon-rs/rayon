@@ -1,5 +1,10 @@
-use super::internal::*;
-use super::*;
+//! This module contains the parallel iterator types for ranges
+//! (`Range<T>`); this is the type for values created by a `a..b`
+//! expression. You will rarely need to interact with it directly
+//! unless you have need to name one of the iterator types.
+
+use iter::*;
+use iter::internal::*;
 use std::ops::Range;
 
 pub struct RangeIter<T> {

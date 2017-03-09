@@ -2,14 +2,17 @@ use super::internal::*;
 use super::*;
 use std::iter;
 
-pub struct Rev<M> {
+pub struct Rev<M: IndexedParallelIterator> {
     base: M,
 }
 
-impl<M> Rev<M> {
-    pub fn new(base: M) -> Rev<M> {
-        Rev { base: base }
-    }
+/// Create a new `Rev` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M>(base: M) -> Rev<M>
+    where M: IndexedParallelIterator
+{
+    Rev { base: base }
 }
 
 impl<M> ParallelIterator for Rev<M>
@@ -55,7 +58,10 @@ impl<M> IndexedParallelIterator for Rev<M>
         where CB: ProducerCallback<Self::Item>
     {
         let len = self.base.len();
-        return self.base.with_producer(Callback { callback: callback, len: len });
+        return self.base.with_producer(Callback {
+                                           callback: callback,
+                                           len: len,
+                                       });
 
         struct Callback<CB> {
             callback: CB,
@@ -67,9 +73,12 @@ impl<M> IndexedParallelIterator for Rev<M>
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = ITEM>,
+                where P: Producer<Item = ITEM>
             {
-                let producer = RevProducer { base: base, len: self.len };
+                let producer = RevProducer {
+                    base: base,
+                    len: self.len,
+                };
                 self.callback.callback(producer)
             }
         }
@@ -82,7 +91,7 @@ struct RevProducer<P> {
 }
 
 impl<P> Producer for RevProducer<P>
-    where P: Producer,
+    where P: Producer
 {
     type Item = P::Item;
     type IntoIter = iter::Rev<P::IntoIter>;
@@ -102,8 +111,8 @@ impl<P> Producer for RevProducer<P>
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(self.len - index);
         (RevProducer {
-            base: right,
-            len: index,
+             base: right,
+             len: index,
          },
          RevProducer {
              base: left,

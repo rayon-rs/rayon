@@ -162,7 +162,7 @@ the producer for the base iterator, wrapping it to make our own
 this:
 
 ```rust
-pub struct MapProducer<'m, P, MAP_OP: 'm> {
+struct MapProducer<'m, P, MAP_OP: 'm> {
     base: P,
     map_op: &'m MAP_OP,
 }

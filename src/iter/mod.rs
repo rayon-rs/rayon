@@ -14,52 +14,55 @@
 use std::f64;
 use std::cmp::{self, Ordering};
 use std::ops::Fn;
-use self::chain::ChainIter;
-use self::collect::collect_into;
-use self::enumerate::Enumerate;
-use self::filter::Filter;
-use self::filter_map::FilterMap;
-use self::flat_map::FlatMap;
-use self::from_par_iter::FromParallelIterator;
-use self::map::{Map, MapFn, MapCloned, MapInspect};
-use self::reduce::{reduce, ReduceOp, SumOp, ProductOp, ReduceWithIdentityOp, SUM, PRODUCT};
-use self::skip::Skip;
-use self::take::Take;
 use self::internal::*;
-use self::weight::Weight;
-use self::zip::ZipIter;
-use self::rev::Rev;
 
-pub use self::string::ParallelString;
+// There is a method to the madness here:
+//
+// - Most of these modules are private but expose certain types to the end-user
+//   (e.g., `enumerate::Enumerate`) -- specifically, the types that appear in the
+//   public API surface of the `ParallelIterator` traits.
+// - In **this** module, those public types are always used unprefixed, which forces
+//   us to add a `pub use` and helps identify if we missed anything.
+// - In contrast, items that appear **only** in the body of a method,
+//   e.g. `find::find()`, are always used **prefixed**, so that they
+//   can be readily distinguished.
 
-pub mod find;
-pub mod find_first_last;
-pub mod chain;
-pub mod collect;
-pub mod enumerate;
-pub mod filter;
-pub mod filter_map;
-pub mod flat_map;
-pub mod from_par_iter;
+mod find;
+mod find_first_last;
+mod chain;
+pub use self::chain::Chain;
+mod collect;
+mod enumerate;
+pub use self::enumerate::Enumerate;
+mod filter;
+pub use self::filter::Filter;
+mod filter_map;
+pub use self::filter_map::FilterMap;
+mod flat_map;
+pub use self::flat_map::FlatMap;
+mod from_par_iter;
+pub use self::from_par_iter::FromParallelIterator;
 pub mod internal;
 pub mod len;
-pub mod for_each;
-pub mod fold;
-pub mod reduce;
-pub mod skip;
-pub mod take;
-pub mod slice;
-pub mod slice_mut;
-pub mod string;
-pub mod map;
-pub mod weight;
-pub mod zip;
-pub mod range;
-pub mod vec;
-pub mod option;
-pub mod collections;
-pub mod noop;
-pub mod rev;
+mod for_each;
+mod fold;
+pub use self::fold::Fold;
+mod reduce;
+pub use self::reduce::{ReduceOp, SumOp, ProductOp};
+mod skip;
+pub use self::skip::Skip;
+mod take;
+pub use self::take::Take;
+mod map;
+pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
+mod weight;
+pub use self::weight::Weight;
+mod zip;
+pub use self::zip::Zip;
+mod collections;
+mod noop;
+mod rev;
+pub use self::rev::Rev;
 
 #[cfg(test)]
 mod test;
@@ -181,7 +184,7 @@ pub trait ParallelIterator: Sized {
         where MAP_OP: Fn(Self::Item) -> R + Sync,
               R: Send
     {
-        Map::new(self, MapFn(map_op))
+        map::new(self, MapFn(map_op))
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
@@ -190,7 +193,7 @@ pub trait ParallelIterator: Sized {
         where T: 'a + Clone + Send,
               Self: ParallelIterator<Item = &'a T>
     {
-        Map::new(self, MapCloned)
+        map::new(self, MapCloned)
     }
 
     /// Applies `inspect_op` to a reference to each item of this iterator,
@@ -199,7 +202,7 @@ pub trait ParallelIterator: Sized {
     fn inspect<INSPECT_OP>(self, inspect_op: INSPECT_OP) -> Map<Self, MapInspect<INSPECT_OP>>
         where INSPECT_OP: Fn(&Self::Item) + Sync
     {
-        Map::new(self, MapInspect(inspect_op))
+        map::new(self, MapInspect(inspect_op))
     }
 
     /// Applies `filter_op` to each item of this iterator, producing a new
@@ -207,7 +210,7 @@ pub trait ParallelIterator: Sized {
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
         where FILTER_OP: Fn(&Self::Item) -> bool + Sync
     {
-        Filter::new(self, filter_op)
+        filter::new(self, filter_op)
     }
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
@@ -216,7 +219,7 @@ pub trait ParallelIterator: Sized {
         where FILTER_OP: Fn(Self::Item) -> Option<R> + Sync,
               R: Send
     {
-        FilterMap::new(self, filter_op)
+        filter_map::new(self, filter_op)
     }
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
@@ -225,7 +228,7 @@ pub trait ParallelIterator: Sized {
         where MAP_OP: Fn(Self::Item) -> PI + Sync,
               PI: IntoParallelIterator
     {
-        FlatMap::new(self, map_op)
+        flat_map::new(self, map_op)
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -262,7 +265,7 @@ pub trait ParallelIterator: Sized {
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
               IDENTITY: Fn() -> Self::Item + Sync
     {
-        reduce(self, &ReduceWithIdentityOp::new(&identity, &op))
+        reduce::reduce(self, &reduce::ReduceWithIdentityOp::new(&identity, &op))
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -452,7 +455,7 @@ pub trait ParallelIterator: Sized {
     fn sum(self) -> Self::Item
         where SumOp: ReduceOp<Self::Item>
     {
-        reduce(self, SUM)
+        reduce::reduce(self, reduce::SUM)
     }
 
     /// Multiplies all the items in the iterator.
@@ -470,7 +473,7 @@ pub trait ParallelIterator: Sized {
     fn product(self) -> Self::Item
         where ProductOp: ReduceOp<Self::Item>
     {
-        reduce(self, PRODUCT)
+        reduce::reduce(self, reduce::PRODUCT)
     }
 
     /// DEPRECATED
@@ -479,7 +482,7 @@ pub trait ParallelIterator: Sized {
     fn mul(self) -> Self::Item
         where ProductOp: ReduceOp<Self::Item>
     {
-        reduce(self, PRODUCT)
+        reduce::reduce(self, reduce::PRODUCT)
     }
 
     /// Computes the minimum of all the items in the iterator. If the
@@ -551,10 +554,10 @@ pub trait ParallelIterator: Sized {
     }
 
     /// Takes two iterators and creates a new iterator over both.
-    fn chain<CHAIN>(self, chain: CHAIN) -> ChainIter<Self, CHAIN::Iter>
+    fn chain<CHAIN>(self, chain: CHAIN) -> Chain<Self, CHAIN::Iter>
         where CHAIN: IntoParallelIterator<Item = Self::Item>
     {
-        ChainIter::new(self, chain.into_par_iter())
+        chain::new(self, chain.into_par_iter())
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -630,27 +633,6 @@ pub trait ParallelIterator: Sized {
         self.map(predicate).find_any(|&p| !p).is_none()
     }
 
-    /// Internal method used to define the behavior of this parallel
-    /// iterator. You should not need to call this directly.
-    #[doc(hidden)]
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
-
-    /// Returns the number of items produced by this iterator, if known
-    /// statically. This can be used by consumers to trigger special fast
-    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
-    /// use the (indexed) `Consumer` methods when driving a consumer, such
-    /// as `split_at()`. Calling `UnindexedConsumer::split_off_left()` or
-    /// other `UnindexedConsumer` methods -- or returning an inaccurate
-    /// value -- may result in panics.
-    ///
-    /// This is hidden & considered internal for now, until we decide
-    /// whether it makes sense for a public API.  Right now it is only used
-    /// to optimize `collect`  for want of true Rust specialization.
-    #[doc(hidden)]
-    fn opt_len(&mut self) -> Option<usize> {
-        None
-    }
-
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
@@ -662,6 +644,39 @@ pub trait ParallelIterator: Sized {
         where C: FromParallelIterator<Self::Item>
     {
         C::from_par_iter(self)
+    }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// This method causes the iterator `self` to start producing
+    /// items and to feed them to the consumer `consumer` one by one.
+    /// It may split the consumer before doing so to create the
+    /// opportunity to produce in parallel.
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
+
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// Returns the number of items produced by this iterator, if known
+    /// statically. This can be used by consumers to trigger special fast
+    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
+    /// use the (indexed) `Consumer` methods when driving a consumer, such
+    /// as `split_at()`. Calling `UnindexedConsumer::split_off_left()` or
+    /// other `UnindexedConsumer` methods -- or returning an inaccurate
+    /// value -- may result in panics.
+    ///
+    /// This method is currently used to optimize `collect` for want
+    /// of true Rust specialization; it may be removed when
+    /// specialization is stable.
+    fn opt_len(&mut self) -> Option<usize> {
+        None
     }
 }
 
@@ -682,7 +697,18 @@ pub trait BoundedParallelIterator: ParallelIterator {
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
-    #[doc(hidden)]
+    ///
+    /// This method causes the iterator `self` to start producing
+    /// items and to feed them to the consumer `consumer` one by one.
+    /// It may split the consumer before doing so to create the
+    /// opportunity to produce in parallel. If a split does happen, it
+    /// will inform the consumer of the index where the split should
+    /// occur (unlike `ParallelIterator::drive_unindexed()`).
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
     fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 }
 
@@ -700,7 +726,7 @@ pub trait ExactParallelIterator: BoundedParallelIterator {
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
     fn collect_into(self, target: &mut Vec<Self::Item>) {
-        collect_into(self, target);
+        collect::collect_into(self, target);
     }
 }
 
@@ -708,22 +734,16 @@ pub trait ExactParallelIterator: BoundedParallelIterator {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 pub trait IndexedParallelIterator: ExactParallelIterator {
-    /// Internal method to convert this parallel iterator into a
-    /// producer that can be used to request the items. Users of the
-    /// API never need to know about this fn.
-    #[doc(hidden)]
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
-
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
     /// iterators are of unequal length, you only get the items they
     /// have in common.
-    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> ZipIter<Self, ZIP_OP::Iter>
+    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> Zip<Self, ZIP_OP::Iter>
         where ZIP_OP: IntoParallelIterator,
               ZIP_OP::Iter: IndexedParallelIterator
     {
-        ZipIter::new(self, zip_op.into_par_iter())
+        zip::new(self, zip_op.into_par_iter())
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
@@ -822,17 +842,17 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
 
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
-        Enumerate::new(self)
+        enumerate::new(self)
     }
 
     /// Creates an iterator that skips the first `n` elements.
     fn skip(self, n: usize) -> Skip<Self> {
-        Skip::new(self, n)
+        skip::new(self, n)
     }
 
     /// Creates an iterator that yields the first `n` elements.
     fn take(self, n: usize) -> Take<Self> {
-        Take::new(self, n)
+        take::new(self, n)
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -898,6 +918,23 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Produces a new iterator with the elements of this iterator in
     /// reverse order.
     fn rev(self) -> Rev<Self> {
-        Rev::new(self)
+        rev::new(self)
     }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// This method converts the iterator into a producer P and then
+    /// invokes `callback.callback()` with P. Note that the type of
+    /// this producer is not defined as part of the API, since
+    /// `callback` must be defined generically for all producers. This
+    /// allows the producer type to contain references; it also means
+    /// that parallel iterators can adjust that type without causing a
+    /// breaking change.
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
+    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
 }

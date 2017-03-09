@@ -1,5 +1,9 @@
-use super::internal::*;
-use super::*;
+//! This module contains the parallel iterator types for options
+//! (`Option<T>`). You will rarely need to interact with it directly
+//! unless you have need to name one of the iterator types.
+
+use iter::*;
+use iter::internal::*;
 use std;
 
 pub struct OptionIter<T: Send> {
@@ -107,7 +111,7 @@ impl<T: Send> IndexedParallelIterator for OptionIter<T> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct OptionProducer<T: Send> {
+struct OptionProducer<T: Send> {
     opt: Option<T>,
 }
 

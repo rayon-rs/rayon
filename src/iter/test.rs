@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rayon_core::*;
-use super::internal::*;
+use prelude::*;
 use super::*;
 
 use rand::{Rng, SeedableRng, XorShiftRng};

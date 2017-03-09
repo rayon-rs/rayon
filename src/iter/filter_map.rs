@@ -7,17 +7,20 @@ use super::*;
 ///
 /// [`filter_map()`]: trait.ParallelIterator.html#method.filter_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct FilterMap<M, FILTER_OP> {
+pub struct FilterMap<M: ParallelIterator, FILTER_OP> {
     base: M,
     filter_op: FILTER_OP,
 }
 
-impl<M, FILTER_OP> FilterMap<M, FILTER_OP> {
-    pub fn new(base: M, filter_op: FILTER_OP) -> FilterMap<M, FILTER_OP> {
-        FilterMap {
-            base: base,
-            filter_op: filter_op,
-        }
+/// Create a new `FilterMap` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M, FILTER_OP>(base: M, filter_op: FILTER_OP) -> FilterMap<M, FILTER_OP>
+    where M: ParallelIterator
+{
+    FilterMap {
+        base: base,
+        filter_op: filter_op,
     }
 }
 

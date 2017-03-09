@@ -1,5 +1,6 @@
 use super::internal::*;
 use super::*;
+use super::noop::NoopConsumer;
 use std::cmp::min;
 
 /// `Skip` is an iterator that skips over the first `n` elements.
@@ -12,13 +13,14 @@ pub struct Skip<M> {
     n: usize,
 }
 
-impl<M> Skip<M>
+/// Create a new `Skip` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M>(mut base: M, n: usize) -> Skip<M>
     where M: IndexedParallelIterator
 {
-    pub fn new(mut base: M, n: usize) -> Skip<M> {
-        let n = min(base.len(), n);
-        Skip { base: base, n: n }
-    }
+    let n = min(base.len(), n);
+    Skip { base: base, n: n }
 }
 
 impl<M> ParallelIterator for Skip<M>
@@ -64,9 +66,9 @@ impl<M> IndexedParallelIterator for Skip<M>
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback {
-            callback: callback,
-            n: self.n,
-        });
+                                           callback: callback,
+                                           n: self.n,
+                                       });
 
         struct Callback<CB> {
             callback: CB,
@@ -81,7 +83,7 @@ impl<M> IndexedParallelIterator for Skip<M>
                 where P: Producer<Item = ITEM>
             {
                 let (before_skip, after_skip) = base.split_at(self.n);
-                bridge_producer_consumer(self.n, before_skip, noop::NoopConsumer::new());
+                bridge_producer_consumer(self.n, before_skip, NoopConsumer::new());
                 self.callback.callback(after_skip)
             }
         }

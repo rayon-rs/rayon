@@ -98,7 +98,7 @@ impl<'r, REDUCE_OP, ITEM> Reducer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
     }
 }
 
-pub struct ReduceFolder<'r, REDUCE_OP: 'r, ITEM> {
+struct ReduceFolder<'r, REDUCE_OP: 'r, ITEM> {
     reduce_op: &'r REDUCE_OP,
     item: ITEM,
 }

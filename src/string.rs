@@ -1,5 +1,11 @@
-use super::internal::*;
-use super::*;
+//! This module contains extension methods for `String` that expose
+//! parallel iterators, such as `par_split_whitespace()`. You will
+//! rarely need to interact with it directly, since if you add `use
+//! rayon::prelude::*` to your file, that will include the helper
+//! traits defined in this module.
+
+use iter::*;
+use iter::internal::*;
 use std::cmp::min;
 
 mod private {
@@ -199,7 +205,7 @@ pub struct ParSplit<'ch, P: Pattern> {
     separator: P,
 }
 
-pub struct ParSplitProducer<'ch, 'sep, P: Pattern + 'sep> {
+struct ParSplitProducer<'ch, 'sep, P: Pattern + 'sep> {
     chars: &'ch str,
     separator: &'sep P,
 
@@ -332,7 +338,7 @@ pub struct ParSplitTerminator<'ch, P: Pattern> {
     splitter: ParSplit<'ch, P>,
 }
 
-pub struct ParSplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
+struct ParSplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
     splitter: ParSplitProducer<'ch, 'sep, P>,
     endpoint: bool,
 }
