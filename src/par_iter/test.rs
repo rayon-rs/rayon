@@ -1,8 +1,9 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rayon_core::*;
-use super::internal::*;
+use prelude::*;
 use super::*;
+use super::internal::*;
 
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;

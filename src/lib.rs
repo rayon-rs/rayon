@@ -16,6 +16,7 @@ extern crate rayon_core;
 
 pub mod par_iter;
 pub mod prelude;
+pub mod string;
 mod test;
 
 pub use rayon_core::current_num_threads;

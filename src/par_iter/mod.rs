@@ -57,10 +57,6 @@ mod slice;
 pub use self::slice::{SliceIter, ChunksIter};
 mod slice_mut;
 pub use self::slice_mut::{SliceIterMut, ChunksMutIter};
-mod string;
-pub use self::string::{ParallelString, Pattern, ParChars, ParSplit,
-                       ParSplitTerminator, ParLines,
-                       ParSplitWhitespace};
 mod map;
 pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
 mod weight;

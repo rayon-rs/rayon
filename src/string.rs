@@ -1,5 +1,5 @@
-use super::internal::*;
-use super::*;
+use par_iter::*;
+use par_iter::internal::*;
 use std::cmp::min;
 
 mod private {
