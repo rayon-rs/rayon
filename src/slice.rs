@@ -1,8 +1,6 @@
-//! This module contains extension methods for slices (`[T]`) that
-//! expose parallel iterators, such as `par_iter()`. You will rarely
-//! need to interact with it directly, since if you add `use
-//! rayon::prelude::*` to your file, that will include the helper
-//! traits defined in this module.
+//! This module contains the parallel iterator types for slices
+//! (`[T]`). You will rarely need to interact with it directly unless
+//! you have need to name one of those types.
 
 use par_iter::*;
 use par_iter::internal::*;

@@ -1,7 +1,7 @@
 use super::{IntoParallelIterator, ParallelIterator};
 use super::chain::Chain;
 use slice::{SliceIter, SliceIterMut};
-use super::vec::VecIter;
+use vec::VecIter;
 use std::collections::{BinaryHeap, BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::iter::FromIterator;
 

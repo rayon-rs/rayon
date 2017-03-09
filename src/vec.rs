@@ -1,5 +1,9 @@
-use super::internal::*;
-use super::*;
+//! This module contains the parallel iterator types for vectors
+//! (`Vec<T>`). You will rarely need to interact with it directly
+//! unless you have need to name one of those types.
+
+use par_iter::*;
+use par_iter::internal::*;
 use std;
 
 pub struct VecIter<T: Send> {
