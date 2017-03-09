@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use rayon_core::*;
 use prelude::*;
 use super::*;
-use super::internal::*;
 
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;

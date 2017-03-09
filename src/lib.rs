@@ -16,6 +16,7 @@ extern crate rayon_core;
 
 pub mod par_iter;
 pub mod prelude;
+pub mod slice;
 pub mod string;
 mod test;
 
