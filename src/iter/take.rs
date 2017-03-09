@@ -12,13 +12,14 @@ pub struct Take<M> {
     n: usize,
 }
 
-impl<M> Take<M>
+/// Create a new `Take` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M>(mut base: M, n: usize) -> Take<M>
     where M: IndexedParallelIterator
 {
-    pub fn new(mut base: M, n: usize) -> Take<M> {
-        let n = min(base.len(), n);
-        Take { base: base, n: n }
-    }
+    let n = min(base.len(), n);
+    Take { base: base, n: n }
 }
 
 impl<M> ParallelIterator for Take<M>
@@ -64,9 +65,9 @@ impl<M> IndexedParallelIterator for Take<M>
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback {
-            callback: callback,
-            n: self.n,
-        });
+                                           callback: callback,
+                                           n: self.n,
+                                       });
 
         struct Callback<CB> {
             callback: CB,

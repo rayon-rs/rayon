@@ -8,10 +8,14 @@ pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     b: B,
 }
 
-impl<A: IndexedParallelIterator, B: IndexedParallelIterator> Zip<A, B> {
-    pub fn new(a: A, b: B) -> Zip<A, B> {
-        Zip { a: a, b: b }
-    }
+/// Create a new `Zip` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<A, B>(a: A, b: B) -> Zip<A, B>
+    where A: IndexedParallelIterator,
+          B: IndexedParallelIterator
+{
+    Zip { a: a, b: b }
 }
 
 impl<A, B> ParallelIterator for Zip<A, B>
@@ -63,9 +67,9 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
         where CB: ProducerCallback<Self::Item>
     {
         return self.a.with_producer(CallbackA {
-            callback: callback,
-            b: self.b,
-        });
+                                        callback: callback,
+                                        b: self.b,
+                                    });
 
         struct CallbackA<CB, B> {
             callback: CB,
@@ -82,9 +86,9 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
                 where A: Producer<Item = A_ITEM>
             {
                 return self.b.with_producer(CallbackB {
-                    a_producer: a_producer,
-                    callback: self.callback,
-                });
+                                                a_producer: a_producer,
+                                                callback: self.callback,
+                                            });
             }
         }
 
@@ -103,9 +107,9 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
                 where B: Producer<Item = B_ITEM>
             {
                 self.callback.callback(ZipProducer {
-                    a: self.a_producer,
-                    b: b_producer,
-                })
+                                           a: self.a_producer,
+                                           b: b_producer,
+                                       })
             }
         }
 

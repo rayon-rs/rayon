@@ -184,7 +184,7 @@ pub trait ParallelIterator: Sized {
         where MAP_OP: Fn(Self::Item) -> R + Sync,
               R: Send
     {
-        Map::new(self, MapFn(map_op))
+        map::new(self, MapFn(map_op))
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
@@ -193,7 +193,7 @@ pub trait ParallelIterator: Sized {
         where T: 'a + Clone + Send,
               Self: ParallelIterator<Item = &'a T>
     {
-        Map::new(self, MapCloned)
+        map::new(self, MapCloned)
     }
 
     /// Applies `inspect_op` to a reference to each item of this iterator,
@@ -202,7 +202,7 @@ pub trait ParallelIterator: Sized {
     fn inspect<INSPECT_OP>(self, inspect_op: INSPECT_OP) -> Map<Self, MapInspect<INSPECT_OP>>
         where INSPECT_OP: Fn(&Self::Item) + Sync
     {
-        Map::new(self, MapInspect(inspect_op))
+        map::new(self, MapInspect(inspect_op))
     }
 
     /// Applies `filter_op` to each item of this iterator, producing a new
@@ -210,7 +210,7 @@ pub trait ParallelIterator: Sized {
     fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
         where FILTER_OP: Fn(&Self::Item) -> bool + Sync
     {
-        Filter::new(self, filter_op)
+        filter::new(self, filter_op)
     }
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
@@ -219,7 +219,7 @@ pub trait ParallelIterator: Sized {
         where FILTER_OP: Fn(Self::Item) -> Option<R> + Sync,
               R: Send
     {
-        FilterMap::new(self, filter_op)
+        filter_map::new(self, filter_op)
     }
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
@@ -228,7 +228,7 @@ pub trait ParallelIterator: Sized {
         where MAP_OP: Fn(Self::Item) -> PI + Sync,
               PI: IntoParallelIterator
     {
-        FlatMap::new(self, map_op)
+        flat_map::new(self, map_op)
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -557,7 +557,7 @@ pub trait ParallelIterator: Sized {
     fn chain<CHAIN>(self, chain: CHAIN) -> Chain<Self, CHAIN::Iter>
         where CHAIN: IntoParallelIterator<Item = Self::Item>
     {
-        Chain::new(self, chain.into_par_iter())
+        chain::new(self, chain.into_par_iter())
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -726,7 +726,7 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
         where ZIP_OP: IntoParallelIterator,
               ZIP_OP::Iter: IndexedParallelIterator
     {
-        Zip::new(self, zip_op.into_par_iter())
+        zip::new(self, zip_op.into_par_iter())
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
@@ -825,17 +825,17 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
 
     /// Yields an index along with each item.
     fn enumerate(self) -> Enumerate<Self> {
-        Enumerate::new(self)
+        enumerate::new(self)
     }
 
     /// Creates an iterator that skips the first `n` elements.
     fn skip(self, n: usize) -> Skip<Self> {
-        Skip::new(self, n)
+        skip::new(self, n)
     }
 
     /// Creates an iterator that yields the first `n` elements.
     fn take(self, n: usize) -> Take<Self> {
-        Take::new(self, n)
+        take::new(self, n)
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -901,6 +901,6 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Produces a new iterator with the elements of this iterator in
     /// reverse order.
     fn rev(self) -> Rev<Self> {
-        Rev::new(self)
+        rev::new(self)
     }
 }

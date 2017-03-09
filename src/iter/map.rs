@@ -45,17 +45,20 @@ impl<F, In> MapOp<In> for MapInspect<F>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct Map<M, MAP_OP> {
+pub struct Map<M: ParallelIterator, MAP_OP> {
     base: M,
     map_op: MAP_OP,
 }
 
-impl<M, MAP_OP> Map<M, MAP_OP> {
-    pub fn new(base: M, map_op: MAP_OP) -> Map<M, MAP_OP> {
-        Map {
-            base: base,
-            map_op: map_op,
-        }
+/// Create a new `Map` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M, MAP_OP>(base: M, map_op: MAP_OP) -> Map<M, MAP_OP>
+    where M: ParallelIterator
+{
+    Map {
+        base: base,
+        map_op: map_op,
     }
 }
 

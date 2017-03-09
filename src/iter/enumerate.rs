@@ -9,14 +9,17 @@ use std::usize;
 ///
 /// [`enumerate()`]: trait.ParallelIterator.html#method.enumerate
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct Enumerate<M> {
+pub struct Enumerate<M: IndexedParallelIterator> {
     base: M,
 }
 
-impl<M> Enumerate<M> {
-    pub fn new(base: M) -> Enumerate<M> {
-        Enumerate { base: base }
-    }
+/// Create a new `Enumerate` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M>(base: M) -> Enumerate<M>
+    where M: IndexedParallelIterator
+{
+    Enumerate { base: base }
 }
 
 impl<M> ParallelIterator for Enumerate<M>

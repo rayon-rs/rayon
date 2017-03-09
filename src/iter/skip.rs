@@ -13,13 +13,14 @@ pub struct Skip<M> {
     n: usize,
 }
 
-impl<M> Skip<M>
+/// Create a new `Skip` iterator.
+///
+/// NB: a free fn because it is NOT part of the end-user API.
+pub fn new<M>(mut base: M, n: usize) -> Skip<M>
     where M: IndexedParallelIterator
 {
-    pub fn new(mut base: M, n: usize) -> Skip<M> {
-        let n = min(base.len(), n);
-        Skip { base: base, n: n }
-    }
+    let n = min(base.len(), n);
+    Skip { base: base, n: n }
 }
 
 impl<M> ParallelIterator for Skip<M>
@@ -65,9 +66,9 @@ impl<M> IndexedParallelIterator for Skip<M>
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback {
-            callback: callback,
-            n: self.n,
-        });
+                                           callback: callback,
+                                           n: self.n,
+                                       });
 
         struct Callback<CB> {
             callback: CB,
