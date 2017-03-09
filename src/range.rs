@@ -3,8 +3,8 @@
 //! expression. You will rarely need to interact with it directly
 //! unless you have need to name one of the iterator types.
 
-use par_iter::*;
-use par_iter::internal::*;
+use iter::*;
+use iter::internal::*;
 use std::ops::Range;
 
 pub struct RangeIter<T> {

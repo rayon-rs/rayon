@@ -4,8 +4,8 @@
 //! rayon::prelude::*` to your file, that will include the helper
 //! traits defined in this module.
 
-use par_iter::*;
-use par_iter::internal::*;
+use iter::*;
+use iter::internal::*;
 use std::cmp::min;
 
 mod private {
