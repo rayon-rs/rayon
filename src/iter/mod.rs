@@ -633,27 +633,6 @@ pub trait ParallelIterator: Sized {
         self.map(predicate).find_any(|&p| !p).is_none()
     }
 
-    /// Internal method used to define the behavior of this parallel
-    /// iterator. You should not need to call this directly.
-    #[doc(hidden)]
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
-
-    /// Returns the number of items produced by this iterator, if known
-    /// statically. This can be used by consumers to trigger special fast
-    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
-    /// use the (indexed) `Consumer` methods when driving a consumer, such
-    /// as `split_at()`. Calling `UnindexedConsumer::split_off_left()` or
-    /// other `UnindexedConsumer` methods -- or returning an inaccurate
-    /// value -- may result in panics.
-    ///
-    /// This is hidden & considered internal for now, until we decide
-    /// whether it makes sense for a public API.  Right now it is only used
-    /// to optimize `collect`  for want of true Rust specialization.
-    #[doc(hidden)]
-    fn opt_len(&mut self) -> Option<usize> {
-        None
-    }
-
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
@@ -665,6 +644,39 @@ pub trait ParallelIterator: Sized {
         where C: FromParallelIterator<Self::Item>
     {
         C::from_par_iter(self)
+    }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// This method causes the iterator `self` to start producing
+    /// items and to feed them to the consumer `consumer` one by one.
+    /// It may split the consumer before doing so to create the
+    /// opportunity to produce in parallel.
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
+
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// Returns the number of items produced by this iterator, if known
+    /// statically. This can be used by consumers to trigger special fast
+    /// paths. Therefore, if `Some(_)` is returned, this iterator must only
+    /// use the (indexed) `Consumer` methods when driving a consumer, such
+    /// as `split_at()`. Calling `UnindexedConsumer::split_off_left()` or
+    /// other `UnindexedConsumer` methods -- or returning an inaccurate
+    /// value -- may result in panics.
+    ///
+    /// This method is currently used to optimize `collect` for want
+    /// of true Rust specialization; it may be removed when
+    /// specialization is stable.
+    fn opt_len(&mut self) -> Option<usize> {
+        None
     }
 }
 
@@ -685,7 +697,18 @@ pub trait BoundedParallelIterator: ParallelIterator {
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
-    #[doc(hidden)]
+    ///
+    /// This method causes the iterator `self` to start producing
+    /// items and to feed them to the consumer `consumer` one by one.
+    /// It may split the consumer before doing so to create the
+    /// opportunity to produce in parallel. If a split does happen, it
+    /// will inform the consumer of the index where the split should
+    /// occur (unlike `ParallelIterator::drive_unindexed()`).
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
     fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 }
 
@@ -711,12 +734,6 @@ pub trait ExactParallelIterator: BoundedParallelIterator {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 pub trait IndexedParallelIterator: ExactParallelIterator {
-    /// Internal method to convert this parallel iterator into a
-    /// producer that can be used to request the items. Users of the
-    /// API never need to know about this fn.
-    #[doc(hidden)]
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
-
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
@@ -903,4 +920,21 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     fn rev(self) -> Rev<Self> {
         rev::new(self)
     }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// This method converts the iterator into a producer P and then
+    /// invokes `callback.callback()` with P. Note that the type of
+    /// this producer is not defined as part of the API, since
+    /// `callback` must be defined generically for all producers. This
+    /// allows the producer type to contain references; it also means
+    /// that parallel iterators can adjust that type without causing a
+    /// breaking change.
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
+    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
 }
