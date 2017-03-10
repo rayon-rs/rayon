@@ -179,14 +179,14 @@ impl<'ch> ParallelIterator for ParChars<'ch> {
 impl<'ch> UnindexedProducer for ParChars<'ch> {
     type Item = char;
 
-    fn split(&mut self) -> Option<Self> {
+    fn split(mut self) -> (Self, Option<Self>) {
         let index = find_char_midpoint(self.chars);
         if index > 0 {
             let (left, right) = self.chars.split_at(index);
             self.chars = left;
-            Some(ParChars { chars: right })
+            (self, Some(ParChars { chars: right }))
         } else {
-            None
+            (self, None)
         }
     }
 
@@ -280,8 +280,8 @@ impl<'ch, P: Pattern> ParallelIterator for ParSplit<'ch, P> {
 impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitProducer<'ch, 'sep, P> {
     type Item = &'ch str;
 
-    fn split(&mut self) -> Option<Self> {
-        let ParSplitProducer { chars, separator, tail } = *self;
+    fn split(mut self) -> (Self, Option<Self>) {
+        let ParSplitProducer { chars, separator, tail } = self;
 
         // First find a suitable UTF-8 boundary in the unsearched region.
         let char_index = find_char_midpoint(&chars[..tail]);
@@ -316,11 +316,11 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitProducer<'ch, '
                 right.tail = 0;
             }
 
-            Some(right)
+            (self, Some(right))
 
         } else {
             self.tail = 0;
-            None
+            (self, None)
         }
     }
 
@@ -372,15 +372,18 @@ impl<'ch, P: Pattern> ParallelIterator for ParSplitTerminator<'ch, P> {
 impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitTerminatorProducer<'ch, 'sep, P> {
     type Item = &'ch str;
 
-    fn split(&mut self) -> Option<Self> {
-        self.splitter.split().map(|right| {
+    fn split(mut self) -> (Self, Option<Self>) {
+        let (left, right) = self.splitter.split();
+        self.splitter = left;
+        let right = right.map(|right| {
             let endpoint = self.endpoint;
             self.endpoint = false;
             ParSplitTerminatorProducer {
                 splitter: right,
                 endpoint: endpoint,
             }
-        })
+        });
+        (self, right)
     }
 
     fn fold_with<F>(self, folder: F) -> F
