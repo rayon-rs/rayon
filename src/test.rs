@@ -14,6 +14,11 @@ fn run_compiletest(mode: &str, path: &str) {
 }
 
 #[test]
+fn negative_tests_compile_fail() {
+    run_compiletest("compile-fail", "tests/compile-fail");
+}
+
+#[test]
 #[cfg(feature = "unstable")]
 fn negative_tests_compile_fail_unstable() {
     run_compiletest("compile-fail", "tests/compile-fail-unstable");
