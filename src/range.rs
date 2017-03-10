@@ -126,15 +126,15 @@ macro_rules! unindexed_range_impl {
         impl UnindexedProducer for RangeIter<$t> {
             type Item = $t;
 
-            fn split(&mut self) -> Option<Self> {
+            fn split(mut self) -> (Self, Option<Self>) {
                 let index = self.len() / 2;
                 if index > 0 {
                     let mid = self.range.start.wrapping_add(index as $t);
                     let right = mid .. self.range.end;
                     self.range.end = mid;
-                    Some(RangeIter { range: right })
+                    (self, Some(RangeIter { range: right }))
                 } else {
-                    None
+                    (self, None)
                 }
             }
 

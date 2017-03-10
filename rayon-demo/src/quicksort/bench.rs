@@ -26,3 +26,19 @@ fn quick_sort_seq_bench(b: &mut test::Bencher) {
     bench_harness(super::quick_sort::<Sequential, u32>, b);
 }
 
+#[bench]
+fn quick_sort_splitter(b: &mut test::Bencher) {
+    use rayon::iter::ParallelIterator;
+
+    bench_harness(|vec| {
+        ::rayon::split(vec, |vec| {
+            if vec.len() > 1 {
+                let mid = super::partition(vec);
+                let (left, right) = vec.split_at_mut(mid);
+                (left, Some(right))
+            } else {
+                (vec, None)
+            }
+        }).for_each(super::quick_sort::<Sequential, u32>)
+    }, b);
+}

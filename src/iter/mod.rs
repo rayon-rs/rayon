@@ -51,6 +51,8 @@ mod reduce;
 pub use self::reduce::{ReduceOp, SumOp, ProductOp};
 mod skip;
 pub use self::skip::Skip;
+mod splitter;
+pub use self::splitter::{split, ParallelSplit};
 mod take;
 pub use self::take::Take;
 mod map;
