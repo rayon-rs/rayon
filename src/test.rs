@@ -4,70 +4,44 @@ extern crate compiletest_rs as compiletest;
 
 use std::path::PathBuf;
 
-#[test]
-#[cfg(feature = "unstable")]
-fn negative_tests_compile_fail_unstable() {
-    let mode = "compile-fail";
+fn run_compiletest(mode: &str, path: &str) {
     let mut config = compiletest::default_config();
-    let cfg_mode = mode.parse().ok().expect("Invalid mode");
-
-    config.mode = cfg_mode;
-    config.src_base = PathBuf::from("tests/compile-fail-unstable");
+    config.mode = mode.parse().ok().expect("Invalid mode");
+    config.src_base = PathBuf::from(path);
     config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
 
     compiletest::run_tests(&config);
 }
 
 #[test]
+fn negative_tests_compile_fail() {
+    run_compiletest("compile-fail", "tests/compile-fail");
+}
+
+#[test]
+#[cfg(feature = "unstable")]
+fn negative_tests_compile_fail_unstable() {
+    run_compiletest("compile-fail", "tests/compile-fail-unstable");
+}
+
+#[test]
 fn negative_tests_run_fail() {
-    let mode = "run-fail";
-    let mut config = compiletest::default_config();
-    let cfg_mode = mode.parse().ok().expect("Invalid mode");
-
-    config.mode = cfg_mode;
-    config.src_base = PathBuf::from("tests/run-fail");
-    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
-
-    compiletest::run_tests(&config);
+    run_compiletest("run-fail", "tests/run-fail");
 }
 
 #[test]
 #[cfg(feature = "unstable")]
 fn negative_tests_run_fail_unstable() {
-    let mode = "run-fail";
-    let mut config = compiletest::default_config();
-    let cfg_mode = mode.parse().ok().expect("Invalid mode");
-
-    config.mode = cfg_mode;
-    config.src_base = PathBuf::from("tests/run-fail-unstable");
-    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
-
-    compiletest::run_tests(&config);
+    run_compiletest("run-fail", "tests/run-fail-unstable");
 }
 
 #[test]
 fn positive_test_run_pass() {
-    let mode = "run-pass";
-    let mut config = compiletest::default_config();
-    let cfg_mode = mode.parse().ok().expect("Invalid mode");
-
-    config.mode = cfg_mode;
-    config.src_base = PathBuf::from("tests/run-pass");
-    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
-
-    compiletest::run_tests(&config);
+    run_compiletest("run-pass", "tests/run-pass");
 }
 
 #[test]
 #[cfg(feature = "unstable")]
 fn positive_test_run_pass_unstable() {
-    let mode = "run-pass";
-    let mut config = compiletest::default_config();
-    let cfg_mode = mode.parse().ok().expect("Invalid mode");
-
-    config.mode = cfg_mode;
-    config.src_base = PathBuf::from("tests/run-pass-unstable");
-    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
-
-    compiletest::run_tests(&config);
+    run_compiletest("run-pass", "tests/run-pass-unstable");
 }
