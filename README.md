@@ -190,15 +190,15 @@ and dynamically ascertain how much parallelism is available and
 exploit it. The idea is very simple: we always have a pool of worker
 threads available, waiting for some work to do. When you call `join`
 the first time, we shift over into that pool of threads. But if you
-call `join(a, b)` from a worker thread W, then W will place `b` into a
-central queue, advertising that this is work that other worker threads
-might help out with. W will then start executing `a`. While W is busy
-with `a`, other threads might come along and take `b` from the
-queue. That is called *stealing* `b`. Once `a` is done, W checks
-whether `b` was stolen by another thread and, if not, executes `b`
-itself. If `b` *was* stolen, then W can just wait for the other thread
-to finish.  (In fact, it can do even better: it can go try to find
-other work to steal in the meantime.)
+call `join(a, b)` from a worker thread W, then W will place `b` into
+its work queue, advertising that this is work that other worker
+threads might help out with. W will then start executing `a`.
+
+While W is busy with `a`, other threads might come along and take `b`
+from its queue. That is called *stealing* `b`. Once `a` is done, W
+checks whether `b` was stolen by another thread and, if not, executes
+`b` itself. If W runs out of jobs in its own queue, it will look
+through the other threads' queues and try to steal work from them.
 
 This technique is not new. It was first introduced by the
 [Cilk project][cilk], done at MIT in the late nineties. The name Rayon
