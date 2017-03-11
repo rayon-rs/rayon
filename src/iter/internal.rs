@@ -6,6 +6,9 @@
 use rayon_core::join;
 use super::IndexedParallelIterator;
 
+use std::cmp;
+use std::usize;
+
 pub trait ProducerCallback<T> {
     type Output;
     fn callback<P>(self, producer: P) -> Self::Output where P: Producer<Item = T>;
@@ -23,6 +26,9 @@ pub trait Producer: Send + Sized {
     type IntoIter: Iterator<Item = Self::Item> + DoubleEndedIterator + ExactSizeIterator;
 
     fn into_iter(self) -> Self::IntoIter;
+
+    fn min_len(&self) -> usize { 1 }
+    fn max_len(&self) -> usize { usize::MAX }
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than or equal to `N`.
@@ -154,7 +160,7 @@ impl Splitter {
         let id = Splitter::thief_id();
         if origin != id {
             self.origin = id;
-            self.splits = ::current_num_threads();
+            self.splits = cmp::max(::current_num_threads(), self.splits / 2);
             true
         } else if splits > 0 {
             self.splits /= 2;
@@ -162,6 +168,34 @@ impl Splitter {
         } else {
             false
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct LengthSplitter {
+    inner: Splitter,
+    min: usize,
+}
+
+impl LengthSplitter {
+    #[inline]
+    fn new(min: usize, max: usize, len: usize) -> LengthSplitter {
+        let mut splitter = LengthSplitter {
+            inner: Splitter::new(),
+            min: cmp::max(min, 1),
+        };
+
+        let max_splits = len / cmp::max(max, 1);
+        if max_splits > splitter.inner.splits {
+            splitter.inner.splits = max_splits;
+        }
+
+        splitter
+    }
+
+    #[inline]
+    fn try(&mut self, len: usize) -> bool {
+        len / 2 >= self.min && self.inner.try()
     }
 }
 
@@ -196,16 +230,16 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
     where P: Producer,
           C: Consumer<P::Item>
 {
-    let splitter = Splitter::new();
+    let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
     return helper(len, splitter, producer, consumer);
 
-    fn helper<P, C>(len: usize, mut splitter: Splitter, producer: P, consumer: C) -> C::Result
+    fn helper<P, C>(len: usize, mut splitter: LengthSplitter, producer: P, consumer: C) -> C::Result
         where P: Producer,
               C: Consumer<P::Item>
     {
         if consumer.full() {
             consumer.into_folder().complete()
-        } else if len > 1 && splitter.try() {
+        } else if splitter.try(len) {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
