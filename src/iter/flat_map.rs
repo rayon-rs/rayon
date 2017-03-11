@@ -138,7 +138,7 @@ impl<'m, ITEM, MAPPED_ITEM, C, MAP_OP> Folder<ITEM> for FlatMapFolder<'m, C, MAP
             None => Some(result),
             Some(previous) => {
                 let reducer = self.base.to_reducer();
-                Some(reducer.reduce(result, previous))
+                Some(reducer.reduce(previous, result))
             }
         };
 
