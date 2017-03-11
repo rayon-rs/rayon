@@ -1251,6 +1251,16 @@ pub fn par_iter_collect_linked_list_flat_map_filter() {
 }
 
 #[test]
+pub fn par_iter_unindexed_flat_map() {
+    let b: Vec<i64> = (0_i64..1024)
+        .into_par_iter()
+        .flat_map(|i| Some(i))
+        .collect();
+    let c: Vec<i64> = (0_i64..1024).flat_map(|i| Some(i)).collect();
+    assert_eq!(b, c);
+}
+
+#[test]
 fn min_max() {
     let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
     let a: Vec<i32> = rng.gen_iter().take(1024).collect();
