@@ -1,5 +1,4 @@
 use super::internal::*;
-use super::len::*;
 use super::*;
 
 pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
@@ -81,11 +80,6 @@ impl<'r, U, T, C, ID, F> Consumer<T> for FoldConsumer<'r, C, ID, F>
     type Folder = FoldFolder<'r, C::Folder, U, F>;
     type Reducer = C::Reducer;
     type Result = C::Result;
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        cost * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);

@@ -1,5 +1,4 @@
 use super::internal::*;
-use super::len::*;
 use super::*;
 
 pub trait MapOp<In>: Sync {
@@ -162,14 +161,6 @@ impl<'f, P, F> Producer for MapProducer<'f, P, F>
         }
     }
 
-    fn weighted(&self) -> bool {
-        self.base.weighted()
-    }
-
-    fn cost(&mut self, len: usize) -> f64 {
-        self.base.cost(len) * FUNC_ADJUSTMENT
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (MapProducer {
@@ -241,14 +232,6 @@ impl<'f, T, C, F> Consumer<T> for MapConsumer<'f, C, F>
     type Folder = MapFolder<'f, C::Folder, F>;
     type Reducer = C::Reducer;
     type Result = C::Result;
-
-    fn weighted(&self) -> bool {
-        self.base.weighted()
-    }
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        self.base.cost(cost) * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);

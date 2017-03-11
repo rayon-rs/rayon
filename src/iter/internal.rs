@@ -5,7 +5,6 @@
 
 use rayon_core::join;
 use super::IndexedParallelIterator;
-use super::len::*;
 
 pub trait ProducerCallback<T> {
     type Output;
@@ -24,14 +23,6 @@ pub trait Producer: Send + Sized {
     type IntoIter: Iterator<Item = Self::Item> + DoubleEndedIterator + ExactSizeIterator;
 
     fn into_iter(self) -> Self::IntoIter;
-
-    /// Reports whether the producer has explicit weights.
-    fn weighted(&self) -> bool {
-        false
-    }
-
-    /// Cost to produce `len` items, where `len` must be `N`.
-    fn cost(&mut self, len: usize) -> f64;
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than or equal to `N`.
@@ -53,15 +44,6 @@ pub trait Consumer<Item>: Send + Sized {
     type Folder: Folder<Item, Result = Self::Result>;
     type Reducer: Reducer<Self::Result>;
     type Result: Send;
-
-    /// Reports whether the consumer has explicit weights.
-    fn weighted(&self) -> bool {
-        false
-    }
-
-    /// If it costs `producer_cost` to produce the items we will
-    /// consume, returns cost adjusted to account for consuming them.
-    fn cost(&mut self, producer_cost: f64) -> f64;
 
     /// Divide the consumer into two consumers, one processing items
     /// `0..index` and one processing items from `index..`. Also
@@ -138,15 +120,14 @@ pub trait UnindexedProducer: Send + Sized {
 }
 
 /// A splitter controls the policy for splitting into smaller work items.
+///
+/// Thief-splitting is an adaptive policy that starts by splitting into
+/// enough jobs for every worker thread, and then resets itself whenever a
+/// job is actually stolen into a different thread.
 #[derive(Clone, Copy)]
-enum Splitter {
-    /// Classic cost-splitting uses weights to split until below a threshold.
-    Cost(f64),
-
-    /// Thief-splitting is an adaptive policy that starts by splitting into
-    /// enough jobs for every worker thread, and then resets itself whenever a
-    /// job is actually stolen into a different thread.
-    Thief(usize, usize),
+struct Splitter {
+    origin: usize,
+    splits: usize,
 }
 
 impl Splitter {
@@ -159,35 +140,27 @@ impl Splitter {
     }
 
     #[inline]
-    fn new_thief() -> Splitter {
-        Splitter::Thief(Splitter::thief_id(), ::current_num_threads())
+    fn new() -> Splitter {
+        Splitter {
+            origin: Splitter::thief_id(),
+            splits: ::current_num_threads(),
+        }
     }
 
     #[inline]
     fn try(&mut self) -> bool {
-        match *self {
-            Splitter::Cost(ref mut cost) => {
-                if *cost > THRESHOLD {
-                    *cost /= 2.0;
-                    true
-                } else {
-                    false
-                }
-            }
+        let Splitter { origin, splits } = *self;
 
-            Splitter::Thief(ref mut origin, ref mut splits) => {
-                let id = Splitter::thief_id();
-                if *origin != id {
-                    *origin = id;
-                    *splits = ::current_num_threads();
-                    true
-                } else if *splits > 0 {
-                    *splits /= 2;
-                    true
-                } else {
-                    false
-                }
-            }
+        let id = Splitter::thief_id();
+        if origin != id {
+            self.origin = id;
+            self.splits = ::current_num_threads();
+            true
+        } else if splits > 0 {
+            self.splits /= 2;
+            true
+        } else {
+            false
         }
     }
 }
@@ -219,17 +192,11 @@ pub fn bridge<I, C>(mut par_iter: I, consumer: C) -> C::Result
     }
 }
 
-pub fn bridge_producer_consumer<P, C>(len: usize, mut producer: P, mut consumer: C) -> C::Result
+pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C::Result
     where P: Producer,
           C: Consumer<P::Item>
 {
-    let splitter = if producer.weighted() || consumer.weighted() {
-        let producer_cost = producer.cost(len);
-        let cost = consumer.cost(producer_cost);
-        Splitter::Cost(cost)
-    } else {
-        Splitter::new_thief()
-    };
+    let splitter = Splitter::new();
     return helper(len, splitter, producer, consumer);
 
     fn helper<P, C>(len: usize, mut splitter: Splitter, producer: P, consumer: C) -> C::Result
@@ -256,7 +223,7 @@ pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
     where P: UnindexedProducer,
           C: UnindexedConsumer<P::Item>
 {
-    let splitter = Splitter::new_thief();
+    let splitter = Splitter::new();
     bridge_unindexed_producer_consumer(splitter, producer, consumer)
 }
 

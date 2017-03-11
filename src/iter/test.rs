@@ -30,7 +30,6 @@ pub fn execute_cloned() {
     let a: Vec<i32> = (0..1024).collect();
     let mut b: Vec<i32> = vec![];
     a.par_iter()
-        .weight_max()
         .cloned()
         .collect_into(&mut b);
     let c: Vec<i32> = (0..1024).collect();
@@ -135,7 +134,6 @@ pub fn check_map_exact_and_bounded() {
 pub fn map_sum() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-        .weight_max()
         .map(|&i| i + 1)
         .sum();
     let r2 = a.iter()
@@ -148,7 +146,6 @@ pub fn map_sum() {
 pub fn map_reduce() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-        .weight_max()
         .map(|&i| i + 1)
         .reduce(|| 0, |i, j| i + j);
     let r2 = a.iter()
@@ -161,7 +158,6 @@ pub fn map_reduce() {
 pub fn map_reduce_with() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter()
-        .weight_max()
         .map(|&i| i + 1)
         .reduce_with(|i, j| i + j);
     let r2 = a.iter()
@@ -174,7 +170,7 @@ pub fn map_reduce_with() {
 pub fn fold_map_reduce() {
     // Kind of a weird test, but it demonstrates various
     // transformations that are taking place. Relies on
-    // `weight_max().fold()` being equivalent to `map()`.
+    // `weight_max().fold()` being equivalent to `map()`.  FIXME
     //
     // Take each number from 0 to 32 and fold them by appending to a
     // vector.  Because of `weight_max`, this will produce 32 vectors,
@@ -184,7 +180,6 @@ pub fn fold_map_reduce() {
     // vector.
     let r1 = (0_i32..32)
         .into_par_iter()
-        .weight_max()
         .fold(|| vec![], |mut v, e| {
             v.push(e);
             v
@@ -200,14 +195,6 @@ pub fn fold_map_reduce() {
                          vec![15], vec![16], vec![17], vec![18], vec![19], vec![20], vec![21],
                          vec![22], vec![23], vec![24], vec![25], vec![26], vec![27], vec![28],
                          vec![29], vec![30], vec![31]]));
-}
-
-#[test]
-pub fn check_weight_exact_and_bounded() {
-    let a = [1, 2, 3];
-    is_bounded(a.par_iter().weight(2.0));
-    is_exact(a.par_iter().weight(2.0));
-    is_indexed(a.par_iter().weight(2.0));
 }
 
 #[test]
@@ -310,7 +297,6 @@ pub fn check_inspect() {
     let a = AtomicUsize::new(0);
     let b = (0_usize..1024)
         .into_par_iter()
-        .weight_max()
         .inspect(|&i| {
             a.fetch_add(i, Ordering::Relaxed);
         })
@@ -876,7 +862,6 @@ pub fn check_empty_flat_map_sum() {
 pub fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
     let par_sum_product_pairs = a.par_chunks(2)
-        .weight_max()
         .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
         .sum();
     let seq_sum_product_pairs = a.chunks(2)
@@ -886,7 +871,6 @@ pub fn check_chunks() {
     assert_eq!(par_sum_product_pairs, seq_sum_product_pairs);
 
     let par_sum_product_triples: i32 = a.par_chunks(3)
-        .weight_max()
         .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
         .sum();
     let seq_sum_product_triples = a.chunks(3)
@@ -901,7 +885,6 @@ pub fn check_chunks_mut() {
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
     a.par_chunks_mut(2)
-        .weight_max()
         .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
     b.chunks_mut(2)
         .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
@@ -912,7 +895,6 @@ pub fn check_chunks_mut() {
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
     a.par_chunks_mut(3)
-        .weight_max()
         .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
     b.chunks_mut(3)
         .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
@@ -1053,7 +1035,6 @@ pub fn check_chain() {
         .zip((0i32..1000).into_par_iter().map(|x| -x))
         .enumerate()
         .map(|(a, (b, c))| (a, b, c))
-        .weight_max()
         .chain(None)
         .collect_into(&mut res);
 
@@ -1080,7 +1061,6 @@ pub fn check_chain() {
                 .into_par_iter()
                 .flat_map(|(a, b)| a..b))
             .filter(|x| x & 1 == 1))
-        .weight_max()
         .collect();
     let other: Vec<i32> = (0..100)
         .filter(|x| x & 1 == 1)
@@ -1093,9 +1073,7 @@ pub fn check_chain() {
 pub fn check_count() {
     let c0 = (0_u32..24 * 1024).filter(|i| i % 2 == 0).count();
     let c1 = (0_u32..24 * 1024).into_par_iter().filter(|i| i % 2 == 0).count();
-    let c2 = (0_u32..24 * 1024).into_par_iter().weight_max().filter(|i| i % 2 == 0).count();
     assert_eq!(c0, c1);
-    assert_eq!(c1, c2);
 }
 
 
@@ -1242,7 +1220,6 @@ pub fn par_iter_collect_linked_list() {
 pub fn par_iter_collect_linked_list_flat_map_filter() {
     let b: LinkedList<i32> = (0_i32..1024)
         .into_par_iter()
-        .weight_max()
         .flat_map(|i| (0..i))
         .filter(|&i| i % 2 == 0)
         .collect();
@@ -1307,7 +1284,6 @@ fn scope_mix() {
         s.spawn(move |_| {
             let a: Vec<i32> = (0..1024).collect();
             let r1 = a.par_iter()
-                .weight_max()
                 .map(|&i| i + 1)
                 .reduce_with(|i, j| i + j);
             let r2 = a.iter()

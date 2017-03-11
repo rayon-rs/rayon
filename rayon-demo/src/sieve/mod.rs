@@ -123,7 +123,7 @@ fn sieve_parallel(max: usize) -> Vec<bool> {
         let (low, high) = sieve.split_at_mut(small_max / 2);
         high.par_chunks_mut(CHUNK_SIZE)
             .enumerate() // to figure out where this chunk came from
-            .weight_max() // ensure every single chunk is a separate rayon job
+            // FIXME needed? .weight_max() // ensure every single chunk is a separate rayon job
             .for_each(|(chunk_index, chunk)| {
                 let i = small_max / 2 + chunk_index * CHUNK_SIZE;
                 let base = i * 2 + 1;

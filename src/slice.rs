@@ -141,10 +141,6 @@ impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
         self.slice.into_iter()
     }
 
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
         (SliceProducer { slice: left }, SliceProducer { slice: right })
@@ -162,10 +158,6 @@ impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.slice.chunks(self.chunk_size)
-    }
-
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
@@ -318,10 +310,6 @@ impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T> {
         self.slice.into_iter()
     }
 
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at_mut(index);
         (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
@@ -339,10 +327,6 @@ impl<'data, T: 'data + Send> Producer for SliceChunksMutProducer<'data, T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.slice.chunks_mut(self.chunk_size)
-    }
-
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {

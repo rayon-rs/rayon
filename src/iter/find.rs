@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use super::internal::*;
-use super::len::*;
 use super::*;
 
 pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
@@ -33,11 +32,6 @@ impl<'p, T, P: 'p> Consumer<T> for FindConsumer<'p, P>
     type Folder = FindFolder<'p, T, P>;
     type Reducer = FindReducer;
     type Result = Option<T>;
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        cost * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
         (self.split_off_left(), self, FindReducer)

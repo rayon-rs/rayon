@@ -1,5 +1,4 @@
 use super::ParallelIterator;
-use super::len::*;
 use super::internal::*;
 
 /// Specifies a "reduce operator". This is the combination of a start
@@ -59,11 +58,6 @@ impl<'r, R, T> Consumer<T> for ReduceConsumer<'r, R>
     type Folder = ReduceFolder<'r, R, T>;
     type Reducer = Self;
     type Result = T;
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        cost * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, _index: usize) -> (Self, Self, Self) {
         (self, self, self)

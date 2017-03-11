@@ -27,7 +27,7 @@ fn factorial_iterator(b: &mut test::Bencher) {
 /// Compute the Factorial using rayon::par_iter.
 fn factorial_par_iter(b: &mut test::Bencher) {
     fn fact(n: u32) -> BigUint {
-        (1 .. n + 1).into_par_iter().weight_max()
+        (1 .. n + 1).into_par_iter()
             .map(BigUint::from)
             .reduce_with(Mul::mul)
             .unwrap()

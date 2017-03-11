@@ -11,7 +11,6 @@
 //! the code itself, the `internal` module and `README.md` file are a
 //! good place to start.
 
-use std::f64;
 use std::cmp::{self, Ordering};
 use std::ops::Fn;
 use self::internal::*;
@@ -43,7 +42,6 @@ pub use self::flat_map::FlatMap;
 mod from_par_iter;
 pub use self::from_par_iter::FromParallelIterator;
 pub mod internal;
-pub mod len;
 mod for_each;
 mod fold;
 pub use self::fold::Fold;
@@ -57,8 +55,6 @@ mod take;
 pub use self::take::Take;
 mod map;
 pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
-mod weight;
-pub use self::weight::Weight;
 mod zip;
 pub use self::zip::Zip;
 mod collections;
@@ -145,28 +141,6 @@ pub trait ToParallelChunksMut<'data> {
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
-
-    /// Indicates the relative "weight" of producing each item in this
-    /// parallel iterator. A higher weight will cause finer-grained
-    /// parallel subtasks. 1.0 indicates something very cheap and
-    /// uniform, like copying a value out of an array, or computing `x
-    /// + 1`. If your tasks are either very expensive, or very
-    /// unpredictable, you are better off with higher values. See also
-    /// `weight_max`, which is a convenient shorthand to force the
-    /// finest grained parallel execution posible. Tuning this value
-    /// should not affect correctness but can improve (or hurt)
-    /// performance.
-    fn weight(self, scale: f64) -> Weight<Self> {
-        Weight::new(self, scale)
-    }
-
-    /// Shorthand for `self.weight(f64::INFINITY)`. This forces the
-    /// smallest granularity of parallel execution, which makes sense
-    /// when your parallel tasks are (potentially) very expensive to
-    /// execute.
-    fn weight_max(self) -> Weight<Self> {
-        self.weight(f64::INFINITY)
-    }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     fn for_each<OP>(self, op: OP)

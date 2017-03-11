@@ -1,5 +1,4 @@
 use super::ParallelIterator;
-use super::len::*;
 use super::internal::*;
 use super::noop::*;
 
@@ -22,11 +21,6 @@ impl<'f, F, T> Consumer<T> for ForEachConsumer<'f, F>
     type Folder = ForEachConsumer<'f, F>;
     type Reducer = NoopReducer;
     type Result = ();
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        // This isn't quite right, as we will do more than O(n) reductions, but whatever.
-        cost * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {
         (self.split_off_left(), self.split_off_left(), NoopReducer)

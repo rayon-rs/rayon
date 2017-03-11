@@ -13,10 +13,6 @@ impl<T> Consumer<T> for NoopConsumer {
     type Reducer = NoopReducer;
     type Result = ();
 
-    fn cost(&mut self, cost: f64) -> f64 {
-        cost
-    }
-
     fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {
         (NoopConsumer, NoopConsumer, NoopReducer)
     }

@@ -1,6 +1,5 @@
 use super::internal::*;
 use super::*;
-use std::f64;
 
 /// `FlatMap` maps each element to an iterator, then flattens these iterators together.
 /// This struct is created by the [`flat_map()`] method on [`ParallelIterator`]
@@ -67,18 +66,6 @@ impl<'f, T, U, C, F> Consumer<T> for FlatMapConsumer<'f, C, F>
     type Folder = FlatMapFolder<'f, C, F, C::Result>;
     type Reducer = C::Reducer;
     type Result = C::Result;
-
-    fn weighted(&self) -> bool {
-        true
-    }
-
-    fn cost(&mut self, _cost: f64) -> f64 {
-        // We have no idea how many items we will produce, so ramp up
-        // the cost, so as to encourage the producer to do a
-        // fine-grained divison. This is not necessarily a good
-        // policy.
-        f64::INFINITY
-    }
 
     fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {
         (FlatMapConsumer::new(self.base.split_off_left(), self.map_op),

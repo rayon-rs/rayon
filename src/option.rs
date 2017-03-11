@@ -123,10 +123,6 @@ impl<T: Send> Producer for OptionProducer<T> {
         self.opt.into_iter()
     }
 
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let none = OptionProducer { opt: None };
         if index == 0 {

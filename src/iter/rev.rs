@@ -100,14 +100,6 @@ impl<P> Producer for RevProducer<P>
         self.base.into_iter().rev()
     }
 
-    fn weighted(&self) -> bool {
-        self.base.weighted()
-    }
-
-    fn cost(&mut self, items: usize) -> f64 {
-        self.base.cost(items)
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(self.len - index);
         (RevProducer {
