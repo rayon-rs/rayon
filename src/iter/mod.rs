@@ -62,7 +62,7 @@ mod noop;
 mod rev;
 pub use self::rev::Rev;
 mod len;
-pub use self::len::MinLen;
+pub use self::len::{MinLen, MaxLen};
 
 #[cfg(test)]
 mod test;
@@ -901,6 +901,15 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// of course an iterator could already be smaller to begin with.
     fn set_min_len(self, min: usize) -> MinLen<Self> {
         len::new_min_len(self, min)
+    }
+
+    /// Sets the maximum length of iterators desired to process in each
+    /// thread.  Rayon will try to split at least below this length,
+    /// unless that would put it below the length from `set_min_len()`.
+    /// For example, given min=10 and max=15, a length of 16 will not be
+    /// split any further.
+    fn set_max_len(self, max: usize) -> MaxLen<Self> {
+        len::new_max_len(self, max)
     }
 
     /// Internal method used to define the behavior of this parallel
