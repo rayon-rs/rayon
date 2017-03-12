@@ -112,6 +112,8 @@ impl<P> Producer for MinLenProducer<P>
         cmp::max(self.min, self.base.min_len())
     }
 
+    fn max_len(&self) -> usize { self.base.max_len() }
+
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (MinLenProducer {
@@ -231,6 +233,8 @@ impl<P> Producer for MaxLenProducer<P>
     fn into_iter(self) -> Self::IntoIter {
         self.base.into_iter()
     }
+
+    fn min_len(&self) -> usize { self.base.min_len() }
 
     fn max_len(&self) -> usize {
         cmp::min(self.max, self.base.max_len())

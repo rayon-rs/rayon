@@ -1,6 +1,6 @@
 use super::internal::*;
 use super::*;
-use std::cmp::min;
+use std::cmp;
 use std::iter;
 
 pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
@@ -55,7 +55,7 @@ impl<A, B> ExactParallelIterator for Zip<A, B>
           B: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
-        min(self.a.len(), self.b.len())
+        cmp::min(self.a.len(), self.b.len())
     }
 }
 
@@ -129,6 +129,14 @@ impl<A: Producer, B: Producer> Producer for ZipProducer<A, B> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.a.into_iter().zip(self.b.into_iter())
+    }
+
+    fn min_len(&self) -> usize {
+        cmp::max(self.a.min_len(), self.b.min_len())
+    }
+
+    fn max_len(&self) -> usize {
+        cmp::min(self.a.max_len(), self.b.max_len())
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
