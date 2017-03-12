@@ -61,6 +61,8 @@ mod collections;
 mod noop;
 mod rev;
 pub use self::rev::Rev;
+mod len;
+pub use self::len::MinLen;
 
 #[cfg(test)]
 mod test;
@@ -892,6 +894,13 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// reverse order.
     fn rev(self) -> Rev<Self> {
         rev::new(self)
+    }
+
+    /// Sets the minimum length of iterators desired to process in each
+    /// thread.  Rayon will not split any smaller than this length, but
+    /// of course an iterator could already be smaller to begin with.
+    fn set_min_len(self, min: usize) -> MinLen<Self> {
+        len::new_min_len(self, min)
     }
 
     /// Internal method used to define the behavior of this parallel
