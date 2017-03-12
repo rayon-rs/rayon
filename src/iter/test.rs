@@ -170,16 +170,17 @@ pub fn map_reduce_with() {
 pub fn fold_map_reduce() {
     // Kind of a weird test, but it demonstrates various
     // transformations that are taking place. Relies on
-    // `weight_max().fold()` being equivalent to `map()`.  FIXME
+    // `set_max_len(1).fold()` being equivalent to `map()`.
     //
     // Take each number from 0 to 32 and fold them by appending to a
-    // vector.  Because of `weight_max`, this will produce 32 vectors,
+    // vector.  Because of `set_max_len(1)`, this will produce 32 vectors,
     // each with one item.  We then collect all of these into an
     // individual vector by mapping each into their own vector (so we
     // have Vec<Vec<i32>>) and then reducing those into a single
     // vector.
     let r1 = (0_i32..32)
         .into_par_iter()
+        .set_max_len(1)
         .fold(|| vec![], |mut v, e| {
             v.push(e);
             v
