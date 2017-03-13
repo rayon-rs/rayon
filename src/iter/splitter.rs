@@ -3,9 +3,9 @@ use super::*;
 
 /// The `split` function takes arbitrary data and a closure that knows how to
 /// split it, and turns this into a `ParallelIterator`.
-pub fn split<DATA, SPLITTER>(data: DATA, splitter: SPLITTER) -> ParallelSplit<DATA, SPLITTER>
-    where DATA: Send,
-          SPLITTER: Fn(DATA) -> (DATA, Option<DATA>) + Sync
+pub fn split<D, S>(data: D, splitter: S) -> ParallelSplit<D, S>
+    where D: Send,
+          S: Fn(D) -> (D, Option<D>) + Sync
 {
     ParallelSplit {
         data: data,
@@ -13,16 +13,16 @@ pub fn split<DATA, SPLITTER>(data: DATA, splitter: SPLITTER) -> ParallelSplit<DA
     }
 }
 
-pub struct ParallelSplit<DATA, SPLITTER> {
-    data: DATA,
-    splitter: SPLITTER,
+pub struct ParallelSplit<D, S> {
+    data: D,
+    splitter: S,
 }
 
-impl<DATA, SPLITTER> ParallelIterator for ParallelSplit<DATA, SPLITTER>
-    where DATA: Send,
-          SPLITTER: Fn(DATA) -> (DATA, Option<DATA>) + Sync
+impl<D, S> ParallelIterator for ParallelSplit<D, S>
+    where D: Send,
+          S: Fn(D) -> (D, Option<D>) + Sync
 {
-    type Item = DATA;
+    type Item = D;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -35,16 +35,16 @@ impl<DATA, SPLITTER> ParallelIterator for ParallelSplit<DATA, SPLITTER>
     }
 }
 
-struct ParallelSplitProducer<'a, DATA, SPLITTER: 'a> {
-    data: DATA,
-    splitter: &'a SPLITTER,
+struct ParallelSplitProducer<'a, D, S: 'a> {
+    data: D,
+    splitter: &'a S,
 }
 
-impl<'a, DATA, SPLITTER> UnindexedProducer for ParallelSplitProducer<'a, DATA, SPLITTER>
-    where DATA: Send,
-          SPLITTER: Fn(DATA) -> (DATA, Option<DATA>) + Sync
+impl<'a, D, S> UnindexedProducer for ParallelSplitProducer<'a, D, S>
+    where D: Send,
+          S: Fn(D) -> (D, Option<D>) + Sync
 {
-    type Item = DATA;
+    type Item = D;
 
     fn split(mut self) -> (Self, Option<Self>) {
         let splitter = self.splitter;

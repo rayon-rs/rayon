@@ -2,13 +2,13 @@ use super::internal::*;
 use super::len::*;
 use super::*;
 
-pub fn fold<U, BASE, IDENTITY, FOLD_OP>(base: BASE,
-                                        identity: IDENTITY,
-                                        fold_op: FOLD_OP)
-                                        -> Fold<BASE, IDENTITY, FOLD_OP>
+pub fn fold<U, BASE, ID, F>(base: BASE,
+                                        identity: ID,
+                                        fold_op: F)
+                                        -> Fold<BASE, ID, F>
     where BASE: ParallelIterator,
-          FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
-          IDENTITY: Fn() -> U + Sync,
+          F: Fn(U, BASE::Item) -> U + Sync,
+          ID: Fn() -> U + Sync,
           U: Send
 {
     Fold {
@@ -23,16 +23,16 @@ pub fn fold<U, BASE, IDENTITY, FOLD_OP>(base: BASE,
 ///
 /// [`fold()`]: trait.ParallelIterator.html#method.fold
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct Fold<BASE, IDENTITY, FOLD_OP> {
+pub struct Fold<BASE, ID, F> {
     base: BASE,
-    identity: IDENTITY,
-    fold_op: FOLD_OP,
+    identity: ID,
+    fold_op: F,
 }
 
-impl<U, BASE, IDENTITY, FOLD_OP> ParallelIterator for Fold<BASE, IDENTITY, FOLD_OP>
+impl<U, BASE, ID, F> ParallelIterator for Fold<BASE, ID, F>
     where BASE: ParallelIterator,
-          FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
-          IDENTITY: Fn() -> U + Sync,
+          F: Fn(U, BASE::Item) -> U + Sync,
+          ID: Fn() -> U + Sync,
           U: Send
 {
     type Item = U;
@@ -49,10 +49,10 @@ impl<U, BASE, IDENTITY, FOLD_OP> ParallelIterator for Fold<BASE, IDENTITY, FOLD_
     }
 }
 
-impl<U, BASE, IDENTITY, FOLD_OP> BoundedParallelIterator for Fold<BASE, IDENTITY, FOLD_OP>
+impl<U, BASE, ID, F> BoundedParallelIterator for Fold<BASE, ID, F>
     where BASE: BoundedParallelIterator,
-          FOLD_OP: Fn(U, BASE::Item) -> U + Sync,
-          IDENTITY: Fn() -> U + Sync,
+          F: Fn(U, BASE::Item) -> U + Sync,
+          ID: Fn() -> U + Sync,
           U: Send
 {
     fn upper_bound(&mut self) -> usize {
@@ -69,19 +69,19 @@ impl<U, BASE, IDENTITY, FOLD_OP> BoundedParallelIterator for Fold<BASE, IDENTITY
     }
 }
 
-struct FoldConsumer<'c, C, IDENTITY: 'c, FOLD_OP: 'c> {
+struct FoldConsumer<'c, C, ID: 'c, F: 'c> {
     base: C,
-    fold_op: &'c FOLD_OP,
-    identity: &'c IDENTITY,
+    fold_op: &'c F,
+    identity: &'c ID,
 }
 
-impl<'r, U, T, C, IDENTITY, FOLD_OP> Consumer<T> for FoldConsumer<'r, C, IDENTITY, FOLD_OP>
+impl<'r, U, T, C, ID, F> Consumer<T> for FoldConsumer<'r, C, ID, F>
     where C: Consumer<U>,
-          FOLD_OP: Fn(U, T) -> U + Sync,
-          IDENTITY: Fn() -> U + Sync,
+          F: Fn(U, T) -> U + Sync,
+          ID: Fn() -> U + Sync,
           U: Send
 {
-    type Folder = FoldFolder<'r, C::Folder, U, FOLD_OP>;
+    type Folder = FoldFolder<'r, C::Folder, U, F>;
     type Reducer = C::Reducer;
     type Result = C::Result;
 
@@ -104,11 +104,11 @@ impl<'r, U, T, C, IDENTITY, FOLD_OP> Consumer<T> for FoldConsumer<'r, C, IDENTIT
     }
 }
 
-impl<'r, U, ITEM, C, IDENTITY, FOLD_OP> UnindexedConsumer<ITEM>
-    for FoldConsumer<'r, C, IDENTITY, FOLD_OP>
+impl<'r, U, ITEM, C, ID, F> UnindexedConsumer<ITEM>
+    for FoldConsumer<'r, C, ID, F>
     where C: UnindexedConsumer<U>,
-          FOLD_OP: Fn(U, ITEM) -> U + Sync,
-          IDENTITY: Fn() -> U + Sync,
+          F: Fn(U, ITEM) -> U + Sync,
+          ID: Fn() -> U + Sync,
           U: Send
 {
     fn split_off_left(&self) -> Self {
@@ -120,15 +120,15 @@ impl<'r, U, ITEM, C, IDENTITY, FOLD_OP> UnindexedConsumer<ITEM>
     }
 }
 
-pub struct FoldFolder<'r, C, IDENTITY, FOLD_OP: 'r> {
+pub struct FoldFolder<'r, C, ID, F: 'r> {
     base: C,
-    fold_op: &'r FOLD_OP,
-    item: IDENTITY,
+    fold_op: &'r F,
+    item: ID,
 }
 
-impl<'r, C, IDENTITY, FOLD_OP, ITEM> Folder<ITEM> for FoldFolder<'r, C, IDENTITY, FOLD_OP>
-    where C: Folder<IDENTITY>,
-          FOLD_OP: Fn(IDENTITY, ITEM) -> IDENTITY + Sync
+impl<'r, C, ID, F, ITEM> Folder<ITEM> for FoldFolder<'r, C, ID, F>
+    where C: Folder<ID>,
+          F: Fn(ID, ITEM) -> ID + Sync
 {
     type Result = C::Result;
 

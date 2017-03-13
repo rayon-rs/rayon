@@ -182,8 +182,8 @@ pub trait ParallelIterator: Sized {
 
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
-    fn map<MAP_OP, R>(self, map_op: MAP_OP) -> Map<Self, MapFn<MAP_OP>>
-        where MAP_OP: Fn(Self::Item) -> R + Sync,
+    fn map<F, R>(self, map_op: F) -> Map<Self, MapFn<F>>
+        where F: Fn(Self::Item) -> R + Sync,
               R: Send
     {
         map::new(self, MapFn(map_op))
@@ -209,16 +209,16 @@ pub trait ParallelIterator: Sized {
 
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
-    fn filter<FILTER_OP>(self, filter_op: FILTER_OP) -> Filter<Self, FILTER_OP>
-        where FILTER_OP: Fn(&Self::Item) -> bool + Sync
+    fn filter<P>(self, filter_op: P) -> Filter<Self, P>
+        where P: Fn(&Self::Item) -> bool + Sync
     {
         filter::new(self, filter_op)
     }
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
     /// producing a new iterator with only the items from `Some` results.
-    fn filter_map<FILTER_OP, R>(self, filter_op: FILTER_OP) -> FilterMap<Self, FILTER_OP>
-        where FILTER_OP: Fn(Self::Item) -> Option<R> + Sync,
+    fn filter_map<P, R>(self, filter_op: P) -> FilterMap<Self, P>
+        where P: Fn(Self::Item) -> Option<R> + Sync,
               R: Send
     {
         filter_map::new(self, filter_op)
@@ -226,8 +226,8 @@ pub trait ParallelIterator: Sized {
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
     /// producing a new iterator that flattens these back into one.
-    fn flat_map<MAP_OP, PI>(self, map_op: MAP_OP) -> FlatMap<Self, MAP_OP>
-        where MAP_OP: Fn(Self::Item) -> PI + Sync,
+    fn flat_map<F, PI>(self, map_op: F) -> FlatMap<Self, F>
+        where F: Fn(Self::Item) -> PI + Sync,
               PI: IntoParallelIterator
     {
         flat_map::new(self, map_op)
@@ -263,9 +263,9 @@ pub trait ParallelIterator: Sized {
     /// produce a true identity.
     ///
     /// [associative]: https://en.wikipedia.org/wiki/Associative_property
-    fn reduce<OP, IDENTITY>(self, identity: IDENTITY, op: OP) -> Self::Item
+    fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-              IDENTITY: Fn() -> Self::Item + Sync
+              ID: Fn() -> Self::Item + Sync
     {
         reduce::reduce(self, &reduce::ReduceWithIdentityOp::new(&identity, &op))
     }
@@ -431,13 +431,13 @@ pub trait ParallelIterator: Sized {
     ///                .sum();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
-    fn fold<IDENTITY_ITEM, IDENTITY, FOLD_OP>(self,
-                                              identity: IDENTITY,
-                                              fold_op: FOLD_OP)
-                                              -> fold::Fold<Self, IDENTITY, FOLD_OP>
-        where FOLD_OP: Fn(IDENTITY_ITEM, Self::Item) -> IDENTITY_ITEM + Sync,
-              IDENTITY: Fn() -> IDENTITY_ITEM + Sync,
-              IDENTITY_ITEM: Send
+    fn fold<ITEM, ID, F>(self,
+                                              identity: ID,
+                                              fold_op: F)
+                                              -> fold::Fold<Self, ID, F>
+        where F: Fn(ITEM, Self::Item) -> ITEM + Sync,
+              ID: Fn() -> ITEM + Sync,
+              ITEM: Send
     {
         fold::fold(self, identity, fold_op)
     }
@@ -573,8 +573,8 @@ pub trait ParallelIterator: Sized {
     /// (just as `find` stops iterating once a match is found).
     ///
     /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
-    fn find_any<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
-        where FIND_OP: Fn(&Self::Item) -> bool + Sync
+    fn find_any<P>(self, predicate: P) -> Option<Self::Item>
+        where P: Fn(&Self::Item) -> bool + Sync
     {
         find::find(self, predicate)
     }
@@ -588,8 +588,8 @@ pub trait ParallelIterator: Sized {
     ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.
-    fn find_first<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
-        where FIND_OP: Fn(&Self::Item) -> bool + Sync {
+    fn find_first<P>(self, predicate: P) -> Option<Self::Item>
+        where P: Fn(&Self::Item) -> bool + Sync {
         find_first_last::find_first(self, predicate)
     }
 
@@ -602,15 +602,15 @@ pub trait ParallelIterator: Sized {
     ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "last" may be nebulous.
-    fn find_last<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
-        where FIND_OP: Fn(&Self::Item) -> bool + Sync {
+    fn find_last<P>(self, predicate: P) -> Option<Self::Item>
+        where P: Fn(&Self::Item) -> bool + Sync {
         find_first_last::find_last(self, predicate)
     }
 
     #[doc(hidden)]
     #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, `find_first`, or `find_last`")]
-    fn find<FIND_OP>(self, predicate: FIND_OP) -> Option<Self::Item>
-        where FIND_OP: Fn(&Self::Item) -> bool + Sync
+    fn find<P>(self, predicate: P) -> Option<Self::Item>
+        where P: Fn(&Self::Item) -> bool + Sync
     {
         self.find_any(predicate)
     }
@@ -620,8 +620,8 @@ pub trait ParallelIterator: Sized {
     /// a match is found, we'll attempt to stop process the rest
     /// of the items.  Proving that there's no match, returning false,
     /// does require visiting every item.
-    fn any<ANY_OP>(self, predicate: ANY_OP) -> bool
-        where ANY_OP: Fn(Self::Item) -> bool + Sync
+    fn any<P>(self, predicate: P) -> bool
+        where P: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate).find_any(|&p| p).is_some()
     }
@@ -629,8 +629,8 @@ pub trait ParallelIterator: Sized {
     /// Tests that every item in the parallel iterator matches the given
     /// predicate, and if so returns true.  If a counter-example is found,
     /// we'll attempt to stop processing more items, then return false.
-    fn all<ALL_OP>(self, predicate: ALL_OP) -> bool
-        where ALL_OP: Fn(Self::Item) -> bool + Sync
+    fn all<P>(self, predicate: P) -> bool
+        where P: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate).find_any(|&p| !p).is_none()
     }
@@ -741,9 +741,9 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Like the `zip` method on ordinary iterators, if the two
     /// iterators are of unequal length, you only get the items they
     /// have in common.
-    fn zip<ZIP_OP>(self, zip_op: ZIP_OP) -> Zip<Self, ZIP_OP::Iter>
-        where ZIP_OP: IntoParallelIterator,
-              ZIP_OP::Iter: IndexedParallelIterator
+    fn zip<Z>(self, zip_op: Z) -> Zip<Self, Z::Iter>
+        where Z: IntoParallelIterator,
+              Z::Iter: IndexedParallelIterator
     {
         zip::new(self, zip_op.into_par_iter())
     }
@@ -862,8 +862,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// `ParallelIterator::find_any`, the parallel search will not
     /// necessarily find the **first** match, and once a match is
     /// found we'll attempt to stop processing any more.
-    fn position_any<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
-        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    fn position_any<P>(self, predicate: P) -> Option<usize>
+        where P: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate)
             .enumerate()
@@ -881,8 +881,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.
-    fn position_first<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
-        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    fn position_first<P>(self, predicate: P) -> Option<usize>
+        where P: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate)
             .enumerate()
@@ -900,8 +900,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "last" may be nebulous.
-    fn position_last<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
-        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    fn position_last<P>(self, predicate: P) -> Option<usize>
+        where P: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate)
             .enumerate()
@@ -911,8 +911,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
 
     #[doc(hidden)]
     #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, `position_first`, or `position_last`")]
-    fn position<POSITION_OP>(self, predicate: POSITION_OP) -> Option<usize>
-        where POSITION_OP: Fn(Self::Item) -> bool + Sync
+    fn position<P>(self, predicate: P) -> Option<usize>
+        where P: Fn(Self::Item) -> bool + Sync
     {
         self.position_any(predicate)
     }

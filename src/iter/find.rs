@@ -3,22 +3,22 @@ use super::internal::*;
 use super::len::*;
 use super::*;
 
-pub fn find<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
+pub fn find<PAR_ITER, P>(pi: PAR_ITER, find_op: P) -> Option<PAR_ITER::Item>
     where PAR_ITER: ParallelIterator,
-          FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync
+          P: Fn(&PAR_ITER::Item) -> bool + Sync
 {
     let found = AtomicBool::new(false);
     let consumer = FindConsumer::new(&find_op, &found);
     pi.drive_unindexed(consumer)
 }
 
-struct FindConsumer<'f, FIND_OP: 'f> {
-    find_op: &'f FIND_OP,
-    found: &'f AtomicBool,
+struct FindConsumer<'p, P: 'p> {
+    find_op: &'p P,
+    found: &'p AtomicBool,
 }
 
-impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
-    fn new(find_op: &'f FIND_OP, found: &'f AtomicBool) -> Self {
+impl<'p, P> FindConsumer<'p, P> {
+    fn new(find_op: &'p P, found: &'p AtomicBool) -> Self {
         FindConsumer {
             find_op: find_op,
             found: found,
@@ -26,11 +26,11 @@ impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
     }
 }
 
-impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
+impl<'p, ITEM, P: 'p> Consumer<ITEM> for FindConsumer<'p, P>
     where ITEM: Send,
-          FIND_OP: Fn(&ITEM) -> bool + Sync
+          P: Fn(&ITEM) -> bool + Sync
 {
-    type Folder = FindFolder<'f, ITEM, FIND_OP>;
+    type Folder = FindFolder<'p, ITEM, P>;
     type Reducer = FindReducer;
     type Result = Option<ITEM>;
 
@@ -57,9 +57,9 @@ impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 }
 
 
-impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
+impl<'p, ITEM, P: 'p> UnindexedConsumer<ITEM> for FindConsumer<'p, P>
     where ITEM: Send,
-          FIND_OP: Fn(&ITEM) -> bool + Sync
+          P: Fn(&ITEM) -> bool + Sync
 {
     fn split_off_left(&self) -> Self {
         FindConsumer::new(self.find_op, self.found)
@@ -71,14 +71,14 @@ impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP
 }
 
 
-struct FindFolder<'f, ITEM, FIND_OP: 'f> {
-    find_op: &'f FIND_OP,
-    found: &'f AtomicBool,
+struct FindFolder<'p, ITEM, P: 'p> {
+    find_op: &'p P,
+    found: &'p AtomicBool,
     item: Option<ITEM>,
 }
 
-impl<'f, ITEM, FIND_OP> Folder<ITEM> for FindFolder<'f, ITEM, FIND_OP>
-    where FIND_OP: Fn(&ITEM) -> bool + 'f
+impl<'p, ITEM, P> Folder<ITEM> for FindFolder<'p, ITEM, P>
+    where P: Fn(&ITEM) -> bool + 'p
 {
     type Result = Option<ITEM>;
 

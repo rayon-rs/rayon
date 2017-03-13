@@ -65,13 +65,13 @@ impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
             callback: CB,
         }
 
-        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
-            where CB: ProducerCallback<ITEM>
+        impl<I, CB> ProducerCallback<I> for Callback<CB>
+            where CB: ProducerCallback<I>
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> Self::Output
-                where P: Producer<Item = ITEM>
+                where P: Producer<Item = I>
             {
                 self.callback.callback(WeightProducer {
                     base: base,
@@ -135,8 +135,8 @@ impl<C> WeightConsumer<C> {
     }
 }
 
-impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
-    where C: Consumer<ITEM>
+impl<C, I> Consumer<I> for WeightConsumer<C>
+    where C: Consumer<I>
 {
     type Folder = C::Folder;
     type Reducer = C::Reducer;
@@ -164,8 +164,8 @@ impl<C, ITEM> Consumer<ITEM> for WeightConsumer<C>
     }
 }
 
-impl<C, ITEM> UnindexedConsumer<ITEM> for WeightConsumer<C>
-    where C: UnindexedConsumer<ITEM>
+impl<C, I> UnindexedConsumer<I> for WeightConsumer<C>
+    where C: UnindexedConsumer<I>
 {
     fn split_off_left(&self) -> Self {
         WeightConsumer::new(self.base.split_off_left(), self.weight)

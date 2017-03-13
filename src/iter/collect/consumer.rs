@@ -5,28 +5,28 @@ use std::ptr;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-pub struct CollectConsumer<'c, ITEM: Send + 'c> {
+pub struct CollectConsumer<'c, I: Send + 'c> {
     /// Tracks how many items we successfully wrote. Used to guarantee
     /// safety in the face of panics or buggy parallel iterators.
     writes: &'c AtomicUsize,
 
     /// A slice covering the target memory, not yet initialized!
-    target: &'c mut [ITEM],
+    target: &'c mut [I],
 }
 
-pub struct CollectFolder<'c, ITEM: Send + 'c> {
+pub struct CollectFolder<'c, I: Send + 'c> {
     global_writes: &'c AtomicUsize,
     local_writes: usize,
 
     /// An iterator over the *uninitialized* target memory.
-    target: slice::IterMut<'c, ITEM>,
+    target: slice::IterMut<'c, I>,
 }
 
 
-impl<'c, ITEM: Send + 'c> CollectConsumer<'c, ITEM> {
+impl<'c, I: Send + 'c> CollectConsumer<'c, I> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without dropping anything.
-    pub fn new(writes: &'c AtomicUsize, target: &'c mut [ITEM]) -> CollectConsumer<'c, ITEM> {
+    pub fn new(writes: &'c AtomicUsize, target: &'c mut [I]) -> CollectConsumer<'c, I> {
         CollectConsumer {
             writes: writes,
             target: target,
@@ -34,8 +34,8 @@ impl<'c, ITEM: Send + 'c> CollectConsumer<'c, ITEM> {
     }
 }
 
-impl<'c, ITEM: Send + 'c> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
-    type Folder = CollectFolder<'c, ITEM>;
+impl<'c, I: Send + 'c> Consumer<I> for CollectConsumer<'c, I> {
+    type Folder = CollectFolder<'c, I>;
     type Reducer = NoopReducer;
     type Result = ();
 
@@ -55,7 +55,7 @@ impl<'c, ITEM: Send + 'c> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
         (CollectConsumer::new(writes, left), CollectConsumer::new(writes, right), NoopReducer)
     }
 
-    fn into_folder(self) -> CollectFolder<'c, ITEM> {
+    fn into_folder(self) -> CollectFolder<'c, I> {
         CollectFolder {
             global_writes: self.writes,
             local_writes: 0,
@@ -64,10 +64,10 @@ impl<'c, ITEM: Send + 'c> Consumer<ITEM> for CollectConsumer<'c, ITEM> {
     }
 }
 
-impl<'c, ITEM: Send + 'c> Folder<ITEM> for CollectFolder<'c, ITEM> {
+impl<'c, I: Send + 'c> Folder<I> for CollectFolder<'c, I> {
     type Result = ();
 
-    fn consume(mut self, item: ITEM) -> CollectFolder<'c, ITEM> {
+    fn consume(mut self, item: I) -> CollectFolder<'c, I> {
         // Compute target pointer and write to it. Safe because the iterator
         // does all the bounds checking; we're only avoiding the target drop.
         let head = self.target.next().expect("too many values pushed to consumer");
@@ -89,7 +89,7 @@ impl<'c, ITEM: Send + 'c> Folder<ITEM> for CollectFolder<'c, ITEM> {
 
 /// Pretend to be unindexed for `special_collect_into`,
 /// but we should never actually get used that way...
-impl<'c, ITEM: Send + 'c> UnindexedConsumer<ITEM> for CollectConsumer<'c, ITEM> {
+impl<'c, I: Send + 'c> UnindexedConsumer<I> for CollectConsumer<'c, I> {
     fn split_off_left(&self) -> Self {
         unreachable!("CollectConsumer must be indexed!")
     }

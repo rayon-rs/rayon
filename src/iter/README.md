@@ -50,7 +50,7 @@ modes (which is why there are two):
       `collect_into`, since in that case the position of each item is
       important for knowing where it ends up in the target collection.
 
-## How iterator execution proceeds  
+## How iterator execution proceeds
 
 We'll walk through this example iterator chain to start. This chain
 demonstrates more-or-less the full complexity of what can happen.
@@ -162,14 +162,14 @@ the producer for the base iterator, wrapping it to make our own
 this:
 
 ```rust
-struct MapProducer<'m, P, MAP_OP: 'm> {
+struct MapProducer<'m, P, F: 'm> {
     base: P,
-    map_op: &'m MAP_OP,
+    map_op: &'m F,
 }
 
-impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP> 
+impl<M, F> IndexedParallelIterator for Map<M, F>
     where M: IndexedParallelIterator,
-          MAP_OP: MapOp<M::Item>,
+          F: MapOp<M::Item>,
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output {
         let map_op = &self.map_op;
@@ -180,7 +180,7 @@ impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
                 base: base_producer,
                 map_op: map_op
             };
-    
+
             // invoke the callback with the wrapped version
             callback(map_producer)
         });
@@ -212,21 +212,21 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     fn with_producer<CB, R>(self, callback: CB) -> R
         where CB: FnOnce(Self::Producer) -> R;
     ...
-}    
-```        
+}
+```
 
 Note that we had to add this associated type `Producer` so that
 we could specify the argument of the callback to be `Self::Producer`.
 Now, imagine trying to write that `MapProducer` impl using this style:
 
 ```rust
-impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP> 
+impl<M, F> IndexedParallelIterator for Map<M, F>
     where M: IndexedParallelIterator,
-          MAP_OP: MapOp<M::Item>,
+          F: MapOp<M::Item>,
 {
-    type MapProducer = MapProducer<'m, P::Producer, MAP_OP>;
+    type MapProducer = MapProducer<'m, P::Producer, F>;
     //                             ^^ wait, what is this `'m`?
-    
+
     fn with_producer<CB, R>(self, callback: CB) -> R
         where CB: FnOnce(Self::Producer) -> R
     {
@@ -249,10 +249,10 @@ dedicated callback trait like `ProducerCallback`, instead of `FnOnce`:
 [1598]: https://github.com/rust-lang/rfcs/pull/1598
 
 ```rust
-pub trait ProducerCallback<ITEM> {
+pub trait ProducerCallback<I> {
     type Output;
     fn callback<P>(self, producer: P) -> Self::Output
-        where P: Producer<Item=ITEM>;
+        where P: Producer<Item=I>;
 }
 ```
 
@@ -271,9 +271,9 @@ have to manually create the callback struct, which is a mite tedious.
 So our `MapProducer` code looks like this:
 
 ```rust
-impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
+impl<M, F> IndexedParallelIterator for Map<M, F>
     where M: IndexedParallelIterator,
-          MAP_OP: MapOp<M::Item>,
+          F: MapOp<M::Item>,
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
@@ -285,20 +285,20 @@ impl<M, MAP_OP> IndexedParallelIterator for Map<M, MAP_OP>
 
         // The struct declaration. Each field is something that need to capture from the
         // creating scope.
-        struct Callback<CB, MAP_OP> {
+        struct Callback<CB, F> {
             callback: CB,
-            map_op: MAP_OP,
+            map_op: F,
         }
 
         // Implement the `ProducerCallback` trait. This is pure boilerplate.
-        impl<ITEM, MAP_OP, CB> ProducerCallback<ITEM> for Callback<CB, MAP_OP>
-            where MAP_OP: MapOp<ITEM>,
-                  CB: ProducerCallback<MAP_OP::Output>
+        impl<I, F, CB> ProducerCallback<I> for Callback<CB, F>
+            where F: MapOp<I>,
+                  CB: ProducerCallback<F::Output>
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item=ITEM>
+                where P: Producer<Item=I>
             {
                 // The body of the closure is here:
                 let producer = MapProducer { base: base,

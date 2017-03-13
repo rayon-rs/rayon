@@ -7,15 +7,15 @@ use super::*;
 ///
 /// [`filter_map()`]: trait.ParallelIterator.html#method.filter_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct FilterMap<M: ParallelIterator, FILTER_OP> {
+pub struct FilterMap<M: ParallelIterator, P> {
     base: M,
-    filter_op: FILTER_OP,
+    filter_op: P,
 }
 
 /// Create a new `FilterMap` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M, FILTER_OP>(base: M, filter_op: FILTER_OP) -> FilterMap<M, FILTER_OP>
+pub fn new<M, P>(base: M, filter_op: P) -> FilterMap<M, P>
     where M: ParallelIterator
 {
     FilterMap {
@@ -24,9 +24,9 @@ pub fn new<M, FILTER_OP>(base: M, filter_op: FILTER_OP) -> FilterMap<M, FILTER_O
     }
 }
 
-impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
+impl<M, P, R> ParallelIterator for FilterMap<M, P>
     where M: ParallelIterator,
-          FILTER_OP: Fn(M::Item) -> Option<R> + Sync,
+          P: Fn(M::Item) -> Option<R> + Sync,
           R: Send
 {
     type Item = R;
@@ -39,9 +39,9 @@ impl<M, FILTER_OP, R> ParallelIterator for FilterMap<M, FILTER_OP>
     }
 }
 
-impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
+impl<M, P, R> BoundedParallelIterator for FilterMap<M, P>
     where M: BoundedParallelIterator,
-          FILTER_OP: Fn(M::Item) -> Option<R> + Sync,
+          P: Fn(M::Item) -> Option<R> + Sync,
           R: Send
 {
     fn upper_bound(&mut self) -> usize {
@@ -59,13 +59,13 @@ impl<M, FILTER_OP, R> BoundedParallelIterator for FilterMap<M, FILTER_OP>
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct FilterMapConsumer<'f, C, FILTER_OP: 'f> {
+struct FilterMapConsumer<'p, C, P: 'p> {
     base: C,
-    filter_op: &'f FILTER_OP,
+    filter_op: &'p P,
 }
 
-impl<'f, C, FILTER_OP: 'f> FilterMapConsumer<'f, C, FILTER_OP> {
-    fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
+impl<'p, C, P: 'p> FilterMapConsumer<'p, C, P> {
+    fn new(base: C, filter_op: &'p P) -> Self {
         FilterMapConsumer {
             base: base,
             filter_op: filter_op,
@@ -73,11 +73,11 @@ impl<'f, C, FILTER_OP: 'f> FilterMapConsumer<'f, C, FILTER_OP> {
     }
 }
 
-impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM> for FilterMapConsumer<'f, C, FILTER_OP>
+impl<'p, ITEM, MAPPED_ITEM, C, P> Consumer<ITEM> for FilterMapConsumer<'p, C, P>
     where C: Consumer<MAPPED_ITEM>,
-          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f
+          P: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'p
 {
-    type Folder = FilterMapFolder<'f, C::Folder, FILTER_OP>;
+    type Folder = FilterMapFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
     type Result = C::Result;
 
@@ -110,10 +110,10 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> Consumer<ITEM> for FilterMapConsumer<'
     }
 }
 
-impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
-    for FilterMapConsumer<'f, C, FILTER_OP>
+impl<'p, ITEM, MAPPED_ITEM, C, P> UnindexedConsumer<ITEM>
+    for FilterMapConsumer<'p, C, P>
     where C: UnindexedConsumer<MAPPED_ITEM>,
-          FILTER_OP: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'f
+          P: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'p
 {
     fn split_off_left(&self) -> Self {
         FilterMapConsumer::new(self.base.split_off_left(), &self.filter_op)
@@ -124,18 +124,18 @@ impl<'f, ITEM, MAPPED_ITEM, C, FILTER_OP> UnindexedConsumer<ITEM>
     }
 }
 
-struct FilterMapFolder<'f, C, FILTER_OP: 'f> {
+struct FilterMapFolder<'p, C, P: 'p> {
     base: C,
-    filter_op: &'f FILTER_OP,
+    filter_op: &'p P,
 }
 
-impl<'f, ITEM, C_ITEM, C, FILTER_OP> Folder<ITEM> for FilterMapFolder<'f, C, FILTER_OP>
+impl<'p, I, C_ITEM, C, P> Folder<I> for FilterMapFolder<'p, C, P>
     where C: Folder<C_ITEM>,
-          FILTER_OP: Fn(ITEM) -> Option<C_ITEM> + Sync + 'f
+          P: Fn(I) -> Option<C_ITEM> + Sync + 'p
 {
     type Result = C::Result;
 
-    fn consume(self, item: ITEM) -> Self {
+    fn consume(self, item: I) -> Self {
         let filter_op = self.filter_op;
         if let Some(mapped_item) = filter_op(item) {
             let base = self.base.consume(mapped_item);
