@@ -38,36 +38,36 @@ fn better_position(pos1: usize, pos2: usize, mp: MatchPosition) -> bool {
     }
 }
 
-pub fn find_first<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
-    where PAR_ITER: ParallelIterator,
-          FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync
+pub fn find_first<I, P>(pi: I, find_op: P) -> Option<I::Item>
+    where I: ParallelIterator,
+          P: Fn(&I::Item) -> bool + Sync
 {
     let best_found = AtomicUsize::new(usize::max_value());
     let consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &best_found);
     pi.drive_unindexed(consumer)
 }
 
-pub fn find_last<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
-    where PAR_ITER: ParallelIterator,
-          FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync
+pub fn find_last<I, P>(pi: I, find_op: P) -> Option<I::Item>
+    where I: ParallelIterator,
+          P: Fn(&I::Item) -> bool + Sync
 {
     let best_found = AtomicUsize::new(0);
     let consumer = FindConsumer::new(&find_op, MatchPosition::Rightmost, &best_found);
     pi.drive_unindexed(consumer)
 }
 
-struct FindConsumer<'f, FIND_OP: 'f> {
-    find_op: &'f FIND_OP,
+struct FindConsumer<'p, P: 'p> {
+    find_op: &'p P,
     lower_bound: Cell<usize>,
     upper_bound: usize,
     match_position: MatchPosition,
-    best_found: &'f AtomicUsize,
+    best_found: &'p AtomicUsize,
 }
 
-impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
-    fn new(find_op: &'f FIND_OP,
+impl<'p, P> FindConsumer<'p, P> {
+    fn new(find_op: &'p P,
            match_position: MatchPosition,
-           best_found: &'f AtomicUsize) -> Self {
+           best_found: &'p AtomicUsize) -> Self {
         FindConsumer {
             find_op: find_op,
             lower_bound: Cell::new(0),
@@ -85,13 +85,13 @@ impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
     }
 }
 
-impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
-    where ITEM: Send,
-          FIND_OP: Fn(&ITEM) -> bool + Sync
+impl<'p, T, P> Consumer<T> for FindConsumer<'p, P>
+    where T: Send,
+          P: Fn(&T) -> bool + Sync
 {
-    type Folder = FindFolder<'f, ITEM, FIND_OP>;
+    type Folder = FindFolder<'p, T, P>;
     type Reducer = FindReducer;
-    type Result = Option<ITEM>;
+    type Result = Option<T>;
 
     fn cost(&mut self, cost: f64) -> f64 {
         cost * FUNC_ADJUSTMENT
@@ -123,9 +123,9 @@ impl<'f, ITEM, FIND_OP> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
     }
 }
 
-impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
-    where ITEM: Send,
-          FIND_OP: Fn(&ITEM) -> bool + Sync
+impl<'p, T, P> UnindexedConsumer<T> for FindConsumer<'p, P>
+    where T: Send,
+          P: Fn(&T) -> bool + Sync
 {
     fn split_off_left(&self) -> Self {
         // Upper bound for one consumer will be lower bound for the other. This
@@ -157,18 +157,18 @@ impl<'f, ITEM, FIND_OP> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
     }
 }
 
-struct FindFolder<'f, ITEM, FIND_OP: 'f> {
-    find_op: &'f FIND_OP,
+struct FindFolder<'p, T, P: 'p> {
+    find_op: &'p P,
     boundary: usize,
     match_position: MatchPosition,
-    best_found: &'f AtomicUsize,
-    item: Option<ITEM>,
+    best_found: &'p AtomicUsize,
+    item: Option<T>,
 }
 
-impl<'f, FIND_OP: 'f + Fn(&ITEM) -> bool, ITEM> Folder<ITEM> for FindFolder<'f, ITEM, FIND_OP> {
-    type Result = Option<ITEM>;
+impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
+    type Result = Option<T>;
 
-    fn consume(mut self, item: ITEM) -> Self {
+    fn consume(mut self, item: T) -> Self {
         let found_best_in_range = match self.match_position {
             MatchPosition::Leftmost => self.item.is_some(),
             MatchPosition::Rightmost => false,
@@ -250,8 +250,8 @@ struct FindReducer {
     match_position: MatchPosition
 }
 
-impl<ITEM> Reducer<Option<ITEM>> for FindReducer {
-    fn reduce(self, left: Option<ITEM>, right: Option<ITEM>) -> Option<ITEM> {
+impl<T> Reducer<Option<T>> for FindReducer {
+    fn reduce(self, left: Option<T>, right: Option<T>) -> Option<T> {
         match self.match_position {
             MatchPosition::Leftmost => left.or(right),
             MatchPosition::Rightmost => right.or(left)

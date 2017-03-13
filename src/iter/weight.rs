@@ -1,13 +1,13 @@
 use super::internal::*;
 use super::*;
 
-pub struct Weight<M> {
-    base: M,
+pub struct Weight<I> {
+    base: I,
     weight: f64,
 }
 
-impl<M> Weight<M> {
-    pub fn new(base: M, weight: f64) -> Weight<M> {
+impl<I> Weight<I> {
+    pub fn new(base: I, weight: f64) -> Weight<I> {
         Weight {
             base: base,
             weight: weight,
@@ -15,10 +15,10 @@ impl<M> Weight<M> {
     }
 }
 
-impl<M> ParallelIterator for Weight<M>
-    where M: ParallelIterator
+impl<I> ParallelIterator for Weight<I>
+    where I: ParallelIterator
 {
-    type Item = M::Item;
+    type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -32,7 +32,7 @@ impl<M> ParallelIterator for Weight<M>
     }
 }
 
-impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
+impl<I: BoundedParallelIterator> BoundedParallelIterator for Weight<I> {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
     }
@@ -45,38 +45,38 @@ impl<M: BoundedParallelIterator> BoundedParallelIterator for Weight<M> {
     }
 }
 
-impl<M: ExactParallelIterator> ExactParallelIterator for Weight<M> {
+impl<I: ExactParallelIterator> ExactParallelIterator for Weight<I> {
     fn len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M: IndexedParallelIterator> IndexedParallelIterator for Weight<M> {
+impl<I: IndexedParallelIterator> IndexedParallelIterator for Weight<I> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback {
-            weight: self.weight,
-            callback: callback,
-        });
+                                           weight: self.weight,
+                                           callback: callback,
+                                       });
 
         struct Callback<CB> {
             weight: f64,
             callback: CB,
         }
 
-        impl<I, CB> ProducerCallback<I> for Callback<CB>
-            where CB: ProducerCallback<I>
+        impl<T, CB> ProducerCallback<T> for Callback<CB>
+            where CB: ProducerCallback<T>
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> Self::Output
-                where P: Producer<Item = I>
+                where P: Producer<Item = T>
             {
                 self.callback.callback(WeightProducer {
-                    base: base,
-                    weight: self.weight,
-                })
+                                           base: base,
+                                           weight: self.weight,
+                                       })
             }
         }
     }
@@ -135,8 +135,8 @@ impl<C> WeightConsumer<C> {
     }
 }
 
-impl<C, I> Consumer<I> for WeightConsumer<C>
-    where C: Consumer<I>
+impl<C, T> Consumer<T> for WeightConsumer<C>
+    where C: Consumer<T>
 {
     type Folder = C::Folder;
     type Reducer = C::Reducer;
@@ -164,8 +164,8 @@ impl<C, I> Consumer<I> for WeightConsumer<C>
     }
 }
 
-impl<C, I> UnindexedConsumer<I> for WeightConsumer<C>
-    where C: UnindexedConsumer<I>
+impl<C, T> UnindexedConsumer<T> for WeightConsumer<C>
+    where C: UnindexedConsumer<T>
 {
     fn split_off_left(&self) -> Self {
         WeightConsumer::new(self.base.split_off_left(), self.weight)
@@ -175,3 +175,4 @@ impl<C, I> UnindexedConsumer<I> for WeightConsumer<C>
         self.base.to_reducer()
     }
 }
+

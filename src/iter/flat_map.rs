@@ -7,16 +7,16 @@ use std::f64;
 ///
 /// [`flap_map()`]: trait.ParallelIterator.html#method.flat_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct FlatMap<M: ParallelIterator, F> {
-    base: M,
+pub struct FlatMap<I: ParallelIterator, F> {
+    base: I,
     map_op: F,
 }
 
 /// Create a new `FlatMap` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M, F>(base: M, map_op: F) -> FlatMap<M, F>
-    where M: ParallelIterator
+pub fn new<I, F>(base: I, map_op: F) -> FlatMap<I, F>
+    where I: ParallelIterator
 {
     FlatMap {
         base: base,
@@ -24,9 +24,9 @@ pub fn new<M, F>(base: M, map_op: F) -> FlatMap<M, F>
     }
 }
 
-impl<M, F, PI> ParallelIterator for FlatMap<M, F>
-    where M: ParallelIterator,
-          F: Fn(M::Item) -> PI + Sync,
+impl<I, F, PI> ParallelIterator for FlatMap<I, F>
+    where I: ParallelIterator,
+          F: Fn(I::Item) -> PI + Sync,
           PI: IntoParallelIterator
 {
     type Item = PI::Item;
@@ -45,13 +45,13 @@ impl<M, F, PI> ParallelIterator for FlatMap<M, F>
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct FlatMapConsumer<'m, C, F: 'm> {
+struct FlatMapConsumer<'f, C, F: 'f> {
     base: C,
-    map_op: &'m F,
+    map_op: &'f F,
 }
 
-impl<'m, C, F> FlatMapConsumer<'m, C, F> {
-    fn new(base: C, map_op: &'m F) -> Self {
+impl<'f, C, F> FlatMapConsumer<'f, C, F> {
+    fn new(base: C, map_op: &'f F) -> Self {
         FlatMapConsumer {
             base: base,
             map_op: map_op,
@@ -59,12 +59,12 @@ impl<'m, C, F> FlatMapConsumer<'m, C, F> {
     }
 }
 
-impl<'m, I, MAPPED_ITEM, C, F> Consumer<I> for FlatMapConsumer<'m, C, F>
-    where C: UnindexedConsumer<MAPPED_ITEM::Item>,
-          F: Fn(I) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: IntoParallelIterator
+impl<'f, T, U, C, F> Consumer<T> for FlatMapConsumer<'f, C, F>
+    where C: UnindexedConsumer<U::Item>,
+          F: Fn(T) -> U + Sync,
+          U: IntoParallelIterator
 {
-    type Folder = FlatMapFolder<'m, C, F, C::Result>;
+    type Folder = FlatMapFolder<'f, C, F, C::Result>;
     type Reducer = C::Reducer;
     type Result = C::Result;
 
@@ -99,10 +99,10 @@ impl<'m, I, MAPPED_ITEM, C, F> Consumer<I> for FlatMapConsumer<'m, C, F>
     }
 }
 
-impl<'m, I, MAPPED_ITEM, C, F> UnindexedConsumer<I> for FlatMapConsumer<'m, C, F>
-    where C: UnindexedConsumer<MAPPED_ITEM::Item>,
-          F: Fn(I) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: IntoParallelIterator
+impl<'f, T, U, C, F> UnindexedConsumer<T> for FlatMapConsumer<'f, C, F>
+    where C: UnindexedConsumer<U::Item>,
+          F: Fn(T) -> U + Sync,
+          U: IntoParallelIterator
 {
     fn split_off_left(&self) -> Self {
         FlatMapConsumer::new(self.base.split_off_left(), self.map_op)
@@ -114,20 +114,20 @@ impl<'m, I, MAPPED_ITEM, C, F> UnindexedConsumer<I> for FlatMapConsumer<'m, C, F
 }
 
 
-struct FlatMapFolder<'m, C, F: 'm, R> {
+struct FlatMapFolder<'f, C, F: 'f, R> {
     base: C,
-    map_op: &'m F,
+    map_op: &'f F,
     previous: Option<R>,
 }
 
-impl<'m, I, MAPPED_ITEM, C, F> Folder<I> for FlatMapFolder<'m, C, F, C::Result>
-    where C: UnindexedConsumer<MAPPED_ITEM::Item>,
-          F: Fn(I) -> MAPPED_ITEM + Sync,
-          MAPPED_ITEM: IntoParallelIterator
+impl<'f, T, U, C, F> Folder<T> for FlatMapFolder<'f, C, F, C::Result>
+    where C: UnindexedConsumer<U::Item>,
+          F: Fn(T) -> U + Sync,
+          U: IntoParallelIterator
 {
     type Result = C::Result;
 
-    fn consume(self, item: I) -> Self {
+    fn consume(self, item: T) -> Self {
         let map_op = self.map_op;
         let par_iter = map_op(item).into_par_iter();
         let result = par_iter.drive_unindexed(self.base.split_off_left());

@@ -7,16 +7,15 @@ use rayon_core::join;
 use super::IndexedParallelIterator;
 use super::len::*;
 
-pub trait ProducerCallback<ITEM> {
+pub trait ProducerCallback<T> {
     type Output;
-    fn callback<P>(self, producer: P) -> Self::Output where P: Producer<Item = ITEM>;
+    fn callback<P>(self, producer: P) -> Self::Output where P: Producer<Item = T>;
 }
 
 /// A producer which will produce a fixed number of items N. This is
 /// not queryable through the API; the consumer is expected to track
 /// it.
-pub trait Producer: Send + Sized
-{
+pub trait Producer: Send + Sized {
     // Rust issue https://github.com/rust-lang/rust/issues/20671
     // prevents us from declaring the DoubleEndedIterator and
     // ExactSizeIterator constraints on a required IntoIterator trait,
@@ -43,7 +42,7 @@ pub trait Producer: Send + Sized
     ///
     /// The provided implementation is sufficient for most iterables.
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>,
+        where F: Folder<Self::Item>
     {
         folder.consume_iter(self.into_iter())
     }
@@ -89,7 +88,7 @@ pub trait Folder<Item>: Sized {
 
     /// Consume items from the iterator until full, and return new sequential state.
     fn consume_iter<I>(mut self, iter: I) -> Self
-        where I: IntoIterator<Item=Item>
+        where I: IntoIterator<Item = Item>
     {
         for item in iter {
             self = self.consume(item);
@@ -117,7 +116,7 @@ pub trait Reducer<Result> {
 }
 
 /// A stateless consumer can be freely copied.
-pub trait UnindexedConsumer<ITEM>: Consumer<ITEM> {
+pub trait UnindexedConsumer<I>: Consumer<I> {
     // The result of split_off_left should be used for the left side of the
     // data it consumes, and the remaining consumer for the right side
     // (this matters for methods like find_first).
@@ -193,27 +192,27 @@ impl Splitter {
     }
 }
 
-pub fn bridge<PAR_ITER, C>(mut par_iter: PAR_ITER, consumer: C) -> C::Result
-    where PAR_ITER: IndexedParallelIterator,
-          C: Consumer<PAR_ITER::Item>
+pub fn bridge<I, C>(mut par_iter: I, consumer: C) -> C::Result
+    where I: IndexedParallelIterator,
+          C: Consumer<I::Item>
 {
     let len = par_iter.len();
     return par_iter.with_producer(Callback {
-        len: len,
-        consumer: consumer,
-    });
+                                      len: len,
+                                      consumer: consumer,
+                                  });
 
     struct Callback<C> {
         len: usize,
         consumer: C,
     }
 
-    impl<C, ITEM> ProducerCallback<ITEM> for Callback<C>
-        where C: Consumer<ITEM>
+    impl<C, I> ProducerCallback<I> for Callback<C>
+        where C: Consumer<I>
     {
         type Output = C::Result;
         fn callback<P>(self, producer: P) -> C::Result
-            where P: Producer<Item = ITEM>
+            where P: Producer<Item = I>
         {
             bridge_producer_consumer(self.len, producer, self.consumer)
         }
@@ -287,3 +286,4 @@ fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
         producer.fold_with(consumer.into_folder()).complete()
     }
 }
+

@@ -7,16 +7,16 @@ use super::*;
 ///
 /// [`filter_map()`]: trait.ParallelIterator.html#method.filter_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct FilterMap<M: ParallelIterator, P> {
-    base: M,
+pub struct FilterMap<I: ParallelIterator, P> {
+    base: I,
     filter_op: P,
 }
 
 /// Create a new `FilterMap` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M, P>(base: M, filter_op: P) -> FilterMap<M, P>
-    where M: ParallelIterator
+pub fn new<I, P>(base: I, filter_op: P) -> FilterMap<I, P>
+    where I: ParallelIterator
 {
     FilterMap {
         base: base,
@@ -24,9 +24,9 @@ pub fn new<M, P>(base: M, filter_op: P) -> FilterMap<M, P>
     }
 }
 
-impl<M, P, R> ParallelIterator for FilterMap<M, P>
-    where M: ParallelIterator,
-          P: Fn(M::Item) -> Option<R> + Sync,
+impl<I, P, R> ParallelIterator for FilterMap<I, P>
+    where I: ParallelIterator,
+          P: Fn(I::Item) -> Option<R> + Sync,
           R: Send
 {
     type Item = R;
@@ -39,9 +39,9 @@ impl<M, P, R> ParallelIterator for FilterMap<M, P>
     }
 }
 
-impl<M, P, R> BoundedParallelIterator for FilterMap<M, P>
-    where M: BoundedParallelIterator,
-          P: Fn(M::Item) -> Option<R> + Sync,
+impl<I, P, R> BoundedParallelIterator for FilterMap<I, P>
+    where I: BoundedParallelIterator,
+          P: Fn(I::Item) -> Option<R> + Sync,
           R: Send
 {
     fn upper_bound(&mut self) -> usize {
@@ -73,9 +73,9 @@ impl<'p, C, P: 'p> FilterMapConsumer<'p, C, P> {
     }
 }
 
-impl<'p, ITEM, MAPPED_ITEM, C, P> Consumer<ITEM> for FilterMapConsumer<'p, C, P>
-    where C: Consumer<MAPPED_ITEM>,
-          P: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'p
+impl<'p, T, U, C, P> Consumer<T> for FilterMapConsumer<'p, C, P>
+    where C: Consumer<U>,
+          P: Fn(T) -> Option<U> + Sync + 'p
 {
     type Folder = FilterMapFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
@@ -110,10 +110,9 @@ impl<'p, ITEM, MAPPED_ITEM, C, P> Consumer<ITEM> for FilterMapConsumer<'p, C, P>
     }
 }
 
-impl<'p, ITEM, MAPPED_ITEM, C, P> UnindexedConsumer<ITEM>
-    for FilterMapConsumer<'p, C, P>
-    where C: UnindexedConsumer<MAPPED_ITEM>,
-          P: Fn(ITEM) -> Option<MAPPED_ITEM> + Sync + 'p
+impl<'p, T, U, C, P> UnindexedConsumer<T> for FilterMapConsumer<'p, C, P>
+    where C: UnindexedConsumer<U>,
+          P: Fn(T) -> Option<U> + Sync + 'p
 {
     fn split_off_left(&self) -> Self {
         FilterMapConsumer::new(self.base.split_off_left(), &self.filter_op)
@@ -129,13 +128,13 @@ struct FilterMapFolder<'p, C, P: 'p> {
     filter_op: &'p P,
 }
 
-impl<'p, I, C_ITEM, C, P> Folder<I> for FilterMapFolder<'p, C, P>
-    where C: Folder<C_ITEM>,
-          P: Fn(I) -> Option<C_ITEM> + Sync + 'p
+impl<'p, T, U, C, P> Folder<T> for FilterMapFolder<'p, C, P>
+    where C: Folder<U>,
+          P: Fn(T) -> Option<U> + Sync + 'p
 {
     type Result = C::Result;
 
-    fn consume(self, item: I) -> Self {
+    fn consume(self, item: T) -> Self {
         let filter_op = self.filter_op;
         if let Some(mapped_item) = filter_op(item) {
             let base = self.base.consume(mapped_item);
@@ -156,3 +155,4 @@ impl<'p, I, C_ITEM, C, P> Folder<I> for FilterMapFolder<'p, C, P>
         self.base.full()
     }
 }
+

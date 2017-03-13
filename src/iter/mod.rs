@@ -201,8 +201,8 @@ pub trait ParallelIterator: Sized {
     /// Applies `inspect_op` to a reference to each item of this iterator,
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
-    fn inspect<INSPECT_OP>(self, inspect_op: INSPECT_OP) -> Map<Self, MapInspect<INSPECT_OP>>
-        where INSPECT_OP: Fn(&Self::Item) + Sync
+    fn inspect<OP>(self, inspect_op: OP) -> Map<Self, MapInspect<OP>>
+        where OP: Fn(&Self::Item) + Sync
     {
         map::new(self, MapInspect(inspect_op))
     }
@@ -431,13 +431,10 @@ pub trait ParallelIterator: Sized {
     ///                .sum();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
-    fn fold<ITEM, ID, F>(self,
-                                              identity: ID,
-                                              fold_op: F)
-                                              -> fold::Fold<Self, ID, F>
-        where F: Fn(ITEM, Self::Item) -> ITEM + Sync,
-              ID: Fn() -> ITEM + Sync,
-              ITEM: Send
+    fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> fold::Fold<Self, ID, F>
+        where F: Fn(T, Self::Item) -> T + Sync,
+              ID: Fn() -> T + Sync,
+              T: Send
     {
         fold::fold(self, identity, fold_op)
     }
@@ -556,8 +553,8 @@ pub trait ParallelIterator: Sized {
     }
 
     /// Takes two iterators and creates a new iterator over both.
-    fn chain<CHAIN>(self, chain: CHAIN) -> Chain<Self, CHAIN::Iter>
-        where CHAIN: IntoParallelIterator<Item = Self::Item>
+    fn chain<C>(self, chain: C) -> Chain<Self, C::Iter>
+        where C: IntoParallelIterator<Item = Self::Item>
     {
         chain::new(self, chain.into_par_iter())
     }

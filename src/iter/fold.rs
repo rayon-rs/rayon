@@ -2,12 +2,9 @@ use super::internal::*;
 use super::len::*;
 use super::*;
 
-pub fn fold<U, BASE, ID, F>(base: BASE,
-                                        identity: ID,
-                                        fold_op: F)
-                                        -> Fold<BASE, ID, F>
-    where BASE: ParallelIterator,
-          F: Fn(U, BASE::Item) -> U + Sync,
+pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
+    where I: ParallelIterator,
+          F: Fn(U, I::Item) -> U + Sync,
           ID: Fn() -> U + Sync,
           U: Send
 {
@@ -23,15 +20,15 @@ pub fn fold<U, BASE, ID, F>(base: BASE,
 ///
 /// [`fold()`]: trait.ParallelIterator.html#method.fold
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct Fold<BASE, ID, F> {
-    base: BASE,
+pub struct Fold<I, ID, F> {
+    base: I,
     identity: ID,
     fold_op: F,
 }
 
-impl<U, BASE, ID, F> ParallelIterator for Fold<BASE, ID, F>
-    where BASE: ParallelIterator,
-          F: Fn(U, BASE::Item) -> U + Sync,
+impl<U, I, ID, F> ParallelIterator for Fold<I, ID, F>
+    where I: ParallelIterator,
+          F: Fn(U, I::Item) -> U + Sync,
           ID: Fn() -> U + Sync,
           U: Send
 {
@@ -49,9 +46,9 @@ impl<U, BASE, ID, F> ParallelIterator for Fold<BASE, ID, F>
     }
 }
 
-impl<U, BASE, ID, F> BoundedParallelIterator for Fold<BASE, ID, F>
-    where BASE: BoundedParallelIterator,
-          F: Fn(U, BASE::Item) -> U + Sync,
+impl<U, I, ID, F> BoundedParallelIterator for Fold<I, ID, F>
+    where I: BoundedParallelIterator,
+          F: Fn(U, I::Item) -> U + Sync,
           ID: Fn() -> U + Sync,
           U: Send
 {
@@ -104,10 +101,9 @@ impl<'r, U, T, C, ID, F> Consumer<T> for FoldConsumer<'r, C, ID, F>
     }
 }
 
-impl<'r, U, ITEM, C, ID, F> UnindexedConsumer<ITEM>
-    for FoldConsumer<'r, C, ID, F>
+impl<'r, U, T, C, ID, F> UnindexedConsumer<T> for FoldConsumer<'r, C, ID, F>
     where C: UnindexedConsumer<U>,
-          F: Fn(U, ITEM) -> U + Sync,
+          F: Fn(U, T) -> U + Sync,
           ID: Fn() -> U + Sync,
           U: Send
 {
@@ -126,13 +122,13 @@ pub struct FoldFolder<'r, C, ID, F: 'r> {
     item: ID,
 }
 
-impl<'r, C, ID, F, ITEM> Folder<ITEM> for FoldFolder<'r, C, ID, F>
+impl<'r, C, ID, F, T> Folder<T> for FoldFolder<'r, C, ID, F>
     where C: Folder<ID>,
-          F: Fn(ID, ITEM) -> ID + Sync
+          F: Fn(ID, T) -> ID + Sync
 {
     type Result = C::Result;
 
-    fn consume(self, item: ITEM) -> Self {
+    fn consume(self, item: T) -> Self {
         let item = (self.fold_op)(self.item, item);
         FoldFolder {
             base: self.base,
@@ -145,3 +141,4 @@ impl<'r, C, ID, F, ITEM> Folder<ITEM> for FoldFolder<'r, C, ID, F>
         self.base.consume(self.item).complete()
     }
 }
+

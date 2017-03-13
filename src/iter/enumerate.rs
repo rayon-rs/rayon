@@ -9,23 +9,23 @@ use std::usize;
 ///
 /// [`enumerate()`]: trait.ParallelIterator.html#method.enumerate
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct Enumerate<M: IndexedParallelIterator> {
-    base: M,
+pub struct Enumerate<I: IndexedParallelIterator> {
+    base: I,
 }
 
 /// Create a new `Enumerate` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M>(base: M) -> Enumerate<M>
-    where M: IndexedParallelIterator
+pub fn new<I>(base: I) -> Enumerate<I>
+    where I: IndexedParallelIterator
 {
     Enumerate { base: base }
 }
 
-impl<M> ParallelIterator for Enumerate<M>
-    where M: IndexedParallelIterator
+impl<I> ParallelIterator for Enumerate<I>
+    where I: IndexedParallelIterator
 {
-    type Item = (usize, M::Item);
+    type Item = (usize, I::Item);
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -38,8 +38,8 @@ impl<M> ParallelIterator for Enumerate<M>
     }
 }
 
-impl<M> BoundedParallelIterator for Enumerate<M>
-    where M: IndexedParallelIterator
+impl<I> BoundedParallelIterator for Enumerate<I>
+    where I: IndexedParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -50,16 +50,16 @@ impl<M> BoundedParallelIterator for Enumerate<M>
     }
 }
 
-impl<M> ExactParallelIterator for Enumerate<M>
-    where M: IndexedParallelIterator
+impl<I> ExactParallelIterator for Enumerate<I>
+    where I: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M> IndexedParallelIterator for Enumerate<M>
-    where M: IndexedParallelIterator
+impl<I> IndexedParallelIterator for Enumerate<I>
+    where I: IndexedParallelIterator
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
@@ -70,12 +70,12 @@ impl<M> IndexedParallelIterator for Enumerate<M>
             callback: CB,
         }
 
-        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
-            where CB: ProducerCallback<(usize, ITEM)>
+        impl<I, CB> ProducerCallback<I> for Callback<CB>
+            where CB: ProducerCallback<(usize, I)>
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = ITEM>
+                where P: Producer<Item = I>
             {
                 let producer = EnumerateProducer {
                     base: base,
@@ -129,3 +129,4 @@ impl<P> Producer for EnumerateProducer<P>
          })
     }
 }
+
