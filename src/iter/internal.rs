@@ -132,7 +132,6 @@ pub trait UnindexedProducer: Send + Sized {
 /// job is actually stolen into a different thread.
 #[derive(Clone, Copy)]
 struct Splitter {
-
     /// The `origin` tracks the ID of the thread that started this job,
     /// so we can tell when we've been stolen to a new thread.
     origin: usize,
@@ -211,7 +210,7 @@ impl LengthSplitter {
             min: cmp::max(min, 1),
         };
 
-        // Divide the given length by the max working lenght to get the minimum
+        // Divide the given length by the max working length to get the minimum
         // number of splits we need to get under that max.  This rounds down,
         // but the splitter actually gives `next_power_of_two()` pieces anyway.
         // e.g. len 12345 / max 100 = 123 min_splits -> 128 pieces.
