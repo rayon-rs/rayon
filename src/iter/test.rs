@@ -199,6 +199,15 @@ pub fn fold_map_reduce() {
 }
 
 #[test]
+#[allow(deprecated)]
+pub fn check_weight_exact_and_bounded() {
+    let a = [1, 2, 3];
+    is_bounded(a.par_iter().weight(2.0));
+    is_exact(a.par_iter().weight(2.0));
+    is_indexed(a.par_iter().weight(2.0));
+}
+
+#[test]
 pub fn check_enumerate() {
     let a: Vec<usize> = (0..1024).rev().collect();
 
