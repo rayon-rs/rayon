@@ -132,7 +132,14 @@ pub trait UnindexedProducer: Send + Sized {
 /// job is actually stolen into a different thread.
 #[derive(Clone, Copy)]
 struct Splitter {
+
+    /// The `origin` tracks the ID of the thread that started this job,
+    /// so we can tell when we've been stolen to a new thread.
     origin: usize,
+
+    /// The `splits` tell us approximately how many remaining times we'd
+    /// like to split this job.  We always just divide it by two though, so
+    /// the effective number of pieces will be `next_power_of_two()`.
     splits: usize,
 }
 
@@ -159,25 +166,44 @@ impl Splitter {
 
         let id = Splitter::thief_id();
         if origin != id {
+            // This job was stolen!  Set a new origin and reset the number
+            // of desired splits to the thread count, if that's more than
+            // we had remaining anyway.
             self.origin = id;
             self.splits = cmp::max(::current_num_threads(), self.splits / 2);
             true
         } else if splits > 0 {
+            // We have splits remaining, make it so.
             self.splits /= 2;
             true
         } else {
+            // Not stolen, and no more splits -- we're done!
             false
         }
     }
 }
 
+/// The length splitter is built on thief-splitting, but additionally takes
+/// into account the remaining length of the iterator.
 #[derive(Clone, Copy)]
 struct LengthSplitter {
     inner: Splitter,
+
+    /// The smallest we're willing to divide into.  Usually this is just 1,
+    /// but you can choose a larger working size with `set_min_len()`.
     min: usize,
 }
 
 impl LengthSplitter {
+    /// Create a new splitter based on lengths.
+    ///
+    /// The `min` is a hard lower bound.  We'll never split below that, but
+    /// of course an iterator might start out smaller already.
+    ///
+    /// The `max` is an upper bound on the working size, used to determine
+    /// the minimum number of times we need to split to get under that limit.
+    /// The adaptive algorithm may very well split even further, but never
+    /// smaller than the `min`.
     #[inline]
     fn new(min: usize, max: usize, len: usize) -> LengthSplitter {
         let mut splitter = LengthSplitter {
@@ -185,9 +211,15 @@ impl LengthSplitter {
             min: cmp::max(min, 1),
         };
 
-        let max_splits = len / cmp::max(max, 1);
-        if max_splits > splitter.inner.splits {
-            splitter.inner.splits = max_splits;
+        // Divide the given length by the max working lenght to get the minimum
+        // number of splits we need to get under that max.  This rounds down,
+        // but the splitter actually gives `next_power_of_two()` pieces anyway.
+        // e.g. len 12345 / max 100 = 123 min_splits -> 128 pieces.
+        let min_splits = len / cmp::max(max, 1);
+
+        // Only update the value if it's not splitting enough already.
+        if min_splits > splitter.inner.splits {
+            splitter.inner.splits = min_splits;
         }
 
         splitter
@@ -195,6 +227,7 @@ impl LengthSplitter {
 
     #[inline]
     fn try(&mut self, len: usize) -> bool {
+        // If splitting wouldn't make us too small, try the inner splitter.
         len / 2 >= self.min && self.inner.try()
     }
 }
