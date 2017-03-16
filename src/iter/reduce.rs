@@ -33,6 +33,7 @@ use std::ops::{Add, Mul};
 pub trait ReduceOp<T>: Sync {
     fn start_value(&self) -> T;
     fn reduce(&self, value1: T, value2: T) -> T;
+    fn reduce_iter<I>(&self, value: T, iter: I) -> T where I: Iterator<Item = T>;
     private_decl!{}
 }
 
@@ -116,6 +117,17 @@ impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
         }
     }
 
+    fn consume_iter<I>(self, iter: I) -> Self
+        where I: IntoIterator<Item = T>
+    {
+        let iter = iter.into_iter();
+        let item = self.reduce_op.reduce_iter(self.item, iter);
+        ReduceFolder {
+            reduce_op: self.reduce_op,
+            item: item,
+        }
+    }
+
     fn complete(self) -> T {
         self.item
     }
@@ -139,6 +151,12 @@ impl<T> ReduceOp<T> for SumOp
         value1 + value2
     }
 
+    fn reduce_iter<I>(&self, value1: T, iter: I) -> T
+        where I: Iterator<Item = T>
+    {
+        value1 + iter.sum()
+    }
+
     private_impl!{}
 }
 
@@ -155,6 +173,12 @@ impl<T> ReduceOp<T> for ProductOp
 
     fn reduce(&self, value1: T, value2: T) -> T {
         value1 * value2
+    }
+
+    fn reduce_iter<I>(&self, value: T, iter: I) -> T
+        where I: Iterator<Item = T>
+    {
+        value * iter.product()
     }
 
     private_impl!{}
@@ -185,6 +209,12 @@ impl<'r, ID, OP, T> ReduceOp<T> for ReduceWithIdentityOp<'r, ID, OP>
 
     fn reduce(&self, value1: T, value2: T) -> T {
         (self.op)(value1, value2)
+    }
+
+    fn reduce_iter<I>(&self, value: T, iter: I) -> T
+        where I: Iterator<Item = T>
+    {
+        iter.fold(value, self.op)
     }
 
     private_impl!{}
