@@ -7,6 +7,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 mod consumer;
 use self::consumer::CollectConsumer;
 
+mod test;
+
 /// Collects the results of the exact iterator into the specified vector.
 pub fn collect_into<PAR_ITER, T>(mut pi: PAR_ITER, v: &mut Vec<T>)
     where PAR_ITER: ExactParallelIterator<Item = T>,
