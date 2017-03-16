@@ -10,8 +10,8 @@ use self::consumer::CollectConsumer;
 mod test;
 
 /// Collects the results of the exact iterator into the specified vector.
-pub fn collect_into<PAR_ITER, T>(mut pi: PAR_ITER, v: &mut Vec<T>)
-    where PAR_ITER: ExactParallelIterator<Item = T>,
+pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
+    where I: ExactParallelIterator<Item = T>,
           T: Send
 {
     let mut collect = Collect::new(v, pi.len());
@@ -30,8 +30,8 @@ pub fn collect_into<PAR_ITER, T>(mut pi: PAR_ITER, v: &mut Vec<T>)
 /// *any* `ParallelIterator` here, and `CollectConsumer` has to also implement
 /// `UnindexedConsumer`.  That implementation panics `unreachable!` in case
 /// there's a bug where we actually do try to use this unindexed.
-fn special_collect_into<PAR_ITER, T>(pi: PAR_ITER, len: usize, v: &mut Vec<T>)
-    where PAR_ITER: ParallelIterator<Item = T>,
+fn special_collect_into<I, T>(pi: I, len: usize, v: &mut Vec<T>)
+    where I: ParallelIterator<Item = T>,
           T: Send
 {
     let mut collect = Collect::new(v, len);
@@ -92,8 +92,8 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
 impl<T> FromParallelIterator<T> for Vec<T>
     where T: Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = T>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = T>
     {
         // See the vec_collect benchmarks in rayon-demo for different strategies.
         let mut par_iter = par_iter.into_par_iter();

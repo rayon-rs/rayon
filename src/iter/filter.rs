@@ -7,16 +7,16 @@ use super::*;
 ///
 /// [`filter()`]: trait.ParallelIterator.html#method.filter
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct Filter<M: ParallelIterator, FILTER_OP> {
-    base: M,
-    filter_op: FILTER_OP,
+pub struct Filter<I: ParallelIterator, P> {
+    base: I,
+    filter_op: P,
 }
 
 /// Create a new `Filter` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M, FILTER_OP>(base: M, filter_op: FILTER_OP) -> Filter<M, FILTER_OP>
-    where M: ParallelIterator
+pub fn new<I, P>(base: I, filter_op: P) -> Filter<I, P>
+    where I: ParallelIterator
 {
     Filter {
         base: base,
@@ -24,11 +24,11 @@ pub fn new<M, FILTER_OP>(base: M, filter_op: FILTER_OP) -> Filter<M, FILTER_OP>
     }
 }
 
-impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
-    where M: ParallelIterator,
-          FILTER_OP: Fn(&M::Item) -> bool + Sync
+impl<I, P> ParallelIterator for Filter<I, P>
+    where I: ParallelIterator,
+          P: Fn(&I::Item) -> bool + Sync
 {
-    type Item = M::Item;
+    type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -38,9 +38,9 @@ impl<M, FILTER_OP> ParallelIterator for Filter<M, FILTER_OP>
     }
 }
 
-impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
-    where M: BoundedParallelIterator,
-          FILTER_OP: Fn(&M::Item) -> bool + Sync
+impl<I, P> BoundedParallelIterator for Filter<I, P>
+    where I: BoundedParallelIterator,
+          P: Fn(&I::Item) -> bool + Sync
 {
     fn upper_bound(&mut self) -> usize {
         self.base.upper_bound()
@@ -57,13 +57,13 @@ impl<M, FILTER_OP> BoundedParallelIterator for Filter<M, FILTER_OP>
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct FilterConsumer<'f, C, FILTER_OP: 'f> {
+struct FilterConsumer<'p, C, P: 'p> {
     base: C,
-    filter_op: &'f FILTER_OP,
+    filter_op: &'p P,
 }
 
-impl<'f, C, FILTER_OP> FilterConsumer<'f, C, FILTER_OP> {
-    fn new(base: C, filter_op: &'f FILTER_OP) -> Self {
+impl<'p, C, P> FilterConsumer<'p, C, P> {
+    fn new(base: C, filter_op: &'p P) -> Self {
         FilterConsumer {
             base: base,
             filter_op: filter_op,
@@ -71,11 +71,11 @@ impl<'f, C, FILTER_OP> FilterConsumer<'f, C, FILTER_OP> {
     }
 }
 
-impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER_OP>
-    where C: Consumer<ITEM>,
-          FILTER_OP: Fn(&ITEM) -> bool + Sync
+impl<'p, T, C, P: 'p> Consumer<T> for FilterConsumer<'p, C, P>
+    where C: Consumer<T>,
+          P: Fn(&T) -> bool + Sync
 {
-    type Folder = FilterFolder<'f, C::Folder, FILTER_OP>;
+    type Folder = FilterFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
     type Result = C::Result;
 
@@ -108,9 +108,9 @@ impl<'f, ITEM, C, FILTER_OP: 'f> Consumer<ITEM> for FilterConsumer<'f, C, FILTER
 }
 
 
-impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM> for FilterConsumer<'f, C, FILTER_OP>
-    where C: UnindexedConsumer<ITEM>,
-          FILTER_OP: Fn(&ITEM) -> bool + Sync
+impl<'p, T, C, P: 'p> UnindexedConsumer<T> for FilterConsumer<'p, C, P>
+    where C: UnindexedConsumer<T>,
+          P: Fn(&T) -> bool + Sync
 {
     fn split_off_left(&self) -> Self {
         FilterConsumer::new(self.base.split_off_left(), &self.filter_op)
@@ -121,18 +121,18 @@ impl<'f, ITEM, C, FILTER_OP: 'f> UnindexedConsumer<ITEM> for FilterConsumer<'f, 
     }
 }
 
-struct FilterFolder<'f, C, FILTER_OP: 'f> {
+struct FilterFolder<'p, C, P: 'p> {
     base: C,
-    filter_op: &'f FILTER_OP,
+    filter_op: &'p P,
 }
 
-impl<'f, C, FILTER_OP, ITEM> Folder<ITEM> for FilterFolder<'f, C, FILTER_OP>
-    where C: Folder<ITEM>,
-          FILTER_OP: Fn(&ITEM) -> bool + 'f
+impl<'p, C, P, T> Folder<T> for FilterFolder<'p, C, P>
+    where C: Folder<T>,
+          P: Fn(&T) -> bool + 'p
 {
     type Result = C::Result;
 
-    fn consume(self, item: ITEM) -> Self {
+    fn consume(self, item: T) -> Self {
         let filter_op = self.filter_op;
         if filter_op(&item) {
             let base = self.base.consume(item);
@@ -153,3 +153,4 @@ impl<'f, C, FILTER_OP, ITEM> Folder<ITEM> for FilterFolder<'f, C, FILTER_OP>
         self.base.full()
     }
 }
+

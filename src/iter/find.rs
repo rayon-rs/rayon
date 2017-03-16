@@ -3,22 +3,22 @@ use super::internal::*;
 use super::len::*;
 use super::*;
 
-pub fn find<PAR_ITER, FIND_OP>(pi: PAR_ITER, find_op: FIND_OP) -> Option<PAR_ITER::Item>
-    where PAR_ITER: ParallelIterator,
-          FIND_OP: Fn(&PAR_ITER::Item) -> bool + Sync
+pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
+    where I: ParallelIterator,
+          P: Fn(&I::Item) -> bool + Sync
 {
     let found = AtomicBool::new(false);
     let consumer = FindConsumer::new(&find_op, &found);
     pi.drive_unindexed(consumer)
 }
 
-struct FindConsumer<'f, FIND_OP: 'f> {
-    find_op: &'f FIND_OP,
-    found: &'f AtomicBool,
+struct FindConsumer<'p, P: 'p> {
+    find_op: &'p P,
+    found: &'p AtomicBool,
 }
 
-impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
-    fn new(find_op: &'f FIND_OP, found: &'f AtomicBool) -> Self {
+impl<'p, P> FindConsumer<'p, P> {
+    fn new(find_op: &'p P, found: &'p AtomicBool) -> Self {
         FindConsumer {
             find_op: find_op,
             found: found,
@@ -26,13 +26,13 @@ impl<'f, FIND_OP> FindConsumer<'f, FIND_OP> {
     }
 }
 
-impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
-    where ITEM: Send,
-          FIND_OP: Fn(&ITEM) -> bool + Sync
+impl<'p, T, P: 'p> Consumer<T> for FindConsumer<'p, P>
+    where T: Send,
+          P: Fn(&T) -> bool + Sync
 {
-    type Folder = FindFolder<'f, ITEM, FIND_OP>;
+    type Folder = FindFolder<'p, T, P>;
     type Reducer = FindReducer;
-    type Result = Option<ITEM>;
+    type Result = Option<T>;
 
     fn cost(&mut self, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
@@ -57,9 +57,9 @@ impl<'f, ITEM, FIND_OP: 'f> Consumer<ITEM> for FindConsumer<'f, FIND_OP>
 }
 
 
-impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP>
-    where ITEM: Send,
-          FIND_OP: Fn(&ITEM) -> bool + Sync
+impl<'p, T, P: 'p> UnindexedConsumer<T> for FindConsumer<'p, P>
+    where T: Send,
+          P: Fn(&T) -> bool + Sync
 {
     fn split_off_left(&self) -> Self {
         FindConsumer::new(self.find_op, self.found)
@@ -71,18 +71,18 @@ impl<'f, ITEM, FIND_OP: 'f> UnindexedConsumer<ITEM> for FindConsumer<'f, FIND_OP
 }
 
 
-struct FindFolder<'f, ITEM, FIND_OP: 'f> {
-    find_op: &'f FIND_OP,
-    found: &'f AtomicBool,
-    item: Option<ITEM>,
+struct FindFolder<'p, T, P: 'p> {
+    find_op: &'p P,
+    found: &'p AtomicBool,
+    item: Option<T>,
 }
 
-impl<'f, ITEM, FIND_OP> Folder<ITEM> for FindFolder<'f, ITEM, FIND_OP>
-    where FIND_OP: Fn(&ITEM) -> bool + 'f
+impl<'p, T, P> Folder<T> for FindFolder<'p, T, P>
+    where P: Fn(&T) -> bool + 'p
 {
-    type Result = Option<ITEM>;
+    type Result = Option<T>;
 
-    fn consume(mut self, item: ITEM) -> Self {
+    fn consume(mut self, item: T) -> Self {
         if (self.find_op)(&item) {
             self.found.store(true, Ordering::Relaxed);
             self.item = Some(item);
@@ -102,8 +102,9 @@ impl<'f, ITEM, FIND_OP> Folder<ITEM> for FindFolder<'f, ITEM, FIND_OP>
 
 struct FindReducer;
 
-impl<ITEM> Reducer<Option<ITEM>> for FindReducer {
-    fn reduce(self, left: Option<ITEM>, right: Option<ITEM>) -> Option<ITEM> {
+impl<T> Reducer<Option<T>> for FindReducer {
+    fn reduce(self, left: Option<T>, right: Option<T>) -> Option<T> {
         left.or(right)
     }
 }
+

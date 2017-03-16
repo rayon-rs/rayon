@@ -13,18 +13,17 @@ use std::collections::{BinaryHeap, VecDeque};
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`collect()`]: trait.ParallelIterator.html#method.collect
-pub trait FromParallelIterator<ITEM>
-    where ITEM: Send
+pub trait FromParallelIterator<T>
+    where T: Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = ITEM>;
+    fn from_par_iter<I>(par_iter: I) -> Self where I: IntoParallelIterator<Item = T>;
 }
 
 
-fn combine<PAR_ITER, START, COLL>(par_iter: PAR_ITER, make_start: START) -> COLL
-    where PAR_ITER: IntoParallelIterator,
-          START: FnOnce(&LinkedList<Vec<PAR_ITER::Item>>) -> COLL,
-          COLL: Extend<PAR_ITER::Item>
+fn combine<I, START, COLL>(par_iter: I, make_start: START) -> COLL
+    where I: IntoParallelIterator,
+          START: FnOnce(&LinkedList<Vec<I::Item>>) -> COLL,
+          COLL: Extend<I::Item>
 {
     let list = par_iter.into_par_iter()
         .fold(Vec::new, |mut vec, elem| {
@@ -52,8 +51,8 @@ fn combined_len<T>(list: &LinkedList<Vec<T>>) -> usize {
 impl<T> FromParallelIterator<T> for VecDeque<T>
     where T: Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = T>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = T>
     {
         Vec::from_par_iter(par_iter).into()
     }
@@ -64,8 +63,8 @@ impl<T> FromParallelIterator<T> for VecDeque<T>
 impl<T> FromParallelIterator<T> for BinaryHeap<T>
     where T: Ord + Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = T>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = T>
     {
         Vec::from_par_iter(par_iter).into()
     }
@@ -76,19 +75,19 @@ impl<T> FromParallelIterator<T> for BinaryHeap<T>
 impl<T> FromParallelIterator<T> for LinkedList<T>
     where T: Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = T>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = T>
     {
         par_iter.into_par_iter()
             .map(|elem| {
-                let mut list = LinkedList::new();
-                list.push_back(elem);
-                list
-            })
+                     let mut list = LinkedList::new();
+                     list.push_back(elem);
+                     list
+                 })
             .reduce_with(|mut list1, mut list2| {
-                list1.append(&mut list2);
-                list1
-            })
+                             list1.append(&mut list2);
+                             list1
+                         })
             .unwrap_or_else(LinkedList::new)
     }
 }
@@ -102,8 +101,8 @@ impl<K, V, S> FromParallelIterator<(K, V)> for HashMap<K, V, S>
           V: Send,
           S: BuildHasher + Default + Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = (K, V)>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = (K, V)>
     {
         // See the map_collect benchmarks in rayon-demo for different strategies.
         combine(par_iter, |list| {
@@ -121,8 +120,8 @@ impl<K, V> FromParallelIterator<(K, V)> for BTreeMap<K, V>
     where K: Ord + Send,
           V: Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = (K, V)>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = (K, V)>
     {
         combine(par_iter, |_| BTreeMap::new())
     }
@@ -133,8 +132,8 @@ impl<V, S> FromParallelIterator<V> for HashSet<V, S>
     where V: Eq + Hash + Send,
           S: BuildHasher + Default + Send
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = V>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = V>
     {
         combine(par_iter, |list| {
             let len = combined_len(list);
@@ -147,8 +146,8 @@ impl<V, S> FromParallelIterator<V> for HashSet<V, S>
 impl<V> FromParallelIterator<V> for BTreeSet<V>
     where V: Send + Ord
 {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = V>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = V>
     {
         combine(par_iter, |_| BTreeSet::new())
     }
@@ -156,8 +155,8 @@ impl<V> FromParallelIterator<V> for BTreeSet<V>
 
 /// Collect characters from a parallel iterator into a string.
 impl FromParallelIterator<char> for String {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = char>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = char>
     {
         // This is like `combine`, but `Vec<char>` is less efficient to deal
         // with than `String`, so instead collect to `LinkedList<String>`.
@@ -180,8 +179,8 @@ impl FromParallelIterator<char> for String {
 
 /// Collect string slices from a parallel iterator into a string.
 impl<'a> FromParallelIterator<&'a str> for String {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = &'a str>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = &'a str>
     {
         combine(par_iter, |list| {
             let len = list.iter()
@@ -194,8 +193,8 @@ impl<'a> FromParallelIterator<&'a str> for String {
 
 /// Collect strings from a parallel iterator into one large string.
 impl FromParallelIterator<String> for String {
-    fn from_par_iter<PAR_ITER>(par_iter: PAR_ITER) -> Self
-        where PAR_ITER: IntoParallelIterator<Item = String>
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = String>
     {
         combine(par_iter, |list| {
             let len = list.iter()
@@ -205,3 +204,4 @@ impl FromParallelIterator<String> for String {
         })
     }
 }
+

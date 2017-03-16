@@ -31,34 +31,34 @@ pub trait ReduceOp<T>: Sync {
     fn reduce(&self, value1: T, value2: T) -> T;
 }
 
-pub fn reduce<PAR_ITER, REDUCE_OP, T>(pi: PAR_ITER, reduce_op: &REDUCE_OP) -> T
-    where PAR_ITER: ParallelIterator<Item = T>,
-          REDUCE_OP: ReduceOp<T>,
+pub fn reduce<PI, R, T>(pi: PI, reduce_op: &R) -> T
+    where PI: ParallelIterator<Item = T>,
+          R: ReduceOp<T>,
           T: Send
 {
     let consumer = ReduceConsumer { reduce_op: reduce_op };
     pi.drive_unindexed(consumer)
 }
 
-struct ReduceConsumer<'r, REDUCE_OP: 'r> {
-    reduce_op: &'r REDUCE_OP,
+struct ReduceConsumer<'r, R: 'r> {
+    reduce_op: &'r R,
 }
 
-impl<'r, REDUCE_OP> Copy for ReduceConsumer<'r, REDUCE_OP> {}
+impl<'r, R> Copy for ReduceConsumer<'r, R> {}
 
-impl<'r, REDUCE_OP> Clone for ReduceConsumer<'r, REDUCE_OP> {
+impl<'r, R> Clone for ReduceConsumer<'r, R> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<'r, REDUCE_OP, ITEM> Consumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-          ITEM: Send
+impl<'r, R, T> Consumer<T> for ReduceConsumer<'r, R>
+    where R: ReduceOp<T>,
+          T: Send
 {
-    type Folder = ReduceFolder<'r, REDUCE_OP, ITEM>;
+    type Folder = ReduceFolder<'r, R, T>;
     type Reducer = Self;
-    type Result = ITEM;
+    type Result = T;
 
     fn cost(&mut self, cost: f64) -> f64 {
         // This isn't quite right, as we will do more than O(n) reductions, but whatever.
@@ -69,7 +69,7 @@ impl<'r, REDUCE_OP, ITEM> Consumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
         (self, self, self)
     }
 
-    fn into_folder(self) -> ReduceFolder<'r, REDUCE_OP, ITEM> {
+    fn into_folder(self) -> ReduceFolder<'r, R, T> {
         ReduceFolder {
             reduce_op: self.reduce_op,
             item: self.reduce_op.start_value(),
@@ -77,9 +77,9 @@ impl<'r, REDUCE_OP, ITEM> Consumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
     }
 }
 
-impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>,
-          ITEM: Send
+impl<'r, R, T> UnindexedConsumer<T> for ReduceConsumer<'r, R>
+    where R: ReduceOp<T>,
+          T: Send
 {
     fn split_off_left(&self) -> Self {
         ReduceConsumer { reduce_op: self.reduce_op }
@@ -90,25 +90,25 @@ impl<'r, REDUCE_OP, ITEM> UnindexedConsumer<ITEM> for ReduceConsumer<'r, REDUCE_
     }
 }
 
-impl<'r, REDUCE_OP, ITEM> Reducer<ITEM> for ReduceConsumer<'r, REDUCE_OP>
-    where REDUCE_OP: ReduceOp<ITEM>
+impl<'r, R, T> Reducer<T> for ReduceConsumer<'r, R>
+    where R: ReduceOp<T>
 {
-    fn reduce(self, left: ITEM, right: ITEM) -> ITEM {
+    fn reduce(self, left: T, right: T) -> T {
         self.reduce_op.reduce(left, right)
     }
 }
 
-struct ReduceFolder<'r, REDUCE_OP: 'r, ITEM> {
-    reduce_op: &'r REDUCE_OP,
-    item: ITEM,
+struct ReduceFolder<'r, R: 'r, T> {
+    reduce_op: &'r R,
+    item: T,
 }
 
-impl<'r, REDUCE_OP, ITEM> Folder<ITEM> for ReduceFolder<'r, REDUCE_OP, ITEM>
-    where REDUCE_OP: ReduceOp<ITEM>
+impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
+    where R: ReduceOp<T>
 {
-    type Result = ITEM;
+    type Result = T;
 
-    fn consume(self, item: ITEM) -> Self {
+    fn consume(self, item: T) -> Self {
         let item = self.reduce_op.reduce(self.item, item);
         ReduceFolder {
             reduce_op: self.reduce_op,
@@ -116,7 +116,7 @@ impl<'r, REDUCE_OP, ITEM> Folder<ITEM> for ReduceFolder<'r, REDUCE_OP, ITEM>
         }
     }
 
-    fn complete(self) -> ITEM {
+    fn complete(self) -> T {
         self.item
     }
 }
@@ -188,13 +188,13 @@ product_rule!(usize, 1);
 product_rule!(f32, 1.0);
 product_rule!(f64, 1.0);
 
-pub struct ReduceWithIdentityOp<'r, IDENTITY: 'r, OP: 'r> {
-    identity: &'r IDENTITY,
+pub struct ReduceWithIdentityOp<'r, ID: 'r, OP: 'r> {
+    identity: &'r ID,
     op: &'r OP,
 }
 
-impl<'r, IDENTITY, OP> ReduceWithIdentityOp<'r, IDENTITY, OP> {
-    pub fn new(identity: &'r IDENTITY, op: &'r OP) -> ReduceWithIdentityOp<'r, IDENTITY, OP> {
+impl<'r, ID, OP> ReduceWithIdentityOp<'r, ID, OP> {
+    pub fn new(identity: &'r ID, op: &'r OP) -> ReduceWithIdentityOp<'r, ID, OP> {
         ReduceWithIdentityOp {
             identity: identity,
             op: op,
@@ -202,16 +202,17 @@ impl<'r, IDENTITY, OP> ReduceWithIdentityOp<'r, IDENTITY, OP> {
     }
 }
 
-impl<'r, IDENTITY, OP, ITEM> ReduceOp<ITEM> for ReduceWithIdentityOp<'r, IDENTITY, OP>
-    where OP: Fn(ITEM, ITEM) -> ITEM + Sync,
-          IDENTITY: Fn() -> ITEM + Sync,
-          ITEM: 'r
+impl<'r, ID, OP, T> ReduceOp<T> for ReduceWithIdentityOp<'r, ID, OP>
+    where OP: Fn(T, T) -> T + Sync,
+          ID: Fn() -> T + Sync,
+          T: 'r
 {
-    fn start_value(&self) -> ITEM {
+    fn start_value(&self) -> T {
         (self.identity)()
     }
 
-    fn reduce(&self, value1: ITEM, value2: ITEM) -> ITEM {
+    fn reduce(&self, value1: T, value2: T) -> T {
         (self.op)(value1, value2)
     }
 }
+

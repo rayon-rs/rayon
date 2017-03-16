@@ -7,25 +7,25 @@ use std::cmp::min;
 ///
 /// [`take()`]: trait.ParallelIterator.html#method.take
 /// [`ParallelIterator`]: trait.ParallelIterator.html
-pub struct Take<M> {
-    base: M,
+pub struct Take<I> {
+    base: I,
     n: usize,
 }
 
 /// Create a new `Take` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M>(mut base: M, n: usize) -> Take<M>
-    where M: IndexedParallelIterator
+pub fn new<I>(mut base: I, n: usize) -> Take<I>
+    where I: IndexedParallelIterator
 {
     let n = min(base.len(), n);
     Take { base: base, n: n }
 }
 
-impl<M> ParallelIterator for Take<M>
-    where M: IndexedParallelIterator
+impl<I> ParallelIterator for Take<I>
+    where I: IndexedParallelIterator
 {
-    type Item = M::Item;
+    type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -38,16 +38,16 @@ impl<M> ParallelIterator for Take<M>
     }
 }
 
-impl<M> ExactParallelIterator for Take<M>
-    where M: IndexedParallelIterator
+impl<I> ExactParallelIterator for Take<I>
+    where I: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
         self.n
     }
 }
 
-impl<M> BoundedParallelIterator for Take<M>
-    where M: IndexedParallelIterator
+impl<I> BoundedParallelIterator for Take<I>
+    where I: IndexedParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -58,8 +58,8 @@ impl<M> BoundedParallelIterator for Take<M>
     }
 }
 
-impl<M> IndexedParallelIterator for Take<M>
-    where M: IndexedParallelIterator
+impl<I> IndexedParallelIterator for Take<I>
+    where I: IndexedParallelIterator
 {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
@@ -74,12 +74,12 @@ impl<M> IndexedParallelIterator for Take<M>
             n: usize,
         }
 
-        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
-            where CB: ProducerCallback<ITEM>
+        impl<T, CB> ProducerCallback<T> for Callback<CB>
+            where CB: ProducerCallback<T>
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = ITEM>
+                where P: Producer<Item = T>
             {
                 let (producer, _) = base.split_at(self.n);
                 self.callback.callback(producer)
@@ -87,3 +87,4 @@ impl<M> IndexedParallelIterator for Take<M>
         }
     }
 }
+

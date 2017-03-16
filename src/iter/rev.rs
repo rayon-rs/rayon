@@ -2,23 +2,23 @@ use super::internal::*;
 use super::*;
 use std::iter;
 
-pub struct Rev<M: IndexedParallelIterator> {
-    base: M,
+pub struct Rev<I: IndexedParallelIterator> {
+    base: I,
 }
 
 /// Create a new `Rev` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<M>(base: M) -> Rev<M>
-    where M: IndexedParallelIterator
+pub fn new<I>(base: I) -> Rev<I>
+    where I: IndexedParallelIterator
 {
     Rev { base: base }
 }
 
-impl<M> ParallelIterator for Rev<M>
-    where M: IndexedParallelIterator
+impl<I> ParallelIterator for Rev<I>
+    where I: IndexedParallelIterator
 {
-    type Item = M::Item;
+    type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -31,8 +31,8 @@ impl<M> ParallelIterator for Rev<M>
     }
 }
 
-impl<M> BoundedParallelIterator for Rev<M>
-    where M: IndexedParallelIterator
+impl<I> BoundedParallelIterator for Rev<I>
+    where I: IndexedParallelIterator
 {
     fn upper_bound(&mut self) -> usize {
         self.len()
@@ -43,16 +43,16 @@ impl<M> BoundedParallelIterator for Rev<M>
     }
 }
 
-impl<M> ExactParallelIterator for Rev<M>
-    where M: IndexedParallelIterator
+impl<I> ExactParallelIterator for Rev<I>
+    where I: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
         self.base.len()
     }
 }
 
-impl<M> IndexedParallelIterator for Rev<M>
-    where M: IndexedParallelIterator
+impl<I> IndexedParallelIterator for Rev<I>
+    where I: IndexedParallelIterator
 {
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
@@ -68,12 +68,12 @@ impl<M> IndexedParallelIterator for Rev<M>
             len: usize,
         }
 
-        impl<ITEM, CB> ProducerCallback<ITEM> for Callback<CB>
-            where CB: ProducerCallback<ITEM>
+        impl<T, CB> ProducerCallback<T> for Callback<CB>
+            where CB: ProducerCallback<T>
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = ITEM>
+                where P: Producer<Item = T>
             {
                 let producer = RevProducer {
                     base: base,
@@ -120,3 +120,4 @@ impl<P> Producer for RevProducer<P>
          })
     }
 }
+
