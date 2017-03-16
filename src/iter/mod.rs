@@ -12,7 +12,8 @@
 //! good place to start.
 
 use std::cmp::{self, Ordering};
-use std::ops::Fn;
+use std::iter::{Sum, Product};
+use std::ops::{Fn, Add, Mul};
 use self::internal::*;
 
 // There is a method to the madness here:
@@ -45,7 +46,6 @@ mod for_each;
 mod fold;
 pub use self::fold::Fold;
 mod reduce;
-pub use self::reduce::{ReduceOp, SumOp, ProductOp};
 mod skip;
 pub use self::skip::Skip;
 mod splitter;
@@ -412,7 +412,7 @@ pub trait ParallelIterator: Sized {
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
     fn sum(self) -> Self::Item
-        where SumOp: ReduceOp<Self::Item>
+        where Self::Item: Sum + Add<Output = Self::Item>
     {
         reduce::reduce(self, reduce::SUM)
     }
@@ -430,7 +430,7 @@ pub trait ParallelIterator: Sized {
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
     fn product(self) -> Self::Item
-        where ProductOp: ReduceOp<Self::Item>
+        where Self::Item: Product + Mul<Output = Self::Item>
     {
         reduce::reduce(self, reduce::PRODUCT)
     }
@@ -439,7 +439,7 @@ pub trait ParallelIterator: Sized {
     #[deprecated(since = "v0.6.0",
         note = "name changed to `product()` to match sequential iterators")]
     fn mul(self) -> Self::Item
-        where ProductOp: ReduceOp<Self::Item>
+        where Self::Item: Product + Mul<Output = Self::Item>
     {
         reduce::reduce(self, reduce::PRODUCT)
     }

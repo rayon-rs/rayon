@@ -1,6 +1,9 @@
 use super::ParallelIterator;
 use super::internal::*;
 
+use std::iter::{self, Sum, Product};
+use std::ops::{Add, Mul};
+
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
 /// and computes a reduced version. The start value `S` is a kind of
@@ -125,67 +128,37 @@ pub struct SumOp;
 
 pub const SUM: &'static SumOp = &SumOp;
 
-macro_rules! sum_rule {
-    ($i:ty, $z:expr) => {
-        impl ReduceOp<$i> for SumOp {
-            #[inline]
-            fn start_value(&self) -> $i {
-                $z
-            }
-            #[inline]
-            fn reduce(&self, value1: $i, value2: $i) -> $i {
-                value1 + value2
-            }
-            private_impl!{}
-        }
+impl<T> ReduceOp<T> for SumOp
+    where T: Sum + Add<Output = T>
+{
+    fn start_value(&self) -> T {
+        iter::empty::<T>().sum()
     }
-}
 
-sum_rule!(i8, 0);
-sum_rule!(i16, 0);
-sum_rule!(i32, 0);
-sum_rule!(i64, 0);
-sum_rule!(isize, 0);
-sum_rule!(u8, 0);
-sum_rule!(u16, 0);
-sum_rule!(u32, 0);
-sum_rule!(u64, 0);
-sum_rule!(usize, 0);
-sum_rule!(f32, 0.0);
-sum_rule!(f64, 0.0);
+    fn reduce(&self, value1: T, value2: T) -> T {
+        value1 + value2
+    }
+
+    private_impl!{}
+}
 
 pub struct ProductOp;
 
 pub const PRODUCT: &'static ProductOp = &ProductOp;
 
-macro_rules! product_rule {
-    ($i:ty, $z:expr) => {
-        impl ReduceOp<$i> for ProductOp {
-            #[inline]
-            fn start_value(&self) -> $i {
-                $z
-            }
-            #[inline]
-            fn reduce(&self, value1: $i, value2: $i) -> $i {
-                value1 * value2
-            }
-            private_impl!{}
-        }
+impl<T> ReduceOp<T> for ProductOp
+    where T: Product + Mul<Output = T>
+{
+    fn start_value(&self) -> T {
+        iter::empty::<T>().product()
     }
-}
 
-product_rule!(i8, 1);
-product_rule!(i16, 1);
-product_rule!(i32, 1);
-product_rule!(i64, 1);
-product_rule!(isize, 1);
-product_rule!(u8, 1);
-product_rule!(u16, 1);
-product_rule!(u32, 1);
-product_rule!(u64, 1);
-product_rule!(usize, 1);
-product_rule!(f32, 1.0);
-product_rule!(f64, 1.0);
+    fn reduce(&self, value1: T, value2: T) -> T {
+        value1 * value2
+    }
+
+    private_impl!{}
+}
 
 pub struct ReduceWithIdentityOp<'r, ID: 'r, OP: 'r> {
     identity: &'r ID,
