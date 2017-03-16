@@ -20,3 +20,17 @@ fn produce_too_many_items() {
     folder = folder.consume(23);
     folder.consume(24);
 }
+
+/// Produces less items than promised. Does not do any
+/// splits at all.
+#[test]
+#[should_panic(expected = "too few values")]
+fn produce_too_few_items() {
+    let mut vec = vec![];
+    let mut collect = Collect::new(&mut vec, 5);
+    let consumer =  collect.as_consumer();
+    let mut folder = consumer.into_folder();
+    folder = folder.consume(22);
+    folder = folder.consume(23);	
+    folder.complete();
+}
