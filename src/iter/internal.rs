@@ -189,7 +189,7 @@ struct LengthSplitter {
     inner: Splitter,
 
     /// The smallest we're willing to divide into.  Usually this is just 1,
-    /// but you can choose a larger working size with `set_min_len()`.
+    /// but you can choose a larger working size with `with_min_len()`.
     min: usize,
 }
 

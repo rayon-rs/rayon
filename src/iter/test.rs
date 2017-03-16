@@ -171,17 +171,17 @@ pub fn map_reduce_with() {
 pub fn fold_map_reduce() {
     // Kind of a weird test, but it demonstrates various
     // transformations that are taking place. Relies on
-    // `set_max_len(1).fold()` being equivalent to `map()`.
+    // `with_max_len(1).fold()` being equivalent to `map()`.
     //
     // Take each number from 0 to 32 and fold them by appending to a
-    // vector.  Because of `set_max_len(1)`, this will produce 32 vectors,
+    // vector.  Because of `with_max_len(1)`, this will produce 32 vectors,
     // each with one item.  We then collect all of these into an
     // individual vector by mapping each into their own vector (so we
     // have Vec<Vec<i32>>) and then reducing those into a single
     // vector.
     let r1 = (0_i32..32)
         .into_par_iter()
-        .set_max_len(1)
+        .with_max_len(1)
         .fold(|| vec![], |mut v, e| {
             v.push(e);
             v
@@ -1343,8 +1343,8 @@ fn check_lengths() {
         let max_check = cmp::max(max, min_check.saturating_add(min_check - 1));
 
         assert!(range.into_par_iter()
-                     .set_min_len(min)
-                     .set_max_len(max)
+                     .with_min_len(min)
+                     .with_max_len(max)
                      .fold(|| 0, |count, _| count + 1)
                      .all(|c| c >= min_check && c <= max_check),
                 "check_lengths failed {:?} -> {:?} ",

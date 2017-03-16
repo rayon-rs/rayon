@@ -19,7 +19,7 @@ fn increment_all_min(b: &mut Bencher) {
     let mut big_vec = vec![0_usize; 100*1024];
     b.iter(|| {
         big_vec.par_iter_mut()
-               .set_min_len(1024)
+               .with_min_len(1024)
                .for_each(|p| *p = p.wrapping_add(1));
     });
 }
@@ -29,7 +29,7 @@ fn increment_all_serialized(b: &mut Bencher) {
     let mut big_vec = vec![0_usize; 100*1024];
     b.iter(|| {
         big_vec.par_iter_mut()
-               .set_min_len(usize::MAX)
+               .with_min_len(usize::MAX)
                .for_each(|p| *p = p.wrapping_add(1));
     });
 }
@@ -39,7 +39,7 @@ fn increment_all_max(b: &mut Bencher) {
     let mut big_vec = vec![0_usize; 100*1024];
     b.iter(|| {
         big_vec.par_iter_mut()
-               .set_max_len(100)
+               .with_max_len(100)
                .for_each(|p| *p = p.wrapping_add(1));
     });
 }
@@ -49,7 +49,7 @@ fn increment_all_atomized(b: &mut Bencher) {
     let mut big_vec = vec![0_usize; 100*1024];
     b.iter(|| {
         big_vec.par_iter_mut()
-               .set_max_len(1)
+               .with_max_len(1)
                .for_each(|p| *p = p.wrapping_add(1));
     });
 }

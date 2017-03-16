@@ -61,7 +61,7 @@ fn euclid_serial(b: &mut test::Bencher) {
 /// Use huge minimums to force it fully serialized.
 fn euclid_faux_serial(b: &mut test::Bencher) {
     let count = euclid();
-    let serial = |r: RangeIter<u32>| r.set_min_len(usize::MAX);
+    let serial = |r: RangeIter<u32>| r.with_min_len(usize::MAX);
     b.iter(|| assert_eq!(par_euclid(&serial, &serial), count))
 }
 
@@ -83,7 +83,7 @@ fn euclid_parallel_one(b: &mut test::Bencher) {
 /// Use a low maximum to force the outer loop parallelized.
 fn euclid_parallel_outer(b: &mut test::Bencher) {
     let count = euclid();
-    let parallel = |r: RangeIter<u32>| r.set_max_len(1);
+    let parallel = |r: RangeIter<u32>| r.with_max_len(1);
     b.iter(|| assert_eq!(par_euclid(&parallel, |n| n), count))
 }
 
@@ -91,6 +91,6 @@ fn euclid_parallel_outer(b: &mut test::Bencher) {
 /// Use low maximums to force it fully parallelized.
 fn euclid_parallel_full(b: &mut test::Bencher) {
     let count = euclid();
-    let parallel = |r: RangeIter<u32>| r.set_max_len(1);
+    let parallel = |r: RangeIter<u32>| r.with_max_len(1);
     b.iter(|| assert_eq!(par_euclid(&parallel, &parallel), count))
 }

@@ -147,15 +147,15 @@ pub trait ParallelIterator: Sized {
     type Item: Send;
 
     /// Deprecated. If the adaptive algorithms don't split appropriately, try
-    /// `IndexedParallelIterator::set_min_len()` or `set_max_len()` instead.
-    #[deprecated(since = "v0.7.0", note = "try `set_min_len` or `set_max_len` instead")]
+    /// `IndexedParallelIterator::with_min_len()` or `with_max_len()` instead.
+    #[deprecated(since = "v0.7.0", note = "try `with_min_len` or `with_max_len` instead")]
     fn weight(self, _scale: f64) -> Weight<Self> {
         weight::new(self)
     }
 
     /// Deprecated. If the adaptive algorithms don't split appropriately, try
-    /// `IndexedParallelIterator::set_min_len()` or `set_max_len()` instead.
-    #[deprecated(since = "v0.7.0", note = "try `set_min_len` or `set_max_len` instead")]
+    /// `IndexedParallelIterator::with_min_len()` or `with_max_len()` instead.
+    #[deprecated(since = "v0.7.0", note = "try `with_min_len` or `with_max_len` instead")]
     fn weight_max(self) -> Weight<Self> {
         weight::new(self)
     }
@@ -915,16 +915,16 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Sets the minimum length of iterators desired to process in each
     /// thread.  Rayon will not split any smaller than this length, but
     /// of course an iterator could already be smaller to begin with.
-    fn set_min_len(self, min: usize) -> MinLen<Self> {
+    fn with_min_len(self, min: usize) -> MinLen<Self> {
         len::new_min_len(self, min)
     }
 
     /// Sets the maximum length of iterators desired to process in each
     /// thread.  Rayon will try to split at least below this length,
-    /// unless that would put it below the length from `set_min_len()`.
+    /// unless that would put it below the length from `with_min_len()`.
     /// For example, given min=10 and max=15, a length of 16 will not be
     /// split any further.
-    fn set_max_len(self, max: usize) -> MaxLen<Self> {
+    fn with_max_len(self, max: usize) -> MaxLen<Self> {
         len::new_max_len(self, max)
     }
 
