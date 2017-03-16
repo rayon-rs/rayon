@@ -9,6 +9,7 @@ use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
+use std::usize;
 
 fn is_bounded<T: ExactParallelIterator>(_: T) {}
 fn is_exact<T: ExactParallelIterator>(_: T) {}
@@ -1330,4 +1331,30 @@ fn check_split() {
     }).flat_map(|range| range);
 
     assert_eq!(a.collect::<Vec<_>>(), b.collect::<Vec<_>>());
+}
+
+#[test]
+fn check_lengths() {
+    fn check(min: usize, max: usize) {
+        let range = 0..1024*1024;
+
+        // Check against normalized values.
+        let min_check = cmp::min(cmp::max(min, 1), range.len());
+        let max_check = cmp::max(max, min_check.saturating_add(min_check - 1));
+
+        assert!(range.into_par_iter()
+                     .set_min_len(min)
+                     .set_max_len(max)
+                     .fold(|| 0, |count, _| count + 1)
+                     .all(|c| c >= min_check && c <= max_check),
+                "check_lengths failed {:?} -> {:?} ",
+                (min, max), (min_check, max_check));
+    }
+
+    let lengths = [0, 1, 10, 100, 1000, 10000, 100000, 1000000, usize::MAX];
+    for &min in &lengths {
+        for &max in &lengths {
+            check(min, max);
+        }
+    }
 }
