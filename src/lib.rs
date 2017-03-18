@@ -14,6 +14,9 @@ extern crate num_cpus;
 extern crate rand;
 extern crate rayon_core;
 
+#[macro_use]
+mod private;
+
 pub mod iter;
 pub mod option;
 pub mod prelude;
