@@ -125,6 +125,8 @@ pub trait ToParallelChunks<'data> {
     /// implementation should strive to maximize chunk size when
     /// possible.
     fn par_chunks(&'data self, size: usize) -> Self::Iter;
+
+    private_decl!{}
 }
 
 pub trait ToParallelChunksMut<'data> {
@@ -140,6 +142,8 @@ pub trait ToParallelChunksMut<'data> {
     /// implementation should strive to maximize chunk size when
     /// possible.
     fn par_chunks_mut(&'data mut self, size: usize) -> Self::Iter;
+
+    private_decl!{}
 }
 
 /// The `ParallelIterator` interface.
