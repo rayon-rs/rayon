@@ -94,6 +94,7 @@ impl ParallelString for str {
 /// Pattern-matching trait for `ParallelString`, somewhat like a mix of
 /// `std::str::pattern::{Pattern, Searcher}`.
 pub trait Pattern: Sized + Sync {
+    private_decl!{}
     fn find_in(&self, &str) -> Option<usize>;
     fn rfind_in(&self, &str) -> Option<usize>;
     fn is_suffix_of(&self, &str) -> bool;
@@ -101,6 +102,8 @@ pub trait Pattern: Sized + Sync {
 }
 
 impl Pattern for char {
+    private_impl!{}
+
     fn find_in(&self, chars: &str) -> Option<usize> {
         chars.find(*self)
     }
@@ -125,6 +128,8 @@ impl Pattern for char {
 }
 
 impl<FN: Sync + Fn(char) -> bool> Pattern for FN {
+    private_impl!{}
+
     fn find_in(&self, chars: &str) -> Option<usize> {
         chars.find(self)
     }
