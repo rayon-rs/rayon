@@ -28,6 +28,7 @@ use super::internal::*;
 pub trait ReduceOp<T>: Sync {
     fn start_value(&self) -> T;
     fn reduce(&self, value1: T, value2: T) -> T;
+    private_decl!{}
 }
 
 pub fn reduce<PI, R, T>(pi: PI, reduce_op: &R) -> T
@@ -133,6 +134,7 @@ macro_rules! sum_rule {
             fn reduce(&self, value1: $i, value2: $i) -> $i {
                 value1 + value2
             }
+            private_impl!{}
         }
     }
 }
@@ -165,6 +167,7 @@ macro_rules! product_rule {
             fn reduce(&self, value1: $i, value2: $i) -> $i {
                 value1 * value2
             }
+            private_impl!{}
         }
     }
 }
@@ -208,5 +211,7 @@ impl<'r, ID, OP, T> ReduceOp<T> for ReduceWithIdentityOp<'r, ID, OP>
     fn reduce(&self, value1: T, value2: T) -> T {
         (self.op)(value1, value2)
     }
+
+    private_impl!{}
 }
 
