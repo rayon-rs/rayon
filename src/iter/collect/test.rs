@@ -21,17 +21,17 @@ fn produce_too_many_items() {
     folder.consume(24);
 }
 
-/// Produces less items than promised. Does not do any
+/// Produces fewer items than promised. Does not do any
 /// splits at all.
 #[test]
 #[should_panic(expected = "too few values")]
-fn produce_too_few_items() {
+fn produce_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 5);
-    let consumer =  collect.as_consumer();
+    let consumer = collect.as_consumer();
     let mut folder = consumer.into_folder();
     folder = folder.consume(22);
-    folder = folder.consume(23);	
+    folder = folder.consume(23);
     folder.complete();
 }
 
@@ -41,14 +41,14 @@ fn produce_too_few_items() {
 fn produce_items_with_split_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-	{
-	    	let consumer =  collect.as_consumer();
-	    	let (left_consumer,right_consumer,reducer) = consumer.split_at(2);
-	    	let mut left_folder = left_consumer.into_folder();
-	    	let mut right_folder = right_consumer.into_folder();   
-	    	left_folder = left_folder.consume(0).consume(1);
-	    	right_folder = right_folder.consume(2).consume(3);
-	    	right_folder.complete();
-	}
-    collect.complete();   
+    {
+        let consumer = collect.as_consumer();
+        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let mut left_folder = left_consumer.into_folder();
+        let mut right_folder = right_consumer.into_folder();
+        left_folder = left_folder.consume(0).consume(1);
+        right_folder = right_folder.consume(2).consume(3);
+        right_folder.complete();
+    }
+    collect.complete();
 }
