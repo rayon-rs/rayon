@@ -155,8 +155,8 @@ impl Configuration {
 /// will return an error. An `Ok` result indicates that this
 /// is the first initialization of the thread pool.
 pub fn initialize(config: Configuration) -> Result<(), InitError> {
-    config.validate()?;
-    let registry = registry::init_global_registry(config)?;
+    try!(config.validate());
+    let registry = try!(registry::init_global_registry(config));
     registry.wait_until_primed();
     Ok(())
 }
