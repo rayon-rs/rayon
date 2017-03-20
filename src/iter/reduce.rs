@@ -25,6 +25,8 @@ use super::internal::*;
 /// ```
 ///
 /// etc.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait ReduceOp<T>: Sync {
     fn start_value(&self) -> T;
     fn reduce(&self, value1: T, value2: T) -> T;

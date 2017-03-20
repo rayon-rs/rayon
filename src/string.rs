@@ -34,6 +34,8 @@ fn find_char_midpoint(chars: &str) -> usize {
 
 
 /// Parallel extensions for strings.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait ParallelString {
     private_decl!{}
 
@@ -93,6 +95,8 @@ impl ParallelString for str {
 
 /// Pattern-matching trait for `ParallelString`, somewhat like a mix of
 /// `std::str::pattern::{Pattern, Searcher}`.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait Pattern: Sized + Sync {
     private_decl!{}
     fn find_in(&self, &str) -> Option<usize>;

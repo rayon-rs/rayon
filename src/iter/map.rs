@@ -1,6 +1,9 @@
 use super::internal::*;
 use super::*;
 
+/// Specifies a "map operator", transforming values into something else.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait MapOp<In>: Sync {
     type Output: Send;
     fn map(&self, value: In) -> Self::Output;

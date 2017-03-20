@@ -112,6 +112,9 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
     }
 }
 
+/// Parallel extension for chunks of a collection.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait ToParallelChunks<'data> {
     type Iter: ParallelIterator<Item = &'data [Self::Item]>;
     type Item: Sync + 'data;
@@ -129,6 +132,9 @@ pub trait ToParallelChunks<'data> {
     private_decl!{}
 }
 
+/// Parallel extension for mutable chunks of a collection.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait ToParallelChunksMut<'data> {
     type Iter: ParallelIterator<Item = &'data mut [Self::Item]>;
     type Item: Send + 'data;
