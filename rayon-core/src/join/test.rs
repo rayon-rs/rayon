@@ -33,20 +33,10 @@ fn partition<T: PartialOrd + Send>(v: &mut [T]) -> usize {
 fn sort() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..6 * 1024).map(|_| rng.next_u32()).collect();
-
-    let result = initialize(Configuration::new());
-
-    match result {
-        Ok(_) => {
-            let mut sorted_data = data.clone();
-            sorted_data.sort();
-
-            quick_sort(&mut data);
-
-            assert_eq!(data, sorted_data);
-        }
-        Err(e) => panic!("expected InitOk, but got {:?}", e),
-    }
+    let mut sorted_data = data.clone();
+    sorted_data.sort();
+    quick_sort(&mut data);
+    assert_eq!(data, sorted_data);
 }
 
 #[test]

@@ -16,9 +16,6 @@
 extern crate rayon;
 extern crate test;
 
-use rayon::Configuration;
-
-const INIT_FAILED: &'static str = "Rayon failed to initialize";
 const N: u32 = 32;
 const FN: u32 = 2178309;
 
@@ -51,9 +48,6 @@ fn fibonacci_recursive(b: &mut test::Bencher) {
 /// Compute the Fibonacci number recursively, using rayon::join.
 /// The larger branch F(N-1) is computed first.
 fn fibonacci_join_1_2(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new())
-                     .expect(INIT_FAILED);
-
     fn fib(n: u32) -> u32 {
         if n < 2 { return n; }
 
@@ -71,9 +65,6 @@ fn fibonacci_join_1_2(b: &mut test::Bencher) {
 /// Compute the Fibonacci number recursively, using rayon::join.
 /// The smaller branch F(N-2) is computed first.
 fn fibonacci_join_2_1(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new())
-                     .expect(INIT_FAILED);
-
     fn fib(n: u32) -> u32 {
         if n < 2 { return n; }
 
@@ -90,8 +81,6 @@ fn fibonacci_join_2_1(b: &mut test::Bencher) {
 #[bench]
 /// Compute the Fibonacci number recursively, using rayon::split to parallelize.
 fn fibonacci_split_recursive(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new()).expect(INIT_FAILED);
-
     fn fib(n: u32) -> u32 {
         use rayon::iter::ParallelIterator;
 
@@ -113,8 +102,6 @@ fn fibonacci_split_recursive(b: &mut test::Bencher) {
 #[bench]
 /// Compute the Fibonacci number iteratively, using rayon::split to parallelize.
 fn fibonacci_split_iterative(b: &mut test::Bencher) {
-    rayon::initialize(Configuration::new()).expect(INIT_FAILED);
-
     fn fib(n: u32) -> u32 {
         use rayon::iter::ParallelIterator;
 
@@ -135,7 +122,7 @@ fn fibonacci_split_iterative(b: &mut test::Bencher) {
 
 #[bench]
 /// Compute the Fibonacci number iteratively, just to show how silly the others
-/// are.  Parallelism can't make up for a bad choice of algorithm.
+/// are. Parallelism can't make up for a bad choice of algorithm.
 fn fibonacci_iterative(b: &mut test::Bencher) {
     b.iter(|| assert_eq!(fib_iterative(test::black_box(N)), FN));
 }
