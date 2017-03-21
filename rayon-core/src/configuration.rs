@@ -55,6 +55,9 @@ pub struct Configuration {
 
     /// Closure to compute the name of a thread.
     get_thread_name: Option<Box<FnMut(usize) -> String>>,
+
+    /// The stack size for the created worker threads
+    stack_size: Option<usize>,
 }
 
 /// The type for a panic handling closure. Note that this same closure
@@ -68,6 +71,7 @@ impl Configuration {
             num_threads: None,
             get_thread_name: None,
             panic_handler: None,
+            stack_size: None,
         }
     }
 
@@ -124,6 +128,18 @@ impl Configuration {
         self.panic_handler = Some(panic_handler);
         self
     }
+
+    /// Get the stack size of the worker threads
+    pub fn stack_size(&self) -> Option<usize>{
+        self.stack_size
+    }
+
+    /// Set the stack size of the worker threads
+    pub fn set_stack_size(mut self, stack_size: usize) -> Self {
+        self.stack_size = Some(stack_size);
+        self
+    }
+
 
     /// Checks whether the configuration is valid.
     pub fn validate(&self) -> Result<(), InitError> {
@@ -183,7 +199,7 @@ pub fn dump_stats() {
 
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler } = *self;
+        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size } = *self;
 
         // Just print `Some("<closure>")` or `None` to the debug
         // output.
@@ -197,6 +213,7 @@ impl fmt::Debug for Configuration {
          .field("num_threads", num_threads)
          .field("get_thread_name", &get_thread_name)
          .field("panic_handler", &panic_handler)
+         .field("stack_size", &stack_size)
          .finish()
     }
 }

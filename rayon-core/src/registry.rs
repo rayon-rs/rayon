@@ -113,6 +113,9 @@ impl Registry {
             if let Some(name) = configuration.thread_name(index) {
                 b = b.name(name);
             }
+            if let Some(stack_size) = configuration.stack_size() {
+                b = b.stack_size(stack_size);
+            }
             // FIXME(#205) recover from this error
             b.spawn(move || unsafe { main_loop(worker, registry, index) }).unwrap();
         }
