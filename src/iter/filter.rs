@@ -1,5 +1,4 @@
 use super::internal::*;
-use super::len::*;
 use super::*;
 
 /// `Filter` takes a predicate `filter_op` and filters out elements that match.
@@ -78,15 +77,6 @@ impl<'p, T, C, P: 'p> Consumer<T> for FilterConsumer<'p, C, P>
     type Folder = FilterFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
     type Result = C::Result;
-
-    fn weighted(&self) -> bool {
-        self.base.weighted()
-    }
-
-    /// Cost to process `items` number of items.
-    fn cost(&mut self, cost: f64) -> f64 {
-        self.base.cost(cost) * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, index: usize) -> (Self, Self, C::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);

@@ -11,7 +11,6 @@
 //! the code itself, the `internal` module and `README.md` file are a
 //! good place to start.
 
-use std::f64;
 use std::cmp::{self, Ordering};
 use std::ops::Fn;
 use self::internal::*;
@@ -43,7 +42,6 @@ pub use self::flat_map::FlatMap;
 mod from_par_iter;
 pub use self::from_par_iter::FromParallelIterator;
 pub mod internal;
-pub mod len;
 mod for_each;
 mod fold;
 pub use self::fold::Fold;
@@ -65,6 +63,8 @@ mod collections;
 mod noop;
 mod rev;
 pub use self::rev::Rev;
+mod len;
+pub use self::len::{MinLen, MaxLen};
 
 #[cfg(test)]
 mod test;
@@ -146,26 +146,18 @@ pub trait ToParallelChunksMut<'data> {
 pub trait ParallelIterator: Sized {
     type Item: Send;
 
-    /// Indicates the relative "weight" of producing each item in this
-    /// parallel iterator. A higher weight will cause finer-grained
-    /// parallel subtasks. 1.0 indicates something very cheap and
-    /// uniform, like copying a value out of an array, or computing `x
-    /// + 1`. If your tasks are either very expensive, or very
-    /// unpredictable, you are better off with higher values. See also
-    /// `weight_max`, which is a convenient shorthand to force the
-    /// finest grained parallel execution posible. Tuning this value
-    /// should not affect correctness but can improve (or hurt)
-    /// performance.
-    fn weight(self, scale: f64) -> Weight<Self> {
-        Weight::new(self, scale)
+    /// Deprecated. If the adaptive algorithms don't split appropriately, try
+    /// `IndexedParallelIterator::with_min_len()` or `with_max_len()` instead.
+    #[deprecated(since = "v0.7.0", note = "try `with_min_len` or `with_max_len` instead")]
+    fn weight(self, _scale: f64) -> Weight<Self> {
+        weight::new(self)
     }
 
-    /// Shorthand for `self.weight(f64::INFINITY)`. This forces the
-    /// smallest granularity of parallel execution, which makes sense
-    /// when your parallel tasks are (potentially) very expensive to
-    /// execute.
+    /// Deprecated. If the adaptive algorithms don't split appropriately, try
+    /// `IndexedParallelIterator::with_min_len()` or `with_max_len()` instead.
+    #[deprecated(since = "v0.7.0", note = "try `with_min_len` or `with_max_len` instead")]
     fn weight_max(self) -> Weight<Self> {
-        self.weight(f64::INFINITY)
+        weight::new(self)
     }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
@@ -918,6 +910,22 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     /// reverse order.
     fn rev(self) -> Rev<Self> {
         rev::new(self)
+    }
+
+    /// Sets the minimum length of iterators desired to process in each
+    /// thread.  Rayon will not split any smaller than this length, but
+    /// of course an iterator could already be smaller to begin with.
+    fn with_min_len(self, min: usize) -> MinLen<Self> {
+        len::new_min_len(self, min)
+    }
+
+    /// Sets the maximum length of iterators desired to process in each
+    /// thread.  Rayon will try to split at least below this length,
+    /// unless that would put it below the length from `with_min_len()`.
+    /// For example, given min=10 and max=15, a length of 16 will not be
+    /// split any further.
+    fn with_max_len(self, max: usize) -> MaxLen<Self> {
+        len::new_max_len(self, max)
     }
 
     /// Internal method used to define the behavior of this parallel

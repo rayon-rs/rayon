@@ -1,4 +1,3 @@
-use super::super::len::*;
 use super::super::internal::*;
 use super::super::noop::*;
 use std::ptr;
@@ -38,10 +37,6 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
     type Folder = CollectFolder<'c, T>;
     type Reducer = NoopReducer;
     type Result = ();
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        cost * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, index: usize) -> (Self, Self, NoopReducer) {
         // instances Read in the fields from `self` and then

@@ -5,7 +5,9 @@
 
 use rayon_core::join;
 use super::IndexedParallelIterator;
-use super::len::*;
+
+use std::cmp;
+use std::usize;
 
 pub trait ProducerCallback<T> {
     type Output;
@@ -25,13 +27,8 @@ pub trait Producer: Send + Sized {
 
     fn into_iter(self) -> Self::IntoIter;
 
-    /// Reports whether the producer has explicit weights.
-    fn weighted(&self) -> bool {
-        false
-    }
-
-    /// Cost to produce `len` items, where `len` must be `N`.
-    fn cost(&mut self, len: usize) -> f64;
+    fn min_len(&self) -> usize { 1 }
+    fn max_len(&self) -> usize { usize::MAX }
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than or equal to `N`.
@@ -53,15 +50,6 @@ pub trait Consumer<Item>: Send + Sized {
     type Folder: Folder<Item, Result = Self::Result>;
     type Reducer: Reducer<Self::Result>;
     type Result: Send;
-
-    /// Reports whether the consumer has explicit weights.
-    fn weighted(&self) -> bool {
-        false
-    }
-
-    /// If it costs `producer_cost` to produce the items we will
-    /// consume, returns cost adjusted to account for consuming them.
-    fn cost(&mut self, producer_cost: f64) -> f64;
 
     /// Divide the consumer into two consumers, one processing items
     /// `0..index` and one processing items from `index..`. Also
@@ -138,15 +126,20 @@ pub trait UnindexedProducer: Send + Sized {
 }
 
 /// A splitter controls the policy for splitting into smaller work items.
+///
+/// Thief-splitting is an adaptive policy that starts by splitting into
+/// enough jobs for every worker thread, and then resets itself whenever a
+/// job is actually stolen into a different thread.
 #[derive(Clone, Copy)]
-enum Splitter {
-    /// Classic cost-splitting uses weights to split until below a threshold.
-    Cost(f64),
+struct Splitter {
+    /// The `origin` tracks the ID of the thread that started this job,
+    /// so we can tell when we've been stolen to a new thread.
+    origin: usize,
 
-    /// Thief-splitting is an adaptive policy that starts by splitting into
-    /// enough jobs for every worker thread, and then resets itself whenever a
-    /// job is actually stolen into a different thread.
-    Thief(usize, usize),
+    /// The `splits` tell us approximately how many remaining times we'd
+    /// like to split this job.  We always just divide it by two though, so
+    /// the effective number of pieces will be `next_power_of_two()`.
+    splits: usize,
 }
 
 impl Splitter {
@@ -159,36 +152,82 @@ impl Splitter {
     }
 
     #[inline]
-    fn new_thief() -> Splitter {
-        Splitter::Thief(Splitter::thief_id(), ::current_num_threads())
+    fn new() -> Splitter {
+        Splitter {
+            origin: Splitter::thief_id(),
+            splits: ::current_num_threads(),
+        }
     }
 
     #[inline]
     fn try(&mut self) -> bool {
-        match *self {
-            Splitter::Cost(ref mut cost) => {
-                if *cost > THRESHOLD {
-                    *cost /= 2.0;
-                    true
-                } else {
-                    false
-                }
-            }
+        let Splitter { origin, splits } = *self;
 
-            Splitter::Thief(ref mut origin, ref mut splits) => {
-                let id = Splitter::thief_id();
-                if *origin != id {
-                    *origin = id;
-                    *splits = ::current_num_threads();
-                    true
-                } else if *splits > 0 {
-                    *splits /= 2;
-                    true
-                } else {
-                    false
-                }
-            }
+        let id = Splitter::thief_id();
+        if origin != id {
+            // This job was stolen!  Set a new origin and reset the number
+            // of desired splits to the thread count, if that's more than
+            // we had remaining anyway.
+            self.origin = id;
+            self.splits = cmp::max(::current_num_threads(), self.splits / 2);
+            true
+        } else if splits > 0 {
+            // We have splits remaining, make it so.
+            self.splits /= 2;
+            true
+        } else {
+            // Not stolen, and no more splits -- we're done!
+            false
         }
+    }
+}
+
+/// The length splitter is built on thief-splitting, but additionally takes
+/// into account the remaining length of the iterator.
+#[derive(Clone, Copy)]
+struct LengthSplitter {
+    inner: Splitter,
+
+    /// The smallest we're willing to divide into.  Usually this is just 1,
+    /// but you can choose a larger working size with `with_min_len()`.
+    min: usize,
+}
+
+impl LengthSplitter {
+    /// Create a new splitter based on lengths.
+    ///
+    /// The `min` is a hard lower bound.  We'll never split below that, but
+    /// of course an iterator might start out smaller already.
+    ///
+    /// The `max` is an upper bound on the working size, used to determine
+    /// the minimum number of times we need to split to get under that limit.
+    /// The adaptive algorithm may very well split even further, but never
+    /// smaller than the `min`.
+    #[inline]
+    fn new(min: usize, max: usize, len: usize) -> LengthSplitter {
+        let mut splitter = LengthSplitter {
+            inner: Splitter::new(),
+            min: cmp::max(min, 1),
+        };
+
+        // Divide the given length by the max working length to get the minimum
+        // number of splits we need to get under that max.  This rounds down,
+        // but the splitter actually gives `next_power_of_two()` pieces anyway.
+        // e.g. len 12345 / max 100 = 123 min_splits -> 128 pieces.
+        let min_splits = len / cmp::max(max, 1);
+
+        // Only update the value if it's not splitting enough already.
+        if min_splits > splitter.inner.splits {
+            splitter.inner.splits = min_splits;
+        }
+
+        splitter
+    }
+
+    #[inline]
+    fn try(&mut self, len: usize) -> bool {
+        // If splitting wouldn't make us too small, try the inner splitter.
+        len / 2 >= self.min && self.inner.try()
     }
 }
 
@@ -219,26 +258,20 @@ pub fn bridge<I, C>(mut par_iter: I, consumer: C) -> C::Result
     }
 }
 
-pub fn bridge_producer_consumer<P, C>(len: usize, mut producer: P, mut consumer: C) -> C::Result
+pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C::Result
     where P: Producer,
           C: Consumer<P::Item>
 {
-    let splitter = if producer.weighted() || consumer.weighted() {
-        let producer_cost = producer.cost(len);
-        let cost = consumer.cost(producer_cost);
-        Splitter::Cost(cost)
-    } else {
-        Splitter::new_thief()
-    };
+    let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
     return helper(len, splitter, producer, consumer);
 
-    fn helper<P, C>(len: usize, mut splitter: Splitter, producer: P, consumer: C) -> C::Result
+    fn helper<P, C>(len: usize, mut splitter: LengthSplitter, producer: P, consumer: C) -> C::Result
         where P: Producer,
               C: Consumer<P::Item>
     {
         if consumer.full() {
             consumer.into_folder().complete()
-        } else if len > 1 && splitter.try() {
+        } else if splitter.try(len) {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
@@ -256,7 +289,7 @@ pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
     where P: UnindexedProducer,
           C: UnindexedConsumer<P::Item>
 {
-    let splitter = Splitter::new_thief();
+    let splitter = Splitter::new();
     bridge_unindexed_producer_consumer(splitter, producer, consumer)
 }
 

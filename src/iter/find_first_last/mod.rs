@@ -2,7 +2,6 @@ use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use super::internal::*;
 use super::*;
-use super::len::*;
 
 #[cfg(test)]
 mod test;
@@ -92,10 +91,6 @@ impl<'p, T, P> Consumer<T> for FindConsumer<'p, P>
     type Folder = FindFolder<'p, T, P>;
     type Reducer = FindReducer;
     type Result = Option<T>;
-
-    fn cost(&mut self, cost: f64) -> f64 {
-        cost * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
         let dir = self.match_position;

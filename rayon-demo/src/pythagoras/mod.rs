@@ -3,7 +3,8 @@
 
 use num::Integer;
 use rayon::prelude::*;
-use std::f64::INFINITY;
+use rayon::range::RangeIter;
+use std::usize;
 use std::ops::Add;
 use test;
 
@@ -15,16 +16,21 @@ use test;
 ///     a = m²-n², b = 2mn, c = m²+n²
 ///
 /// This is a coprime triple.  Multiplying by factors k covers all triples.
-fn par_euclid(m_weight: f64, n_weight: f64) -> u32 {
-    (1u32 .. 2000).into_par_iter().weight(m_weight).map(|m| {
-        (1 .. m).into_par_iter().weight(n_weight)
+fn par_euclid<FM, M, FN, N>(map_m: FM, map_n: FN) -> u32
+    where FM: FnOnce(RangeIter<u32>) -> M,
+          M: ParallelIterator<Item=u32>,
+          FN: Fn(RangeIter<u32>) -> N + Sync,
+          N: ParallelIterator<Item=u32>,
+{
+    map_m((1u32 .. 2000).into_par_iter()).map(|m| {
+        map_n((1 .. m).into_par_iter())
             .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
             .map(|n| 4000000 / (m*m + n*n))
             .sum()
     }).sum()
 }
 
-/// Same as par_euclid, without explicit weights.
+/// Same as par_euclid, without tweaking split lengths
 fn par_euclid_weightless() -> u32 {
     (1u32 .. 2000).into_par_iter().map(|m| {
         (1 .. m).into_par_iter()
@@ -52,10 +58,11 @@ fn euclid_serial(b: &mut test::Bencher) {
 }
 
 #[bench]
-/// Use zero weights to force it fully serialized.
+/// Use huge minimums to force it fully serialized.
 fn euclid_faux_serial(b: &mut test::Bencher) {
     let count = euclid();
-    b.iter(|| assert_eq!(par_euclid(0.0, 0.0), count))
+    let serial = |r: RangeIter<u32>| r.with_min_len(usize::MAX);
+    b.iter(|| assert_eq!(par_euclid(&serial, &serial), count))
 }
 
 #[bench]
@@ -66,22 +73,24 @@ fn euclid_parallel_weightless(b: &mut test::Bencher) {
 }
 
 #[bench]
-/// Use the default weights (1.0)
+/// Use the default settings.
 fn euclid_parallel_one(b: &mut test::Bencher) {
     let count = euclid();
-    b.iter(|| assert_eq!(par_euclid(1.0, 1.0), count))
+    b.iter(|| assert_eq!(par_euclid(|m| m, |n| n), count))
 }
 
 #[bench]
-/// Use infinite weight to force the outer loop parallelized.
+/// Use a low maximum to force the outer loop parallelized.
 fn euclid_parallel_outer(b: &mut test::Bencher) {
     let count = euclid();
-    b.iter(|| assert_eq!(par_euclid(INFINITY, 1.0), count))
+    let parallel = |r: RangeIter<u32>| r.with_max_len(1);
+    b.iter(|| assert_eq!(par_euclid(&parallel, |n| n), count))
 }
 
 #[bench]
-/// Use infinite weights to force it fully parallelized.
+/// Use low maximums to force it fully parallelized.
 fn euclid_parallel_full(b: &mut test::Bencher) {
     let count = euclid();
-    b.iter(|| assert_eq!(par_euclid(INFINITY, INFINITY), count))
+    let parallel = |r: RangeIter<u32>| r.with_max_len(1);
+    b.iter(|| assert_eq!(par_euclid(&parallel, &parallel), count))
 }

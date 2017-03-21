@@ -1,5 +1,4 @@
 use super::internal::*;
-use super::len::*;
 use super::*;
 
 /// `FilterMap` creates an iterator that uses `filter_op` to both filter and map elements.
@@ -80,15 +79,6 @@ impl<'p, T, U, C, P> Consumer<T> for FilterMapConsumer<'p, C, P>
     type Folder = FilterMapFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
     type Result = C::Result;
-
-    fn weighted(&self) -> bool {
-        self.base.weighted()
-    }
-
-    /// Cost to process `items` number of items.
-    fn cost(&mut self, cost: f64) -> f64 {
-        self.base.cost(cost) * FUNC_ADJUSTMENT
-    }
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);

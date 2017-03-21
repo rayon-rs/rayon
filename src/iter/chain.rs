@@ -1,6 +1,6 @@
 use super::internal::*;
 use super::*;
-use std::cmp::min;
+use std::cmp;
 use std::iter;
 
 /// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
@@ -182,14 +182,12 @@ impl<A, B> Producer for ChainProducer<A, B>
         ChainSeq::new(self.a.into_iter(), self.b.into_iter())
     }
 
-    fn weighted(&self) -> bool {
-        self.a.weighted() || self.b.weighted()
+    fn min_len(&self) -> usize {
+        cmp::max(self.a.min_len(), self.b.min_len())
     }
 
-    fn cost(&mut self, len: usize) -> f64 {
-        let a_len = min(self.a_len, len);
-        let b_len = len - a_len;
-        self.a.cost(a_len) + self.b.cost(b_len)
+    fn max_len(&self) -> usize {
+        cmp::min(self.a.max_len(), self.b.max_len())
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {

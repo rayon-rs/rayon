@@ -4,6 +4,11 @@ rust:
   - stable
   - nightly
 
+# Using 16MB stacks for deep test/debug recursion
+env:
+  global:
+    - RUST_MIN_STACK=16777216
+
 matrix:
   include:
   - rust: nightly

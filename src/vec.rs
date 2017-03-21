@@ -87,10 +87,6 @@ impl<'data, T: 'data + Send> Producer for VecProducer<'data, T> {
         SliceDrain { iter: slice.iter_mut() }
     }
 
-    fn cost(&mut self, len: usize) -> f64 {
-        len as f64
-    }
-
     fn split_at(mut self, index: usize) -> (Self, Self) {
         // replace the slice so we don't drop it twice
         let slice = std::mem::replace(&mut self.slice, &mut []);

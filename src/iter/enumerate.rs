@@ -109,13 +109,8 @@ impl<P> Producer for EnumerateProducer<P>
         (self.offset..usize::MAX).zip(self.base.into_iter())
     }
 
-    fn weighted(&self) -> bool {
-        self.base.weighted()
-    }
-
-    fn cost(&mut self, items: usize) -> f64 {
-        self.base.cost(items) // enumerating is basically free
-    }
+    fn min_len(&self) -> usize { self.base.min_len() }
+    fn max_len(&self) -> usize { self.base.max_len() }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
