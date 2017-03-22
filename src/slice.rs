@@ -37,6 +37,8 @@ impl<'data, T: Sync + 'data> ToParallelChunks<'data> for [T] {
             slice: self,
         }
     }
+
+    private_impl!{}
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
@@ -206,6 +208,8 @@ impl<'data, T: Send + 'data> ToParallelChunksMut<'data> for [T] {
             slice: self,
         }
     }
+
+    private_impl!{}
 }
 
 impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {

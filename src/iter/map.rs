@@ -1,9 +1,13 @@
 use super::internal::*;
 use super::*;
 
+/// Specifies a "map operator", transforming values into something else.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
 pub trait MapOp<In>: Sync {
     type Output: Send;
     fn map(&self, value: In) -> Self::Output;
+    private_decl!{}
 }
 
 pub struct MapFn<F>(pub F);
@@ -16,6 +20,7 @@ impl<F, In, Out> MapOp<In> for MapFn<F>
     fn map(&self, value: In) -> Out {
         (self.0)(value)
     }
+    private_impl!{}
 }
 
 pub struct MapCloned;
@@ -27,6 +32,7 @@ impl<'a, T> MapOp<&'a T> for MapCloned
     fn map(&self, value: &'a T) -> T {
         value.clone()
     }
+    private_impl!{}
 }
 
 pub struct MapInspect<F>(pub F);
@@ -40,6 +46,7 @@ impl<F, In> MapOp<In> for MapInspect<F>
         (self.0)(&value);
         value
     }
+    private_impl!{}
 }
 
 /// ////////////////////////////////////////////////////////////////////////
