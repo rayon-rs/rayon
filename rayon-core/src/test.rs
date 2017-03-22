@@ -4,8 +4,9 @@ extern crate compiletest_rs as compiletest;
 
 use configuration::*;
 use std::error::Error;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::channel;
 use thread_pool::*;
 
 #[test]
@@ -33,4 +34,37 @@ fn start_callback_called() {
 
     // We must have started at least one thread.
     assert!(n_called.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+fn exit_callback_called() {
+    let (tx, rx) = channel();
+    let tx = Mutex::new(tx);
+
+    let exit_handler: ExitHandler = Arc::new(move || {
+        let tx = tx.lock().unwrap();
+        tx.send(true).unwrap();
+    });
+
+    let n_threads = 16;
+    let conf = Configuration::new()
+        .set_num_threads(n_threads)
+        .set_exit_handler(exit_handler);
+
+    {
+        let pool = ThreadPool::new(conf).unwrap();
+    }
+
+    // Drain the message queue.
+    let mut exited = 0;
+    for msg in rx {
+        if msg {
+            exited += 1;
+            if exited == 16 {
+                break;
+            }
+        }
+    }
+
+    assert_eq!(exited, 16);
 }
