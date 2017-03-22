@@ -185,7 +185,7 @@ pub fn dump_stats() {
 
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size } = *self;
+        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size,
                             ref start_handler, ref exit_handler } = *self;
 
         // Just print `Some("<closure>")` or `None` to the debug
