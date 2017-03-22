@@ -37,7 +37,12 @@ pub struct Configuration {
 /// may be invoked multiple times in parallel.
 pub type PanicHandler = Arc<Fn(Box<Any + Send>) + Send + Sync>;
 
+/// The type for a closure that gets invoked when a thread starts.
+/// Note that this same closure may be invoked multiple times in parallel.
 pub type StartHandler = Arc<Fn(usize) + Send + Sync>;
+
+/// The type for a closure that gets invoked when a thread exits.
+/// Note that this same closure may be invoked multiple times in parallel.
 pub type ExitHandler = Arc<Fn(usize) + Send + Sync>;
 
 impl Configuration {
@@ -131,6 +136,7 @@ impl Configuration {
         self.start_handler.clone()
     }
 
+    /// Sets a callback to be invoked on thread start.
     pub fn set_start_handler(mut self, start_handler: StartHandler) -> Configuration {
         self.start_handler = Some(start_handler);
         self
@@ -141,6 +147,7 @@ impl Configuration {
         self.exit_handler.clone()
     }
 
+    /// Sets a callback to be invoked on thread exit.
     pub fn set_exit_handler(mut self, exit_handler: ExitHandler) -> Configuration {
         self.exit_handler = Some(exit_handler);
         self
