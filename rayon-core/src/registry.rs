@@ -3,6 +3,7 @@ use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
 use latch::{LatchProbe, Latch, CountLatch, LockLatch};
+use configuration::InitError;
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -58,16 +59,21 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// Starts the worker threads (if that has not already happened). If
 /// initialization has not already occurred, use the default
 /// configuration.
-pub fn global_registry() -> &'static Arc<Registry> {
+fn global_registry() -> &'static Arc<Registry> {
     THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()) });
     unsafe { THE_REGISTRY.unwrap() }
 }
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given configuration.
-pub fn get_registry_with_config(config: Configuration) -> &'static Registry {
-    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config) });
-    unsafe { THE_REGISTRY.unwrap() }
+pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, InitError> {
+    let mut called = false;
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config); called = true; });
+    if called {
+        Ok(unsafe { THE_REGISTRY.unwrap() })
+    } else {
+        Err(InitError::GlobalPoolAlreadyInitialized)
+    }
 }
 
 /// Initializes the global registry with the given configuration.

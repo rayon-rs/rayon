@@ -152,26 +152,12 @@ impl Configuration {
 /// Initialization of the global thread pool happens exactly
 /// once. Once started, the configuration cannot be
 /// changed. Therefore, if you call `initialize` a second time, it
-/// will simply check that the global thread pool already has the
-/// configuration you requested, rather than making changes.
-///
-/// An `Ok` result indicates that the thread pool is running with the
-/// given configuration. Otherwise, a suitable error is returned.
+/// will return an error. An `Ok` result indicates that this
+/// is the first initialization of the thread pool.
 pub fn initialize(config: Configuration) -> Result<(), InitError> {
     try!(config.validate());
-
-    let num_threads = config.num_threads;
-
-    let registry = registry::get_registry_with_config(config);
-
-    if let Some(value) = num_threads {
-        if value != registry.num_threads() {
-            return Err(InitError::GlobalPoolAlreadyInitialized);
-        }
-    }
-
+    let registry = try!(registry::init_global_registry(config));
     registry.wait_until_primed();
-
     Ok(())
 }
 
@@ -200,4 +186,3 @@ impl fmt::Debug for Configuration {
          .finish()
     }
 }
-
