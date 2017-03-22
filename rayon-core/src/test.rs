@@ -19,18 +19,16 @@ fn worker_thread_index() {
 
 #[test]
 fn start_callback_called() {
-    let mut n_called = Arc::new(AtomicUsize::new(0));
+    let n_called = Arc::new(AtomicUsize::new(0));
 
+    let clone = n_called.clone();
     let conf = Configuration::new()
         .set_num_threads(16)
-        .set_start_handler(Arc::new(|| {
-            n_called.fetch_add(1, Ordering::SeqCst);
+        .set_start_handler(Arc::new(move|| {
+            clone.fetch_add(1, Ordering::SeqCst);
         }));
     {
         let pool = ThreadPool::new(conf).unwrap();
-
-        pool.install(|| 0);
-        pool.install(|| 1);
     }
 
     // We must have started at least one thread.
