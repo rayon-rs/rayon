@@ -517,7 +517,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     // Inform a user callback that we started a thread.
     if let Some(ref handler) = registry.start_handler {
         let registry = registry.clone();
-        match unwind::halt_unwinding(|| handler()) {
+        match unwind::halt_unwinding(|| handler(index)) {
             Ok(()) => {
             }
             Err(err) => {
@@ -541,7 +541,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     // Inform a user callback that we exited a thread.
     if let Some(ref handler) = registry.exit_handler {
         let registry = registry.clone();
-        match unwind::halt_unwinding(|| handler()) {
+        match unwind::halt_unwinding(|| handler(index)) {
             Ok(()) => {
             }
             Err(err) => {

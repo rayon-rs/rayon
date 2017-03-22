@@ -37,8 +37,8 @@ pub struct Configuration {
 /// may be invoked multiple times in parallel.
 pub type PanicHandler = Arc<Fn(Box<Any + Send>) + Send + Sync>;
 
-pub type StartHandler = Arc<Fn() + Send + Sync>;
-pub type ExitHandler = Arc<Fn() + Send + Sync>;
+pub type StartHandler = Arc<Fn(usize) + Send + Sync>;
+pub type ExitHandler = Arc<Fn(usize) + Send + Sync>;
 
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.

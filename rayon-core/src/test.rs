@@ -25,7 +25,7 @@ fn start_callback_called() {
     let clone = n_called.clone();
     let conf = Configuration::new()
         .set_num_threads(16)
-        .set_start_handler(Arc::new(move|| {
+        .set_start_handler(Arc::new(move |index| {
             clone.fetch_add(1, Ordering::SeqCst);
         }));
     {
@@ -41,9 +41,9 @@ fn exit_callback_called() {
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
 
-    let exit_handler: ExitHandler = Arc::new(move || {
+    let exit_handler: ExitHandler = Arc::new(move |index| {
         let tx = tx.lock().unwrap();
-        tx.send(true).unwrap();
+        tx.send(index).unwrap();
     });
 
     let n_threads = 16;
@@ -58,13 +58,12 @@ fn exit_callback_called() {
     // Drain the message queue.
     let mut exited = 0;
     for msg in rx {
-        if msg {
-            exited += 1;
-            if exited == 16 {
-                break;
-            }
+        let mask = 1 << msg;
+        assert!(exited & mask == 0);
+
+        exited |= mask;
+        if exited == 0xffff {
+            break;
         }
     }
-
-    assert_eq!(exited, 16);
 }
