@@ -27,21 +27,27 @@ pub trait ParallelSlice<T> {
 impl<T> ParallelSlice<T> for [T] {
     private_impl!{}
 
-    fn par_windows(&self, window_size: usize) -> Windows<T> where T: Sync {
+    fn par_windows(&self, window_size: usize) -> Windows<T>
+        where T: Sync
+    {
         Windows {
             window_size: window_size,
             slice: self,
         }
     }
 
-    fn par_chunks(&self, chunk_size: usize) -> Chunks<T> where T: Sync {
+    fn par_chunks(&self, chunk_size: usize) -> Chunks<T>
+        where T: Sync
+    {
         Chunks {
             chunk_size: chunk_size,
             slice: self,
         }
     }
 
-    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> where T: Send {
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T>
+        where T: Send
+    {
         ChunksMut {
             chunk_size: chunk_size,
             slice: self,
@@ -193,9 +199,9 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
         where CB: ProducerCallback<Self::Item>
     {
         callback.callback(ChunksProducer {
-            chunk_size: self.chunk_size,
-            slice: self.slice,
-        })
+                              chunk_size: self.chunk_size,
+                              slice: self.slice,
+                          })
     }
 }
 
@@ -271,9 +277,9 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Windows<'data, T> {
         where CB: ProducerCallback<Self::Item>
     {
         callback.callback(WindowsProducer {
-            window_size: self.window_size,
-            slice: self.slice,
-        })
+                              window_size: self.window_size,
+                              slice: self.slice,
+                          })
     }
 }
 
@@ -412,9 +418,9 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
         where CB: ProducerCallback<Self::Item>
     {
         callback.callback(ChunksMutProducer {
-            chunk_size: self.chunk_size,
-            slice: self.slice,
-        })
+                              chunk_size: self.chunk_size,
+                              slice: self.slice,
+                          })
     }
 }
 
