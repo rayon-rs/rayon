@@ -164,17 +164,21 @@ pub struct Chars<'ch> {
     chars: &'ch str,
 }
 
+struct CharsProducer<'ch> {
+    chars: &'ch str,
+}
+
 impl<'ch> ParallelIterator for Chars<'ch> {
     type Item = char;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        bridge_unindexed(self, consumer)
+        bridge_unindexed(CharsProducer { chars: self.chars }, consumer)
     }
 }
 
-impl<'ch> UnindexedProducer for Chars<'ch> {
+impl<'ch> UnindexedProducer for CharsProducer<'ch> {
     type Item = char;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -182,7 +186,7 @@ impl<'ch> UnindexedProducer for Chars<'ch> {
         if index > 0 {
             let (left, right) = self.chars.split_at(index);
             self.chars = left;
-            (self, Some(Chars { chars: right }))
+            (self, Some(CharsProducer { chars: right }))
         } else {
             (self, None)
         }
