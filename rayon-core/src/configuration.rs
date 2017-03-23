@@ -6,33 +6,20 @@ use std::fmt;
 use std::sync::Arc;
 use registry;
 
-/// Custom error type for the rayon thread pool configuration.
+/// Error if the gloal thread pool is initialized multiple times.
 #[derive(Debug,PartialEq)]
-pub enum InitError {
-    /// Error if the gloal thread pool is initialized multiple times
-    /// and the configuration is not equal for all configurations.
-    GlobalPoolAlreadyInitialized,
-}
+pub struct GlobalPoolAlreadyInitialized;
 
-impl fmt::Display for InitError {
+impl fmt::Display for GlobalPoolAlreadyInitialized {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            InitError::GlobalPoolAlreadyInitialized => {
-                write!(f,
-                       "The gobal thread pool has already been initialized with a different \
+        write!(f, "The gobal thread pool has already been initialized with a different \
                         configuration. Only one valid configuration is allowed.")
-            }
-        }
     }
 }
 
-impl Error for InitError {
+impl Error for GlobalPoolAlreadyInitialized {
     fn description(&self) -> &str {
-        match *self {
-            InitError::GlobalPoolAlreadyInitialized => {
-                "global thread pool has already been initialized"
-            }
-        }
+        "global thread pool has already been initialized"
     }
 }
 
@@ -153,7 +140,7 @@ impl Configuration {
 /// changed. Therefore, if you call `initialize` a second time, it
 /// will return an error. An `Ok` result indicates that this
 /// is the first initialization of the thread pool.
-pub fn initialize(config: Configuration) -> Result<(), InitError> {
+pub fn initialize(config: Configuration) -> Result<(), GlobalPoolAlreadyInitialized> {
     let registry = try!(registry::init_global_registry(config));
     registry.wait_until_primed();
     Ok(())

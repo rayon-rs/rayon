@@ -9,7 +9,7 @@ use thread_pool::*;
 #[test]
 fn coerce_to_box_error() {
     // check that coercion succeeds
-    let _: Box<Error> = From::from(InitError::NumberOfThreadsZero);
+    let _: Box<Error> = From::from(GlobalPoolAlreadyInitialized);
 }
 
 #[test]

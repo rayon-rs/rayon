@@ -3,7 +3,7 @@ use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
 use latch::{LatchProbe, Latch, CountLatch, LockLatch};
-use configuration::InitError;
+use configuration::GlobalPoolAlreadyInitialized;
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -66,13 +66,13 @@ fn global_registry() -> &'static Arc<Registry> {
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given configuration.
-pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, InitError> {
+pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, GlobalPoolAlreadyInitialized> {
     let mut called = false;
     THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config); called = true; });
     if called {
         Ok(unsafe { THE_REGISTRY.unwrap() })
     } else {
-        Err(InitError::GlobalPoolAlreadyInitialized)
+        Err(GlobalPoolAlreadyInitialized)
     }
 }
 
