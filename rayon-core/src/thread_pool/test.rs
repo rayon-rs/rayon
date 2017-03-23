@@ -7,7 +7,7 @@ use super::ThreadPool;
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn panic_propagate() {
-    let thread_pool = ThreadPool::new(Configuration::new());
+    let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
     thread_pool.install(|| {
         panic!("Hello, world!");
     });
@@ -18,7 +18,7 @@ fn workers_stop() {
     let registry;
 
     { // once we exit this block, thread-pool will be dropped
-        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22));
+        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
         registry = thread_pool.install(|| {
             // do some work on these threads
             join_a_lot(22);
@@ -46,7 +46,7 @@ fn sleeper_stop() {
     let registry;
 
     { // once we exit this block, thread-pool will be dropped
-        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22));
+        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
         registry = thread_pool.registry.clone();
 
         // Give time for at least some of the thread pool to fall asleep.

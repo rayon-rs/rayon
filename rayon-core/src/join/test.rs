@@ -44,7 +44,7 @@ fn sort_in_pool() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..12 * 1024).map(|_| rng.next_u32()).collect();
 
-    let pool = ThreadPool::new(Configuration::new());
+    let pool = ThreadPool::new(Configuration::new()).unwrap();
     let mut sorted_data = data.clone();
     sorted_data.sort();
     pool.install(|| quick_sort(&mut data));

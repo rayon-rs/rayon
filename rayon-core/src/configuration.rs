@@ -1,10 +1,13 @@
 #[allow(unused_imports)]
 use log::Event::*;
 use std::any::Any;
+use std::env;
 use std::error::Error;
+use std::str::FromStr;
 use std::fmt;
 use std::sync::Arc;
 use registry;
+use num_cpus;
 
 /// Error if the gloal thread pool is initialized multiple times.
 #[derive(Debug,PartialEq)]
@@ -12,14 +15,13 @@ pub struct GlobalPoolAlreadyInitialized;
 
 impl fmt::Display for GlobalPoolAlreadyInitialized {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "The gobal thread pool has already been initialized with a different \
-                        configuration. Only one valid configuration is allowed.")
+        f.write_str(self.description())
     }
 }
 
 impl Error for GlobalPoolAlreadyInitialized {
     fn description(&self) -> &str {
-        "global thread pool has already been initialized"
+        "The global thread pool has already been initialized."
     }
 }
 
@@ -59,7 +61,14 @@ impl Configuration {
     /// Get the number of threads that will be used for the thread
     /// pool. See `set_num_threads` for more information.
     pub fn num_threads(&self) -> usize {
-        self.num_threads
+        if self.num_threads > 0 {
+            self.num_threads
+        } else {
+            match env::var("RAYON_RS_NUM_CPUS").ok().and_then(|s| usize::from_str(&s).ok()) {
+                Some(x) if x > 0 => x,
+                _ => num_cpus::get(),
+            }
+        }
     }
 
     /// Get the thread name for the thread with the given index.
@@ -140,7 +149,7 @@ impl Configuration {
 /// changed. Therefore, if you call `initialize` a second time, it
 /// will return an error. An `Ok` result indicates that this
 /// is the first initialization of the thread pool.
-pub fn initialize(config: Configuration) -> Result<(), GlobalPoolAlreadyInitialized> {
+pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
     let registry = try!(registry::init_global_registry(config));
     registry.wait_until_primed();
     Ok(())

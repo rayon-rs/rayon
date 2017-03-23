@@ -37,7 +37,6 @@ mod util;
 
 pub use configuration::Configuration;
 pub use configuration::PanicHandler;
-pub use configuration::GlobalPoolAlreadyInitialized;
 pub use configuration::dump_stats;
 pub use configuration::initialize;
 pub use thread_pool::ThreadPool;

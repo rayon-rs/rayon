@@ -10,8 +10,6 @@ use rand::{self, Rng};
 use sleep::Sleep;
 use std::any::Any;
 use std::cell::{Cell, UnsafeCell};
-use std::env;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
@@ -19,7 +17,6 @@ use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
-use num_cpus;
 
 /// ////////////////////////////////////////////////////////////////////////
 
@@ -87,21 +84,10 @@ unsafe fn init_registry(config: Configuration) {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Arc<Registry> {
-        // Determine number of threads to spawn. Use configuration value if not zero.
-        // If configuration is zero try the RAYON_RS_NUM_CPUS env var.
-        // If that fails use the default (num_cpus).
-        let config_num_threads = configuration.num_threads();
-        let num_threads = if config_num_threads > 0 {
-            config_num_threads
-        } else {
-            match env::var("RAYON_RS_NUM_CPUS").ok().and_then(|s| usize::from_str(&s).ok()) {
-                Some(x) if x > 0 => x,
-                _ => num_cpus::get(),
-            }
-        };
+        let n_threads = configuration.num_threads();
 
         let (inj_worker, inj_stealer) = deque::new();
-        let (workers, stealers): (Vec<_>, Vec<_>) = (0..num_threads).map(|_| deque::new()).unzip();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter()
