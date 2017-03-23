@@ -9,9 +9,6 @@ use registry;
 /// Custom error type for the rayon thread pool configuration.
 #[derive(Debug,PartialEq)]
 pub enum InitError {
-    /// Error if number of threads is set to zero.
-    NumberOfThreadsZero,
-
     /// Error if the gloal thread pool is initialized multiple times
     /// and the configuration is not equal for all configurations.
     GlobalPoolAlreadyInitialized,
@@ -20,10 +17,6 @@ pub enum InitError {
 impl fmt::Display for InitError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            InitError::NumberOfThreadsZero => {
-                write!(f,
-                       "The number of threads was set to zero but must be greater than zero.")
-            }
             InitError::GlobalPoolAlreadyInitialized => {
                 write!(f,
                        "The gobal thread pool has already been initialized with a different \
@@ -36,7 +29,6 @@ impl fmt::Display for InitError {
 impl Error for InitError {
     fn description(&self) -> &str {
         match *self {
-            InitError::NumberOfThreadsZero => "number of threads set to zero",
             InitError::GlobalPoolAlreadyInitialized => {
                 "global thread pool has already been initialized"
             }
@@ -46,8 +38,10 @@ impl Error for InitError {
 
 /// Contains the rayon thread pool configuration.
 pub struct Configuration {
-    /// The number of threads in the rayon thread pool. Must not be zero.
-    num_threads: Option<usize>,
+    /// The number of threads in the rayon thread pool.
+    /// If zero will use the RAYON_RS_NUM_CPUS environment variable.
+    /// If RAYON_RS_NUM_CPUS is invalid or zero will use the default.
+    num_threads: usize,
 
     /// Custom closure, if any, to handle a panic that we cannot propagate
     /// anywhere else.
@@ -68,7 +62,7 @@ impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
         Configuration {
-            num_threads: None,
+            num_threads: 0,
             get_thread_name: None,
             panic_handler: None,
             stack_size: None,
@@ -77,7 +71,7 @@ impl Configuration {
 
     /// Get the number of threads that will be used for the thread
     /// pool. See `set_num_threads` for more information.
-    pub fn num_threads(&self) -> Option<usize> {
+    pub fn num_threads(&self) -> usize {
         self.num_threads
     }
 
@@ -95,11 +89,12 @@ impl Configuration {
     }
 
     /// Set the number of threads to be used in the rayon threadpool.
-    /// The argument `num_threads` must not be zero. If you do not
-    /// call this function, rayon will select a suitable default
-    /// (currently, the default is one thread per logical CPU).
+    /// If `num_threads` is 0 or you do not call this function,
+    /// rayon will use the RAYON_RS_NUM_CPUS environment variable.
+    /// If RAYON_RS_NUM_CPUS is invalid or is zero, a suitable default will be used.
+    /// Currently, the default is one thread per logical CPU.
     pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
-        self.num_threads = Some(num_threads);
+        self.num_threads = num_threads;
         self
     }
 
@@ -143,12 +138,6 @@ impl Configuration {
 
     /// Checks whether the configuration is valid.
     pub fn validate(&self) -> Result<(), InitError> {
-        if let Some(value) = self.num_threads {
-            if value == 0 {
-                return Err(InitError::NumberOfThreadsZero);
-            }
-        }
-
         Ok(())
     }
 }

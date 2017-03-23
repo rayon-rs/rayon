@@ -88,19 +88,21 @@ unsafe fn init_registry(config: Configuration) {
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Arc<Registry> {
         debug_assert!(configuration.validate().is_ok());
-
-        let limit_value = match configuration.num_threads() {
-            Some(value) => value,
-            None => {
-                match env::var("RAYON_RS_NUM_CPUS") {
-                    Ok(s) => usize::from_str(&s).expect("invalid value for RAYON_RS_NUM_CPUS"),
-                    Err(_) => num_cpus::get(),
-                }
+        // Determine number of threads to spawn. Use configuration value if not zero.
+        // If configuration is zero try the RAYON_RS_NUM_CPUS env var.
+        // If that fails use the default (num_cpus).
+        let config_num_threads = configuration.num_threads();
+        let num_threads = if config_num_threads > 0 {
+            config_num_threads
+        } else {
+            match env::var("RAYON_RS_NUM_CPUS").ok().and_then(|s| usize::from_str(&s).ok()) {
+                Some(x) if x > 0 => x,
+                _ => num_cpus::get(),
             }
         };
 
         let (inj_worker, inj_stealer) = deque::new();
-        let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque::new()).unzip();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..num_threads).map(|_| deque::new()).unzip();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter()
