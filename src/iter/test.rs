@@ -906,6 +906,22 @@ pub fn check_chunks_mut() {
 }
 
 #[test]
+pub fn check_windows() {
+    let a: Vec<i32> = (0..1024).collect();
+    let par: Vec<_> = a.par_windows(2).collect();
+    let seq: Vec<_> = a.windows(2).collect();
+    assert_eq!(par, seq);
+
+    let par: Vec<_> = a.par_windows(100).collect();
+    let seq: Vec<_> = a.windows(100).collect();
+    assert_eq!(par, seq);
+
+    let par: Vec<_> = a.par_windows(1_000_000).collect();
+    let seq: Vec<_> = a.windows(1_000_000).collect();
+    assert_eq!(par, seq);
+}
+
+#[test]
 pub fn check_options() {
     let mut a = vec![None, Some(1), None, None, Some(2), Some(4)];
 
