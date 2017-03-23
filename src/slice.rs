@@ -4,6 +4,7 @@
 
 use iter::*;
 use iter::internal::*;
+use std::cmp;
 
 /// Parallel extensions for slices.
 ///
@@ -297,7 +298,8 @@ impl<'data, T: 'data + Sync> Producer for WindowsProducer<'data, T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let left = &self.slice[..index + (self.window_size - 1)];
+        let left_index = cmp::min(self.slice.len(), index + (self.window_size - 1));
+        let left = &self.slice[..left_index];
         let right = &self.slice[index..];
         (WindowsProducer {
              window_size: self.window_size,
