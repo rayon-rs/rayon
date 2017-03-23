@@ -13,5 +13,5 @@ pub use iter::ParallelIterator;
 pub use iter::ToParallelChunks;
 pub use iter::ToParallelChunksMut;
 pub use slice::{SliceIter, ChunksIter, SliceIterMut, ChunksMutIter};
-pub use string::ParallelString;
+pub use str::ParallelString;
 

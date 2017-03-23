@@ -22,7 +22,7 @@ pub mod option;
 pub mod prelude;
 pub mod range;
 pub mod slice;
-pub mod string;
+pub mod str;
 pub mod vec;
 
 mod test;
