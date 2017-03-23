@@ -40,53 +40,53 @@ pub trait ParallelString {
     private_decl!{}
 
     /// Returns a parallel iterator over the characters of a string.
-    fn par_chars(&self) -> ParChars;
+    fn par_chars(&self) -> Chars;
 
     /// Returns a parallel iterator over substrings separated by a
     /// given character, similar to `str::split`.
-    fn par_split<P: Pattern>(&self, P) -> ParSplit<P>;
+    fn par_split<P: Pattern>(&self, P) -> Split<P>;
 
     /// Returns a parallel iterator over substrings terminated by a
     /// given character, similar to `str::split_terminator`.  It's
     /// equivalent to `par_split`, except it doesn't produce an empty
     /// substring after a trailing terminator.
-    fn par_split_terminator<P: Pattern>(&self, P) -> ParSplitTerminator<P>;
+    fn par_split_terminator<P: Pattern>(&self, P) -> SplitTerminator<P>;
 
     /// Returns a parallel iterator over the lines of a string, ending with an
     /// optional carriage return and with a newline (`\r\n` or just `\n`).
     /// The final line ending is optional, and line endings are not included in
     /// the output strings.
-    fn par_lines(&self) -> ParLines;
+    fn par_lines(&self) -> Lines;
 
     /// Returns a parallel iterator over the sub-slices of a string that are
     /// separated by any amount of whitespace.
     ///
     /// As with `str::split_whitespace`, 'whitespace' is defined according to
     /// the terms of the Unicode Derived Core Property `White_Space`.
-    fn par_split_whitespace(&self) -> ParSplitWhitespace;
+    fn par_split_whitespace(&self) -> SplitWhitespace;
 }
 
 impl ParallelString for str {
     private_impl!{}
 
-    fn par_chars(&self) -> ParChars {
-        ParChars { chars: self }
+    fn par_chars(&self) -> Chars {
+        Chars { chars: self }
     }
 
-    fn par_split<P: Pattern>(&self, separator: P) -> ParSplit<P> {
-        ParSplit::new(self, separator)
+    fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
+        Split::new(self, separator)
     }
 
-    fn par_split_terminator<P: Pattern>(&self, terminator: P) -> ParSplitTerminator<P> {
-        ParSplitTerminator::new(self, terminator)
+    fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
+        SplitTerminator::new(self, terminator)
     }
 
-    fn par_lines(&self) -> ParLines {
-        ParLines(self)
+    fn par_lines(&self) -> Lines {
+        Lines(self)
     }
 
-    fn par_split_whitespace(&self) -> ParSplitWhitespace {
-        ParSplitWhitespace(self)
+    fn par_split_whitespace(&self) -> SplitWhitespace {
+        SplitWhitespace(self)
     }
 }
 
@@ -160,11 +160,11 @@ impl<FN: Sync + Fn(char) -> bool> Pattern for FN {
 
 // /////////////////////////////////////////////////////////////////////////
 
-pub struct ParChars<'ch> {
+pub struct Chars<'ch> {
     chars: &'ch str,
 }
 
-impl<'ch> ParallelIterator for ParChars<'ch> {
+impl<'ch> ParallelIterator for Chars<'ch> {
     type Item = char;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -174,7 +174,7 @@ impl<'ch> ParallelIterator for ParChars<'ch> {
     }
 }
 
-impl<'ch> UnindexedProducer for ParChars<'ch> {
+impl<'ch> UnindexedProducer for Chars<'ch> {
     type Item = char;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -182,7 +182,7 @@ impl<'ch> UnindexedProducer for ParChars<'ch> {
         if index > 0 {
             let (left, right) = self.chars.split_at(index);
             self.chars = left;
-            (self, Some(ParChars { chars: right }))
+            (self, Some(Chars { chars: right }))
         } else {
             (self, None)
         }
@@ -198,12 +198,12 @@ impl<'ch> UnindexedProducer for ParChars<'ch> {
 
 // /////////////////////////////////////////////////////////////////////////
 
-pub struct ParSplit<'ch, P: Pattern> {
+pub struct Split<'ch, P: Pattern> {
     chars: &'ch str,
     separator: P,
 }
 
-struct ParSplitProducer<'ch, 'sep, P: Pattern + 'sep> {
+struct SplitProducer<'ch, 'sep, P: Pattern + 'sep> {
     chars: &'ch str,
     separator: &'sep P,
 
@@ -211,30 +211,30 @@ struct ParSplitProducer<'ch, 'sep, P: Pattern + 'sep> {
     tail: usize,
 }
 
-impl<'ch, P: Pattern> ParSplit<'ch, P> {
+impl<'ch, P: Pattern> Split<'ch, P> {
     fn new(chars: &'ch str, separator: P) -> Self {
-        ParSplit {
+        Split {
             chars: chars,
             separator: separator,
         }
     }
 }
 
-impl<'ch, 'sep, P: Pattern + 'sep> ParSplitProducer<'ch, 'sep, P> {
-    fn new(split: &'sep ParSplit<'ch, P>) -> Self {
-        ParSplitProducer {
+impl<'ch, 'sep, P: Pattern + 'sep> SplitProducer<'ch, 'sep, P> {
+    fn new(split: &'sep Split<'ch, P>) -> Self {
+        SplitProducer {
             chars: split.chars,
             separator: &split.separator,
             tail: split.chars.len(),
         }
     }
 
-    /// Common `fold_with` implementation, integrating `ParSplitTerminator`'s
+    /// Common `fold_with` implementation, integrating `SplitTerminator`'s
     /// need to sometimes skip its final empty item.
     fn fold_with<F>(self, folder: F, skip_last: bool) -> F
         where F: Folder<<Self as UnindexedProducer>::Item>
     {
-        let ParSplitProducer { chars, separator, tail } = self;
+        let SplitProducer { chars, separator, tail } = self;
 
         if tail == chars.len() {
             // No tail section, so just let `str::split` handle it.
@@ -264,22 +264,22 @@ impl<'ch, 'sep, P: Pattern + 'sep> ParSplitProducer<'ch, 'sep, P> {
     }
 }
 
-impl<'ch, P: Pattern> ParallelIterator for ParSplit<'ch, P> {
+impl<'ch, P: Pattern> ParallelIterator for Split<'ch, P> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let producer = ParSplitProducer::new(&self);
+        let producer = SplitProducer::new(&self);
         bridge_unindexed(producer, consumer)
     }
 }
 
-impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitProducer<'ch, 'sep, P> {
+impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitProducer<'ch, 'sep, P> {
     type Item = &'ch str;
 
     fn split(mut self) -> (Self, Option<Self>) {
-        let ParSplitProducer { chars, separator, tail } = self;
+        let SplitProducer { chars, separator, tail } = self;
 
         // First find a suitable UTF-8 boundary in the unsearched region.
         let char_index = find_char_midpoint(&chars[..tail]);
@@ -302,7 +302,7 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitProducer<'ch, '
             let right_chars = right_iter.as_str();
             let right_index = chars.len() - right_chars.len();
 
-            let mut right = ParSplitProducer {
+            let mut right = SplitProducer {
                 chars: right_chars,
                 separator: separator,
                 tail: tail - right_index,
@@ -332,42 +332,42 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitProducer<'ch, '
 
 // /////////////////////////////////////////////////////////////////////////
 
-pub struct ParSplitTerminator<'ch, P: Pattern> {
-    splitter: ParSplit<'ch, P>,
+pub struct SplitTerminator<'ch, P: Pattern> {
+    splitter: Split<'ch, P>,
 }
 
-struct ParSplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
-    splitter: ParSplitProducer<'ch, 'sep, P>,
+struct SplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
+    splitter: SplitProducer<'ch, 'sep, P>,
     endpoint: bool,
 }
 
-impl<'ch, P: Pattern> ParSplitTerminator<'ch, P> {
+impl<'ch, P: Pattern> SplitTerminator<'ch, P> {
     fn new(chars: &'ch str, terminator: P) -> Self {
-        ParSplitTerminator { splitter: ParSplit::new(chars, terminator) }
+        SplitTerminator { splitter: Split::new(chars, terminator) }
     }
 }
 
-impl<'ch, 'sep, P: Pattern + 'sep> ParSplitTerminatorProducer<'ch, 'sep, P> {
-    fn new(split: &'sep ParSplitTerminator<'ch, P>) -> Self {
-        ParSplitTerminatorProducer {
-            splitter: ParSplitProducer::new(&split.splitter),
+impl<'ch, 'sep, P: Pattern + 'sep> SplitTerminatorProducer<'ch, 'sep, P> {
+    fn new(split: &'sep SplitTerminator<'ch, P>) -> Self {
+        SplitTerminatorProducer {
+            splitter: SplitProducer::new(&split.splitter),
             endpoint: true,
         }
     }
 }
 
-impl<'ch, P: Pattern> ParallelIterator for ParSplitTerminator<'ch, P> {
+impl<'ch, P: Pattern> ParallelIterator for SplitTerminator<'ch, P> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let producer = ParSplitTerminatorProducer::new(&self);
+        let producer = SplitTerminatorProducer::new(&self);
         bridge_unindexed(producer, consumer)
     }
 }
 
-impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitTerminatorProducer<'ch, 'sep, P> {
+impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer<'ch, 'sep, P> {
     type Item = &'ch str;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -376,7 +376,7 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitTerminatorProdu
         let right = right.map(|right| {
             let endpoint = self.endpoint;
             self.endpoint = false;
-            ParSplitTerminatorProducer {
+            SplitTerminatorProducer {
                 splitter: right,
                 endpoint: endpoint,
             }
@@ -403,9 +403,9 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for ParSplitTerminatorProdu
 
 // /////////////////////////////////////////////////////////////////////////
 
-pub struct ParLines<'ch>(&'ch str);
+pub struct Lines<'ch>(&'ch str);
 
-impl<'ch> ParallelIterator for ParLines<'ch> {
+impl<'ch> ParallelIterator for Lines<'ch> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -427,9 +427,9 @@ impl<'ch> ParallelIterator for ParLines<'ch> {
 
 // /////////////////////////////////////////////////////////////////////////
 
-pub struct ParSplitWhitespace<'ch>(&'ch str);
+pub struct SplitWhitespace<'ch>(&'ch str);
 
-impl<'ch> ParallelIterator for ParSplitWhitespace<'ch> {
+impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
