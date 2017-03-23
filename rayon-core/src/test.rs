@@ -4,9 +4,8 @@ extern crate compiletest_rs as compiletest;
 
 use configuration::*;
 use std::error::Error;
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::channel;
 use thread_pool::*;
 
 #[test]
@@ -46,32 +45,29 @@ fn start_callback_called() {
 
 #[test]
 fn exit_callback_called() {
-    let (tx, rx) = channel();
-    let tx = Mutex::new(tx);
+    let n_threads = 16;
+    let n_called = Arc::new(AtomicUsize::new(0));
+    // Wait for all the threads in the pool plus the one running tests.
+    let barrier = Arc::new(Barrier::new(n_threads + 1));
 
-    let exit_handler: ExitHandler = Arc::new(move |index| {
-        let tx = tx.lock().unwrap();
-        tx.send(index).unwrap();
+    let b = barrier.clone();
+    let nc = n_called.clone();
+    let exit_handler: ExitHandler = Arc::new(move |_| {
+        nc.fetch_add(1, Ordering::SeqCst);
+        b.wait();
     });
 
-    let n_threads = 16;
     let conf = Configuration::new()
         .set_num_threads(n_threads)
         .set_exit_handler(exit_handler);
-
     {
         let _ = ThreadPool::new(conf).unwrap();
+        // Drop the pool so it stops the running threads.
     }
 
-    // Drain the message queue.
-    let mut exited = 0;
-    for msg in rx {
-        let mask = 1 << msg;
-        assert!(exited & mask == 0);
+    // Wait for all the threads to have been scheduled to run.
+    barrier.wait();
 
-        exited |= mask;
-        if exited == 0xffff {
-            break;
-        }
-    }
+    // The handler must have been called on every exiting thread.
+    assert_eq!(n_called.load(Ordering::SeqCst), n_threads);
 }
