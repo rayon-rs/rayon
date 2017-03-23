@@ -44,21 +44,11 @@ fn sort_in_pool() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..12 * 1024).map(|_| rng.next_u32()).collect();
 
-    let result = ThreadPool::new(Configuration::new());
-
-    match result {
-        Ok(pool) => {
-            let mut sorted_data = data.clone();
-            sorted_data.sort();
-
-            pool.install(|| {
-                quick_sort(&mut data);
-            });
-
-            assert_eq!(data, sorted_data);
-        }
-        Err(_) => panic!("expected Ok() but got Err()"),
-    }
+    let pool = ThreadPool::new(Configuration::new());
+    let mut sorted_data = data.clone();
+    sorted_data.sort();
+    pool.install(|| quick_sort(&mut data));
+    assert_eq!(data, sorted_data);
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use configuration::{Configuration, InitError};
+use configuration::Configuration;
 #[cfg(feature = "unstable")]
 use future::{Future, RayonFuture};
 use latch::LockLatch;

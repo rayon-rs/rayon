@@ -145,7 +145,7 @@ fn update_tree() {
 #[test]
 fn linear_stack_growth() {
     let config = Configuration::new().set_num_threads(1);
-    let pool = ThreadPool::new(config).unwrap();
+    let pool = ThreadPool::new(config);
     pool.install(|| {
         let mut max_diff = Mutex::new(0);
         let bottom_of_stack = 0;
