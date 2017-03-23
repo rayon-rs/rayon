@@ -20,9 +20,8 @@ impl ThreadPool {
     /// Constructs a new thread pool with the given configuration. If
     /// the configuration is not valid, returns a suitable `Err`
     /// result.  See `InitError` for more details.
-    pub fn new(configuration: Configuration) -> Result<ThreadPool, InitError> {
-        try!(configuration.validate());
-        Ok(ThreadPool { registry: Registry::new(configuration) })
+    pub fn new(configuration: Configuration) -> ThreadPool {
+        ThreadPool { registry: Registry::new(configuration) }
     }
 
     /// Executes `op` within the threadpool. Any attempts to use

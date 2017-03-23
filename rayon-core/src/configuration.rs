@@ -134,12 +134,6 @@ impl Configuration {
         self.stack_size = Some(stack_size);
         self
     }
-
-
-    /// Checks whether the configuration is valid.
-    pub fn validate(&self) -> Result<(), InitError> {
-        Ok(())
-    }
 }
 
 /// Initializes the global thread pool. This initialization is
@@ -160,7 +154,6 @@ impl Configuration {
 /// will return an error. An `Ok` result indicates that this
 /// is the first initialization of the thread pool.
 pub fn initialize(config: Configuration) -> Result<(), InitError> {
-    try!(config.validate());
     let registry = try!(registry::init_global_registry(config));
     registry.wait_until_primed();
     Ok(())

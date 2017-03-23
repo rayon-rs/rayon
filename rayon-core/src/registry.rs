@@ -87,7 +87,6 @@ unsafe fn init_registry(config: Configuration) {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Arc<Registry> {
-        debug_assert!(configuration.validate().is_ok());
         // Determine number of threads to spawn. Use configuration value if not zero.
         // If configuration is zero try the RAYON_RS_NUM_CPUS env var.
         // If that fails use the default (num_cpus).
