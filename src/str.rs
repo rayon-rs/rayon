@@ -160,6 +160,7 @@ impl<FN: Sync + Fn(char) -> bool> Pattern for FN {
 
 // /////////////////////////////////////////////////////////////////////////
 
+/// Parallel iterator over the characters of a string
 pub struct Chars<'ch> {
     chars: &'ch str,
 }
@@ -202,6 +203,7 @@ impl<'ch> UnindexedProducer for CharsProducer<'ch> {
 
 // /////////////////////////////////////////////////////////////////////////
 
+/// Parallel iterator over substrings separated by a pattern
 pub struct Split<'ch, P: Pattern> {
     chars: &'ch str,
     separator: P,
@@ -336,6 +338,7 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitProducer<'ch, 'sep
 
 // /////////////////////////////////////////////////////////////////////////
 
+/// Parallel iterator over substrings separated by a terminator pattern
 pub struct SplitTerminator<'ch, P: Pattern> {
     splitter: Split<'ch, P>,
 }
@@ -407,6 +410,7 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
 
 // /////////////////////////////////////////////////////////////////////////
 
+/// Parallel iterator over lines in a string
 pub struct Lines<'ch>(&'ch str);
 
 impl<'ch> ParallelIterator for Lines<'ch> {
@@ -431,6 +435,7 @@ impl<'ch> ParallelIterator for Lines<'ch> {
 
 // /////////////////////////////////////////////////////////////////////////
 
+/// Parallel iterator over substrings separated by whitespace
 pub struct SplitWhitespace<'ch>(&'ch str);
 
 impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
