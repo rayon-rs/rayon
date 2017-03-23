@@ -24,28 +24,6 @@ pub trait ParallelSlice<T> {
     fn par_chunks_mut(&mut self, size: usize) -> ChunksMutIter<T> where T: Send;
 }
 
-pub struct SliceIter<'data, T: 'data + Sync> {
-    slice: &'data [T],
-}
-
-impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
-    type Item = &'data T;
-    type Iter = SliceIter<'data, T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        SliceIter { slice: self }
-    }
-}
-
-impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
-    type Item = &'data T;
-    type Iter = SliceIter<'data, T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        SliceIter { slice: self }
-    }
-}
-
 impl<T> ParallelSlice<T> for [T] {
     private_impl!{}
 
@@ -69,6 +47,48 @@ impl<T> ParallelSlice<T> for [T] {
             slice: self,
         }
     }
+}
+
+impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
+    type Item = &'data T;
+    type Iter = SliceIter<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        SliceIter { slice: self }
+    }
+}
+
+impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
+    type Item = &'data T;
+    type Iter = SliceIter<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        SliceIter { slice: self }
+    }
+}
+
+impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
+    type Item = &'data mut T;
+    type Iter = SliceIterMut<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        SliceIterMut { slice: self }
+    }
+}
+
+impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
+    type Item = &'data mut T;
+    type Iter = SliceIterMut<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        SliceIterMut { slice: self }
+    }
+}
+
+
+/// Parallel iterator over immutable items in a slice
+pub struct SliceIter<'data, T: 'data + Sync> {
+    slice: &'data [T],
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
@@ -111,6 +131,26 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for SliceIter<'data, T> {
     }
 }
 
+struct SliceProducer<'data, T: 'data + Sync> {
+    slice: &'data [T],
+}
+
+impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
+    type Item = &'data T;
+    type IntoIter = ::std::slice::Iter<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.into_iter()
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.slice.split_at(index);
+        (SliceProducer { slice: left }, SliceProducer { slice: right })
+    }
+}
+
+
+/// Parallel iterator over immutable non-overlapping chunks of a slice
 pub struct ChunksIter<'data, T: 'data + Sync> {
     chunk_size: usize,
     slice: &'data [T],
@@ -159,6 +199,35 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for ChunksIter<'data, T> {
     }
 }
 
+struct SliceChunksProducer<'data, T: 'data + Sync> {
+    chunk_size: usize,
+    slice: &'data [T],
+}
+
+impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
+    type Item = &'data [T];
+    type IntoIter = ::std::slice::Chunks<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.chunks(self.chunk_size)
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let elem_index = index * self.chunk_size;
+        let (left, right) = self.slice.split_at(elem_index);
+        (SliceChunksProducer {
+             chunk_size: self.chunk_size,
+             slice: left,
+         },
+         SliceChunksProducer {
+             chunk_size: self.chunk_size,
+             slice: right,
+         })
+    }
+}
+
+
+/// Parallel iterator over immutable overlapping windows of a slice
 pub struct WindowsIter<'data, T: 'data + Sync> {
     window_size: usize,
     slice: &'data [T],
@@ -208,53 +277,6 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for WindowsIter<'data, T> {
     }
 }
 
-/// ////////////////////////////////////////////////////////////////////////
-
-struct SliceProducer<'data, T: 'data + Sync> {
-    slice: &'data [T],
-}
-
-impl<'data, T: 'data + Sync> Producer for SliceProducer<'data, T> {
-    type Item = &'data T;
-    type IntoIter = ::std::slice::Iter<'data, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.slice.into_iter()
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.slice.split_at(index);
-        (SliceProducer { slice: left }, SliceProducer { slice: right })
-    }
-}
-
-struct SliceChunksProducer<'data, T: 'data + Sync> {
-    chunk_size: usize,
-    slice: &'data [T],
-}
-
-impl<'data, T: 'data + Sync> Producer for SliceChunksProducer<'data, T> {
-    type Item = &'data [T];
-    type IntoIter = ::std::slice::Chunks<'data, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.slice.chunks(self.chunk_size)
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = index * self.chunk_size;
-        let (left, right) = self.slice.split_at(elem_index);
-        (SliceChunksProducer {
-             chunk_size: self.chunk_size,
-             slice: left,
-         },
-         SliceChunksProducer {
-             chunk_size: self.chunk_size,
-             slice: right,
-         })
-    }
-}
-
 struct SliceWindowsProducer<'data, T: 'data + Sync> {
     window_size: usize,
     slice: &'data [T],
@@ -282,26 +304,10 @@ impl<'data, T: 'data + Sync> Producer for SliceWindowsProducer<'data, T> {
     }
 }
 
+
+/// Parallel iterator over mutable items in a slice
 pub struct SliceIterMut<'data, T: 'data + Send> {
     slice: &'data mut [T],
-}
-
-impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
-    type Item = &'data mut T;
-    type Iter = SliceIterMut<'data, T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        SliceIterMut { slice: self }
-    }
-}
-
-impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
-    type Item = &'data mut T;
-    type Iter = SliceIterMut<'data, T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        SliceIterMut { slice: self }
-    }
 }
 
 impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {
@@ -344,6 +350,26 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for SliceIterMut<'data, T> 
     }
 }
 
+struct SliceMutProducer<'data, T: 'data + Send> {
+    slice: &'data mut [T],
+}
+
+impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T> {
+    type Item = &'data mut T;
+    type IntoIter = ::std::slice::IterMut<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.into_iter()
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.slice.split_at_mut(index);
+        (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
+    }
+}
+
+
+/// Parallel iterator over mutable non-overlapping chunks of a slice
 pub struct ChunksMutIter<'data, T: 'data + Send> {
     chunk_size: usize,
     slice: &'data mut [T],
@@ -389,26 +415,6 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMutIter<'data, T>
             chunk_size: self.chunk_size,
             slice: self.slice,
         })
-    }
-}
-
-/// ////////////////////////////////////////////////////////////////////////
-
-struct SliceMutProducer<'data, T: 'data + Send> {
-    slice: &'data mut [T],
-}
-
-impl<'data, T: 'data + Send> Producer for SliceMutProducer<'data, T> {
-    type Item = &'data mut T;
-    type IntoIter = ::std::slice::IterMut<'data, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.slice.into_iter()
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.slice.split_at_mut(index);
-        (SliceMutProducer { slice: left }, SliceMutProducer { slice: right })
     }
 }
 
