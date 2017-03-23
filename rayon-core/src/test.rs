@@ -52,7 +52,7 @@ fn exit_callback_called() {
         .set_exit_handler(exit_handler);
 
     {
-        let pool = ThreadPool::new(conf).unwrap();
+        let _ = ThreadPool::new(conf).unwrap();
     }
 
     // Drain the message queue.
