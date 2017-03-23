@@ -4,7 +4,7 @@ extern crate compiletest_rs as compiletest;
 
 use configuration::*;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use thread_pool::*;
@@ -20,20 +20,28 @@ fn worker_thread_index() {
 
 #[test]
 fn start_callback_called() {
+    let n_threads = 16;
     let n_called = Arc::new(AtomicUsize::new(0));
+    // Wait for all the threads in the pool plus the one running tests.
+    let barrier = Arc::new(Barrier::new(n_threads + 1));
 
-    let clone = n_called.clone();
+    let b = barrier.clone();
+    let nc = n_called.clone();
+    let start_handler: StartHandler = Arc::new(move |_| {
+        nc.fetch_add(1, Ordering::SeqCst);
+        b.wait();
+    });
+
     let conf = Configuration::new()
-        .set_num_threads(16)
-        .set_start_handler(Arc::new(move |index| {
-            clone.fetch_add(1, Ordering::SeqCst);
-        }));
-    {
-        let pool = ThreadPool::new(conf).unwrap();
-    }
+        .set_num_threads(n_threads)
+        .set_start_handler(start_handler);
+    let _ = ThreadPool::new(conf).unwrap();
 
-    // We must have started at least one thread.
-    assert!(n_called.load(Ordering::SeqCst) > 0);
+    // Wait for all the threads to have been scheduled to run.
+    barrier.wait();
+
+    // The handler must have been called on every started thread.
+    assert_eq!(n_called.load(Ordering::SeqCst), n_threads);
 }
 
 #[test]
