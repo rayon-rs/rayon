@@ -1,6 +1,6 @@
 use super::{IntoParallelIterator, ParallelIterator};
 use super::chain::Chain;
-use slice::{SliceIter, SliceIterMut};
+use slice::{Iter, IterMut};
 use vec::IntoIter as VecIter;
 use std::collections::{BinaryHeap, BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::iter::FromIterator;
@@ -85,7 +85,7 @@ vectorized!{ impl<T> IntoParallelIterator for VecDeque<T> }
 
 impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
     type Item = &'a T;
-    type Iter = Chain<SliceIter<'a, T>, SliceIter<'a, T>>;
+    type Iter = Chain<Iter<'a, T>, Iter<'a, T>>;
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_slices();
@@ -95,7 +95,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
 
 impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
     type Item = &'a mut T;
-    type Iter = Chain<SliceIterMut<'a, T>, SliceIterMut<'a, T>>;
+    type Iter = Chain<IterMut<'a, T>, IterMut<'a, T>>;
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_mut_slices();
