@@ -105,7 +105,7 @@ impl<'data, T: 'data + Send> Drop for VecProducer<'data, T> {
 /// ////////////////////////////////////////////////////////////////////////
 
 // like std::vec::Drain, without updating a source Vec
-pub struct SliceDrain<'data, T: 'data> {
+struct SliceDrain<'data, T: 'data> {
     iter: std::slice::IterMut<'data, T>,
 }
 
