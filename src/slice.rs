@@ -5,6 +5,21 @@
 use iter::*;
 use iter::internal::*;
 
+/// Parallel extensions for slices.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
+pub trait ParallelSlice<T> {
+    private_decl!{}
+
+    /// Returns a parallel iterator over at most `size` elements of
+    /// `self` at a time. The chunks do not overlap.
+    fn par_chunks(&self, size: usize) -> ChunksIter<T> where T: Sync;
+
+    /// Returns a parallel iterator over at most `size` elements of
+    /// `self` at a time. The chunks are mutable and do not overlap.
+    fn par_chunks_mut(&mut self, size: usize) -> ChunksMutIter<T> where T: Send;
+}
+
 pub struct SliceIter<'data, T: 'data + Sync> {
     slice: &'data [T],
 }
@@ -27,18 +42,22 @@ impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
     }
 }
 
-impl<'data, T: Sync + 'data> ToParallelChunks<'data> for [T] {
-    type Item = T;
-    type Iter = ChunksIter<'data, T>;
+impl<T> ParallelSlice<T> for [T] {
+    private_impl!{}
 
-    fn par_chunks(&'data self, chunk_size: usize) -> Self::Iter {
+    fn par_chunks(&self, chunk_size: usize) -> ChunksIter<T> where T: Sync {
         ChunksIter {
             chunk_size: chunk_size,
             slice: self,
         }
     }
 
-    private_impl!{}
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMutIter<T> where T: Send {
+        ChunksMutIter {
+            chunk_size: chunk_size,
+            slice: self,
+        }
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for SliceIter<'data, T> {
@@ -196,20 +215,6 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
     fn into_par_iter(self) -> Self::Iter {
         SliceIterMut { slice: self }
     }
-}
-
-impl<'data, T: Send + 'data> ToParallelChunksMut<'data> for [T] {
-    type Item = T;
-    type Iter = ChunksMutIter<'data, T>;
-
-    fn par_chunks_mut(&'data mut self, chunk_size: usize) -> Self::Iter {
-        ChunksMutIter {
-            chunk_size: chunk_size,
-            slice: self,
-        }
-    }
-
-    private_impl!{}
 }
 
 impl<'data, T: Send + 'data> ParallelIterator for SliceIterMut<'data, T> {

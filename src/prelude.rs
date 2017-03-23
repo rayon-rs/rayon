@@ -10,8 +10,5 @@ pub use iter::IntoParallelRefIterator;
 pub use iter::IntoParallelRefMutIterator;
 pub use iter::IndexedParallelIterator;
 pub use iter::ParallelIterator;
-pub use iter::ToParallelChunks;
-pub use iter::ToParallelChunksMut;
-pub use slice::{SliceIter, ChunksIter, SliceIterMut, ChunksMutIter};
+pub use slice::ParallelSlice;
 pub use str::ParallelString;
-
