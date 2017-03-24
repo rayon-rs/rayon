@@ -7,22 +7,27 @@ use iter::*;
 use iter::internal::*;
 use std::ops::Range;
 
-pub struct RangeIter<T> {
+/// Parallel iterator over a range
+pub struct Iter<T> {
     range: Range<T>,
 }
 
 impl<T> IntoParallelIterator for Range<T>
-    where RangeIter<T>: ParallelIterator
+    where Iter<T>: ParallelIterator
 {
-    type Item = <RangeIter<T> as ParallelIterator>::Item;
-    type Iter = RangeIter<T>;
+    type Item = <Iter<T> as ParallelIterator>::Item;
+    type Iter = Iter<T>;
 
     fn into_par_iter(self) -> Self::Iter {
-        RangeIter { range: self }
+        Iter { range: self }
     }
 }
 
-impl<T> IntoIterator for RangeIter<T>
+struct IterProducer<T> {
+    range: Range<T>,
+}
+
+impl<T> IntoIterator for IterProducer<T>
     where Range<T>: Iterator
 {
     type Item = <Range<T> as Iterator>::Item;
@@ -35,7 +40,7 @@ impl<T> IntoIterator for RangeIter<T>
 
 macro_rules! indexed_range_impl {
     ( $t:ty ) => {
-        impl ParallelIterator for RangeIter<$t> {
+        impl ParallelIterator for Iter<$t> {
             type Item = $t;
 
             fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -49,7 +54,7 @@ macro_rules! indexed_range_impl {
             }
         }
 
-        impl BoundedParallelIterator for RangeIter<$t> {
+        impl BoundedParallelIterator for Iter<$t> {
             fn upper_bound(&mut self) -> usize {
                 ExactParallelIterator::len(self)
             }
@@ -61,21 +66,21 @@ macro_rules! indexed_range_impl {
             }
         }
 
-        impl ExactParallelIterator for RangeIter<$t> {
+        impl ExactParallelIterator for Iter<$t> {
             fn len(&mut self) -> usize {
                 self.range.len()
             }
         }
 
-        impl IndexedParallelIterator for RangeIter<$t> {
+        impl IndexedParallelIterator for Iter<$t> {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {
-                callback.callback(self)
+                callback.callback(IterProducer { range: self.range })
             }
         }
 
-        impl Producer for RangeIter<$t> {
+        impl Producer for IterProducer<$t> {
 
             type Item = <Range<$t> as Iterator>::Item;
             type IntoIter = Range<$t>;
@@ -90,7 +95,7 @@ macro_rules! indexed_range_impl {
                 let mid = self.range.start.wrapping_add(index as $t);
                 let left = self.range.start .. mid;
                 let right = mid .. self.range.end;
-                (RangeIter { range: left }, RangeIter { range: right })
+                (IterProducer { range: left }, IterProducer { range: right })
             }
         }
     }
@@ -98,7 +103,7 @@ macro_rules! indexed_range_impl {
 
 macro_rules! unindexed_range_impl {
     ( $t:ty ) => {
-        impl RangeIter<$t> {
+        impl IterProducer<$t> {
             fn len(&self) -> u64 {
                 let Range { start, end } = self.range;
                 if end > start {
@@ -109,17 +114,17 @@ macro_rules! unindexed_range_impl {
             }
         }
 
-        impl ParallelIterator for RangeIter<$t> {
+        impl ParallelIterator for Iter<$t> {
             type Item = $t;
 
             fn drive_unindexed<C>(self, consumer: C) -> C::Result
                 where C: UnindexedConsumer<Self::Item>
             {
-                bridge_unindexed(self, consumer)
+                bridge_unindexed(IterProducer { range: self.range }, consumer)
             }
         }
 
-        impl UnindexedProducer for RangeIter<$t> {
+        impl UnindexedProducer for IterProducer<$t> {
             type Item = $t;
 
             fn split(mut self) -> (Self, Option<Self>) {
@@ -128,7 +133,7 @@ macro_rules! unindexed_range_impl {
                     let mid = self.range.start.wrapping_add(index as $t);
                     let right = mid .. self.range.end;
                     self.range.end = mid;
-                    (self, Some(RangeIter { range: right }))
+                    (self, Some(IterProducer { range: right }))
                 } else {
                     (self, None)
                 }
@@ -156,3 +161,14 @@ indexed_range_impl!{isize}
 // other Range<T> with just Iterator
 unindexed_range_impl!{u64}
 unindexed_range_impl!{i64}
+
+
+#[test]
+pub fn check_range_split_at_overflow() {
+    // Note, this split index overflows i8!
+    let producer = IterProducer { range: -100i8..100 };
+    let (left, right) = producer.split_at(150);
+    let r1: i32 = left.range.map(|i| i as i32).sum();
+    let r2: i32 = right.range.map(|i| i as i32).sum();
+    assert_eq!(r1 + r2, -100);
+}

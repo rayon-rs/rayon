@@ -3,7 +3,7 @@
 
 use num::Integer;
 use rayon::prelude::*;
-use rayon::range::RangeIter;
+use rayon::range::Iter;
 use std::usize;
 use std::ops::Add;
 use test;
@@ -17,9 +17,9 @@ use test;
 ///
 /// This is a coprime triple.  Multiplying by factors k covers all triples.
 fn par_euclid<FM, M, FN, N>(map_m: FM, map_n: FN) -> u32
-    where FM: FnOnce(RangeIter<u32>) -> M,
+    where FM: FnOnce(Iter<u32>) -> M,
           M: ParallelIterator<Item=u32>,
-          FN: Fn(RangeIter<u32>) -> N + Sync,
+          FN: Fn(Iter<u32>) -> N + Sync,
           N: ParallelIterator<Item=u32>,
 {
     map_m((1u32 .. 2000).into_par_iter()).map(|m| {
@@ -61,7 +61,7 @@ fn euclid_serial(b: &mut test::Bencher) {
 /// Use huge minimums to force it fully serialized.
 fn euclid_faux_serial(b: &mut test::Bencher) {
     let count = euclid();
-    let serial = |r: RangeIter<u32>| r.with_min_len(usize::MAX);
+    let serial = |r: Iter<u32>| r.with_min_len(usize::MAX);
     b.iter(|| assert_eq!(par_euclid(&serial, &serial), count))
 }
 
@@ -83,7 +83,7 @@ fn euclid_parallel_one(b: &mut test::Bencher) {
 /// Use a low maximum to force the outer loop parallelized.
 fn euclid_parallel_outer(b: &mut test::Bencher) {
     let count = euclid();
-    let parallel = |r: RangeIter<u32>| r.with_max_len(1);
+    let parallel = |r: Iter<u32>| r.with_max_len(1);
     b.iter(|| assert_eq!(par_euclid(&parallel, |n| n), count))
 }
 
@@ -91,6 +91,6 @@ fn euclid_parallel_outer(b: &mut test::Bencher) {
 /// Use low maximums to force it fully parallelized.
 fn euclid_parallel_full(b: &mut test::Bencher) {
     let count = euclid();
-    let parallel = |r: RangeIter<u32>| r.with_max_len(1);
+    let parallel = |r: Iter<u32>| r.with_max_len(1);
     b.iter(|| assert_eq!(par_euclid(&parallel, &parallel), count))
 }
