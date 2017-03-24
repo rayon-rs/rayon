@@ -6,20 +6,21 @@ use iter::*;
 use iter::internal::*;
 use std;
 
-pub struct VecIter<T: Send> {
+/// Parallel iterator that moves out of a vector.
+pub struct IntoIter<T: Send> {
     vec: Vec<T>,
 }
 
 impl<T: Send> IntoParallelIterator for Vec<T> {
     type Item = T;
-    type Iter = VecIter<T>;
+    type Iter = IntoIter<T>;
 
     fn into_par_iter(self) -> Self::Iter {
-        VecIter { vec: self }
+        IntoIter { vec: self }
     }
 }
 
-impl<T: Send> ParallelIterator for VecIter<T> {
+impl<T: Send> ParallelIterator for IntoIter<T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -33,7 +34,7 @@ impl<T: Send> ParallelIterator for VecIter<T> {
     }
 }
 
-impl<T: Send> BoundedParallelIterator for VecIter<T> {
+impl<T: Send> BoundedParallelIterator for IntoIter<T> {
     fn upper_bound(&mut self) -> usize {
         ExactParallelIterator::len(self)
     }
@@ -45,13 +46,13 @@ impl<T: Send> BoundedParallelIterator for VecIter<T> {
     }
 }
 
-impl<T: Send> ExactParallelIterator for VecIter<T> {
+impl<T: Send> ExactParallelIterator for IntoIter<T> {
     fn len(&mut self) -> usize {
         self.vec.len()
     }
 }
 
-impl<T: Send> IndexedParallelIterator for VecIter<T> {
+impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
@@ -104,7 +105,7 @@ impl<'data, T: 'data + Send> Drop for VecProducer<'data, T> {
 /// ////////////////////////////////////////////////////////////////////////
 
 // like std::vec::Drain, without updating a source Vec
-pub struct SliceDrain<'data, T: 'data> {
+struct SliceDrain<'data, T: 'data> {
     iter: std::slice::IterMut<'data, T>,
 }
 
