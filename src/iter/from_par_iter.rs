@@ -1,24 +1,9 @@
-use super::{IntoParallelIterator, ParallelIterator};
+use super::{FromParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
 use std::collections::{BinaryHeap, VecDeque};
-
-/// `FromParallelIterator` implements the conversion from a [`ParallelIterator`].
-/// By implementing `FromParallelIterator` for a type, you define how it will be
-/// created from an iterator.
-///
-/// `FromParallelIterator` is used through [`ParallelIterator`]'s [`collect()`] method.
-///
-/// [`ParallelIterator`]: trait.ParallelIterator.html
-/// [`collect()`]: trait.ParallelIterator.html#method.collect
-pub trait FromParallelIterator<T>
-    where T: Send
-{
-    fn from_par_iter<I>(par_iter: I) -> Self where I: IntoParallelIterator<Item = T>;
-}
-
 
 fn combine<I, START, COLL>(par_iter: I, make_start: START) -> COLL
     where I: IntoParallelIterator,
