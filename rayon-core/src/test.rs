@@ -3,14 +3,7 @@
 extern crate compiletest_rs as compiletest;
 
 use configuration::*;
-use std::error::Error;
 use thread_pool::*;
-
-#[test]
-fn coerce_to_box_error() {
-    // check that coercion succeeds
-    let _: Box<Error> = From::from(GlobalPoolAlreadyInitialized);
-}
 
 #[test]
 fn worker_thread_index() {

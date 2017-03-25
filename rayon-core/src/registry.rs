@@ -3,22 +3,37 @@ use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
 use latch::{LatchProbe, Latch, CountLatch, LockLatch};
-use configuration::GlobalPoolAlreadyInitialized;
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
 use std::any::Any;
+use std::error::Error;
 use std::cell::{Cell, UnsafeCell};
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
+use std::fmt;
 use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
 
-/// ////////////////////////////////////////////////////////////////////////
+/// Error if the gloal thread pool is initialized multiple times.
+#[derive(Debug,PartialEq)]
+struct GlobalPoolAlreadyInitialized;
+
+impl fmt::Display for GlobalPoolAlreadyInitialized {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.description())
+    }
+}
+
+impl Error for GlobalPoolAlreadyInitialized {
+    fn description(&self) -> &str {
+        "The global thread pool has already been initialized."
+    }
+}
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -63,13 +78,13 @@ fn global_registry() -> &'static Arc<Registry> {
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given configuration.
-pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, GlobalPoolAlreadyInitialized> {
+pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, Box<Error>> {
     let mut called = false;
     THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config); called = true; });
     if called {
         Ok(unsafe { THE_REGISTRY.unwrap() })
     } else {
-        Err(GlobalPoolAlreadyInitialized)
+        Err(Box::new(GlobalPoolAlreadyInitialized))
     }
 }
 

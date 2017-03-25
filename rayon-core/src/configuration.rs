@@ -9,22 +9,6 @@ use std::sync::Arc;
 use registry;
 use num_cpus;
 
-/// Error if the gloal thread pool is initialized multiple times.
-#[derive(Debug,PartialEq)]
-pub struct GlobalPoolAlreadyInitialized;
-
-impl fmt::Display for GlobalPoolAlreadyInitialized {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
-}
-
-impl Error for GlobalPoolAlreadyInitialized {
-    fn description(&self) -> &str {
-        "The global thread pool has already been initialized."
-    }
-}
-
 /// Contains the rayon thread pool configuration.
 pub struct Configuration {
     /// The number of threads in the rayon thread pool.
