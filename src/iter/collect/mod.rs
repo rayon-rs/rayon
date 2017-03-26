@@ -1,5 +1,4 @@
-use super::{ParallelIterator, ExactParallelIterator, IntoParallelIterator};
-use super::from_par_iter::FromParallelIterator;
+use super::{ParallelIterator, ExactParallelIterator, IntoParallelIterator, FromParallelIterator};
 use std::collections::LinkedList;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
