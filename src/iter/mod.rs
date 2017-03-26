@@ -111,46 +111,6 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
     }
 }
 
-/// Parallel extension for chunks of a collection.
-///
-/// Implementing this trait is not permitted outside of `rayon`.
-pub trait ToParallelChunks<'data> {
-    type Iter: ParallelIterator<Item = &'data [Self::Item]>;
-    type Item: Sync + 'data;
-
-    /// Returns a parallel iterator over at most `size` elements of
-    /// `self` at a time. The chunks do not overlap.
-    ///
-    /// The policy for how a collection is divided into chunks is not
-    /// dictated here (e.g. a B-tree-like collection may by necessity
-    /// produce many chunks with fewer than `size` elements), but an
-    /// implementation should strive to maximize chunk size when
-    /// possible.
-    fn par_chunks(&'data self, size: usize) -> Self::Iter;
-
-    private_decl!{}
-}
-
-/// Parallel extension for mutable chunks of a collection.
-///
-/// Implementing this trait is not permitted outside of `rayon`.
-pub trait ToParallelChunksMut<'data> {
-    type Iter: ParallelIterator<Item = &'data mut [Self::Item]>;
-    type Item: Send + 'data;
-
-    /// Returns a parallel iterator over at most `size` elements of
-    /// `self` at a time. The chunks are mutable and do not overlap.
-    ///
-    /// The policy for how a collection is divided into chunks is not
-    /// dictated here (e.g. a B-tree-like collection may by necessity
-    /// produce many chunks with fewer than `size` elements), but an
-    /// implementation should strive to maximize chunk size when
-    /// possible.
-    fn par_chunks_mut(&'data mut self, size: usize) -> Self::Iter;
-
-    private_decl!{}
-}
-
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
