@@ -3,25 +3,37 @@ use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
 use latch::{LatchProbe, Latch, CountLatch, LockLatch};
-use configuration::InitError;
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
 use std::any::Any;
+use std::error::Error;
 use std::cell::{Cell, UnsafeCell};
-use std::env;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
+use std::fmt;
 use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
-use num_cpus;
 
-/// ////////////////////////////////////////////////////////////////////////
+/// Error if the gloal thread pool is initialized multiple times.
+#[derive(Debug,PartialEq)]
+struct GlobalPoolAlreadyInitialized;
+
+impl fmt::Display for GlobalPoolAlreadyInitialized {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.description())
+    }
+}
+
+impl Error for GlobalPoolAlreadyInitialized {
+    fn description(&self) -> &str {
+        "The global thread pool has already been initialized."
+    }
+}
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -66,13 +78,13 @@ fn global_registry() -> &'static Arc<Registry> {
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given configuration.
-pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, InitError> {
+pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, Box<Error>> {
     let mut called = false;
     THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config); called = true; });
     if called {
         Ok(unsafe { THE_REGISTRY.unwrap() })
     } else {
-        Err(InitError::GlobalPoolAlreadyInitialized)
+        Err(Box::new(GlobalPoolAlreadyInitialized))
     }
 }
 
@@ -87,20 +99,10 @@ unsafe fn init_registry(config: Configuration) {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Arc<Registry> {
-        debug_assert!(configuration.validate().is_ok());
-
-        let limit_value = match configuration.num_threads() {
-            Some(value) => value,
-            None => {
-                match env::var("RAYON_RS_NUM_CPUS") {
-                    Ok(s) => usize::from_str(&s).expect("invalid value for RAYON_RS_NUM_CPUS"),
-                    Err(_) => num_cpus::get(),
-                }
-            }
-        };
+        let n_threads = configuration.num_threads();
 
         let (inj_worker, inj_stealer) = deque::new();
-        let (workers, stealers): (Vec<_>, Vec<_>) = (0..limit_value).map(|_| deque::new()).unzip();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter()

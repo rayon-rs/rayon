@@ -1,4 +1,4 @@
-use configuration::{Configuration, InitError};
+use configuration::Configuration;
 #[cfg(feature = "unstable")]
 use future::{Future, RayonFuture};
 use latch::LockLatch;
@@ -8,6 +8,7 @@ use job::StackJob;
 #[cfg(feature = "unstable")]
 use spawn_async;
 use std::sync::Arc;
+use std::error::Error;
 use registry::{Registry, WorkerThread};
 
 mod test;
@@ -20,8 +21,7 @@ impl ThreadPool {
     /// Constructs a new thread pool with the given configuration. If
     /// the configuration is not valid, returns a suitable `Err`
     /// result.  See `InitError` for more details.
-    pub fn new(configuration: Configuration) -> Result<ThreadPool, InitError> {
-        try!(configuration.validate());
+    pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
         Ok(ThreadPool { registry: Registry::new(configuration) })
     }
 

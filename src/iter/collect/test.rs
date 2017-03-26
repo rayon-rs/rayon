@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![allow(unused_assignments)]
 
 // These tests are primarily targeting "abusive" producers that will
 // try to drive the "collect consumer" incorrectly. These should
@@ -43,7 +44,7 @@ fn left_produces_items_with_no_complete() {
     let mut collect = Collect::new(&mut v, 4);
     {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
@@ -62,7 +63,7 @@ fn right_produces_items_with_no_complete() {
     let mut collect = Collect::new(&mut v, 4);
     {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
@@ -96,7 +97,7 @@ fn left_produces_too_many_items() {
     let mut collect = Collect::new(&mut v, 4);
     {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1).consume(2);
@@ -115,7 +116,7 @@ fn right_produces_too_many_items() {
     let mut collect = Collect::new(&mut v, 4);
     {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
@@ -135,7 +136,7 @@ fn left_produces_fewer_items() {
     let mut collect = Collect::new(&mut v, 4);
     {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0);
@@ -155,7 +156,7 @@ fn right_produces_fewer_items() {
     let mut collect = Collect::new(&mut v, 4);
     {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
+        let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);

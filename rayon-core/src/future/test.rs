@@ -147,7 +147,7 @@ fn panicy_unpark() {
 
         // this should trigger the future `a_rx` to be awoken
         // and executing in a Rayon background thread
-        a_tx.complete(22);
+        a_tx.send(22).unwrap();
 
         // now we wait for `rf` to complete; when it does, it will
         // also signal the `PanicUnpark` to wake up (that is
@@ -194,7 +194,7 @@ fn double_unpark() {
             }
         }
 
-        a_tx.complete(22);
+        a_tx.send(22).unwrap();
 
         // just hold onto `rf` to ensure that nothing is cancelled
         _tag = Some(spawn.into_inner());
