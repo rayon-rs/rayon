@@ -37,11 +37,13 @@ pub struct Configuration {
 /// may be invoked multiple times in parallel.
 pub type PanicHandler = Arc<Fn(Box<Any + Send>) + Send + Sync>;
 
-/// The type for a closure that gets invoked when a thread starts.
+/// The type for a closure that gets invoked when a thread starts. The
+/// closure is passed the index of the thread on which it is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
 pub type StartHandler = Arc<Fn(usize) + Send + Sync>;
 
-/// The type for a closure that gets invoked when a thread exits.
+/// The type for a closure that gets invoked when a thread exits. The
+/// closure is passed the index of the thread on which is is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
 pub type ExitHandler = Arc<Fn(usize) + Send + Sync>;
 
