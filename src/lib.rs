@@ -15,12 +15,16 @@ extern crate rand;
 extern crate rayon_core;
 
 #[macro_use]
+mod delegate;
+
+#[macro_use]
 mod private;
 
 pub mod iter;
 pub mod option;
 pub mod prelude;
 pub mod range;
+pub mod result;
 pub mod slice;
 pub mod str;
 pub mod vec;
