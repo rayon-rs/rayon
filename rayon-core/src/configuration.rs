@@ -136,7 +136,10 @@ impl Configuration {
         self.start_handler.clone()
     }
 
-    /// Sets a callback to be invoked on thread start.
+    /// Set a callback to be invoked on thread start.
+    ///
+    /// If this closure panics, the panic will be passed to the panic handler.
+    /// If that handler returns, then startup will continue normally.
     pub fn set_start_handler(mut self, start_handler: StartHandler) -> Configuration {
         self.start_handler = Some(start_handler);
         self
@@ -147,7 +150,10 @@ impl Configuration {
         self.exit_handler.clone()
     }
 
-    /// Sets a callback to be invoked on thread exit.
+    /// Set a callback to be invoked on thread exit.
+    ///
+    /// If this closure panics, the panic will be passed to the panic handler.
+    /// If that handler returns, then the thread will exit normally.
     pub fn set_exit_handler(mut self, exit_handler: ExitHandler) -> Configuration {
         self.exit_handler = Some(exit_handler);
         self
