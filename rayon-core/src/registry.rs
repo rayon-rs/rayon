@@ -522,7 +522,6 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
             }
             Err(err) => {
                 registry.handle_panic(err);
-                registry.terminate()
             }
         }
     }
