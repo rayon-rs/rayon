@@ -7,9 +7,7 @@ pub struct Weight<I> {
 
 // NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I>(base: I) -> Weight<I> {
-    Weight {
-        base: base,
-    }
+    Weight { base: base }
 }
 
 impl<I> ParallelIterator for Weight<I>

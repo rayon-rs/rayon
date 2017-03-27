@@ -50,12 +50,13 @@ impl<'a, D, S> UnindexedProducer for ParallelSplitProducer<'a, D, S>
         let splitter = self.splitter;
         let (left, right) = splitter(self.data);
         self.data = left;
-        (self, right.map(|data| {
-            ParallelSplitProducer {
-                data: data,
-                splitter: splitter,
-            }
-        }))
+        (self,
+         right.map(|data| {
+                       ParallelSplitProducer {
+                           data: data,
+                           splitter: splitter,
+                       }
+                   }))
     }
 
     fn fold_with<F>(self, folder: F) -> F

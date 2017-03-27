@@ -168,8 +168,12 @@ impl<'f, P, F> Producer for MapProducer<'f, P, F>
         }
     }
 
-    fn min_len(&self) -> usize { self.base.min_len() }
-    fn max_len(&self) -> usize { self.base.max_len() }
+    fn min_len(&self) -> usize {
+        self.base.min_len()
+    }
+    fn max_len(&self) -> usize {
+        self.base.max_len()
+    }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
@@ -302,4 +306,3 @@ impl<'f, T, C, F> Folder<T> for MapFolder<'f, C, F>
         self.base.full()
     }
 }
-

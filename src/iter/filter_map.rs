@@ -145,4 +145,3 @@ impl<'p, T, U, C, P> Folder<T> for FilterMapFolder<'p, C, P>
         self.base.full()
     }
 }
-

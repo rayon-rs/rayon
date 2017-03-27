@@ -92,4 +92,3 @@ impl<'c, T: Send + 'c> UnindexedConsumer<T> for CollectConsumer<'c, T> {
         NoopReducer
     }
 }
-

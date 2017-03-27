@@ -18,7 +18,10 @@ pub struct MinLen<I: IndexedParallelIterator> {
 pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
     where I: IndexedParallelIterator
 {
-    MinLen { base: base, min: min }
+    MinLen {
+        base: base,
+        min: min,
+    }
 }
 
 impl<I> ParallelIterator for MinLen<I>
@@ -64,9 +67,9 @@ impl<I> IndexedParallelIterator for MinLen<I>
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback {
-            callback: callback,
-            min: self.min,
-        });
+                                           callback: callback,
+                                           min: self.min,
+                                       });
 
         struct Callback<CB> {
             callback: CB,
@@ -112,7 +115,9 @@ impl<P> Producer for MinLenProducer<P>
         cmp::max(self.min, self.base.min_len())
     }
 
-    fn max_len(&self) -> usize { self.base.max_len() }
+    fn max_len(&self) -> usize {
+        self.base.max_len()
+    }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
@@ -144,7 +149,10 @@ pub struct MaxLen<I: IndexedParallelIterator> {
 pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
     where I: IndexedParallelIterator
 {
-    MaxLen { base: base, max: max }
+    MaxLen {
+        base: base,
+        max: max,
+    }
 }
 
 impl<I> ParallelIterator for MaxLen<I>
@@ -190,9 +198,9 @@ impl<I> IndexedParallelIterator for MaxLen<I>
         where CB: ProducerCallback<Self::Item>
     {
         return self.base.with_producer(Callback {
-            callback: callback,
-            max: self.max,
-        });
+                                           callback: callback,
+                                           max: self.max,
+                                       });
 
         struct Callback<CB> {
             callback: CB,
@@ -234,7 +242,9 @@ impl<P> Producer for MaxLenProducer<P>
         self.base.into_iter()
     }
 
-    fn min_len(&self) -> usize { self.base.min_len() }
+    fn min_len(&self) -> usize {
+        self.base.min_len()
+    }
 
     fn max_len(&self) -> usize {
         cmp::min(self.max, self.base.max_len())

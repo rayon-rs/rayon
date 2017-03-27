@@ -147,4 +147,3 @@ impl<'f, T, U, C, F> Folder<T> for FlatMapFolder<'f, C, F, C::Result>
         self.base.full()
     }
 }
-

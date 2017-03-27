@@ -248,12 +248,11 @@ pub trait ParallelIterator: Sized {
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync
     {
-        self.map(Some)
-            .reduce(|| None, |opt_a, opt_b| match (opt_a, opt_b) {
-                (Some(a), Some(b)) => Some(op(a, b)),
-                (Some(v), None) | (None, Some(v)) => Some(v),
-                (None, None) => None,
-            })
+        self.map(Some).reduce(|| None, |opt_a, opt_b| match (opt_a, opt_b) {
+            (Some(a), Some(b)) => Some(op(a, b)),
+            (Some(v), None) | (None, Some(v)) => Some(v),
+            (None, None) => None,
+        })
     }
 
     /// Deprecated. Use `reduce()` instead.
@@ -473,9 +472,9 @@ pub trait ParallelIterator: Sized {
     {
         self.map(|x| (f(&x), x))
             .reduce_with(|a, b| match (a.0).cmp(&b.0) {
-                Ordering::Greater => b,
-                _ => a,
-            })
+                             Ordering::Greater => b,
+                             _ => a,
+                         })
             .map(|(_, x)| x)
     }
 
@@ -507,9 +506,9 @@ pub trait ParallelIterator: Sized {
     {
         self.map(|x| (f(&x), x))
             .reduce_with(|a, b| match (a.0).cmp(&b.0) {
-                Ordering::Greater => a,
-                _ => b,
-            })
+                             Ordering::Greater => a,
+                             _ => b,
+                         })
             .map(|(_, x)| x)
     }
 
@@ -547,7 +546,8 @@ pub trait ParallelIterator: Sized {
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync {
+        where P: Fn(&Self::Item) -> bool + Sync
+    {
         find_first_last::find_first(self, predicate)
     }
 
@@ -561,12 +561,14 @@ pub trait ParallelIterator: Sized {
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "last" may be nebulous.
     fn find_last<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync {
+        where P: Fn(&Self::Item) -> bool + Sync
+    {
         find_first_last::find_last(self, predicate)
     }
 
     #[doc(hidden)]
-    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, `find_first`, or `find_last`")]
+    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, \\
+    `find_first`, or `find_last`")]
     fn find<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync
     {
@@ -744,8 +746,7 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
               Self::Item: PartialEq<I::Item>
     {
         let mut other = other.into_par_iter();
-        self.len() == other.len() &&
-            self.zip(other).all(|(x, y)| x.eq(&y))
+        self.len() == other.len() && self.zip(other).all(|(x, y)| x.eq(&y))
     }
 
     /// Determines if the elements of this `ParallelIterator`
@@ -868,7 +869,8 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     }
 
     #[doc(hidden)]
-    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, `position_first`, or `position_last`")]
+    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, \\
+    `position_first`, or `position_last`")]
     fn position<P>(self, predicate: P) -> Option<usize>
         where P: Fn(Self::Item) -> bool + Sync
     {

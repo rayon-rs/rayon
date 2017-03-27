@@ -101,4 +101,3 @@ impl<T> Reducer<Option<T>> for FindReducer {
         left.or(right)
     }
 }
-

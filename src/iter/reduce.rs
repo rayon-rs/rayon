@@ -216,4 +216,3 @@ impl<'r, ID, OP, T> ReduceOp<T> for ReduceWithIdentityOp<'r, ID, OP>
 
     private_impl!{}
 }
-
