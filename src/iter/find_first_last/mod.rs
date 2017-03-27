@@ -64,9 +64,7 @@ struct FindConsumer<'p, P: 'p> {
 }
 
 impl<'p, P> FindConsumer<'p, P> {
-    fn new(find_op: &'p P,
-           match_position: MatchPosition,
-           best_found: &'p AtomicUsize) -> Self {
+    fn new(find_op: &'p P, match_position: MatchPosition, best_found: &'p AtomicUsize) -> Self {
         FindConsumer {
             find_op: find_op,
             lower_bound: Cell::new(0),
@@ -79,7 +77,7 @@ impl<'p, P> FindConsumer<'p, P> {
     fn current_index(&self) -> usize {
         match self.match_position {
             MatchPosition::Leftmost => self.lower_bound.get(),
-            MatchPosition::Rightmost => self.upper_bound
+            MatchPosition::Rightmost => self.upper_bound,
         }
     }
 }
@@ -94,9 +92,7 @@ impl<'p, T, P> Consumer<T> for FindConsumer<'p, P>
 
     fn split_at(self, _index: usize) -> (Self, Self, Self::Reducer) {
         let dir = self.match_position;
-        (self.split_off_left(),
-         self,
-         FindReducer { match_position: dir })
+        (self.split_off_left(), self, FindReducer { match_position: dir })
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -184,7 +180,7 @@ impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
                     Ok(_) => {
                         self.item = Some(item);
                         break;
-                    },
+                    }
                     Err(v) => current = v,
                 }
             }
@@ -203,9 +199,9 @@ impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
         };
 
         found_best_in_range ||
-            better_position(self.best_found.load(Ordering::Relaxed),
-                            self.boundary,
-                            self.match_position)
+        better_position(self.best_found.load(Ordering::Relaxed),
+                        self.boundary,
+                        self.match_position)
     }
 }
 
@@ -242,14 +238,14 @@ fn find_last_folder_yields_last_match() {
 }
 
 struct FindReducer {
-    match_position: MatchPosition
+    match_position: MatchPosition,
 }
 
 impl<T> Reducer<Option<T>> for FindReducer {
     fn reduce(self, left: Option<T>, right: Option<T>) -> Option<T> {
         match self.match_position {
             MatchPosition::Leftmost => left.or(right),
-            MatchPosition::Rightmost => right.or(left)
+            MatchPosition::Rightmost => right.or(left),
         }
     }
 }

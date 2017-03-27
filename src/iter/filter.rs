@@ -143,4 +143,3 @@ impl<'p, C, P, T> Folder<T> for FilterFolder<'p, C, P>
         self.base.full()
     }
 }
-

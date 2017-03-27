@@ -18,11 +18,10 @@ fn combine<I, START, COLL>(par_iter: I, make_start: START) -> COLL
         .collect();
 
     let start = make_start(&list);
-    list.into_iter()
-        .fold(start, |mut coll, vec| {
-            coll.extend(vec);
-            coll
-        })
+    list.into_iter().fold(start, |mut coll, vec| {
+        coll.extend(vec);
+        coll
+    })
 }
 
 fn combined_len<T>(list: &LinkedList<Vec<T>>) -> usize {
@@ -154,11 +153,10 @@ impl FromParallelIterator<char> for String {
 
         let len = list.iter().map(String::len).sum();
         let start = String::with_capacity(len);
-        list.into_iter()
-            .fold(start, |mut string, sub| {
-                string.push_str(&sub);
-                string
-            })
+        list.into_iter().fold(start, |mut string, sub| {
+            string.push_str(&sub);
+            string
+        })
     }
 }
 
@@ -169,7 +167,12 @@ impl<'a> FromParallelIterator<&'a str> for String {
     {
         combine(par_iter, |list| {
             let len = list.iter()
-                .map(|vec| -> usize { vec.iter().cloned().map(str::len).sum() })
+                .map(|vec| -> usize {
+                         vec.iter()
+                             .cloned()
+                             .map(str::len)
+                             .sum()
+                     })
                 .sum();
             String::with_capacity(len)
         })
@@ -182,11 +185,8 @@ impl FromParallelIterator<String> for String {
         where I: IntoParallelIterator<Item = String>
     {
         combine(par_iter, |list| {
-            let len = list.iter()
-                .map(|vec| -> usize { vec.iter().map(String::len).sum() })
-                .sum();
+            let len = list.iter().map(|vec| -> usize { vec.iter().map(String::len).sum() }).sum();
             String::with_capacity(len)
         })
     }
 }
-

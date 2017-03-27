@@ -55,4 +55,3 @@ impl<'f, F, T> UnindexedConsumer<T> for ForEachConsumer<'f, F>
         NoopReducer
     }
 }
-

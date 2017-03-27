@@ -27,8 +27,12 @@ pub trait Producer: Send + Sized {
 
     fn into_iter(self) -> Self::IntoIter;
 
-    fn min_len(&self) -> usize { 1 }
-    fn max_len(&self) -> usize { usize::MAX }
+    fn min_len(&self) -> usize {
+        1
+    }
+    fn max_len(&self) -> usize {
+        usize::MAX
+    }
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than or equal to `N`.
@@ -319,4 +323,3 @@ fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
         producer.fold_with(consumer.into_folder()).complete()
     }
 }
-

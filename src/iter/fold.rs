@@ -135,4 +135,3 @@ impl<'r, C, ID, F, T> Folder<T> for FoldFolder<'r, C, ID, F>
         self.base.consume(self.item).complete()
     }
 }
-

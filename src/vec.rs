@@ -113,17 +113,13 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        self.iter
-            .next()
-            .map(|ptr| unsafe { std::ptr::read(ptr) })
+        self.iter.next().map(|ptr| unsafe { std::ptr::read(ptr) })
     }
 }
 
 impl<'data, T: 'data> DoubleEndedIterator for SliceDrain<'data, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next_back()
-            .map(|ptr| unsafe { std::ptr::read(ptr) })
+        self.iter.next_back().map(|ptr| unsafe { std::ptr::read(ptr) })
     }
 }
 

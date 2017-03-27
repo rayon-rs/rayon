@@ -87,4 +87,3 @@ impl<I> IndexedParallelIterator for Take<I>
         }
     }
 }
-

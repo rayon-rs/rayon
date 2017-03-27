@@ -115,11 +115,10 @@ impl<T> FromParallelIterator<T> for Vec<T>
 
                 let len = list.iter().map(Vec::len).sum();
                 let start = Vec::with_capacity(len);
-                list.into_iter()
-                    .fold(start, |mut vec, mut sub| {
-                        vec.append(&mut sub);
-                        vec
-                    })
+                list.into_iter().fold(start, |mut vec, mut sub| {
+                    vec.append(&mut sub);
+                    vec
+                })
             }
         }
     }

@@ -421,13 +421,11 @@ impl<'ch> ParallelIterator for Lines<'ch> {
     {
         self.0
             .par_split_terminator('\n')
-            .map(|line| {
-                if line.ends_with('\r') {
-                    &line[..line.len() - 1]
-                } else {
-                    line
-                }
-            })
+            .map(|line| if line.ends_with('\r') {
+                     &line[..line.len() - 1]
+                 } else {
+                     line
+                 })
             .drive_unindexed(consumer)
     }
 }
