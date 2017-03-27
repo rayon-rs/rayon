@@ -22,7 +22,7 @@ fn par_euclid<FM, M, FN, N>(map_m: FM, map_n: FN) -> u32
           FN: Fn(Iter<u32>) -> N + Sync,
           N: ParallelIterator<Item=u32>,
 {
-    map_m((1u32 .. 2000).into_par_iter()).map(|m| {
+    map_m((1u32 .. 2000).into_par_iter()).map(|m| -> u32 {
         map_n((1 .. m).into_par_iter())
             .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
             .map(|n| 4000000 / (m*m + n*n))
@@ -32,7 +32,7 @@ fn par_euclid<FM, M, FN, N>(map_m: FM, map_n: FN) -> u32
 
 /// Same as par_euclid, without tweaking split lengths
 fn par_euclid_weightless() -> u32 {
-    (1u32 .. 2000).into_par_iter().map(|m| {
+    (1u32 .. 2000).into_par_iter().map(|m| -> u32 {
         (1 .. m).into_par_iter()
             .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
             .map(|n| 4000000 / (m*m + n*n))

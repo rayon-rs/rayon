@@ -128,7 +128,7 @@ pub fn check_map_exact_and_bounded() {
 #[test]
 pub fn map_sum() {
     let a: Vec<i32> = (0..1024).collect();
-    let r1 = a.par_iter().map(|&i| i + 1).sum();
+    let r1: i32 = a.par_iter().map(|&i| i + 1).sum();
     let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
     assert_eq!(r1, r2);
 }
@@ -762,10 +762,7 @@ pub fn check_zip_range() {
 #[test]
 pub fn check_sum_filtered_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let par_sum_evens = a.par_iter()
-        .filter(|&x| (x & 1) == 0)
-        .map(|&x| x)
-        .sum();
+    let par_sum_evens: i32 = a.par_iter().filter(|&x| (x & 1) == 0).sum();
     let seq_sum_evens = a.iter()
         .filter(|&x| (x & 1) == 0)
         .map(|&x| x)
@@ -776,7 +773,7 @@ pub fn check_sum_filtered_ints() {
 #[test]
 pub fn check_sum_filtermap_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let par_sum_evens =
+    let par_sum_evens: f32 =
         a.par_iter().filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None }).sum();
     let seq_sum_evens = a.iter()
         .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
@@ -788,7 +785,7 @@ pub fn check_sum_filtermap_ints() {
 pub fn check_flat_map_nested_ranges() {
     // FIXME -- why are precise type hints required on the integers here?
 
-    let v = (0_i32..10)
+    let v: i32 = (0_i32..10)
         .into_par_iter()
         .flat_map(|i| (0_i32..10).into_par_iter().map(move |j| (i, j)))
         .map(|(i, j)| i * j)
@@ -808,24 +805,18 @@ pub fn check_empty_flat_map_sum() {
     let empty = &a[..0];
 
     // empty on the inside
-    let b = a.par_iter()
-        .flat_map(|_| empty)
-        .cloned()
-        .sum();
+    let b: i32 = a.par_iter().flat_map(|_| empty).sum();
     assert_eq!(b, 0);
 
     // empty on the outside
-    let c = empty.par_iter()
-        .flat_map(|_| a.par_iter())
-        .cloned()
-        .sum();
+    let c: i32 = empty.par_iter().flat_map(|_| a.par_iter()).sum();
     assert_eq!(c, 0);
 }
 
 #[test]
 pub fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
-    let par_sum_product_pairs =
+    let par_sum_product_pairs: i32 =
         a.par_chunks(2).map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j)).sum();
     let seq_sum_product_pairs =
         a.chunks(2).map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j)).fold(0, |i, j| i + j);
@@ -887,16 +878,8 @@ pub fn check_windows() {
 pub fn check_options() {
     let mut a = vec![None, Some(1), None, None, Some(2), Some(4)];
 
-    assert_eq!(7,
-               a.par_iter()
-                   .flat_map(|opt| opt)
-                   .cloned()
-                   .sum());
-    assert_eq!(7,
-               a.par_iter()
-                   .cloned()
-                   .flat_map(|opt| opt)
-                   .sum());
+    assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum());
+    assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum());
 
     a.par_iter_mut().flat_map(|opt| opt).for_each(|x| *x = *x * *x);
 
@@ -905,15 +888,11 @@ pub fn check_options() {
 
 #[test]
 pub fn check_results() {
-    let mut a = vec![Err(()), Ok(1), Err(()), Err(()), Ok(2), Ok(4)];
+    let mut a = vec![Err(()), Ok(1i32), Err(()), Err(()), Ok(2), Ok(4)];
 
-    assert_eq!(7,
-               a.par_iter()
-                   .flat_map(|res| res)
-                   .cloned()
-                   .sum());
+    assert_eq!(7, a.par_iter().flat_map(|res| res).sum());
 
-    assert_eq!(Err(()), a.par_iter().cloned().sum());
+    assert_eq!(Err::<i32, ()>(()), a.par_iter().cloned().sum());
     assert_eq!(Ok(7),
                a.par_iter()
                    .cloned()
@@ -938,7 +917,7 @@ pub fn check_binary_heap() {
 
     let a: BinaryHeap<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.par_iter().sum());
     assert_eq!(45, a.into_par_iter().sum());
 }
 
@@ -962,7 +941,7 @@ pub fn check_btree_set() {
 
     let a: BTreeSet<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.par_iter().sum());
     assert_eq!(45, a.into_par_iter().sum());
 }
 
@@ -986,7 +965,7 @@ pub fn check_hash_set() {
 
     let a: HashSet<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.par_iter().sum());
     assert_eq!(45, a.into_par_iter().sum());
 }
 
@@ -996,7 +975,7 @@ pub fn check_linked_list() {
 
     let mut a: LinkedList<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.par_iter().sum());
 
     a.par_iter_mut().for_each(|x| *x = -*x);
 
@@ -1013,7 +992,7 @@ pub fn check_vec_deque() {
     a.drain(..5);
     a.extend(0..5);
 
-    assert_eq!(45, a.par_iter().cloned().sum());
+    assert_eq!(45, a.par_iter().sum());
 
     a.par_iter_mut().for_each(|x| *x = -*x);
 

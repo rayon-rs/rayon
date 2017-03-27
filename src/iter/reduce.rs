@@ -1,7 +1,7 @@
 use super::ParallelIterator;
 use super::internal::*;
 
-use std::iter::{self, Sum, Product};
+use std::iter::{self, Product};
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
@@ -134,30 +134,6 @@ impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
 
 /// ////////////////////////////////////////////////////////////////////////
 /// Specific operations
-
-pub struct SumOp;
-
-pub const SUM: &'static SumOp = &SumOp;
-
-impl<T> ReduceOp<T> for SumOp
-    where T: Sum
-{
-    fn start_value(&self) -> T {
-        iter::empty::<T>().sum()
-    }
-
-    fn reduce(&self, value1: T, value2: T) -> T {
-        iter::once(value1).chain(iter::once(value2)).sum()
-    }
-
-    fn reduce_iter<I>(&self, value: T, iter: I) -> T
-        where I: Iterator<Item = T>
-    {
-        iter::once(value).chain(iter).sum()
-    }
-
-    private_impl!{}
-}
 
 pub struct ProductOp;
 

@@ -64,6 +64,7 @@ mod rev;
 pub use self::rev::Rev;
 mod len;
 pub use self::len::{MinLen, MaxLen};
+mod sum;
 
 #[cfg(test)]
 mod test;
@@ -388,7 +389,7 @@ pub trait ParallelIterator: Sized {
     /// let bytes = 0..22_u8; // series of u8 bytes
     /// let sum = bytes.into_par_iter()
     ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
-    ///                .sum();
+    ///                .sum::<u32>();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> fold::Fold<Self, ID, F>
@@ -411,10 +412,10 @@ pub trait ParallelIterator: Sized {
     /// Basically equivalent to `self.reduce(|| 0, |a, b| a + b)`,
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
-    fn sum(self) -> Self::Item
-        where Self::Item: Sum
+    fn sum<S>(self) -> S
+        where S: Send + Sum<Self::Item> + Sum
     {
-        reduce::reduce(self, reduce::SUM)
+        sum::sum(self)
     }
 
     /// Multiplies all the items in the iterator.
