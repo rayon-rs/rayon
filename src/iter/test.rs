@@ -899,7 +899,7 @@ pub fn check_results() {
                    .filter(Result::is_ok)
                    .sum());
 
-    assert_eq!(Err(()), a.par_iter().cloned().product());
+    assert_eq!(Err::<i32, ()>(()), a.par_iter().cloned().product());
     assert_eq!(Ok(8),
                a.par_iter()
                    .cloned()

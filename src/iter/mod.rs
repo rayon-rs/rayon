@@ -65,6 +65,7 @@ pub use self::rev::Rev;
 mod len;
 pub use self::len::{MinLen, MaxLen};
 mod sum;
+mod product;
 
 #[cfg(test)]
 mod test;
@@ -430,10 +431,10 @@ pub trait ParallelIterator: Sized {
     /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
-    fn product(self) -> Self::Item
-        where Self::Item: Product
+    fn product<P>(self) -> P
+        where P: Send + Product<Self::Item> + Product
     {
-        reduce::reduce(self, reduce::PRODUCT)
+        product::product(self)
     }
 
     /// DEPRECATED
@@ -442,7 +443,7 @@ pub trait ParallelIterator: Sized {
     fn mul(self) -> Self::Item
         where Self::Item: Product
     {
-        reduce::reduce(self, reduce::PRODUCT)
+        product::product(self)
     }
 
     /// Computes the minimum of all the items in the iterator. If the
