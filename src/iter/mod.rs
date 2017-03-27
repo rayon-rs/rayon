@@ -58,7 +58,6 @@ mod weight;
 pub use self::weight::Weight;
 mod zip;
 pub use self::zip::Zip;
-mod collections;
 mod noop;
 mod rev;
 pub use self::rev::Rev;

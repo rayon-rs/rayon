@@ -20,6 +20,7 @@ mod delegate;
 #[macro_use]
 mod private;
 
+pub mod collections;
 pub mod iter;
 pub mod option;
 pub mod prelude;
