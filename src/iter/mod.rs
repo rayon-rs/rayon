@@ -54,8 +54,6 @@ mod take;
 pub use self::take::Take;
 mod map;
 pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
-mod weight;
-pub use self::weight::Weight;
 mod zip;
 pub use self::zip::Zip;
 mod collections;
@@ -114,20 +112,6 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized {
     type Item: Send;
-
-    /// Deprecated. If the adaptive algorithms don't split appropriately, try
-    /// `IndexedParallelIterator::with_min_len()` or `with_max_len()` instead.
-    #[deprecated(since = "v0.7.0", note = "try `with_min_len` or `with_max_len` instead")]
-    fn weight(self, _scale: f64) -> Weight<Self> {
-        weight::new(self)
-    }
-
-    /// Deprecated. If the adaptive algorithms don't split appropriately, try
-    /// `IndexedParallelIterator::with_min_len()` or `with_max_len()` instead.
-    #[deprecated(since = "v0.7.0", note = "try `with_min_len` or `with_max_len` instead")]
-    fn weight_max(self) -> Weight<Self> {
-        weight::new(self)
-    }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     fn for_each<OP>(self, op: OP)
