@@ -13,7 +13,7 @@
 
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
-use std::ops::{Fn, Add, Mul};
+use std::ops::Fn;
 use self::internal::*;
 
 // There is a method to the madness here:
@@ -412,7 +412,7 @@ pub trait ParallelIterator: Sized {
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
     fn sum(self) -> Self::Item
-        where Self::Item: Sum + Add<Output = Self::Item>
+        where Self::Item: Sum
     {
         reduce::reduce(self, reduce::SUM)
     }
@@ -430,7 +430,7 @@ pub trait ParallelIterator: Sized {
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
     fn product(self) -> Self::Item
-        where Self::Item: Product + Mul<Output = Self::Item>
+        where Self::Item: Product
     {
         reduce::reduce(self, reduce::PRODUCT)
     }
@@ -439,7 +439,7 @@ pub trait ParallelIterator: Sized {
     #[deprecated(since = "v0.6.0",
         note = "name changed to `product()` to match sequential iterators")]
     fn mul(self) -> Self::Item
-        where Self::Item: Product + Mul<Output = Self::Item>
+        where Self::Item: Product
     {
         reduce::reduce(self, reduce::PRODUCT)
     }

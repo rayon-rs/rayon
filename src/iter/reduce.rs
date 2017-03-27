@@ -2,7 +2,6 @@ use super::ParallelIterator;
 use super::internal::*;
 
 use std::iter::{self, Sum, Product};
-use std::ops::{Add, Mul};
 
 /// Specifies a "reduce operator". This is the combination of a start
 /// value and a reduce function. The reduce function takes two items
@@ -141,20 +140,20 @@ pub struct SumOp;
 pub const SUM: &'static SumOp = &SumOp;
 
 impl<T> ReduceOp<T> for SumOp
-    where T: Sum + Add<Output = T>
+    where T: Sum
 {
     fn start_value(&self) -> T {
         iter::empty::<T>().sum()
     }
 
     fn reduce(&self, value1: T, value2: T) -> T {
-        value1 + value2
+        iter::once(value1).chain(iter::once(value2)).sum()
     }
 
-    fn reduce_iter<I>(&self, value1: T, iter: I) -> T
+    fn reduce_iter<I>(&self, value: T, iter: I) -> T
         where I: Iterator<Item = T>
     {
-        value1 + iter.sum()
+        iter::once(value).chain(iter).sum()
     }
 
     private_impl!{}
@@ -165,20 +164,20 @@ pub struct ProductOp;
 pub const PRODUCT: &'static ProductOp = &ProductOp;
 
 impl<T> ReduceOp<T> for ProductOp
-    where T: Product + Mul<Output = T>
+    where T: Product
 {
     fn start_value(&self) -> T {
         iter::empty::<T>().product()
     }
 
     fn reduce(&self, value1: T, value2: T) -> T {
-        value1 * value2
+        iter::once(value1).chain(iter::once(value2)).product()
     }
 
     fn reduce_iter<I>(&self, value: T, iter: I) -> T
         where I: Iterator<Item = T>
     {
-        value * iter.product()
+        iter::once(value).chain(iter).product()
     }
 
     private_impl!{}
