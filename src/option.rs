@@ -83,14 +83,14 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over an immutable reference to an option"]
     Iter<'a, T> => IntoIter<&'a T>,
     impl<'a, T: Sync + 'a>
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over a mutable reference to an option"]
     IterMut<'a, T> => IntoIter<&'a mut T>,
     impl<'a, T: Send + 'a>

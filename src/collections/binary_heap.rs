@@ -26,14 +26,14 @@ into_par_vec!{
 // `BinaryHeap` doesn't have a mutable `Iterator`
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over a binary heap"]
     IntoIter<T> => vec::IntoIter<T>,
     impl<T: Ord + Send>
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over an immutable reference to a binary heap"]
     Iter<'a, T> => vec::IntoIter<&'a T>,
     impl<'a, T: Ord + Sync + 'a>

@@ -35,21 +35,21 @@ impl<'a, T: Send, E> IntoParallelIterator for &'a mut Result<T, E> {
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over a result"]
     IntoIter<T> => option::IntoIter<T>,
     impl<T: Send>
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over an immutable reference to a result"]
     Iter<'a, T> => option::IntoIter<&'a T>,
     impl<'a, T: Sync + 'a>
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over a mutable reference to a result"]
     IterMut<'a, T> => option::IntoIter<&'a mut T>,
     impl<'a, T: Send + 'a>

@@ -30,6 +30,21 @@ macro_rules! delegate_iterator {
     }
 }
 
+/// Create an indexed parallel iterator which simply wraps an inner type and
+/// delegates all methods inward.  The item type is parsed from the inner type.
+macro_rules! delegate_indexed_iterator {
+    ($( #[ $attr:meta ] )+
+     $iter:ident < $( $i:tt ),* > => $( $inner:ident )::+ < $item:ty > ,
+     impl $( $args:tt )*
+     ) => {
+        delegate_indexed_iterator_item!{
+            $( #[ $attr ] )+
+            $iter < $( $i ),* > => $( $inner )::+ < $item > : $item ,
+            impl $( $args )*
+        }
+    }
+}
+
 /// Create a parallel iterator which simply wraps an inner type and delegates
 /// all methods inward.  The item type is explicitly specified.
 ///
@@ -66,6 +81,21 @@ macro_rules! delegate_iterator_item {
             fn opt_len(&mut self) -> Option<usize> {
                 self.inner.opt_len()
             }
+        }
+    }
+}
+
+/// Create an indexed parallel iterator which simply wraps an inner type and
+/// delegates all methods inward.  The item type is explicitly specified.
+macro_rules! delegate_indexed_iterator_item {
+    ($( #[ $attr:meta ] )+
+     $iter:ident < $( $i:tt ),* > => $inner:ty : $item:ty,
+     impl $( $args:tt )*
+     ) => {
+        delegate_iterator_item!{
+            $( #[ $attr ] )+
+            $iter < $( $i ),* > => $inner : $item ,
+            impl $( $args )*
         }
 
         impl $( $args )* BoundedParallelIterator for $iter < $( $i ),* > {

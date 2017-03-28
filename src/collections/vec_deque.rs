@@ -36,21 +36,21 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
 }
 
 
-delegate_iterator!{
+delegate_indexed_iterator!{
     #[doc = "Parallel iterator over a double-ended queue"]
     IntoIter<T> => vec::IntoIter<T>,
     impl<T: Send>
 }
 
 
-delegate_iterator_item!{
+delegate_indexed_iterator_item!{
     #[doc = "Parallel iterator over an immutable reference to a double-ended queue"]
     Iter<'a, T> => Chain<slice::Iter<'a, T>, slice::Iter<'a, T>> : &'a T,
     impl<'a, T: Sync + 'a>
 }
 
 
-delegate_iterator_item!{
+delegate_indexed_iterator_item!{
     #[doc = "Parallel iterator over a mutable reference to a double-ended queue"]
     IterMut<'a, T> => Chain<slice::IterMut<'a, T>, slice::IterMut<'a, T>> : &'a mut T,
     impl<'a, T: Send + 'a>
