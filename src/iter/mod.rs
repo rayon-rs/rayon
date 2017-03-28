@@ -12,6 +12,7 @@
 //! good place to start.
 
 use std::cmp::{self, Ordering};
+use std::iter::{Sum, Product};
 use std::ops::Fn;
 use self::internal::*;
 
@@ -45,7 +46,6 @@ mod for_each;
 mod fold;
 pub use self::fold::Fold;
 mod reduce;
-pub use self::reduce::{ReduceOp, SumOp, ProductOp};
 mod skip;
 pub use self::skip::Skip;
 mod splitter;
@@ -64,6 +64,8 @@ mod rev;
 pub use self::rev::Rev;
 mod len;
 pub use self::len::{MinLen, MaxLen};
+mod sum;
+mod product;
 
 #[cfg(test)]
 mod test;
@@ -388,7 +390,7 @@ pub trait ParallelIterator: Sized {
     /// let bytes = 0..22_u8; // series of u8 bytes
     /// let sum = bytes.into_par_iter()
     ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
-    ///                .sum();
+    ///                .sum::<u32>();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> fold::Fold<Self, ID, F>
@@ -411,10 +413,10 @@ pub trait ParallelIterator: Sized {
     /// Basically equivalent to `self.reduce(|| 0, |a, b| a + b)`,
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
-    fn sum(self) -> Self::Item
-        where SumOp: ReduceOp<Self::Item>
+    fn sum<S>(self) -> S
+        where S: Send + Sum<Self::Item> + Sum
     {
-        reduce::reduce(self, reduce::SUM)
+        sum::sum(self)
     }
 
     /// Multiplies all the items in the iterator.
@@ -429,19 +431,19 @@ pub trait ParallelIterator: Sized {
     /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
-    fn product(self) -> Self::Item
-        where ProductOp: ReduceOp<Self::Item>
+    fn product<P>(self) -> P
+        where P: Send + Product<Self::Item> + Product
     {
-        reduce::reduce(self, reduce::PRODUCT)
+        product::product(self)
     }
 
     /// DEPRECATED
     #[deprecated(since = "v0.6.0",
         note = "name changed to `product()` to match sequential iterators")]
     fn mul(self) -> Self::Item
-        where ProductOp: ReduceOp<Self::Item>
+        where Self::Item: Product
     {
-        reduce::reduce(self, reduce::PRODUCT)
+        product::product(self)
     }
 
     /// Computes the minimum of all the items in the iterator. If the

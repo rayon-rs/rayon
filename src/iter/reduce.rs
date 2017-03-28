@@ -30,6 +30,7 @@ use super::internal::*;
 pub trait ReduceOp<T>: Sync {
     fn start_value(&self) -> T;
     fn reduce(&self, value1: T, value2: T) -> T;
+    fn reduce_iter<I>(&self, value: T, iter: I) -> T where I: Iterator<Item = T>;
     private_decl!{}
 }
 
@@ -113,6 +114,17 @@ impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
         }
     }
 
+    fn consume_iter<I>(self, iter: I) -> Self
+        where I: IntoIterator<Item = T>
+    {
+        let iter = iter.into_iter();
+        let item = self.reduce_op.reduce_iter(self.item, iter);
+        ReduceFolder {
+            reduce_op: self.reduce_op,
+            item: item,
+        }
+    }
+
     fn complete(self) -> T {
         self.item
     }
@@ -120,72 +132,6 @@ impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
 
 /// ////////////////////////////////////////////////////////////////////////
 /// Specific operations
-
-pub struct SumOp;
-
-pub const SUM: &'static SumOp = &SumOp;
-
-macro_rules! sum_rule {
-    ($i:ty, $z:expr) => {
-        impl ReduceOp<$i> for SumOp {
-            #[inline]
-            fn start_value(&self) -> $i {
-                $z
-            }
-            #[inline]
-            fn reduce(&self, value1: $i, value2: $i) -> $i {
-                value1 + value2
-            }
-            private_impl!{}
-        }
-    }
-}
-
-sum_rule!(i8, 0);
-sum_rule!(i16, 0);
-sum_rule!(i32, 0);
-sum_rule!(i64, 0);
-sum_rule!(isize, 0);
-sum_rule!(u8, 0);
-sum_rule!(u16, 0);
-sum_rule!(u32, 0);
-sum_rule!(u64, 0);
-sum_rule!(usize, 0);
-sum_rule!(f32, 0.0);
-sum_rule!(f64, 0.0);
-
-pub struct ProductOp;
-
-pub const PRODUCT: &'static ProductOp = &ProductOp;
-
-macro_rules! product_rule {
-    ($i:ty, $z:expr) => {
-        impl ReduceOp<$i> for ProductOp {
-            #[inline]
-            fn start_value(&self) -> $i {
-                $z
-            }
-            #[inline]
-            fn reduce(&self, value1: $i, value2: $i) -> $i {
-                value1 * value2
-            }
-            private_impl!{}
-        }
-    }
-}
-
-product_rule!(i8, 1);
-product_rule!(i16, 1);
-product_rule!(i32, 1);
-product_rule!(i64, 1);
-product_rule!(isize, 1);
-product_rule!(u8, 1);
-product_rule!(u16, 1);
-product_rule!(u32, 1);
-product_rule!(u64, 1);
-product_rule!(usize, 1);
-product_rule!(f32, 1.0);
-product_rule!(f64, 1.0);
 
 pub struct ReduceWithIdentityOp<'r, ID: 'r, OP: 'r> {
     identity: &'r ID,
@@ -212,6 +158,12 @@ impl<'r, ID, OP, T> ReduceOp<T> for ReduceWithIdentityOp<'r, ID, OP>
 
     fn reduce(&self, value1: T, value2: T) -> T {
         (self.op)(value1, value2)
+    }
+
+    fn reduce_iter<I>(&self, value: T, iter: I) -> T
+        where I: Iterator<Item = T>
+    {
+        iter.fold(value, self.op)
     }
 
     private_impl!{}
