@@ -9,6 +9,7 @@ documentation = "https://docs.rs/rayon/"
 
 [workspace]
 members = ["rayon-demo", "rayon-core"]
+exclude = ["ci"]
 
 [dependencies]
 rayon-core = { version = "0.1", path = "rayon-core" }

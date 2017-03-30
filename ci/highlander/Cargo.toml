@@ -1,0 +1,15 @@
+[package]
+authors = ["Josh Stone <cuviper@gmail.com>"]
+name = "highlander"
+description = "There Can Be Only One"
+version = "0.0.0"
+
+[dependencies]
+
+[dependencies.alt-core]
+optional = false
+path = "../alt-core"
+
+[dependencies.rayon-core]
+optional = false
+path = "../../rayon-core"
