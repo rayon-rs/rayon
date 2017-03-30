@@ -10,6 +10,9 @@ pub trait MapOp<In>: Sync {
     private_decl!{}
 }
 
+
+pub type Map<I, F> = BaseMap<I, MapFn<F>>;
+
 pub struct MapFn<F>(pub F);
 
 impl<F, In, Out> MapOp<In> for MapFn<F>
@@ -23,6 +26,9 @@ impl<F, In, Out> MapOp<In> for MapFn<F>
     private_impl!{}
 }
 
+
+pub type Cloned<I> = BaseMap<I, MapCloned>;
+
 pub struct MapCloned;
 
 impl<'a, T> MapOp<&'a T> for MapCloned
@@ -34,6 +40,9 @@ impl<'a, T> MapOp<&'a T> for MapCloned
     }
     private_impl!{}
 }
+
+
+pub type Inspect<I, F> = BaseMap<I, MapInspect<F>>;
 
 pub struct MapInspect<F>(pub F);
 
@@ -51,24 +60,24 @@ impl<F, In> MapOp<In> for MapInspect<F>
 
 /// ////////////////////////////////////////////////////////////////////////
 
-pub struct Map<I: ParallelIterator, F> {
+pub struct BaseMap<I: ParallelIterator, F> {
     base: I,
     map_op: F,
 }
 
-/// Create a new `Map` iterator.
+/// Create a new `BaseMap` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
+pub fn new<I, F>(base: I, map_op: F) -> BaseMap<I, F>
     where I: ParallelIterator
 {
-    Map {
+    BaseMap {
         base: base,
         map_op: map_op,
     }
 }
 
-impl<I, F> ParallelIterator for Map<I, F>
+impl<I, F> ParallelIterator for BaseMap<I, F>
     where I: ParallelIterator,
           F: MapOp<I::Item>
 {
@@ -86,7 +95,7 @@ impl<I, F> ParallelIterator for Map<I, F>
     }
 }
 
-impl<I, F> BoundedParallelIterator for Map<I, F>
+impl<I, F> BoundedParallelIterator for BaseMap<I, F>
     where I: BoundedParallelIterator,
           F: MapOp<I::Item>
 {
@@ -102,7 +111,7 @@ impl<I, F> BoundedParallelIterator for Map<I, F>
     }
 }
 
-impl<I, F> ExactParallelIterator for Map<I, F>
+impl<I, F> ExactParallelIterator for BaseMap<I, F>
     where I: ExactParallelIterator,
           F: MapOp<I::Item>
 {
@@ -111,7 +120,7 @@ impl<I, F> ExactParallelIterator for Map<I, F>
     }
 }
 
-impl<I, F> IndexedParallelIterator for Map<I, F>
+impl<I, F> IndexedParallelIterator for BaseMap<I, F>
     where I: IndexedParallelIterator,
           F: MapOp<I::Item>
 {

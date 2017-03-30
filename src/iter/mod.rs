@@ -53,7 +53,7 @@ pub use self::splitter::{split, ParallelSplit};
 mod take;
 pub use self::take::Take;
 mod map;
-pub use self::map::{Map, MapOp, MapFn, MapCloned, MapInspect};
+pub use self::map::{Map, Cloned, Inspect};
 mod weight;
 pub use self::weight::Weight;
 mod zip;
@@ -144,29 +144,29 @@ pub trait ParallelIterator: Sized {
 
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
-    fn map<F, R>(self, map_op: F) -> Map<Self, MapFn<F>>
+    fn map<F, R>(self, map_op: F) -> Map<Self, F>
         where F: Fn(Self::Item) -> R + Sync,
               R: Send
     {
-        map::new(self, MapFn(map_op))
+        map::new(self, map::MapFn(map_op))
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
     /// useful when you have an iterator over `&T`, but you need `T`.
-    fn cloned<'a, T>(self) -> Map<Self, MapCloned>
+    fn cloned<'a, T>(self) -> Cloned<Self>
         where T: 'a + Clone + Send,
               Self: ParallelIterator<Item = &'a T>
     {
-        map::new(self, MapCloned)
+        map::new(self, map::MapCloned)
     }
 
     /// Applies `inspect_op` to a reference to each item of this iterator,
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
-    fn inspect<OP>(self, inspect_op: OP) -> Map<Self, MapInspect<OP>>
+    fn inspect<OP>(self, inspect_op: OP) -> Inspect<Self, OP>
         where OP: Fn(&Self::Item) + Sync
     {
-        map::new(self, MapInspect(inspect_op))
+        map::new(self, map::MapInspect(inspect_op))
     }
 
     /// Applies `filter_op` to each item of this iterator, producing a new
