@@ -11,6 +11,12 @@ pub trait MapOp<In>: Sync {
 }
 
 
+/// `Map` is an iterator that transforms the elements of an underlying iterator.
+///
+/// This struct is created by the [`map()`] method on [`ParallelIterator`]
+///
+/// [`map()`]: trait.ParallelIterator.html#method.map
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub type Map<I, F> = BaseMap<I, MapFn<F>>;
 
 pub struct MapFn<F>(pub F);
@@ -27,6 +33,12 @@ impl<F, In, Out> MapOp<In> for MapFn<F>
 }
 
 
+/// `Cloned` is an iterator that clones the elements of an underlying iterator.
+///
+/// This struct is created by the [`cloned()`] method on [`ParallelIterator`]
+///
+/// [`cloned()`]: trait.ParallelIterator.html#method.cloned
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub type Cloned<I> = BaseMap<I, MapCloned>;
 
 pub struct MapCloned;
@@ -42,6 +54,13 @@ impl<'a, T> MapOp<&'a T> for MapCloned
 }
 
 
+/// `Inspect` is an iterator that calls a function with a reference to each
+/// element before yielding it.
+///
+/// This struct is created by the [`inspect()`] method on [`ParallelIterator`]
+///
+/// [`inspect()`]: trait.ParallelIterator.html#method.inspect
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub type Inspect<I, F> = BaseMap<I, MapInspect<F>>;
 
 pub struct MapInspect<F>(pub F);
