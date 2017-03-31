@@ -32,25 +32,30 @@ impl<A, B> ParallelIterator for Chain<A, B>
 {
     type Item = A::Item;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    fn drive_unindexed<C>(mut self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let reducer = consumer.to_reducer();
-        let a = self.a.drive_unindexed(consumer.split_off_left());
-        let b = self.b.drive_unindexed(consumer);
+        // If we returned a value from our own `opt_len`, then the collect consumer in particular
+        // will balk at being treated like an actual `UnindexedConsumer`.  But when we do know the
+        // length, we can use `Consumer::split_at` instead, and this is still harmless for other
+        // truly-unindexed consumers too.
+        let (left, right, reducer) = if let Some(len) = self.a.opt_len() {
+            consumer.split_at(len)
+        } else {
+            let reducer = consumer.to_reducer();
+            (consumer.split_off_left(), consumer, reducer)
+        };
+
+        let a = self.a.drive_unindexed(left);
+        let b = self.b.drive_unindexed(right);
         reducer.reduce(a, b)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
-        // NB: Even though we could compute the indexed length as below,
-        // we can't support collect's faux `UnindexedConsumer` in our
-        // `drive_unindexed`, so we must leave this un-"specialized".
-        //
-        // match (self.a.opt_len(), self.b.opt_len()) {
-        //     (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
-        //     _ => None,
-        // }
-        None
+        match (self.a.opt_len(), self.b.opt_len()) {
+            (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
+            _ => None,
+        }
     }
 }
 
