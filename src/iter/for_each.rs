@@ -23,7 +23,7 @@ impl<'f, F, T> Consumer<T> for ForEachConsumer<'f, F>
     type Result = ();
 
     fn split_at(self, _index: usize) -> (Self, Self, NoopReducer) {
-        (self.split_off_left(), self.split_off_left(), NoopReducer)
+        (self.split_off_left(), self, NoopReducer)
     }
 
     fn into_folder(self) -> Self {

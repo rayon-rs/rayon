@@ -67,10 +67,11 @@ impl<'f, T, U, C, F> Consumer<T> for FlatMapConsumer<'f, C, F>
     type Reducer = C::Reducer;
     type Result = C::Result;
 
-    fn split_at(self, _index: usize) -> (Self, Self, C::Reducer) {
-        (FlatMapConsumer::new(self.base.split_off_left(), self.map_op),
-         FlatMapConsumer::new(self.base.split_off_left(), self.map_op),
-         self.base.to_reducer())
+    fn split_at(self, index: usize) -> (Self, Self, C::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (FlatMapConsumer::new(left, self.map_op),
+         FlatMapConsumer::new(right, self.map_op),
+         reducer)
     }
 
     fn into_folder(self) -> Self::Folder {
