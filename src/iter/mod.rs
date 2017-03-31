@@ -49,7 +49,7 @@ mod reduce;
 mod skip;
 pub use self::skip::Skip;
 mod splitter;
-pub use self::splitter::{split, ParallelSplit};
+pub use self::splitter::{split, Split};
 mod take;
 pub use self::take::Take;
 mod map;
