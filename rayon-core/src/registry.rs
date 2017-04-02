@@ -74,17 +74,21 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// initialization has not already occurred, use the default
 /// configuration.
 fn global_registry() -> &'static Arc<Registry> {
-    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()) });
-    unsafe { THE_REGISTRY.unwrap() }
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()).unwrap() });
+    unsafe { THE_REGISTRY.expect("The global thread pool has not been initialized.") }
 }
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given configuration.
 pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, Box<Error>> {
     let mut called = false;
-    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(config); called = true; });
+    let mut init_result = Ok(());;
+    THE_REGISTRY_SET.call_once(|| unsafe {
+        init_result = init_registry(config);
+        called = true;
+    });
     if called {
-        Ok(unsafe { THE_REGISTRY.unwrap() })
+        init_result.map(|()| &**global_registry())
     } else {
         Err(Box::new(GlobalPoolAlreadyInitialized))
     }
@@ -94,13 +98,20 @@ pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, 
 /// Meant to be called from within the `THE_REGISTRY_SET` once
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
-unsafe fn init_registry(config: Configuration) {
-    let registry = leak(Arc::new(Registry::new(config)));
-    THE_REGISTRY = Some(registry);
+unsafe fn init_registry(config: Configuration) -> Result<(), Box<Error>> {
+    Registry::new(config).map(|registry| THE_REGISTRY = Some(leak(registry)))
+}
+
+struct Terminator<'a>(&'a Arc<Registry>);
+
+impl<'a> Drop for Terminator<'a> {
+    fn drop(&mut self) {
+        self.0.terminate()
+    }
 }
 
 impl Registry {
-    pub fn new(mut configuration: Configuration) -> Arc<Registry> {
+    pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
         let n_threads = configuration.num_threads();
 
         let (inj_worker, inj_stealer) = deque::new();
@@ -119,6 +130,9 @@ impl Registry {
             exit_handler: configuration.exit_handler(),
         });
 
+        // If we return early or panic, make sure to terminate existing threads.
+        let t1000 = Terminator(&registry);
+
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
@@ -128,11 +142,13 @@ impl Registry {
             if let Some(stack_size) = configuration.stack_size() {
                 b = b.stack_size(stack_size);
             }
-            // FIXME(#205) recover from this error
-            b.spawn(move || unsafe { main_loop(worker, registry, index) }).unwrap();
+            try!(b.spawn(move || unsafe { main_loop(worker, registry, index) }));
         }
 
-        registry
+        // Returning normally now, without termination.
+        mem::forget(t1000);
+
+        Ok(registry.clone())
     }
 
     pub fn current() -> Arc<Registry> {

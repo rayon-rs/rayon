@@ -22,7 +22,8 @@ impl ThreadPool {
     /// the configuration is not valid, returns a suitable `Err`
     /// result.  See `InitError` for more details.
     pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
-        Ok(ThreadPool { registry: Registry::new(configuration) })
+        let registry = try!(Registry::new(configuration));
+        Ok(ThreadPool { registry: registry })
     }
 
     /// Executes `op` within the threadpool. Any attempts to use
