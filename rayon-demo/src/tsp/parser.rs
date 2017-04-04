@@ -159,8 +159,8 @@ pub fn parse_tsp_header<'text>(data: &mut Data<'text>) -> Option<Header<'text>> 
             data.advance();
             Header {
                 line: data.line_num - 1,
-                name: captures.at(1).unwrap().trim(),
-                value: captures.at(2).unwrap().trim(),
+                name: captures.get(1).unwrap().as_str().trim(),
+                value: captures.get(2).unwrap().as_str().trim(),
             }
         })
     })
@@ -181,9 +181,9 @@ pub fn parse_coord<'text>(data: &mut Data<'text>) -> Option<(Node, f64, f64)> {
     // 1 11003.611100 42102.500000
     data.current_line.and_then(|current_line| {
         COORD.captures(current_line).and_then(|captures| {
-            usize::from_str(captures.at(1).unwrap()).ok().and_then(|n| {
-                f64::from_str(captures.at(2).unwrap()).ok().and_then(|x| {
-                    f64::from_str(captures.at(3).unwrap()).ok().and_then(|y| {
+            usize::from_str(captures.get(1).unwrap().as_str()).ok().and_then(|n| {
+                f64::from_str(captures.get(2).unwrap().as_str()).ok().and_then(|x| {
+                    f64::from_str(captures.get(3).unwrap().as_str()).ok().and_then(|y| {
                         if n > 0 {
                             data.advance();
                             Some((Node::new(n - 1), x, y))
