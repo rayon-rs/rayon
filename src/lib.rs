@@ -6,13 +6,10 @@
 // disable warnings in that scenario.
 #![cfg_attr(not(feature = "unstable"), allow(warnings))]
 
-extern crate deque;
-#[cfg(feature = "unstable")]
-extern crate futures;
-extern crate libc;
-extern crate num_cpus;
-extern crate rand;
 extern crate rayon_core;
+
+#[cfg(test)]
+extern crate rand;
 
 #[macro_use]
 mod delegate;
