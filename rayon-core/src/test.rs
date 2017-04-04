@@ -1,7 +1,5 @@
 #![cfg(test)]
 
-extern crate compiletest_rs as compiletest;
-
 use configuration::*;
 use thread_pool::*;
 

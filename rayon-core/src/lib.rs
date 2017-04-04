@@ -29,7 +29,6 @@ mod scope;
 mod sleep;
 #[cfg(feature = "unstable")]
 mod spawn_async;
-#[cfg(test)]
 mod test;
 mod thread_pool;
 mod unwind;
