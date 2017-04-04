@@ -15,7 +15,7 @@ rayon-core = { version = "0.1", path = "rayon-core" }
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
-docopt = "0.6"
+docopt = "0.7"
 futures = "0.1.7"
 rand = "0.3"
 rustc-serialize = "0.3"
