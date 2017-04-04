@@ -25,11 +25,27 @@ pub struct Configuration {
 
     /// The stack size for the created worker threads
     stack_size: Option<usize>,
+
+    /// Closure invoked on worker thread start.
+    start_handler: Option<StartHandler>,
+
+    /// Closure invoked on worker thread exit.
+    exit_handler: Option<ExitHandler>,
 }
 
 /// The type for a panic handling closure. Note that this same closure
 /// may be invoked multiple times in parallel.
 pub type PanicHandler = Arc<Fn(Box<Any + Send>) + Send + Sync>;
+
+/// The type for a closure that gets invoked when a thread starts. The
+/// closure is passed the index of the thread on which it is invoked.
+/// Note that this same closure may be invoked multiple times in parallel.
+pub type StartHandler = Arc<Fn(usize) + Send + Sync>;
+
+/// The type for a closure that gets invoked when a thread exits. The
+/// closure is passed the index of the thread on which is is invoked.
+/// Note that this same closure may be invoked multiple times in parallel.
+pub type ExitHandler = Arc<Fn(usize) + Send + Sync>;
 
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
@@ -39,6 +55,8 @@ impl Configuration {
             get_thread_name: None,
             panic_handler: None,
             stack_size: None,
+            start_handler: None,
+            exit_handler: None,
         }
     }
 
@@ -114,6 +132,34 @@ impl Configuration {
         self.stack_size = Some(stack_size);
         self
     }
+
+    /// Returns a copy of the current thread start callback.
+    pub fn start_handler(&self) -> Option<StartHandler> {
+        self.start_handler.clone()
+    }
+
+    /// Set a callback to be invoked on thread start.
+    ///
+    /// If this closure panics, the panic will be passed to the panic handler.
+    /// If that handler returns, then startup will continue normally.
+    pub fn set_start_handler(mut self, start_handler: StartHandler) -> Configuration {
+        self.start_handler = Some(start_handler);
+        self
+    }
+
+    /// Returns a copy of the current thread exit callback.
+    pub fn exit_handler(&self) -> Option<ExitHandler> {
+        self.exit_handler.clone()
+    }
+
+    /// Set a callback to be invoked on thread exit.
+    ///
+    /// If this closure panics, the panic will be passed to the panic handler.
+    /// If that handler returns, then the thread will exit normally.
+    pub fn set_exit_handler(mut self, exit_handler: ExitHandler) -> Configuration {
+        self.exit_handler = Some(exit_handler);
+        self
+    }
 }
 
 /// Initializes the global thread pool. This initialization is
@@ -147,7 +193,8 @@ pub fn dump_stats() {
 
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size } = *self;
+        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size,
+                            ref start_handler, ref exit_handler } = *self;
 
         // Just print `Some("<closure>")` or `None` to the debug
         // output.
@@ -156,12 +203,16 @@ impl fmt::Debug for Configuration {
         // Just print `Some("<closure>")` or `None` to the debug
         // output.
         let panic_handler = panic_handler.as_ref().map(|_| "<closure>");
+        let start_handler = start_handler.as_ref().map(|_| "<closure>");
+        let exit_handler = exit_handler.as_ref().map(|_| "<closure>");
 
         f.debug_struct("Configuration")
          .field("num_threads", num_threads)
          .field("get_thread_name", &get_thread_name)
          .field("panic_handler", &panic_handler)
          .field("stack_size", &stack_size)
+         .field("start_handler", &start_handler)
+         .field("exit_handler", &exit_handler)
          .finish()
     }
 }

@@ -36,7 +36,9 @@ mod unwind;
 mod util;
 
 pub use configuration::Configuration;
+pub use configuration::ExitHandler;
 pub use configuration::PanicHandler;
+pub use configuration::StartHandler;
 pub use configuration::dump_stats;
 pub use configuration::initialize;
 pub use thread_pool::ThreadPool;

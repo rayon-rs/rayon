@@ -1,4 +1,4 @@
-use {Configuration, PanicHandler};
+use {Configuration, ExitHandler, PanicHandler, StartHandler};
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
@@ -41,6 +41,8 @@ pub struct Registry {
     sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
     panic_handler: Option<PanicHandler>,
+    start_handler: Option<StartHandler>,
+    exit_handler: Option<ExitHandler>,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -113,6 +115,8 @@ impl Registry {
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
             panic_handler: configuration.panic_handler(),
+            start_handler: configuration.start_handler(),
+            exit_handler: configuration.exit_handler(),
         });
 
         for (index, worker) in workers.into_iter().enumerate() {
@@ -510,6 +514,18 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     // **user code** panics, we should catch that and redirect.
     let abort_guard = unwind::AbortIfPanic;
 
+    // Inform a user callback that we started a thread.
+    if let Some(ref handler) = registry.start_handler {
+        let registry = registry.clone();
+        match unwind::halt_unwinding(|| handler(index)) {
+            Ok(()) => {
+            }
+            Err(err) => {
+                registry.handle_panic(err);
+            }
+        }
+    }
+
     worker_thread.wait_until(&registry.terminate_latch);
 
     // Should not be any work left in our queue.
@@ -520,6 +536,19 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
+
+    // Inform a user callback that we exited a thread.
+    if let Some(ref handler) = registry.exit_handler {
+        let registry = registry.clone();
+        match unwind::halt_unwinding(|| handler(index)) {
+            Ok(()) => {
+            }
+            Err(err) => {
+                registry.handle_panic(err);
+            }
+        }
+        // We're already exiting the thread, there's nothing else to do.
+    }
 }
 
 /// If already in a worker-thread, just execute `op`.  Otherwise,
