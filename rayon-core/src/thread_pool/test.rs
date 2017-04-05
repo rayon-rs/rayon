@@ -1,8 +1,12 @@
 #![cfg(test)]
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use configuration::Configuration;
 use join;
 use super::ThreadPool;
+use unwind;
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
@@ -56,4 +60,77 @@ fn sleeper_stop() {
     // once thread-pool is dropped, registry should terminate, which
     // should lead to worker threads stopping
     registry.wait_until_stopped();
+}
+
+/// Create a start/exit handler that increments an atomic counter.
+fn count_handler() -> (Arc<AtomicUsize>, ::StartHandler) {
+    let count = Arc::new(AtomicUsize::new(0));
+    (count.clone(), Arc::new(move |_| { count.fetch_add(1, Ordering::SeqCst); }))
+}
+
+/// Immediately unwrap a counter, asserting that it's no longer shared.
+fn unwrap_counter(counter: Arc<AtomicUsize>) -> usize {
+    Arc::try_unwrap(counter)
+        .expect("Counter is still shared!")
+        .into_inner()
+}
+
+/// Wait until a counter is no longer shared, then return its value.
+fn wait_for_counter(mut counter: Arc<AtomicUsize>) -> usize {
+    use std::{thread, time};
+
+    for _ in 0..60 {
+        counter = match Arc::try_unwrap(counter) {
+            Ok(counter) => return counter.into_inner(),
+            Err(counter) => {
+                thread::sleep(time::Duration::from_secs(1));
+                counter
+            },
+        };
+    }
+
+    // That's too long -- do it now!
+    unwrap_counter(counter)
+}
+
+#[test]
+fn failed_thread_stack() {
+    let (start_count, start_handler) = count_handler();
+    let (exit_count, exit_handler) = count_handler();
+    let config = Configuration::new()
+        .set_stack_size(::std::usize::MAX)
+        .set_start_handler(start_handler)
+        .set_exit_handler(exit_handler);
+
+    let pool = ThreadPool::new(config);
+    assert!(pool.is_err(), "thread stack should have failed!");
+
+    // With an impossible stack, we don't expect to have seen any threads,
+    // nor should there be any remaining references to the counters.
+    assert_eq!(0, unwrap_counter(start_count));
+    assert_eq!(0, unwrap_counter(exit_count));
+}
+
+#[test]
+fn panic_thread_name() {
+    let (start_count, start_handler) = count_handler();
+    let (exit_count, exit_handler) = count_handler();
+    let config = Configuration::new()
+        .set_num_threads(10)
+        .set_start_handler(start_handler)
+        .set_exit_handler(exit_handler)
+        .set_thread_name(|i| {
+                             if i >= 5 {
+                                 panic!();
+                             }
+                             format!("panic_thread_name#{}", i)
+                         });
+
+    let pool = unwind::halt_unwinding(|| ThreadPool::new(config));
+    assert!(pool.is_err(), "thread-name panic should propagate!");
+
+    // Assuming they're created in order, threads 0 through 4 should have
+    // been started already, and then terminated by the panic.
+    assert_eq!(5, wait_for_counter(start_count));
+    assert_eq!(5, wait_for_counter(exit_count));
 }
