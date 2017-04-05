@@ -40,7 +40,7 @@ pub struct Args {
 mod bench;
 
 use docopt::Docopt;
-use itertools::StrideMut;
+use odds::stride::StrideMut;
 use rayon::prelude::*;
 use time;
 

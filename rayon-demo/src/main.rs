@@ -31,7 +31,8 @@ extern crate glium; // nbody
 extern crate rand; // nbody
 extern crate rustc_serialize; // nbody
 extern crate time; // nbody, sieve
-extern crate itertools; // sieve
+extern crate odds; // sieve
+#[cfg(test)]
 extern crate num; // factorial
 #[macro_use]
 extern crate lazy_static; // find

@@ -12,19 +12,15 @@ members = ["rayon-demo", "rayon-core"]
 
 [dependencies]
 rayon-core = { version = "0.1", path = "rayon-core" }
-rand = "0.3"
-num_cpus = "1.2"
-deque = "0.3.1"
-libc = "0.2.16"
-futures = { version = "0.1.7", optional = true }
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
-docopt = "0.6"
-num = "0.1.30"
+docopt = "0.7"
+futures = "0.1.7"
+rand = "0.3"
 rustc-serialize = "0.3"
 
 [features]
 # Unstable APIs that have not yet
 # proven their utility.
-unstable = ["futures", "rayon-core/unstable"]
+unstable = ["rayon-core/unstable"]

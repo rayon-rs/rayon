@@ -1,5 +1,3 @@
-extern crate rand;
-
 use Configuration;
 use {scope, Scope};
 use ThreadPool;
