@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 use configuration::*;
-use std::error::Error;
 use std::sync::{Arc, Barrier};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use thread_pool::*;
