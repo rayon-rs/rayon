@@ -96,9 +96,7 @@ impl Configuration {
         self
     }
 
-    /// Returns (and takes ownership of) the current panic handler.
-    /// After this call, no panic handler is registered in the
-    /// configuration anymore.
+    /// Returns a copy of the current panic handler.
     pub fn panic_handler(&self) -> Option<PanicHandler> {
         self.panic_handler.clone()
     }
