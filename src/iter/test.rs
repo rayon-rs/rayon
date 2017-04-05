@@ -1043,6 +1043,10 @@ pub fn check_chain() {
         .collect();
     let other: Vec<i32> = (0..100).filter(|x| x & 1 == 1).collect();
     assert_eq!(res, other);
+
+    // chain collect is ok with the "fake" specialization
+    let res: Vec<i32> = Some(1i32).into_par_iter().chain(None).collect();
+    assert_eq!(res, &[1]);
 }
 
 
