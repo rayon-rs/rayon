@@ -1,4 +1,4 @@
-use configuration::Configuration;
+use Configuration;
 #[cfg(feature = "unstable")]
 use future::{Future, RayonFuture};
 use latch::LockLatch;
@@ -50,8 +50,17 @@ impl ThreadPool {
         }
     }
 
-    /// Returns the number of threads in the thread pool.
-    pub fn num_threads(&self) -> usize {
+    /// Returns the (current) number of threads in the thread pool.
+    ///
+    /// ### Future compatibility note
+    ///
+    /// Note that unless this thread-pool was created with a
+    /// configuration that specifies the number of threads, then this
+    /// number may vary over time in future versions (see [the
+    /// `num_threads()` method for details][snt]).
+    ///
+    /// [snt]: struct.Configuration.html#method.num_threads
+    pub fn current_num_threads(&self) -> usize {
         self.registry.num_threads()
     }
 
@@ -66,13 +75,15 @@ impl ThreadPool {
     ///
     /// ### Future compatibility note
     ///
-    /// Currently, every thread-pool (including the global thread-pool)
-    /// has a fixed number of threads, but this may change in future Rayon
-    /// versions. In that case, the index for a thread would not change
-    /// during its lifetime, but thread indices may wind up being reused
-    /// if threads are terminated and restarted. (If this winds up being
-    /// an untenable policy, then a semver-incompatible version can be
-    /// used.)
+    /// Currently, every thread-pool (including the global
+    /// thread-pool) has a fixed number of threads, but this may
+    /// change in future Rayon versions (see [the `num_threads()` method
+    /// for details][snt]). In that case, the index for a
+    /// thread would not change during its lifetime, but thread
+    /// indices may wind up being reused if threads are terminated and
+    /// restarted.
+    ///
+    /// [snt]: struct.Configuration.html#method.num_threads
     pub fn current_thread_index(&self) -> Option<usize> {
         unsafe {
             let curr = WorkerThread::current();

@@ -1,4 +1,4 @@
-use {Configuration, ExitHandler, PanicHandler, StartHandler};
+use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
@@ -40,9 +40,9 @@ pub struct Registry {
     state: Mutex<RegistryState>,
     sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
-    panic_handler: Option<PanicHandler>,
-    start_handler: Option<StartHandler>,
-    exit_handler: Option<ExitHandler>,
+    panic_handler: Option<Box<PanicHandler>>,
+    start_handler: Option<Box<StartHandler>>,
+    exit_handler: Option<Box<ExitHandler>>,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -112,7 +112,7 @@ impl<'a> Drop for Terminator<'a> {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
-        let n_threads = configuration.num_threads();
+        let n_threads = configuration.get_num_threads();
 
         let (inj_worker, inj_stealer) = deque::new();
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
@@ -125,9 +125,9 @@ impl Registry {
             sleep: Sleep::new(),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
-            panic_handler: configuration.panic_handler(),
-            start_handler: configuration.start_handler(),
-            exit_handler: configuration.exit_handler(),
+            panic_handler: configuration.take_panic_handler(),
+            start_handler: configuration.take_start_handler(),
+            exit_handler: configuration.take_exit_handler(),
         });
 
         // If we return early or panic, make sure to terminate existing threads.
@@ -136,10 +136,10 @@ impl Registry {
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
-            if let Some(name) = configuration.thread_name(index) {
+            if let Some(name) = configuration.get_thread_name(index) {
                 b = b.name(name);
             }
-            if let Some(stack_size) = configuration.stack_size() {
+            if let Some(stack_size) = configuration.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
             try!(b.spawn(move || unsafe { main_loop(worker, registry, index) }));

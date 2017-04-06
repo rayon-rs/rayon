@@ -1,6 +1,6 @@
 //! Tests for the join code.
 
-use configuration::*;
+use Configuration;
 use join::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
 use thread_pool::*;

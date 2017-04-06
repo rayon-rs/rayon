@@ -142,7 +142,7 @@ fn update_tree() {
 /// permitting an approx 10% change with a 10x input change.
 #[test]
 fn linear_stack_growth() {
-    let config = Configuration::new().set_num_threads(1);
+    let config = Configuration::new().num_threads(1);
     let pool = ThreadPool::new(config).unwrap();
     pool.install(|| {
         let mut max_diff = Mutex::new(0);

@@ -6,7 +6,7 @@ use rayon::*;
 use rayon::prelude::*;
 
 fn main() {
-    let result = initialize(Configuration::new().set_thread_name(|i| format!("hello-name-test-{}", i)));
+    let result = initialize(Configuration::new().thread_name(|i| format!("hello-name-test-{}", i)));
 
     const N: usize = 10000;
 
