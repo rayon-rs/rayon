@@ -1,3 +1,24 @@
+//!
+//! [Under construction](https://github.com/nikomatsakis/rayon/issues/231)
+//!
+//! ## Restricting multiple versions
+//!
+//! In order to ensure proper coordination between threadpools, and especially
+//! to make sure there's only one global threadpool, `rayon-core` is actively
+//! restricted from building multiple versions of itself into a single target.
+//! You may see a build error like this in violation:
+//!
+//! ```text
+//! error: native library `rayon-core` is being linked to by more
+//! than one package, and can only be linked to by one package
+//! ```
+//!
+//! While we strive to keep `rayon-core` semver-compatible, it's still
+//! possible to arrive at this situation if different crates have overly
+//! restrictive tilde or inequality requirements for `rayon-core`.  The
+//! conflicting requirements will need to be resolved before the build will
+//! succeed.
+
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
 

@@ -20,5 +20,6 @@ script:
     if [ $TRAVIS_RUST_VERSION == nightly ]; then
       cargo test --features="$FEATURES" &&
       cargo test --features="$FEATURES" -p rayon-core &&
-      cargo test --features="$FEATURES" -p rayon-demo
+      cargo test --features="$FEATURES" -p rayon-demo &&
+      ./ci/highlander.sh
     fi
