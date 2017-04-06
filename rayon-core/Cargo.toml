@@ -1,7 +1,8 @@
 [package]
 name = "rayon-core"
 version = "1.0.0"
-authors = ["Niko Matsakis <niko@alum.mit.edu>"]
+authors = ["Niko Matsakis <niko@alum.mit.edu>",
+           "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
 license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
