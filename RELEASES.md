@@ -20,9 +20,9 @@ closely. See the "Breaking Changes" section below for
 details.
 
 Finally, Rayon 0.7 includes a number of new features and new parallel
-iterator methods. As of this release, Rayon's parallel iterators have
-officially reached parity with sequential iterators -- that is, every
-sequential iterator method that makes any sense in parallel is
+iterator methods. **As of this release, Rayon's parallel iterators
+have officially reached parity with sequential iterators** -- that is,
+every sequential iterator method that makes any sense in parallel is
 supported in some capacity.
 
 ### New features and methods
