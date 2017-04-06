@@ -59,6 +59,15 @@ pub use future::RayonFuture;
 /// This can be useful when trying to judge how many times to split
 /// parallel work (the parallel iterator traits use this value
 /// internally for this purpose).
+///
+/// ### Future compatibility note
+///
+/// Note that unless this thread-pool was created with a
+/// configuration that specifies the number of threads, then this
+/// number may vary over time in future versions (see [the
+/// `set_num_threads()` method for details][snt]).
+///
+/// [snt]: struct.Configuration.html#method.set_num_threads
 pub fn current_num_threads() -> usize {
     ::registry::Registry::current_num_threads()
 }
@@ -141,10 +150,25 @@ impl Configuration {
     }
 
     /// Set the number of threads to be used in the rayon threadpool.
-    /// If `num_threads` is 0 or you do not call this function,
-    /// rayon will use the RAYON_RS_NUM_CPUS environment variable.
-    /// If RAYON_RS_NUM_CPUS is invalid or is zero, a suitable default will be used.
-    /// Currently, the default is one thread per logical CPU.
+    ///
+    /// If you specify a non-zero number of threads using this
+    /// function, then the resulting thread-pools are guaranteed to
+    /// start at most this number of threads.
+    ///
+    /// If `num_threads` is 0, or you do not call this function, then
+    /// the Rayon runtime will select the number of threads
+    /// automatically. At present, this is based on the
+    /// `RAYON_RS_NUM_CPUS` (if set), or the number of logical CPUs
+    /// (otherwise). In the future, however, the default behavior may
+    /// change to dynamically add or remove threads as needed.
+    ///
+    /// **Future compatibility warning:** Given the default behavior
+    /// may change in the future, if you wish to rely on a fixed
+    /// number of threads, you should use this function to specify
+    /// that number. To reproduce the current default behavior, you
+    /// may wish to use the [`num_cpus`
+    /// crate](https://crates.io/crates/num_cpus) to query the number
+    /// of CPUs dynamically.
     pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
         self.num_threads = num_threads;
         self
