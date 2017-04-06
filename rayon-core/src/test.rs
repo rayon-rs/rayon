@@ -7,7 +7,7 @@ use thread_pool::*;
 
 #[test]
 fn worker_thread_index() {
-    let pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
+    let pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
     assert_eq!(pool.current_num_threads(), 22);
     assert_eq!(pool.current_thread_index(), None);
     let index = pool.install(|| pool.current_thread_index().unwrap());
@@ -29,8 +29,8 @@ fn start_callback_called() {
     };
 
     let conf = Configuration::new()
-        .set_num_threads(n_threads)
-        .set_start_handler(start_handler);
+        .num_threads(n_threads)
+        .start_handler(start_handler);
     let _ = ThreadPool::new(conf).unwrap();
 
     // Wait for all the threads to have been scheduled to run.
@@ -55,8 +55,8 @@ fn exit_callback_called() {
     };
 
     let conf = Configuration::new()
-        .set_num_threads(n_threads)
-        .set_exit_handler(exit_handler);
+        .num_threads(n_threads)
+        .exit_handler(exit_handler);
     {
         let _ = ThreadPool::new(conf).unwrap();
         // Drop the pool so it stops the running threads.
@@ -97,10 +97,10 @@ fn handler_panics_handled_correctly() {
     };
 
     let conf = Configuration::new()
-        .set_num_threads(n_threads)
-        .set_start_handler(start_handler)
-        .set_exit_handler(exit_handler)
-        .set_panic_handler(panic_handler);
+        .num_threads(n_threads)
+        .start_handler(start_handler)
+        .exit_handler(exit_handler)
+        .panic_handler(panic_handler);
     {
         let _ = ThreadPool::new(conf).unwrap();
 

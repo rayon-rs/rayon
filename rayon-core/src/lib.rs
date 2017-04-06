@@ -65,9 +65,9 @@ pub use future::RayonFuture;
 /// Note that unless this thread-pool was created with a
 /// configuration that specifies the number of threads, then this
 /// number may vary over time in future versions (see [the
-/// `set_num_threads()` method for details][snt]).
+/// `num_threads()` method for details][snt]).
 ///
-/// [snt]: struct.Configuration.html#method.set_num_threads
+/// [snt]: struct.Configuration.html#method.num_threads
 pub fn current_num_threads() -> usize {
     ::registry::Registry::current_num_threads()
 }
@@ -124,8 +124,8 @@ impl Configuration {
     }
 
     /// Get the number of threads that will be used for the thread
-    /// pool. See `set_num_threads` for more information.
-    fn num_threads(&self) -> usize {
+    /// pool. See `num_threads()` for more information.
+    fn get_num_threads(&self) -> usize {
         if self.num_threads > 0 {
             self.num_threads
         } else {
@@ -137,13 +137,13 @@ impl Configuration {
     }
 
     /// Get the thread name for the thread with the given index.
-    fn thread_name(&mut self, index: usize) -> Option<String> {
+    fn get_thread_name(&mut self, index: usize) -> Option<String> {
         self.get_thread_name.as_mut().map(|c| c(index))
     }
 
     /// Set a closure which takes a thread index and returns
     /// the thread's name.
-    pub fn set_thread_name<F>(mut self, closure: F) -> Self
+    pub fn thread_name<F>(mut self, closure: F) -> Self
     where F: FnMut(usize) -> String + 'static {
         self.get_thread_name = Some(Box::new(closure));
         self
@@ -169,7 +169,7 @@ impl Configuration {
     /// may wish to use the [`num_cpus`
     /// crate](https://crates.io/crates/num_cpus) to query the number
     /// of CPUs dynamically.
-    pub fn set_num_threads(mut self, num_threads: usize) -> Configuration {
+    pub fn num_threads(mut self, num_threads: usize) -> Configuration {
         self.num_threads = num_threads;
         self
     }
@@ -193,7 +193,7 @@ impl Configuration {
     /// If the panic handler itself panics, this will abort the
     /// process. To prevent this, wrap the body of your panic handler
     /// in a call to `std::panic::catch_unwind()`.
-    pub fn set_panic_handler<H>(mut self, panic_handler: H) -> Configuration
+    pub fn panic_handler<H>(mut self, panic_handler: H) -> Configuration
         where H: Fn(Box<Any + Send>) + Send + Sync + 'static
     {
         self.panic_handler = Some(Box::new(panic_handler));
@@ -201,17 +201,17 @@ impl Configuration {
     }
 
     /// Get the stack size of the worker threads
-    fn stack_size(&self) -> Option<usize>{
+    fn get_stack_size(&self) -> Option<usize>{
         self.stack_size
     }
 
     /// Set the stack size of the worker threads
-    pub fn set_stack_size(mut self, stack_size: usize) -> Self {
+    pub fn stack_size(mut self, stack_size: usize) -> Self {
         self.stack_size = Some(stack_size);
         self
     }
 
-    /// Returns a copy of the current thread start callback.
+    /// Takes the current thread start callback, leaving `None`.
     fn take_start_handler(&mut self) -> Option<Box<StartHandler>> {
         self.start_handler.take()
     }
@@ -220,14 +220,14 @@ impl Configuration {
     ///
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then startup will continue normally.
-    pub fn set_start_handler<H>(mut self, start_handler: H) -> Configuration
+    pub fn start_handler<H>(mut self, start_handler: H) -> Configuration
         where H: Fn(usize) + Send + Sync + 'static
     {
         self.start_handler = Some(Box::new(start_handler));
         self
     }
 
-    /// Returns a copy of the current thread exit callback.
+    /// Returns a current thread exit callback, leaving `None`.
     fn take_exit_handler(&mut self) -> Option<Box<ExitHandler>> {
         self.exit_handler.take()
     }
@@ -236,7 +236,7 @@ impl Configuration {
     ///
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then the thread will exit normally.
-    pub fn set_exit_handler<H>(mut self, exit_handler: H) -> Configuration
+    pub fn exit_handler<H>(mut self, exit_handler: H) -> Configuration
         where H: Fn(usize) + Send + Sync + 'static
     {
         self.exit_handler = Some(Box::new(exit_handler));

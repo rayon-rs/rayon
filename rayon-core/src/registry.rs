@@ -112,7 +112,7 @@ impl<'a> Drop for Terminator<'a> {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
-        let n_threads = configuration.num_threads();
+        let n_threads = configuration.get_num_threads();
 
         let (inj_worker, inj_stealer) = deque::new();
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
@@ -136,10 +136,10 @@ impl Registry {
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
-            if let Some(name) = configuration.thread_name(index) {
+            if let Some(name) = configuration.get_thread_name(index) {
                 b = b.name(name);
             }
-            if let Some(stack_size) = configuration.stack_size() {
+            if let Some(stack_size) = configuration.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
             try!(b.spawn(move || unsafe { main_loop(worker, registry, index) }));

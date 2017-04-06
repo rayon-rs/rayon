@@ -23,8 +23,10 @@ use unwind;
 ///
 /// If this closure should panic, the resulting panic will be
 /// propagated to the panic handler registered in the `Configuration`,
-/// if any.  See `Configuration::set_panic_handler()` for more
+/// if any.  See [`Configuration::panic_handler()`][ph] for more
 /// details.
+///
+/// [ph]: struct.Configuration.html#method.panic_handler
 ///
 /// # Examples
 ///

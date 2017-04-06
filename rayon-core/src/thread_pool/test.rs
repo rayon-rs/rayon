@@ -13,22 +13,23 @@ use unwind;
 fn panic_propagate() {
     let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
     thread_pool.install(|| {
-        panic!("Hello, world!");
-    });
+                            panic!("Hello, world!");
+                        });
 }
 
 #[test]
 fn workers_stop() {
     let registry;
 
-    { // once we exit this block, thread-pool will be dropped
-        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
+    {
+        // once we exit this block, thread-pool will be dropped
+        let thread_pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
         registry = thread_pool.install(|| {
-            // do some work on these threads
-            join_a_lot(22);
+                                           // do some work on these threads
+                                           join_a_lot(22);
 
-            thread_pool.registry.clone()
-        });
+                                           thread_pool.registry.clone()
+                                       });
         assert_eq!(registry.num_threads(), 22);
     }
 
@@ -39,7 +40,7 @@ fn workers_stop() {
 
 fn join_a_lot(n: usize) {
     if n > 0 {
-        join(|| join_a_lot(n-1), || join_a_lot(n-1));
+        join(|| join_a_lot(n - 1), || join_a_lot(n - 1));
     }
 }
 
@@ -49,8 +50,9 @@ fn sleeper_stop() {
 
     let registry;
 
-    { // once we exit this block, thread-pool will be dropped
-        let thread_pool = ThreadPool::new(Configuration::new().set_num_threads(22)).unwrap();
+    {
+        // once we exit this block, thread-pool will be dropped
+        let thread_pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
         registry = thread_pool.registry.clone();
 
         // Give time for at least some of the thread pool to fall asleep.
@@ -85,7 +87,7 @@ fn wait_for_counter(mut counter: Arc<AtomicUsize>) -> usize {
             Err(counter) => {
                 thread::sleep(time::Duration::from_secs(1));
                 counter
-            },
+            }
         };
     }
 
@@ -100,9 +102,9 @@ fn failed_thread_stack() {
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();
     let config = Configuration::new()
-        .set_stack_size(::std::usize::MAX)
-        .set_start_handler(move |i| start_handler(i))
-        .set_exit_handler(move |i| exit_handler(i));
+        .stack_size(::std::usize::MAX)
+        .start_handler(move |i| start_handler(i))
+        .exit_handler(move |i| exit_handler(i));
 
     let pool = ThreadPool::new(config);
     assert!(pool.is_err(), "thread stack should have failed!");
@@ -118,15 +120,15 @@ fn panic_thread_name() {
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();
     let config = Configuration::new()
-        .set_num_threads(10)
-        .set_start_handler(move |i| start_handler(i))
-        .set_exit_handler(move |i| exit_handler(i))
-        .set_thread_name(|i| {
-                             if i >= 5 {
-                                 panic!();
-                             }
-                             format!("panic_thread_name#{}", i)
-                         });
+        .num_threads(10)
+        .start_handler(move |i| start_handler(i))
+        .exit_handler(move |i| exit_handler(i))
+        .thread_name(|i| {
+                         if i >= 5 {
+                             panic!();
+                         }
+                         format!("panic_thread_name#{}", i)
+                     });
 
     let pool = unwind::halt_unwinding(|| ThreadPool::new(config));
     assert!(pool.is_err(), "thread-name panic should propagate!");

@@ -42,7 +42,7 @@ fn panic_fwd() {
         }
     };
 
-    let configuration = Configuration::new().set_panic_handler(panic_handler);
+    let configuration = Configuration::new().panic_handler(panic_handler);
 
     ThreadPool::new(configuration).unwrap().spawn_async(move || panic!("Hello, world!"));
 
@@ -138,7 +138,7 @@ fn custom_panic_handler_and_spawn_async() {
     };
 
     // Execute an async that will panic.
-    let config = Configuration::new().set_panic_handler(panic_handler);
+    let config = Configuration::new().panic_handler(panic_handler);
     ThreadPool::new(config).unwrap().spawn_async(move || {
         panic!("Hello, world!");
     });
@@ -166,7 +166,7 @@ fn custom_panic_handler_and_nested_spawn_async() {
 
     // Execute an async that will (eventually) panic.
     const PANICS: usize = 3;
-    let config = Configuration::new().set_panic_handler(panic_handler);
+    let config = Configuration::new().panic_handler(panic_handler);
     ThreadPool::new(config).unwrap().spawn_async(move || {
         // launch 3 nested spawn-asyncs; these should be in the same
         // thread-pool and hence inherit the same panic handler
