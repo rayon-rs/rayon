@@ -13,7 +13,6 @@ use std::env;
 use std::error::Error;
 use std::str::FromStr;
 use std::fmt;
-use std::sync::Arc;
 
 extern crate deque;
 #[macro_use]
@@ -73,7 +72,7 @@ pub struct Configuration {
 
     /// Custom closure, if any, to handle a panic that we cannot propagate
     /// anywhere else.
-    panic_handler: Option<PanicHandler>,
+    panic_handler: Option<Box<PanicHandler>>,
 
     /// Closure to compute the name of a thread.
     get_thread_name: Option<Box<FnMut(usize) -> String>>,
@@ -82,25 +81,25 @@ pub struct Configuration {
     stack_size: Option<usize>,
 
     /// Closure invoked on worker thread start.
-    start_handler: Option<StartHandler>,
+    start_handler: Option<Box<StartHandler>>,
 
     /// Closure invoked on worker thread exit.
-    exit_handler: Option<ExitHandler>,
+    exit_handler: Option<Box<ExitHandler>>,
 }
 
 /// The type for a panic handling closure. Note that this same closure
 /// may be invoked multiple times in parallel.
-pub type PanicHandler = Arc<Fn(Box<Any + Send>) + Send + Sync>;
+type PanicHandler = Fn(Box<Any + Send>) + Send + Sync;
 
 /// The type for a closure that gets invoked when a thread starts. The
 /// closure is passed the index of the thread on which it is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
-pub type StartHandler = Arc<Fn(usize) + Send + Sync>;
+type StartHandler = Fn(usize) + Send + Sync;
 
 /// The type for a closure that gets invoked when a thread exits. The
 /// closure is passed the index of the thread on which is is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
-pub type ExitHandler = Arc<Fn(usize) + Send + Sync>;
+type ExitHandler = Fn(usize) + Send + Sync;
 
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
@@ -152,8 +151,8 @@ impl Configuration {
     }
 
     /// Returns a copy of the current panic handler.
-    pub fn panic_handler(&self) -> Option<PanicHandler> {
-        self.panic_handler.clone()
+    fn take_panic_handler(&mut self) -> Option<Box<PanicHandler>> {
+        self.panic_handler.take()
     }
 
     /// Normally, whenever Rayon catches a panic, it tries to
@@ -170,8 +169,10 @@ impl Configuration {
     /// If the panic handler itself panics, this will abort the
     /// process. To prevent this, wrap the body of your panic handler
     /// in a call to `std::panic::catch_unwind()`.
-    pub fn set_panic_handler(mut self, panic_handler: PanicHandler) -> Configuration {
-        self.panic_handler = Some(panic_handler);
+    pub fn set_panic_handler<H>(mut self, panic_handler: H) -> Configuration
+        where H: Fn(Box<Any + Send>) + Send + Sync + 'static
+    {
+        self.panic_handler = Some(Box::new(panic_handler));
         self
     }
 
@@ -187,30 +188,34 @@ impl Configuration {
     }
 
     /// Returns a copy of the current thread start callback.
-    pub fn start_handler(&self) -> Option<StartHandler> {
-        self.start_handler.clone()
+    fn take_start_handler(&mut self) -> Option<Box<StartHandler>> {
+        self.start_handler.take()
     }
 
     /// Set a callback to be invoked on thread start.
     ///
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then startup will continue normally.
-    pub fn set_start_handler(mut self, start_handler: StartHandler) -> Configuration {
-        self.start_handler = Some(start_handler);
+    pub fn set_start_handler<H>(mut self, start_handler: H) -> Configuration
+        where H: Fn(usize) + Send + Sync + 'static
+    {
+        self.start_handler = Some(Box::new(start_handler));
         self
     }
 
     /// Returns a copy of the current thread exit callback.
-    pub fn exit_handler(&self) -> Option<ExitHandler> {
-        self.exit_handler.clone()
+    fn take_exit_handler(&mut self) -> Option<Box<ExitHandler>> {
+        self.exit_handler.take()
     }
 
     /// Set a callback to be invoked on thread exit.
     ///
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then the thread will exit normally.
-    pub fn set_exit_handler(mut self, exit_handler: ExitHandler) -> Configuration {
-        self.exit_handler = Some(exit_handler);
+    pub fn set_exit_handler<H>(mut self, exit_handler: H) -> Configuration
+        where H: Fn(usize) + Send + Sync + 'static
+    {
+        self.exit_handler = Some(Box::new(exit_handler));
         self
     }
 }

@@ -63,9 +63,9 @@ fn sleeper_stop() {
 }
 
 /// Create a start/exit handler that increments an atomic counter.
-fn count_handler() -> (Arc<AtomicUsize>, ::StartHandler) {
+fn count_handler() -> (Arc<AtomicUsize>, Box<::StartHandler>) {
     let count = Arc::new(AtomicUsize::new(0));
-    (count.clone(), Arc::new(move |_| { count.fetch_add(1, Ordering::SeqCst); }))
+    (count.clone(), Box::new(move |_| { count.fetch_add(1, Ordering::SeqCst); }))
 }
 
 /// Immediately unwrap a counter, asserting that it's no longer shared.
@@ -99,8 +99,8 @@ fn failed_thread_stack() {
     let (exit_count, exit_handler) = count_handler();
     let config = Configuration::new()
         .set_stack_size(::std::usize::MAX)
-        .set_start_handler(start_handler)
-        .set_exit_handler(exit_handler);
+        .set_start_handler(move |i| start_handler(i))
+        .set_exit_handler(move |i| exit_handler(i));
 
     let pool = ThreadPool::new(config);
     assert!(pool.is_err(), "thread stack should have failed!");
@@ -117,8 +117,8 @@ fn panic_thread_name() {
     let (exit_count, exit_handler) = count_handler();
     let config = Configuration::new()
         .set_num_threads(10)
-        .set_start_handler(start_handler)
-        .set_exit_handler(exit_handler)
+        .set_start_handler(move |i| start_handler(i))
+        .set_exit_handler(move |i| exit_handler(i))
         .set_thread_name(|i| {
                              if i >= 5 {
                                  panic!();

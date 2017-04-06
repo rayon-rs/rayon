@@ -1,10 +1,11 @@
 use futures::{lazy, Future};
 
 use scope;
+use std::any::Any;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 
-use {Configuration, PanicHandler, ThreadPool};
+use {Configuration, ThreadPool};
 use super::{spawn_async, spawn_future_async};
 
 #[test]
@@ -28,7 +29,7 @@ fn panic_fwd() {
     let (tx, rx) = channel();
 
     let tx = Mutex::new(tx);
-    let panic_handler: PanicHandler = Arc::new(move |err| {
+    let panic_handler = move |err: Box<Any + Send>| {
         let tx = tx.lock().unwrap();
         if let Some(&msg) = err.downcast_ref::<&str>() {
             if msg == "Hello, world!" {
@@ -39,7 +40,7 @@ fn panic_fwd() {
         } else {
             tx.send(3).unwrap();
         }
-    });
+    };
 
     let configuration = Configuration::new().set_panic_handler(panic_handler);
 
@@ -132,9 +133,9 @@ fn custom_panic_handler_and_spawn_async() {
     // channel; since the closure is potentially executed in parallel
     // with itself, we have to wrap `tx` in a mutex.
     let tx = Mutex::new(tx);
-    let panic_handler = Arc::new(move |e| {
+    let panic_handler = move |e: Box<Any + Send>| {
         tx.lock().unwrap().send(e).unwrap();
-    });
+    };
 
     // Execute an async that will panic.
     let config = Configuration::new().set_panic_handler(panic_handler);
@@ -159,9 +160,9 @@ fn custom_panic_handler_and_nested_spawn_async() {
     // channel; since the closure is potentially executed in parallel
     // with itself, we have to wrap `tx` in a mutex.
     let tx = Mutex::new(tx);
-    let panic_handler = Arc::new(move |e| {
+    let panic_handler = move |e| {
         tx.lock().unwrap().send(e).unwrap();
-    });
+    };
 
     // Execute an async that will (eventually) panic.
     const PANICS: usize = 3;
