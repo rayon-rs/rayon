@@ -2,15 +2,14 @@
 
 This release marks the first step towards Rayon 1.0. **For best
 performance, it is important that all Rayon users update to at least
-Rayon 0.7.** This is because Rayon 0.7 also marks the first release of
-the `rayon-core` crate (which is being released at 1.0). The
-`rayon-core` crate encapsulates the core scheduler; the intention is
-that even if multiple versions of rayon are in use within one project,
-there will only ever be a single copy of rayon-core, and hence only a
-single global scheduler. (Note: the rayon-core crate is, to some
-degree, an implementation detail, and not intended to be imported
-directly; it's entire API surface is mirrored through the rayon
-crate.)
+Rayon 0.7.** This is because, as of Rayon 0.7, we have taken steps to
+ensure that, no matter how many versions of rayon are actively in use,
+there will only be a single global scheduler. This is achieved via the
+`rayon-core` crate, which is being released at version 1.0, and which
+encapsulates the core schedule APIs like `join()`. (Note: the
+`rayon-core` crate is, to some degree, an implementation detail, and
+not intended to be imported directly; it's entire API surface is
+mirrored through the rayon crate.)
 
 We have also done a lot of work reorganizing the API for Rayon 0.7 in
 preparation for 1.0. The names of iterator types have been changed and
