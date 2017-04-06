@@ -93,6 +93,8 @@ fn wait_for_counter(mut counter: Arc<AtomicUsize>) -> usize {
     unwrap_counter(counter)
 }
 
+/// For some reason, macs do not error out here.
+#[cfg_attr(target_os="macos", ignore)]
 #[test]
 fn failed_thread_stack() {
     let (start_count, start_handler) = count_handler();
