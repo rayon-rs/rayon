@@ -1,7 +1,8 @@
 [package]
 name = "rayon"
 version = "0.7.0"
-authors = ["Niko Matsakis <niko@alum.mit.edu>"]
+authors = ["Niko Matsakis <niko@alum.mit.edu>",
+           "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
 license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
