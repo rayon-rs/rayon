@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use configuration::Configuration;
+use Configuration;
 use join;
 use super::ThreadPool;
 use unwind;

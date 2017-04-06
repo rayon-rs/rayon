@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use configuration::*;
+use {Configuration, StartHandler, ExitHandler, PanicHandler};
 use std::sync::{Arc, Barrier};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use thread_pool::*;

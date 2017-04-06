@@ -1,4 +1,4 @@
-use {Configuration, ExitHandler, PanicHandler, StartHandler};
+use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
