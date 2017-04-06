@@ -245,6 +245,7 @@ pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
 
 /// This is a debugging API not really intended for end users. It will
 /// dump some performance statistics out using `println`.
+#[cfg(feature = "unstable")]
 pub fn dump_stats() {
     dump_stats!();
 }

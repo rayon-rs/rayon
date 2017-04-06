@@ -33,7 +33,6 @@ pub use iter::split;
 
 pub use rayon_core::current_num_threads;
 pub use rayon_core::Configuration;
-pub use rayon_core::dump_stats;
 pub use rayon_core::initialize;
 pub use rayon_core::ThreadPool;
 pub use rayon_core::join;
