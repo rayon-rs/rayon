@@ -116,7 +116,7 @@ impl Configuration {
 
     /// Get the number of threads that will be used for the thread
     /// pool. See `set_num_threads` for more information.
-    pub fn num_threads(&self) -> usize {
+    fn num_threads(&self) -> usize {
         if self.num_threads > 0 {
             self.num_threads
         } else {
@@ -128,7 +128,7 @@ impl Configuration {
     }
 
     /// Get the thread name for the thread with the given index.
-    pub fn thread_name(&mut self, index: usize) -> Option<String> {
+    fn thread_name(&mut self, index: usize) -> Option<String> {
         self.get_thread_name.as_mut().map(|c| c(index))
     }
 
@@ -177,7 +177,7 @@ impl Configuration {
     }
 
     /// Get the stack size of the worker threads
-    pub fn stack_size(&self) -> Option<usize>{
+    fn stack_size(&self) -> Option<usize>{
         self.stack_size
     }
 
