@@ -17,12 +17,14 @@ preparation for 1.0. The names of iterator types have been changed and
 reorganized (but few users are expected to be naming those types
 explicitly anyhow). In addition, a number of parallel iterator methods
 have been adjusted to match those in the standard iterator traits more
-closely. See the release notes for details. Finally, Rayon 0.7
-includes a number of new features and new parallel iterator methods.
+closely. See the "Breaking Changes" section below for
+details.
 
-As of this release, Rayon's parallel iterators have officially reached
-parity with sequential iterators -- that is, every sequential iterator
-method that makes any sense in parallel is supported in some capacity.
+Finally, Rayon 0.7 includes a number of new features and new parallel
+iterator methods. As of this release, Rayon's parallel iterators have
+officially reached parity with sequential iterators -- that is, every
+sequential iterator method that makes any sense in parallel is
+supported in some capacity.
 
 ### New features and methods
 
