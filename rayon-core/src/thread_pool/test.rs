@@ -70,13 +70,6 @@ fn count_handler() -> (Arc<AtomicUsize>, Box<::StartHandler>) {
     (count.clone(), Box::new(move |_| { count.fetch_add(1, Ordering::SeqCst); }))
 }
 
-/// Immediately unwrap a counter, asserting that it's no longer shared.
-fn unwrap_counter(counter: Arc<AtomicUsize>) -> usize {
-    Arc::try_unwrap(counter)
-        .expect("Counter is still shared!")
-        .into_inner()
-}
-
 /// Wait until a counter is no longer shared, then return its value.
 fn wait_for_counter(mut counter: Arc<AtomicUsize>) -> usize {
     use std::{thread, time};
@@ -91,28 +84,34 @@ fn wait_for_counter(mut counter: Arc<AtomicUsize>) -> usize {
         };
     }
 
-    // That's too long -- do it now!
-    unwrap_counter(counter)
+    // That's too long!
+    panic!("Counter is still shared!");
 }
 
-/// For some reason, macs do not error out here.
-#[cfg_attr(target_os="macos", ignore)]
 #[test]
 fn failed_thread_stack() {
+    // Note: we first tried to force failure with a `usize::MAX` stack, but
+    // macOS and Windows weren't fazed, or at least didn't fail the way we want.
+    // They work with `isize::MAX`, but 32-bit platforms may feasibly allocate a
+    // 2GB stack, so it might not fail until the second thread.
+    let stack_size = ::std::isize::MAX as usize;
+
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();
     let config = Configuration::new()
-        .stack_size(::std::usize::MAX)
+        .num_threads(10)
+        .stack_size(stack_size)
         .start_handler(move |i| start_handler(i))
         .exit_handler(move |i| exit_handler(i));
 
     let pool = ThreadPool::new(config);
     assert!(pool.is_err(), "thread stack should have failed!");
 
-    // With an impossible stack, we don't expect to have seen any threads,
-    // nor should there be any remaining references to the counters.
-    assert_eq!(0, unwrap_counter(start_count));
-    assert_eq!(0, unwrap_counter(exit_count));
+    // With such a huge stack, 64-bit will probably fail on the first thread;
+    // 32-bit might manage the first 2GB, but certainly fail the second.
+    let start_count = wait_for_counter(start_count);
+    assert!(start_count <= 1);
+    assert_eq!(start_count, wait_for_counter(exit_count));
 }
 
 #[test]
