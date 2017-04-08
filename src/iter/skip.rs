@@ -39,29 +39,17 @@ impl<I> ParallelIterator for Skip<I>
     }
 }
 
-impl<I> ExactParallelIterator for Skip<I>
+impl<I> IndexedParallelIterator for Skip<I>
     where I: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
         self.base.len() - self.n
     }
-}
-
-impl<I> BoundedParallelIterator for Skip<I>
-    where I: IndexedParallelIterator
-{
-    fn upper_bound(&mut self) -> usize {
-        self.len()
-    }
 
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
-}
 
-impl<I> IndexedParallelIterator for Skip<I>
-    where I: IndexedParallelIterator
-{
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

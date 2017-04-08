@@ -86,35 +86,21 @@ impl<I, F> ParallelIterator for Map<I, F>
     }
 }
 
-impl<I, F> BoundedParallelIterator for Map<I, F>
-    where I: BoundedParallelIterator,
+impl<I, F> IndexedParallelIterator for Map<I, F>
+    where I: IndexedParallelIterator,
           F: MapOp<I::Item>
 {
-    fn upper_bound(&mut self) -> usize {
-        self.base.upper_bound()
-    }
-
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive(consumer1)
     }
-}
 
-impl<I, F> ExactParallelIterator for Map<I, F>
-    where I: ExactParallelIterator,
-          F: MapOp<I::Item>
-{
     fn len(&mut self) -> usize {
         self.base.len()
     }
-}
 
-impl<I, F> IndexedParallelIterator for Map<I, F>
-    where I: IndexedParallelIterator,
-          F: MapOp<I::Item>
-{
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

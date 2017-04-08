@@ -38,29 +38,17 @@ impl<I> ParallelIterator for Take<I>
     }
 }
 
-impl<I> ExactParallelIterator for Take<I>
+impl<I> IndexedParallelIterator for Take<I>
     where I: IndexedParallelIterator
 {
     fn len(&mut self) -> usize {
         self.n
     }
-}
-
-impl<I> BoundedParallelIterator for Take<I>
-    where I: IndexedParallelIterator
-{
-    fn upper_bound(&mut self) -> usize {
-        self.len()
-    }
 
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
-}
 
-impl<I> IndexedParallelIterator for Take<I>
-    where I: IndexedParallelIterator
-{
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

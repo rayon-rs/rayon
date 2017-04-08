@@ -100,7 +100,7 @@ mod vec_i {
 
     const N: u32 = 4 * 1024 * 1024;
 
-    fn generate() -> impl ExactParallelIterator<Item=u32> {
+    fn generate() -> impl IndexedParallelIterator<Item=u32> {
         (0_u32..N)
             .into_par_iter()
     }

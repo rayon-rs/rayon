@@ -1,4 +1,4 @@
-use super::{ParallelIterator, ExactParallelIterator, IntoParallelIterator, FromParallelIterator};
+use super::{ParallelIterator, IndexedParallelIterator, IntoParallelIterator, FromParallelIterator};
 use std::collections::LinkedList;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -10,7 +10,7 @@ mod test;
 
 /// Collects the results of the exact iterator into the specified vector.
 pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
-    where I: ExactParallelIterator<Item = T>,
+    where I: IndexedParallelIterator<Item = T>,
           T: Send
 {
     let mut collect = Collect::new(v, pi.len());
@@ -20,7 +20,7 @@ pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
 
 /// Collects the results of the iterator into the specified vector.
 ///
-/// Technically, this only works for `ExactParallelIterator`, but we're faking a
+/// Technically, this only works for `IndexedParallelIterator`, but we're faking a
 /// bit of specialization here until Rust can do that natively.  Callers are
 /// using `opt_len` to find the length before calling this, and only exact
 /// iterators will return anything but `None` there.

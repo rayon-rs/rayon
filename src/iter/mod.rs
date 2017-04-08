@@ -636,38 +636,10 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
     }
 }
 
-/// A trait for parallel iterators items where the precise number of
-/// items is not known, but we can at least give an upper-bound. These
-/// sorts of iterators result from filtering.
-pub trait BoundedParallelIterator: ParallelIterator {
-    fn upper_bound(&mut self) -> usize;
-
-    /// Internal method used to define the behavior of this parallel
-    /// iterator. You should not need to call this directly.
-    ///
-    /// This method causes the iterator `self` to start producing
-    /// items and to feed them to the consumer `consumer` one by one.
-    /// It may split the consumer before doing so to create the
-    /// opportunity to produce in parallel. If a split does happen, it
-    /// will inform the consumer of the index where the split should
-    /// occur (unlike `ParallelIterator::drive_unindexed()`).
-    ///
-    /// See the [README] for more details on the internals of parallel
-    /// iterators.
-    ///
-    /// [README]: README.md
-    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
-}
-
-/// A trait for parallel iterators items where the precise number of
-/// items is known. This occurs when e.g. iterating over a
-/// vector. Knowing precisely how many items will be produced is very
-/// useful.
-pub trait ExactParallelIterator: BoundedParallelIterator {
-    /// Produces an exact count of how many items this iterator will
-    /// produce, presuming no panic occurs.
-    fn len(&mut self) -> usize;
-
+/// An iterator that supports "random access" to its data, meaning
+/// that you can split it at arbitrary indices and draw data from
+/// those points.
+pub trait IndexedParallelIterator: ParallelIterator {
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
@@ -675,12 +647,7 @@ pub trait ExactParallelIterator: BoundedParallelIterator {
     fn collect_into(self, target: &mut Vec<Self::Item>) {
         collect::collect_into(self, target);
     }
-}
 
-/// An iterator that supports "random access" to its data, meaning
-/// that you can split it at arbitrary indices and draw data from
-/// those points.
-pub trait IndexedParallelIterator: ExactParallelIterator {
     /// Iterate over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
@@ -883,6 +850,26 @@ pub trait IndexedParallelIterator: ExactParallelIterator {
     fn with_max_len(self, max: usize) -> MaxLen<Self> {
         len::new_max_len(self, max)
     }
+
+    /// Produces an exact count of how many items this iterator will
+    /// produce, presuming no panic occurs.
+    fn len(&mut self) -> usize;
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    ///
+    /// This method causes the iterator `self` to start producing
+    /// items and to feed them to the consumer `consumer` one by one.
+    /// It may split the consumer before doing so to create the
+    /// opportunity to produce in parallel. If a split does happen, it
+    /// will inform the consumer of the index where the split should
+    /// occur (unlike `ParallelIterator::drive_unindexed()`).
+    ///
+    /// See the [README] for more details on the internals of parallel
+    /// iterators.
+    ///
+    /// [README]: README.md
+    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.

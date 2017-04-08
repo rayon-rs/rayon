@@ -59,43 +59,26 @@ impl<A, B> ParallelIterator for Chain<A, B>
     }
 }
 
-impl<A, B> BoundedParallelIterator for Chain<A, B>
-    where A: BoundedParallelIterator,
-          B: BoundedParallelIterator<Item = A::Item>
+impl<A, B> IndexedParallelIterator for Chain<A, B>
+    where A: IndexedParallelIterator,
+          B: IndexedParallelIterator<Item = A::Item>
 {
-    fn upper_bound(&mut self) -> usize {
-        self.a
-            .upper_bound()
-            .checked_add(self.b.upper_bound())
-            .expect("overflow")
-    }
-
     fn drive<C>(mut self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
-        let (left, right, reducer) = consumer.split_at(self.a.upper_bound());
+        let (left, right, reducer) = consumer.split_at(self.a.len());
         let a = self.a.drive(left);
         let b = self.b.drive(right);
         reducer.reduce(a, b)
     }
-}
 
-impl<A, B> ExactParallelIterator for Chain<A, B>
-    where A: ExactParallelIterator,
-          B: ExactParallelIterator<Item = A::Item>
-{
     fn len(&mut self) -> usize {
         self.a
             .len()
             .checked_add(self.b.len())
             .expect("overflow")
     }
-}
 
-impl<A, B> IndexedParallelIterator for Chain<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator<Item = A::Item>
-{
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

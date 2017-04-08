@@ -38,29 +38,17 @@ impl<I> ParallelIterator for Enumerate<I>
     }
 }
 
-impl<I> BoundedParallelIterator for Enumerate<I>
-    where I: IndexedParallelIterator
-{
-    fn upper_bound(&mut self) -> usize {
-        self.len()
-    }
-
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
-    }
-}
-
-impl<I> ExactParallelIterator for Enumerate<I>
-    where I: IndexedParallelIterator
-{
-    fn len(&mut self) -> usize {
-        self.base.len()
-    }
-}
-
 impl<I> IndexedParallelIterator for Enumerate<I>
     where I: IndexedParallelIterator
 {
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn len(&mut self) -> usize {
+        self.base.len()
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
@@ -102,7 +90,7 @@ impl<P> Producer for EnumerateProducer<P>
     type IntoIter = iter::Zip<Range<usize>, P::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
-        // Enumerate only works for ExactParallelIterators. Since those
+        // Enumerate only works for IndexedParallelIterators. Since those
         // have a max length of usize::MAX, their max index is
         // usize::MAX - 1, so the range 0..usize::MAX includes all
         // possible indices

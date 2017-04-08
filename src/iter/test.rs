@@ -11,8 +11,6 @@ use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
 use std::usize;
 
-fn is_bounded<T: ExactParallelIterator>(_: T) {}
-fn is_exact<T: ExactParallelIterator>(_: T) {}
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 
 #[test]
@@ -118,10 +116,8 @@ pub fn execute_strings_split() {
 }
 
 #[test]
-pub fn check_map_exact_and_bounded() {
+pub fn check_map_indexed() {
     let a = [1, 2, 3];
-    is_bounded(a.par_iter().map(|x| x));
-    is_exact(a.par_iter().map(|x| x));
     is_indexed(a.par_iter().map(|x| x));
 }
 
@@ -337,33 +333,25 @@ pub fn check_drops() {
 }
 
 #[test]
-pub fn check_slice_exact_and_bounded() {
+pub fn check_slice_indexed() {
     let a = vec![1, 2, 3];
-    is_bounded(a.par_iter());
-    is_exact(a.par_iter());
     is_indexed(a.par_iter());
 }
 
 #[test]
-pub fn check_slice_mut_exact_and_bounded() {
+pub fn check_slice_mut_indexed() {
     let mut a = vec![1, 2, 3];
-    is_bounded(a.par_iter_mut());
-    is_exact(a.par_iter_mut());
     is_indexed(a.par_iter_mut());
 }
 
 #[test]
-pub fn check_vec_exact_and_bounded() {
+pub fn check_vec_indexed() {
     let a = vec![1, 2, 3];
-    is_bounded(a.clone().into_par_iter());
-    is_exact(a.clone().into_par_iter());
     is_indexed(a.clone().into_par_iter());
 }
 
 #[test]
-pub fn check_range_exact_and_bounded() {
-    is_bounded((1..5).into_par_iter());
-    is_exact((1..5).into_par_iter());
+pub fn check_range_indexed() {
     is_indexed((1..5).into_par_iter());
 }
 
