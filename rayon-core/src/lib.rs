@@ -94,6 +94,7 @@ pub fn current_num_threads() -> usize {
 }
 
 /// Contains the rayon thread pool configuration.
+#[derive(Default)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool.
     /// If zero will use the RAYON_RS_NUM_CPUS environment variable.
@@ -134,14 +135,7 @@ type ExitHandler = Fn(usize) + Send + Sync;
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
-        Configuration {
-            num_threads: 0,
-            get_thread_name: None,
-            panic_handler: None,
-            stack_size: None,
-            start_handler: None,
-            exit_handler: None,
-        }
+        Configuration::default()
     }
 
     /// Get the number of threads that will be used for the thread
