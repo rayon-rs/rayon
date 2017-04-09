@@ -1,6 +1,5 @@
 use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
-use deque;
-use deque::{Worker, Stealer, Stolen};
+use coco::deque::{self, Worker, Stealer};
 use job::{JobRef, StackJob};
 use latch::{LatchProbe, Latch, CountLatch, LockLatch};
 #[allow(unused_imports)]
@@ -265,16 +264,11 @@ impl Registry {
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
-        loop {
-            match self.job_uninjector.steal() {
-                Stolen::Empty => return None,
-                Stolen::Abort => (), // retry
-                Stolen::Data(v) => {
-                    log!(UninjectedWork { worker: worker_index });
-                    return Some(v);
-                }
-            }
+        let stolen = self.job_uninjector.steal();
+        if stolen.is_some() {
+            log!(UninjectedWork { worker: worker_index });
         }
+        stolen
     }
 
     /// Increment the terminate counter. This increment should be
@@ -496,16 +490,11 @@ impl WorkerThread {
             .filter(|&i| i != self.index)
             .filter_map(|victim_index| {
                 let victim = &self.registry.thread_infos[victim_index];
-                loop {
-                    match victim.stealer.steal() {
-                        Stolen::Empty => return None,
-                        Stolen::Abort => (), // retry
-                        Stolen::Data(v) => {
-                            log!(StoleWork { worker: self.index, victim: victim_index });
-                            return Some(v);
-                        }
-                    }
+                let stolen = victim.stealer.steal();
+                if stolen.is_some() {
+                    log!(StoleWork { worker: self.index, victim: victim_index });
                 }
+                stolen
             })
             .next()
     }
