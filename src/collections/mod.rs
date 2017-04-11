@@ -9,6 +9,7 @@ macro_rules! into_par_vec {
         impl $($args)* IntoParallelIterator for $t {
             type Item = <$t as IntoIterator>::Item;
             type Iter = $iter<$($i),*>;
+            type Scheduler = DefaultScheduler;
 
             fn into_par_iter(self) -> Self::Iter {
                 use std::iter::FromIterator;

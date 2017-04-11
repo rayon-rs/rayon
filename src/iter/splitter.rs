@@ -27,15 +27,16 @@ impl<D, S> ParallelIterator for Split<D, S>
           S: Fn(D) -> (D, Option<D>) + Sync + Send
 {
     type Item = D;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, SC>(self, consumer: C, scheduler: SC) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, SC: Scheduler,
     {
         let producer = SplitProducer {
             data: self.data,
             splitter: &self.splitter,
         };
-        bridge_unindexed(producer, consumer)
+        scheduler.execute_unindexed(producer, consumer)
     }
 }
 

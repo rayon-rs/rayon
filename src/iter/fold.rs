@@ -32,16 +32,17 @@ impl<U, I, ID, F> ParallelIterator for Fold<I, ID, F>
           U: Send
 {
     type Item = U;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = FoldConsumer {
             base: consumer,
             fold_op: &self.fold_op,
             identity: &self.identity,
         };
-        self.base.drive_unindexed(consumer1)
+        self.base.drive_unindexed(consumer1, scheduler)
     }
 }
 
@@ -155,16 +156,17 @@ impl<U, I, F> ParallelIterator for FoldWith<I, U, F>
           U: Send + Clone
 {
     type Item = U;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = FoldWithConsumer {
             base: consumer,
             item: self.item,
             fold_op: &self.fold_op,
         };
-        self.base.drive_unindexed(consumer1)
+        self.base.drive_unindexed(consumer1, scheduler)
     }
 }
 

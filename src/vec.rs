@@ -14,6 +14,7 @@ pub struct IntoIter<T: Send> {
 impl<T: Send> IntoParallelIterator for Vec<T> {
     type Item = T;
     type Iter = IntoIter<T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { vec: self }
@@ -22,11 +23,12 @@ impl<T: Send> IntoParallelIterator for Vec<T> {
 
 impl<T: Send> ParallelIterator for IntoIter<T> {
     type Item = T;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -35,18 +37,18 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
 }
 
 impl<T: Send> IndexedParallelIterator for IntoIter<T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
         self.vec.len()
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(mut self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         // The producer will move or drop each item from its slice, effectively taking ownership of
         // them.  When we're done, the vector only needs to free its buffer.
@@ -59,7 +61,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
             let mut slice = self.vec.as_mut_slice();
             slice = std::slice::from_raw_parts_mut(slice.as_mut_ptr(), len);
 
-            callback.callback(VecProducer { slice: slice })
+            callback.callback(VecProducer { slice: slice }, scheduler)
         }
     }
 }

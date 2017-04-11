@@ -8,7 +8,7 @@ pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
 {
     let found = AtomicBool::new(false);
     let consumer = FindConsumer::new(&find_op, &found);
-    pi.drive_unindexed(consumer)
+    pi.drive_unindexed(consumer, DefaultScheduler)
 }
 
 struct FindConsumer<'p, P: 'p> {

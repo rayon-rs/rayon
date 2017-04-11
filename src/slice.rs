@@ -89,6 +89,7 @@ impl<T: Send> ParallelSliceMut<T> for [T] {
 impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
     type Item = &'data T;
     type Iter = Iter<'data, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         Iter { slice: self }
@@ -98,6 +99,7 @@ impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
 impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
     type Item = &'data T;
     type Iter = Iter<'data, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         Iter { slice: self }
@@ -107,6 +109,7 @@ impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
 impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
     type Item = &'data mut T;
     type Iter = IterMut<'data, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IterMut { slice: self }
@@ -116,6 +119,7 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
 impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
     type Item = &'data mut T;
     type Iter = IterMut<'data, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IterMut { slice: self }
@@ -130,11 +134,12 @@ pub struct Iter<'data, T: 'data + Sync> {
 
 impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
     type Item = &'data T;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -143,20 +148,20 @@ impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
 }
 
 impl<'data, T: Sync + 'data> IndexedParallelIterator for Iter<'data, T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
         self.slice.len()
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
-        callback.callback(IterProducer { slice: self.slice })
+        callback.callback(IterProducer { slice: self.slice }, scheduler)
     }
 }
 
@@ -187,11 +192,12 @@ pub struct Chunks<'data, T: 'data + Sync> {
 
 impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
     type Item = &'data [T];
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -200,23 +206,23 @@ impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
 }
 
 impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
         (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         callback.callback(ChunksProducer {
                               chunk_size: self.chunk_size,
                               slice: self.slice,
-                          })
+                          }, scheduler)
     }
 }
 
@@ -256,11 +262,12 @@ pub struct Windows<'data, T: 'data + Sync> {
 
 impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
     type Item = &'data [T];
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -269,10 +276,10 @@ impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
 }
 
 impl<'data, T: Sync + 'data> IndexedParallelIterator for Windows<'data, T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
@@ -280,13 +287,13 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Windows<'data, T> {
         self.slice.len().saturating_sub(self.window_size - 1)
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         callback.callback(WindowsProducer {
                               window_size: self.window_size,
                               slice: self.slice,
-                          })
+                          }, scheduler)
     }
 }
 
@@ -326,11 +333,12 @@ pub struct IterMut<'data, T: 'data + Send> {
 
 impl<'data, T: Send + 'data> ParallelIterator for IterMut<'data, T> {
     type Item = &'data mut T;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -339,20 +347,20 @@ impl<'data, T: Send + 'data> ParallelIterator for IterMut<'data, T> {
 }
 
 impl<'data, T: Send + 'data> IndexedParallelIterator for IterMut<'data, T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
         self.slice.len()
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
-        callback.callback(IterMutProducer { slice: self.slice })
+        callback.callback(IterMutProducer { slice: self.slice }, scheduler)
     }
 }
 
@@ -383,11 +391,12 @@ pub struct ChunksMut<'data, T: 'data + Send> {
 
 impl<'data, T: Send + 'data> ParallelIterator for ChunksMut<'data, T> {
     type Item = &'data mut [T];
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -396,23 +405,23 @@ impl<'data, T: Send + 'data> ParallelIterator for ChunksMut<'data, T> {
 }
 
 impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
         (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         callback.callback(ChunksMutProducer {
                               chunk_size: self.chunk_size,
                               slice: self.slice,
-                          })
+                          }, scheduler)
     }
 }
 
@@ -455,12 +464,13 @@ impl<'data, T, P> ParallelIterator for Split<'data, T, P>
           T: Sync
 {
     type Item = &'data [T];
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let producer = SplitProducer::new(self.slice, &self.separator);
-        bridge_unindexed(producer, consumer)
+        scheduler.execute_unindexed(producer, consumer)
     }
 }
 
@@ -513,12 +523,13 @@ impl<'data, T, P> ParallelIterator for SplitMut<'data, T, P>
           T: Send
 {
     type Item = &'data mut [T];
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let producer = SplitProducer::new(self.slice, &self.separator);
-        bridge_unindexed(producer, consumer)
+        scheduler.execute_unindexed(producer, consumer)
     }
 }
 

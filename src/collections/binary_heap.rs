@@ -12,6 +12,7 @@ use vec;
 impl<T: Ord + Send> IntoParallelIterator for BinaryHeap<T> {
     type Item = T;
     type Iter = IntoIter<T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { inner: Vec::from(self).into_par_iter() }

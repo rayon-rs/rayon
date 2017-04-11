@@ -171,8 +171,8 @@ impl<I, F> IndexedParallelIterator for Map<I, F>
     where I: IndexedParallelIterator,
           F: MapOp<I::Item>,
 {
-    fn with_producer<CB>(self, callback: CB) -> CB::Output {
-        let map_op = &self.map_op;
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output {
+        let map_op = &self.map_op;, S: Scheduler,
         self.base_iter.with_producer(|base_producer| {
             // Here `producer` is the producer for `self.base_iter`.
             // Wrap that to make a `MapProducer`
@@ -275,10 +275,10 @@ impl<I, F> IndexedParallelIterator for Map<I, F>
     where I: IndexedParallelIterator,
           F: MapOp<I::Item>,
 {
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
-        return self.base.with_producer(Callback { callback: callback, map_op: self.map_op });
+        return self.base.with_producer(Callback { callback: callback, map_op: self.map_op }, scheduler);
         //                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         //                             Manual version of the closure sugar: create an instance
         //                             of a struct that implements `ProducerCallback`.

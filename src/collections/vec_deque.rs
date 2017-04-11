@@ -18,6 +18,7 @@ into_par_vec!{
 impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
     type Item = &'a T;
     type Iter = Iter<'a, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_slices();
@@ -28,6 +29,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
 impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
     type Item = &'a mut T;
     type Iter = IterMut<'a, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_mut_slices();

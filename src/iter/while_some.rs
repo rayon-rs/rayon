@@ -27,16 +27,17 @@ impl<I, T> ParallelIterator for WhileSome<I>
           T: Send
 {
     type Item = T;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let full = AtomicBool::new(false);
         let consumer1 = WhileSomeConsumer {
             base: consumer,
             full: &full,
         };
-        self.base.drive_unindexed(consumer1)
+        self.base.drive_unindexed(consumer1, scheduler)
     }
 }
 

@@ -8,7 +8,7 @@ pub fn for_each<I, F, T>(pi: I, op: &F)
           T: Send
 {
     let consumer = ForEachConsumer { op: op };
-    pi.drive_unindexed(consumer)
+    pi.drive_unindexed(consumer, DefaultScheduler)
 }
 
 struct ForEachConsumer<'f, F: 'f> {

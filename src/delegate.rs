@@ -71,11 +71,12 @@ macro_rules! delegate_iterator_item {
 
         impl $( $args )* ParallelIterator for $iter < $( $i ),* > {
             type Item = $item;
+            type Scheduler = <$inner as ParallelIterator>::Scheduler;
 
-            fn drive_unindexed<C>(self, consumer: C) -> C::Result
-                where C: UnindexedConsumer<Self::Item>
+            fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+                where C: UnindexedConsumer<Self::Item>, S: Scheduler,
             {
-                self.inner.drive_unindexed(consumer)
+                self.inner.drive_unindexed(consumer, scheduler)
             }
 
             fn opt_len(&mut self) -> Option<usize> {
@@ -99,20 +100,20 @@ macro_rules! delegate_indexed_iterator_item {
         }
 
         impl $( $args )* IndexedParallelIterator for $iter < $( $i ),* > {
-            fn drive<C>(self, consumer: C) -> C::Result
-                where C: Consumer<Self::Item>
+            fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+                where C: Consumer<Self::Item>, S: Scheduler,
             {
-                self.inner.drive(consumer)
+                self.inner.drive(consumer, scheduler)
             }
 
             fn len(&mut self) -> usize {
                 self.inner.len()
             }
 
-            fn with_producer<CB>(self, callback: CB) -> CB::Output
-                where CB: ProducerCallback<Self::Item>
+            fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+                where CB: ProducerCallback<Self::Item>, S: Scheduler,
             {
-                self.inner.with_producer(callback)
+                self.inner.with_producer(callback, scheduler)
             }
         }
     }

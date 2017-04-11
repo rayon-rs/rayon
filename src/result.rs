@@ -11,6 +11,7 @@ use option;
 impl<T: Send, E> IntoParallelIterator for Result<T, E> {
     type Item = T;
     type Iter = IntoIter<T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { inner: self.ok().into_par_iter() }
@@ -20,6 +21,7 @@ impl<T: Send, E> IntoParallelIterator for Result<T, E> {
 impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {
     type Item = &'a T;
     type Iter = Iter<'a, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         Iter { inner: self.as_ref().ok().into_par_iter() }
@@ -29,6 +31,7 @@ impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {
 impl<'a, T: Send, E> IntoParallelIterator for &'a mut Result<T, E> {
     type Item = &'a mut T;
     type Iter = IterMut<'a, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IterMut { inner: self.as_mut().ok().into_par_iter() }

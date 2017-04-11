@@ -27,11 +27,12 @@ impl<I> ParallelIterator for Skip<I>
     where I: IndexedParallelIterator
 {
     type Item = I::Item;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -46,17 +47,19 @@ impl<I> IndexedParallelIterator for Skip<I>
         self.base.len() - self.n
     }
 
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler
+    {
+        scheduler.execute(self, consumer)
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         return self.base.with_producer(Callback {
                                            callback: callback,
                                            n: self.n,
-                                       });
+                                       }, scheduler);
 
         struct Callback<CB> {
             callback: CB,
@@ -67,12 +70,12 @@ impl<I> IndexedParallelIterator for Skip<I>
             where CB: ProducerCallback<T>
         {
             type Output = CB::Output;
-            fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            fn callback<P, S>(self, base: P, scheduler: S) -> CB::Output
+                where P: Producer<Item = T>, S: Scheduler,
             {
                 let (before_skip, after_skip) = base.split_at(self.n);
-                bridge_producer_consumer(self.n, before_skip, NoopConsumer::new());
-                self.callback.callback(after_skip)
+                scheduler.execute_indexed(self.n, before_skip, NoopConsumer::new());
+                self.callback.callback(after_skip, scheduler)
             }
         }
     }

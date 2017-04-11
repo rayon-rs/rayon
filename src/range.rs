@@ -15,8 +15,9 @@ pub struct Iter<T> {
 impl<T> IntoParallelIterator for Range<T>
     where Iter<T>: ParallelIterator
 {
-    type Item = <Iter<T> as ParallelIterator>::Item;
     type Iter = Iter<T>;
+    type Item = <Iter<T> as ParallelIterator>::Item;
+    type Scheduler = <Iter<T> as ParallelIterator>::Scheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         Iter { range: self }
@@ -42,11 +43,12 @@ macro_rules! indexed_range_impl {
     ( $t:ty ) => {
         impl ParallelIterator for Iter<$t> {
             type Item = $t;
+            type Scheduler = DefaultScheduler;
 
-            fn drive_unindexed<C>(self, consumer: C) -> C::Result
-                where C: UnindexedConsumer<Self::Item>
+            fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+                where C: UnindexedConsumer<Self::Item>, S: Scheduler,
             {
-                bridge(self, consumer)
+                scheduler.execute(self, consumer)
             }
 
             fn opt_len(&mut self) -> Option<usize> {
@@ -55,27 +57,27 @@ macro_rules! indexed_range_impl {
         }
 
         impl IndexedParallelIterator for Iter<$t> {
-            fn drive<C>(self, consumer: C) -> C::Result
-                where C: Consumer<Self::Item>
+            fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+                where C: Consumer<Self::Item>, S: Scheduler,
             {
-                bridge(self, consumer)
+                scheduler.execute(self, consumer)
             }
 
             fn len(&mut self) -> usize {
                 self.range.len()
             }
 
-            fn with_producer<CB>(self, callback: CB) -> CB::Output
-                where CB: ProducerCallback<Self::Item>
+            fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+                where CB: ProducerCallback<Self::Item>, S: Scheduler,
             {
-                callback.callback(IterProducer { range: self.range })
+                callback.callback(IterProducer { range: self.range }, scheduler)
             }
         }
 
         impl Producer for IterProducer<$t> {
-
             type Item = <Range<$t> as Iterator>::Item;
             type IntoIter = Range<$t>;
+
             fn into_iter(self) -> Self::IntoIter {
                 self.range
             }
@@ -108,11 +110,12 @@ macro_rules! unindexed_range_impl {
 
         impl ParallelIterator for Iter<$t> {
             type Item = $t;
+            type Scheduler = DefaultScheduler;
 
-            fn drive_unindexed<C>(self, consumer: C) -> C::Result
-                where C: UnindexedConsumer<Self::Item>
+            fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+                where C: UnindexedConsumer<Self::Item>, S: Scheduler,
             {
-                bridge_unindexed(IterProducer { range: self.range }, consumer)
+                scheduler.execute_unindexed(IterProducer { range: self.range }, consumer)
             }
         }
 

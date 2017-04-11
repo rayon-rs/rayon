@@ -21,6 +21,7 @@ docopt = "0.7"
 futures = "0.1.7"
 rand = "0.3"
 rustc-serialize = "0.3"
+thread-id = "3.1.0"
 
 [features]
 # Unstable APIs that have not yet

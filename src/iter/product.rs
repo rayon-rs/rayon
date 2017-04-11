@@ -9,7 +9,7 @@ pub fn product<PI, P>(pi: PI) -> P
     where PI: ParallelIterator,
           P: Send + Product<PI::Item> + Product
 {
-    pi.drive_unindexed(ProductConsumer::new())
+    pi.drive_unindexed(ProductConsumer::new(), DefaultScheduler)
 }
 
 fn mul<T: Product>(left: T, right: T) -> T {

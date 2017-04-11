@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 impl<T: Send> IntoParallelIterator for Option<T> {
     type Item = T;
     type Iter = IntoIter<T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { opt: self }
@@ -19,6 +20,7 @@ impl<T: Send> IntoParallelIterator for Option<T> {
 impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {
     type Item = &'a T;
     type Iter = Iter<'a, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         Iter { inner: self.as_ref().into_par_iter() }
@@ -28,6 +30,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {
 impl<'a, T: Send> IntoParallelIterator for &'a mut Option<T> {
     type Item = &'a mut T;
     type Iter = IterMut<'a, T>;
+    type Scheduler = DefaultScheduler;
 
     fn into_par_iter(self) -> Self::Iter {
         IterMut { inner: self.as_mut().into_par_iter() }
@@ -42,11 +45,12 @@ pub struct IntoIter<T: Send> {
 
 impl<T: Send> ParallelIterator for IntoIter<T> {
     type Item = T;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -55,10 +59,10 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
 }
 
 impl<T: Send> IndexedParallelIterator for IntoIter<T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
@@ -68,10 +72,10 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
         }
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
-        callback.callback(OptionProducer { opt: self.opt })
+        callback.callback(OptionProducer { opt: self.opt }, scheduler)
     }
 }
 

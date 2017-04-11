@@ -12,8 +12,8 @@ pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<A, B>(a: A, b: B) -> Zip<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator
+    where A: IndexedParallelIterator<Scheduler = DefaultScheduler>,
+          B: IndexedParallelIterator<Scheduler = DefaultScheduler>,
 {
     Zip { a: a, b: b }
 }
@@ -23,11 +23,12 @@ impl<A, B> ParallelIterator for Zip<A, B>
           B: IndexedParallelIterator
 {
     type Item = (A::Item, B::Item);
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -39,23 +40,23 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn len(&mut self) -> usize {
         cmp::min(self.a.len(), self.b.len())
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         return self.a.with_producer(CallbackA {
                                         callback: callback,
                                         b: self.b,
-                                    });
+                                    }, scheduler);
 
         struct CallbackA<CB, B> {
             callback: CB,
@@ -68,13 +69,13 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
         {
             type Output = CB::Output;
 
-            fn callback<A>(self, a_producer: A) -> Self::Output
-                where A: Producer<Item = A_ITEM>
+            fn callback<A, S>(self, a_producer: A, scheduler: S) -> Self::Output
+                where A: Producer<Item = A_ITEM>, S: Scheduler,
             {
                 return self.b.with_producer(CallbackB {
                                                 a_producer: a_producer,
                                                 callback: self.callback,
-                                            });
+                                            }, scheduler);
             }
         }
 
@@ -89,13 +90,13 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
         {
             type Output = CB::Output;
 
-            fn callback<B>(self, b_producer: B) -> Self::Output
-                where B: Producer<Item = B_ITEM>
+            fn callback<B, S>(self, b_producer: B, scheduler: S) -> Self::Output
+                where B: Producer<Item = B_ITEM>, S: Scheduler,
             {
                 self.callback.callback(ZipProducer {
                                            a: self.a_producer,
                                            b: b_producer,
-                                       })
+                                       }, scheduler)
             }
         }
 

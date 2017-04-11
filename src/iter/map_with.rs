@@ -34,12 +34,13 @@ impl<I, T, F, R> ParallelIterator for MapWith<I, T, F>
           R: Send
 {
     type Item = R;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = MapWithConsumer::new(consumer, self.item, &self.map_op);
-        self.base.drive_unindexed(consumer1)
+        self.base.drive_unindexed(consumer1, scheduler)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -53,25 +54,25 @@ impl<I, T, F, R> IndexedParallelIterator for MapWith<I, T, F>
           F: Fn(&mut T, I::Item) -> R + Sync + Send,
           R: Send
 {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = MapWithConsumer::new(consumer, self.item, &self.map_op);
-        self.base.drive(consumer1)
+        self.base.drive(consumer1, scheduler)
     }
 
     fn len(&mut self) -> usize {
         self.base.len()
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         return self.base.with_producer(Callback {
                                            callback: callback,
                                            item: self.item,
                                            map_op: self.map_op,
-                                       });
+                                       }, scheduler);
 
         struct Callback<CB, U, F> {
             callback: CB,
@@ -87,15 +88,15 @@ impl<I, T, F, R> IndexedParallelIterator for MapWith<I, T, F>
         {
             type Output = CB::Output;
 
-            fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            fn callback<P, S>(self, base: P, scheduler: S) -> CB::Output
+                where P: Producer<Item = T>, S: Scheduler,
             {
                 let producer = MapWithProducer {
                     base: base,
                     item: self.item,
                     map_op: &self.map_op,
                 };
-                self.callback.callback(producer)
+                self.callback.callback(producer, scheduler)
             }
         }
     }

@@ -11,7 +11,7 @@ pub fn reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
         identity: &identity,
         reduce_op: &reduce_op,
     };
-    pi.drive_unindexed(consumer)
+    pi.drive_unindexed(consumer, DefaultScheduler)
 }
 
 struct ReduceConsumer<'r, R: 'r, ID: 'r> {

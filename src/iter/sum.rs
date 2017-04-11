@@ -9,7 +9,7 @@ pub fn sum<PI, S>(pi: PI) -> S
     where PI: ParallelIterator,
           S: Send + Sum<PI::Item> + Sum
 {
-    pi.drive_unindexed(SumConsumer::new())
+    pi.drive_unindexed(SumConsumer::new(), DefaultScheduler)
 }
 
 fn add<T: Sum>(left: T, right: T) -> T {

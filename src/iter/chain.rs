@@ -10,8 +10,8 @@ use rayon_core::join;
 /// [`chain()`]: trait.ParallelIterator.html#method.chain
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 pub struct Chain<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+    where A: ParallelIterator<Scheduler = DefaultScheduler>,
+          B: ParallelIterator<Item = A::Item, Scheduler = DefaultScheduler>,
 {
     a: A,
     b: B,
@@ -21,20 +21,24 @@ pub struct Chain<A, B>
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<A, B>(a: A, b: B) -> Chain<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+    where A: ParallelIterator<Scheduler = DefaultScheduler>,
+          B: ParallelIterator<Item = A::Item, Scheduler = DefaultScheduler>,
 {
     Chain { a: a, b: b }
 }
 
 impl<A, B> ParallelIterator for Chain<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+    where A: ParallelIterator<Scheduler = DefaultScheduler>,
+          B: ParallelIterator<Item = A::Item, Scheduler = DefaultScheduler>,
 {
     type Item = A::Item;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self,
+                             consumer: C,
+                             scheduler: S)
+                             -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler
     {
         let Chain { mut a, b } = self;
 
@@ -49,7 +53,9 @@ impl<A, B> ParallelIterator for Chain<A, B>
             (consumer.split_off_left(), consumer, reducer)
         };
 
-        let (a, b) = join(|| a.drive_unindexed(left), || b.drive_unindexed(right));
+        // FIXME -- what should we do *here*?
+        let (a, b) = join(|| a.drive_unindexed(left, scheduler),
+                          || b.drive_unindexed(right, scheduler));
         reducer.reduce(a, b)
     }
 
@@ -62,15 +68,16 @@ impl<A, B> ParallelIterator for Chain<A, B>
 }
 
 impl<A, B> IndexedParallelIterator for Chain<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator<Item = A::Item>
+    where A: IndexedParallelIterator<Scheduler = DefaultScheduler>,
+          B: IndexedParallelIterator<Item = A::Item, Scheduler = DefaultScheduler>
 {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
         let Chain { mut a, b } = self;
         let (left, right, reducer) = consumer.split_at(a.len());
-        let (a, b) = join(|| a.drive(left), || b.drive(right));
+        let (a, b) = join(|| a.drive(left, scheduler),
+                          || b.drive(right, scheduler));
         reducer.reduce(a, b)
     }
 
@@ -81,15 +88,15 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
             .expect("overflow")
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(mut self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         let a_len = self.a.len();
         return self.a.with_producer(CallbackA {
                                         callback: callback,
                                         a_len: a_len,
                                         b: self.b,
-                                    });
+                                    }, scheduler);
 
         struct CallbackA<CB, B> {
             callback: CB,
@@ -103,14 +110,14 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
         {
             type Output = CB::Output;
 
-            fn callback<A>(self, a_producer: A) -> Self::Output
-                where A: Producer<Item = B::Item>
+            fn callback<A, S>(self, a_producer: A, scheduler: S) -> Self::Output
+                where A: Producer<Item = B::Item>, S: Scheduler,
             {
                 return self.b.with_producer(CallbackB {
                                                 callback: self.callback,
                                                 a_len: self.a_len,
                                                 a_producer: a_producer,
-                                            });
+                                            }, scheduler);
             }
         }
 
@@ -126,11 +133,11 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
         {
             type Output = CB::Output;
 
-            fn callback<B>(self, b_producer: B) -> Self::Output
-                where B: Producer<Item = A::Item>
+            fn callback<B, S>(self, b_producer: B, scheduler: S) -> Self::Output
+                where B: Producer<Item = A::Item>, S: Scheduler,
             {
                 let producer = ChainProducer::new(self.a_len, self.a_producer, b_producer);
-                self.callback.callback(producer)
+                self.callback.callback(producer, scheduler)
             }
         }
 

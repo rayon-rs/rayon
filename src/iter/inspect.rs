@@ -33,12 +33,13 @@ impl<I, F> ParallelIterator for Inspect<I, F>
           F: Fn(&I::Item) + Sync + Send
 {
     type Item = I::Item;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = InspectConsumer::new(consumer, &self.inspect_op);
-        self.base.drive_unindexed(consumer1)
+        self.base.drive_unindexed(consumer1, scheduler)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -50,25 +51,25 @@ impl<I, F> IndexedParallelIterator for Inspect<I, F>
     where I: IndexedParallelIterator,
           F: Fn(&I::Item) + Sync + Send
 {
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = InspectConsumer::new(consumer, &self.inspect_op);
-        self.base.drive(consumer1)
+        self.base.drive(consumer1, scheduler)
     }
 
     fn len(&mut self) -> usize {
         self.base.len()
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         return self.base
                    .with_producer(Callback {
                                       callback: callback,
                                       inspect_op: self.inspect_op,
-                                  });
+                                  }, scheduler);
 
         struct Callback<CB, F> {
             callback: CB,
@@ -81,14 +82,14 @@ impl<I, F> IndexedParallelIterator for Inspect<I, F>
         {
             type Output = CB::Output;
 
-            fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            fn callback<P, S>(self, base: P, scheduler: S) -> CB::Output
+                where P: Producer<Item = T>, S: Scheduler
             {
                 let producer = InspectProducer {
                     base: base,
                     inspect_op: &self.inspect_op,
                 };
-                self.callback.callback(producer)
+                self.callback.callback(producer, scheduler)
             }
         }
     }

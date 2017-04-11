@@ -193,11 +193,12 @@ struct CharsProducer<'ch> {
 
 impl<'ch> ParallelIterator for Chars<'ch> {
     type Item = char;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge_unindexed(CharsProducer { chars: self.chars }, consumer)
+        scheduler.execute_unindexed(CharsProducer { chars: self.chars }, consumer)
     }
 }
 
@@ -242,12 +243,13 @@ impl<'ch, P: Pattern> Split<'ch, P> {
 
 impl<'ch, P: Pattern> ParallelIterator for Split<'ch, P> {
     type Item = &'ch str;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let producer = SplitProducer::new(self.chars, &self.separator);
-        bridge_unindexed(producer, consumer)
+        scheduler.execute_unindexed(producer, consumer)
     }
 }
 
@@ -318,12 +320,13 @@ impl<'ch, 'sep, P: Pattern + 'sep> SplitTerminatorProducer<'ch, 'sep, P> {
 
 impl<'ch, P: Pattern> ParallelIterator for SplitTerminator<'ch, P> {
     type Item = &'ch str;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let producer = SplitTerminatorProducer::new(self.chars, &self.terminator);
-        bridge_unindexed(producer, consumer)
+        scheduler.execute_unindexed(producer, consumer)
     }
 }
 
@@ -359,9 +362,10 @@ pub struct Lines<'ch>(&'ch str);
 
 impl<'ch> ParallelIterator for Lines<'ch> {
     type Item = &'ch str;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         self.0
             .par_split_terminator('\n')
@@ -370,7 +374,7 @@ impl<'ch> ParallelIterator for Lines<'ch> {
                  } else {
                      line
                  })
-            .drive_unindexed(consumer)
+            .drive_unindexed(consumer, scheduler)
     }
 }
 
@@ -382,13 +386,14 @@ pub struct SplitWhitespace<'ch>(&'ch str);
 
 impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
     type Item = &'ch str;
+    type Scheduler = DefaultScheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         self.0
             .par_split(char::is_whitespace)
             .filter(|string| !string.is_empty())
-            .drive_unindexed(consumer)
+            .drive_unindexed(consumer, scheduler)
     }
 }

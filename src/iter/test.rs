@@ -211,13 +211,13 @@ pub fn check_enumerate() {
 #[test]
 pub fn check_indices_after_enumerate_split() {
     let a: Vec<i32> = (0..1024).collect();
-    a.par_iter().enumerate().with_producer(WithProducer);
+    a.par_iter().enumerate().with_producer(WithProducer, DefaultScheduler);
 
     struct WithProducer;
     impl<'a> ProducerCallback<(usize, &'a i32)> for WithProducer {
         type Output = ();
-        fn callback<P>(self, producer: P)
-            where P: Producer<Item = (usize, &'a i32)>
+        fn callback<P, S>(self, producer: P, scheduler: S)
+            where P: Producer<Item = (usize, &'a i32)>, S: Scheduler,
         {
             let (a, b) = producer.split_at(512);
             for ((index, value), trusted_index) in a.into_iter().zip(0..) {
@@ -327,7 +327,7 @@ pub fn check_drops() {
     b.into_par_iter();
     assert_eq!(c.load(Ordering::Relaxed), 10);
 
-    a.into_par_iter().with_producer(Partial);
+    a.into_par_iter().with_producer(Partial, DefaultScheduler);
     assert_eq!(c.load(Ordering::Relaxed), 20);
 
 
@@ -342,8 +342,8 @@ pub fn check_drops() {
     struct Partial;
     impl<'a> ProducerCallback<DropCounter<'a>> for Partial {
         type Output = ();
-        fn callback<P>(self, producer: P)
-            where P: Producer<Item = DropCounter<'a>>
+        fn callback<P, S>(self, producer: P, scheduler: S)
+            where P: Producer<Item = DropCounter<'a>>, S: Scheduler,
         {
             let (a, _) = producer.split_at(5);
             a.into_iter().next();

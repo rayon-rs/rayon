@@ -26,11 +26,12 @@ impl<I> ParallelIterator for Take<I>
     where I: IndexedParallelIterator
 {
     type Item = I::Item;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        bridge(self, consumer)
+        scheduler.execute(self, consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -45,17 +46,19 @@ impl<I> IndexedParallelIterator for Take<I>
         self.n
     }
 
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler
+    {
+        scheduler.execute(self, consumer)
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler,
     {
         return self.base.with_producer(Callback {
                                            callback: callback,
                                            n: self.n,
-                                       });
+                                       }, scheduler);
 
         struct Callback<CB> {
             callback: CB,
@@ -66,11 +69,11 @@ impl<I> IndexedParallelIterator for Take<I>
             where CB: ProducerCallback<T>
         {
             type Output = CB::Output;
-            fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            fn callback<P, S>(self, base: P, scheduler: S) -> CB::Output
+                where P: Producer<Item = T>, S: Scheduler,
             {
                 let (producer, _) = base.split_at(self.n);
-                self.callback.callback(producer)
+                self.callback.callback(producer, scheduler)
             }
         }
     }

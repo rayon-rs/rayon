@@ -77,7 +77,7 @@ pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result
         left: left,
         right: right,
     };
-    pi.drive(consumer)
+    pi.drive(consumer, DefaultScheduler)
 }
 
 /// An `UnzipOp` that splits a tuple directly into the two consumers.
@@ -191,9 +191,10 @@ impl<'b, I, OP, FromB> ParallelIterator for UnzipA<'b, I, OP, FromB>
           FromB: Default + Send + ParallelExtend<OP::Right>
 {
     type Item = OP::Left;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, _scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let mut result = None;
         {
@@ -226,7 +227,7 @@ struct UnzipB<'r, I, OP, CA>
     where I: ParallelIterator,
           OP: UnzipOp<I::Item>,
           CA: UnindexedConsumer<OP::Left>,
-          CA::Result: 'r
+          CA::Result: 'r,
 {
     base: I,
     op: OP,
@@ -240,18 +241,19 @@ impl<'r, I, OP, CA> ParallelIterator for UnzipB<'r, I, OP, CA>
           CA: UnindexedConsumer<OP::Left>
 {
     type Item = OP::Right;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
-        // Now that we have two consumers, we can unzip the real iterator.
+        // Now that we have two consumers/schedulers, we can unzip the real iterator.
         let consumer = UnzipConsumer {
             op: &self.op,
             left: self.left_consumer,
             right: consumer,
         };
 
-        let result = self.base.drive_unindexed(consumer);
+        let result = self.base.drive_unindexed(consumer, scheduler);
         *self.left_result = Some(result.0);
         result.1
     }

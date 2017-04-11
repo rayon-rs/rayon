@@ -43,6 +43,8 @@ pub mod internal;
 mod for_each;
 mod fold;
 pub use self::fold::{Fold, FoldWith};
+mod in_scheduler;
+pub use self::in_scheduler::InScheduler;
 mod reduce;
 mod skip;
 pub use self::skip::Skip;
@@ -82,8 +84,9 @@ pub enum Either<L, R> {
 }
 
 pub trait IntoParallelIterator {
-    type Iter: ParallelIterator<Item = Self::Item>;
+    type Iter: ParallelIterator<Item = Self::Item, Scheduler = Self::Scheduler>;
     type Item: Send;
+    type Scheduler: Scheduler;
 
     fn into_par_iter(self) -> Self::Iter;
 }
@@ -126,7 +129,26 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
 
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized + Send {
+    /// The type of `Item` produced by this parallel iterator.
     type Item: Send;
+
+    /// The type of scheduler used in this parallel iterator chain;
+    /// this is typically `DefaultScheduler`, but some specific
+    /// combinators (e.g., `in_scheduler()`) will set it to something
+    /// else. See `in_scheduler()` for more details.
+    type Scheduler: Scheduler;
+
+    /// Sets the "scheduler" that this thread-pool will use. The
+    /// default is `DefaultScheduler`, which will use the current
+    /// rayon thread-pool based on your current location. You can only
+    /// do this once per parallel-iterator chain, and only in specific
+    /// places, or you will get errors.
+    fn in_scheduler<S>(self, scheduler: S) -> InScheduler<Self, S>
+        where S: Scheduler,
+              Self: ParallelIterator<Scheduler = DefaultScheduler>,
+    {
+        in_scheduler::new(self, scheduler)
+    }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     fn for_each<OP>(self, op: OP)
@@ -552,7 +574,8 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Takes two iterators and creates a new iterator over both.
     fn chain<C>(self, chain: C) -> Chain<Self, C::Iter>
-        where C: IntoParallelIterator<Item = Self::Item>
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              C: IntoParallelIterator<Item = Self::Item, Scheduler = DefaultScheduler>
     {
         chain::new(self, chain.into_par_iter())
     }
@@ -716,7 +739,11 @@ pub trait ParallelIterator: Sized + Send {
     /// iterators.
     ///
     /// [README]: README.md
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item>;
+    fn drive_unindexed<C, S>(self,
+                             consumer: C,
+                             scheduler: S)
+                             -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler;
 
 
     /// Internal method used to define the behavior of this parallel
@@ -741,6 +768,7 @@ pub trait ParallelIterator: Sized + Send {
 impl<T: ParallelIterator> IntoParallelIterator for T {
     type Iter = T;
     type Item = T::Item;
+    type Scheduler = T::Scheduler;
 
     fn into_par_iter(self) -> T {
         self
@@ -777,8 +805,9 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// iterators are of unequal length, you only get the items they
     /// have in common.
     fn zip<Z>(self, zip_op: Z) -> Zip<Self, Z::Iter>
-        where Z: IntoParallelIterator,
-              Z::Iter: IndexedParallelIterator
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              Z: IntoParallelIterator<Scheduler = DefaultScheduler>,
+              Z::Iter: IndexedParallelIterator,
     {
         zip::new(self, zip_op.into_par_iter())
     }
@@ -786,7 +815,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
     fn cmp<I>(mut self, other: I) -> Ordering
-        where I: IntoParallelIterator<Item = Self::Item>,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Item = Self::Item, Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: Ord
     {
@@ -801,7 +831,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
     fn partial_cmp<I>(mut self, other: I) -> Option<Ordering>
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialOrd<I::Item>
     {
@@ -816,7 +847,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Determines if the elements of this `ParallelIterator`
     /// are equal to those of another
     fn eq<I>(mut self, other: I) -> bool
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialEq<I::Item>
     {
@@ -827,7 +859,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Determines if the elements of this `ParallelIterator`
     /// are unequal to those of another
     fn ne<I>(self, other: I) -> bool
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialEq<I::Item>
     {
@@ -837,7 +870,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Determines if the elements of this `ParallelIterator`
     /// are lexicographically less than those of another.
     fn lt<I>(self, other: I) -> bool
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialOrd<I::Item>
     {
@@ -847,7 +881,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Determines if the elements of this `ParallelIterator`
     /// are less or equal to those of another.
     fn le<I>(self, other: I) -> bool
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialOrd<I::Item>
     {
@@ -858,7 +893,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Determines if the elements of this `ParallelIterator`
     /// are lexicographically greater than those of another.
     fn gt<I>(self, other: I) -> bool
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialOrd<I::Item>
     {
@@ -868,7 +904,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Determines if the elements of this `ParallelIterator`
     /// are less or equal to those of another.
     fn ge<I>(self, other: I) -> bool
-        where I: IntoParallelIterator,
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+              I: IntoParallelIterator<Scheduler = DefaultScheduler>,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialOrd<I::Item>
     {
@@ -996,7 +1033,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// iterators.
     ///
     /// [README]: README.md
-    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
+    fn drive<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: Consumer<Self::Item>, S: Scheduler;
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
@@ -1013,7 +1051,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// iterators.
     ///
     /// [README]: README.md
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
+    fn with_producer<CB, S>(self, callback: CB, scheduler: S) -> CB::Output
+        where CB: ProducerCallback<Self::Item>, S: Scheduler;
 }
 
 /// `FromParallelIterator` implements the conversion from a [`ParallelIterator`].

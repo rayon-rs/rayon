@@ -28,12 +28,13 @@ impl<I, P> ParallelIterator for Filter<I, P>
           P: Fn(&I::Item) -> bool + Sync + Send
 {
     type Item = I::Item;
+    type Scheduler = I::Scheduler;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    fn drive_unindexed<C, S>(self, consumer: C, scheduler: S) -> C::Result
+        where C: UnindexedConsumer<Self::Item>, S: Scheduler,
     {
         let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
-        self.base.drive_unindexed(consumer1)
+        self.base.drive_unindexed(consumer1, scheduler)
     }
 }
 

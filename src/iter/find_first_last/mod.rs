@@ -43,7 +43,7 @@ pub fn find_first<I, P>(pi: I, find_op: P) -> Option<I::Item>
 {
     let best_found = AtomicUsize::new(usize::max_value());
     let consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &best_found);
-    pi.drive_unindexed(consumer)
+    pi.drive_unindexed(consumer, DefaultScheduler)
 }
 
 pub fn find_last<I, P>(pi: I, find_op: P) -> Option<I::Item>
@@ -52,7 +52,7 @@ pub fn find_last<I, P>(pi: I, find_op: P) -> Option<I::Item>
 {
     let best_found = AtomicUsize::new(0);
     let consumer = FindConsumer::new(&find_op, MatchPosition::Rightmost, &best_found);
-    pi.drive_unindexed(consumer)
+    pi.drive_unindexed(consumer, DefaultScheduler)
 }
 
 struct FindConsumer<'p, P: 'p> {

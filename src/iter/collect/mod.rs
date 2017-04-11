@@ -1,4 +1,6 @@
 use super::{ParallelIterator, IndexedParallelIterator, IntoParallelIterator, ParallelExtend};
+use super::internal::DefaultScheduler;
+
 use std::collections::LinkedList;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -18,7 +20,7 @@ pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
 {
     v.truncate(0); // clear any old data
     let mut collect = Collect::new(v, pi.len());
-    pi.drive(collect.as_consumer());
+    pi.drive(collect.as_consumer(), DefaultScheduler);
     collect.complete();
 }
 
@@ -38,7 +40,7 @@ fn special_extend<I, T>(pi: I, len: usize, v: &mut Vec<T>)
           T: Send
 {
     let mut collect = Collect::new(v, len);
-    pi.drive_unindexed(collect.as_consumer());
+    pi.drive_unindexed(collect.as_consumer(), DefaultScheduler);
     collect.complete();
 }
 
