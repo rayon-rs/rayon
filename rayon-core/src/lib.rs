@@ -173,8 +173,9 @@ impl Configuration {
     /// If `num_threads` is 0, or you do not call this function, then
     /// the Rayon runtime will select the number of threads
     /// automatically. At present, this is based on the
-    /// `RAYON_RS_NUM_CPUS` (if set), or the number of logical CPUs
-    /// (otherwise). In the future, however, the default behavior may
+    /// `RAYON_RS_NUM_CPUS` environment variable (if set), 
+    /// or the number of logical CPUs (otherwise). 
+    /// In the future, however, the default behavior may
     /// change to dynamically add or remove threads as needed.
     ///
     /// **Future compatibility warning:** Given the default behavior
