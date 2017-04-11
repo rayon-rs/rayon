@@ -207,7 +207,7 @@ would have to have. If we were going to write the `with_producer`
 method using a closure, it would have to look something like this:
 
 ```rust
-pub trait IndexedParallelIterator: ExactParallelIterator {
+pub trait IndexedParallelIterator: ParallelIterator {
     type Producer;
     fn with_producer<CB, R>(self, callback: CB) -> R
         where CB: FnOnce(Self::Producer) -> R;

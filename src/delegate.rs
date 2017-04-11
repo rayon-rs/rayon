@@ -98,25 +98,17 @@ macro_rules! delegate_indexed_iterator_item {
             impl $( $args )*
         }
 
-        impl $( $args )* BoundedParallelIterator for $iter < $( $i ),* > {
-            fn upper_bound(&mut self) -> usize {
-                self.inner.upper_bound()
-            }
-
+        impl $( $args )* IndexedParallelIterator for $iter < $( $i ),* > {
             fn drive<C>(self, consumer: C) -> C::Result
                 where C: Consumer<Self::Item>
             {
                 self.inner.drive(consumer)
             }
-        }
 
-        impl $( $args )* ExactParallelIterator for $iter < $( $i ),* > {
             fn len(&mut self) -> usize {
                 self.inner.len()
             }
-        }
 
-        impl $( $args )* IndexedParallelIterator for $iter < $( $i ),* > {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {

@@ -38,23 +38,6 @@ impl<I, P, R> ParallelIterator for FilterMap<I, P>
     }
 }
 
-impl<I, P, R> BoundedParallelIterator for FilterMap<I, P>
-    where I: BoundedParallelIterator,
-          P: Fn(I::Item) -> Option<R> + Sync,
-          R: Send
-{
-    fn upper_bound(&mut self) -> usize {
-        self.base.upper_bound()
-    }
-
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
-    {
-        let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
-        self.base.drive(consumer)
-    }
-}
-
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 

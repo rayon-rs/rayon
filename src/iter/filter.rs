@@ -37,22 +37,6 @@ impl<I, P> ParallelIterator for Filter<I, P>
     }
 }
 
-impl<I, P> BoundedParallelIterator for Filter<I, P>
-    where I: BoundedParallelIterator,
-          P: Fn(&I::Item) -> bool + Sync
-{
-    fn upper_bound(&mut self) -> usize {
-        self.base.upper_bound()
-    }
-
-    fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
-    {
-        let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
-        self.base.drive(consumer1)
-    }
-}
-
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 

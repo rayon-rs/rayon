@@ -54,25 +54,17 @@ macro_rules! indexed_range_impl {
             }
         }
 
-        impl BoundedParallelIterator for Iter<$t> {
-            fn upper_bound(&mut self) -> usize {
-                ExactParallelIterator::len(self)
-            }
-
+        impl IndexedParallelIterator for Iter<$t> {
             fn drive<C>(self, consumer: C) -> C::Result
                 where C: Consumer<Self::Item>
             {
                 bridge(self, consumer)
             }
-        }
 
-        impl ExactParallelIterator for Iter<$t> {
             fn len(&mut self) -> usize {
                 self.range.len()
             }
-        }
 
-        impl IndexedParallelIterator for Iter<$t> {
             fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where CB: ProducerCallback<Self::Item>
             {

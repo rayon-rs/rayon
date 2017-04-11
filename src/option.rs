@@ -53,28 +53,20 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
     }
 }
 
-impl<T: Send> BoundedParallelIterator for IntoIter<T> {
-    fn upper_bound(&mut self) -> usize {
-        ExactParallelIterator::len(self)
-    }
-
+impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
         bridge(self, consumer)
     }
-}
 
-impl<T: Send> ExactParallelIterator for IntoIter<T> {
     fn len(&mut self) -> usize {
         match self.opt {
             Some(_) => 1,
             None => 0,
         }
     }
-}
 
-impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

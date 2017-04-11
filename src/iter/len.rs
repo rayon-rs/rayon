@@ -40,29 +40,17 @@ impl<I> ParallelIterator for MinLen<I>
     }
 }
 
-impl<I> BoundedParallelIterator for MinLen<I>
-    where I: IndexedParallelIterator
-{
-    fn upper_bound(&mut self) -> usize {
-        self.len()
-    }
-
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
-    }
-}
-
-impl<I> ExactParallelIterator for MinLen<I>
-    where I: IndexedParallelIterator
-{
-    fn len(&mut self) -> usize {
-        self.base.len()
-    }
-}
-
 impl<I> IndexedParallelIterator for MinLen<I>
     where I: IndexedParallelIterator
 {
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn len(&mut self) -> usize {
+        self.base.len()
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
@@ -171,29 +159,17 @@ impl<I> ParallelIterator for MaxLen<I>
     }
 }
 
-impl<I> BoundedParallelIterator for MaxLen<I>
-    where I: IndexedParallelIterator
-{
-    fn upper_bound(&mut self) -> usize {
-        self.len()
-    }
-
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
-    }
-}
-
-impl<I> ExactParallelIterator for MaxLen<I>
-    where I: IndexedParallelIterator
-{
-    fn len(&mut self) -> usize {
-        self.base.len()
-    }
-}
-
 impl<I> IndexedParallelIterator for MaxLen<I>
     where I: IndexedParallelIterator
 {
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn len(&mut self) -> usize {
+        self.base.len()
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {

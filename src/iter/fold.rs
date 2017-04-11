@@ -45,26 +45,6 @@ impl<U, I, ID, F> ParallelIterator for Fold<I, ID, F>
     }
 }
 
-impl<U, I, ID, F> BoundedParallelIterator for Fold<I, ID, F>
-    where I: BoundedParallelIterator,
-          F: Fn(U, I::Item) -> U + Sync,
-          ID: Fn() -> U + Sync,
-          U: Send
-{
-    fn upper_bound(&mut self) -> usize {
-        self.base.upper_bound()
-    }
-
-    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        let consumer1 = FoldConsumer {
-            base: consumer,
-            fold_op: &self.fold_op,
-            identity: &self.identity,
-        };
-        self.base.drive(consumer1)
-    }
-}
-
 struct FoldConsumer<'c, C, ID: 'c, F: 'c> {
     base: C,
     fold_op: &'c F,
