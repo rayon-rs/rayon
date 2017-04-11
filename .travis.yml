@@ -3,6 +3,9 @@ rust:
   - 1.12.0
   - stable
   - nightly
+os:
+  - linux
+  - osx
 
 # Using 16MB stacks for deep test/debug recursion
 env:
@@ -13,6 +16,10 @@ matrix:
   include:
   - rust: nightly
     env: FEATURES=unstable
+    os: linux
+  - rust: nightly
+    env: FEATURES=unstable
+    os: osx
 
 script:
   - cargo build --features="$FEATURES"
