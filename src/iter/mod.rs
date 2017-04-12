@@ -244,15 +244,6 @@ pub trait ParallelIterator: Sized {
             })
     }
 
-    /// Deprecated. Use `reduce()` instead.
-    #[deprecated(since = "v0.5.0", note = "call `reduce` instead")]
-    fn reduce_with_identity<OP>(self, identity: Self::Item, op: OP) -> Self::Item
-        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-              Self::Item: Clone + Sync
-    {
-        self.reduce(|| identity.clone(), op)
-    }
-
     /// Parallel fold is similar to sequential fold except that the
     /// sequence of items may be subdivided before it is
     /// folded. Consider a list of numbers like `22 3 77 89 46`. If
@@ -424,15 +415,6 @@ pub trait ParallelIterator: Sized {
         product::product(self)
     }
 
-    /// DEPRECATED
-    #[deprecated(since = "v0.6.0",
-        note = "name changed to `product()` to match sequential iterators")]
-    fn mul(self) -> Self::Item
-        where Self::Item: Product
-    {
-        product::product(self)
-    }
-
     /// Computes the minimum of all the items in the iterator. If the
     /// iterator is empty, `None` is returned; otherwise, `Some(min)`
     /// is returned.
@@ -579,15 +561,6 @@ pub trait ParallelIterator: Sized {
         where P: Fn(&Self::Item) -> bool + Sync
     {
         find_first_last::find_last(self, predicate)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, \\
-    `find_first`, or `find_last`")]
-    fn find<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync
-    {
-        self.find_any(predicate)
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -848,15 +821,6 @@ pub trait IndexedParallelIterator: ParallelIterator {
             .enumerate()
             .find_last(|&(_, p)| p)
             .map(|(i, _)| i)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, \\
-    `position_first`, or `position_last`")]
-    fn position<P>(self, predicate: P) -> Option<usize>
-        where P: Fn(Self::Item) -> bool + Sync
-    {
-        self.position_any(predicate)
     }
 
     /// Produces a new iterator with the elements of this iterator in
