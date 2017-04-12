@@ -233,11 +233,15 @@ pub trait ParallelIterator: Sized {
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync
     {
-        self.map(Some).reduce(|| None, |opt_a, opt_b| match (opt_a, opt_b) {
-            (Some(a), Some(b)) => Some(op(a, b)),
-            (Some(v), None) | (None, Some(v)) => Some(v),
-            (None, None) => None,
-        })
+        self.fold(|| None, |opt_a, b| match opt_a {
+                Some(a) => Some(op(a, b)),
+                None => Some(b),
+            })
+            .reduce(|| None, |opt_a, opt_b| match (opt_a, opt_b) {
+                (Some(a), Some(b)) => Some(op(a, b)),
+                (Some(v), None) | (None, Some(v)) => Some(v),
+                (None, None) => None,
+            })
     }
 
     /// Deprecated. Use `reduce()` instead.
