@@ -1217,6 +1217,25 @@ fn min_max_by() {
         .collect();
     for i in 0..a.len() + 1 {
         let slice = &a[..i];
+        assert_eq!(slice.par_iter().min_by(|x, y| x.0.cmp(&y.0)),
+                   slice.iter().min_by(|x, y| x.0.cmp(&y.0)));
+        assert_eq!(slice.par_iter().max_by(|x, y| x.0.cmp(&y.0)),
+                   slice.iter().max_by(|x, y| x.0.cmp(&y.0)));
+    }
+}
+
+#[test]
+fn min_max_by_key() {
+    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
+    // Make sure there are duplicate keys, for testing sort stability
+    let r: Vec<i32> = rng.gen_iter().take(512).collect();
+    let a: Vec<(i32, u16)> = r.iter()
+        .chain(&r)
+        .cloned()
+        .zip(0..)
+        .collect();
+    for i in 0..a.len() + 1 {
+        let slice = &a[..i];
         assert_eq!(slice.par_iter().min_by_key(|x| x.0),
                    slice.iter().min_by_key(|x| x.0));
         assert_eq!(slice.par_iter().max_by_key(|x| x.0),
