@@ -448,6 +448,22 @@ pub trait ParallelIterator: Sized {
         self.reduce_with(cmp::min)
     }
 
+    /// Computes the minimum of all the items in the iterator with respect to
+    /// the given comparison function. If the iterator is empty, `None` is
+    /// returned; otherwise, `Some(min)` is returned.
+    ///
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the comparison function is not associative, then
+    /// the results are not deterministic.
+    fn min_by<F>(self, f: F) -> Option<Self::Item>
+        where F: Sync + Fn(&Self::Item, &Self::Item) -> Ordering
+    {
+        self.reduce_with(|a, b| match f(&a, &b) {
+                             Ordering::Greater => b,
+                             _ => a,
+                         })
+    }
+
     /// Computes the item that yields the minimum value for the given
     /// function. If the iterator is empty, `None` is returned;
     /// otherwise, `Some(item)` is returned.
@@ -460,10 +476,7 @@ pub trait ParallelIterator: Sized {
               F: Sync + Fn(&Self::Item) -> K
     {
         self.map(|x| (f(&x), x))
-            .reduce_with(|a, b| match (a.0).cmp(&b.0) {
-                             Ordering::Greater => b,
-                             _ => a,
-                         })
+            .min_by(|a, b| (a.0).cmp(&b.0))
             .map(|(_, x)| x)
     }
 
@@ -482,6 +495,22 @@ pub trait ParallelIterator: Sized {
         self.reduce_with(cmp::max)
     }
 
+    /// Computes the maximum of all the items in the iterator with respect to
+    /// the given comparison function. If the iterator is empty, `None` is
+    /// returned; otherwise, `Some(min)` is returned.
+    ///
+    /// Note that the order in which the items will be reduced is not
+    /// specified, so if the comparison function is not associative, then
+    /// the results are not deterministic.
+    fn max_by<F>(self, f: F) -> Option<Self::Item>
+        where F: Sync + Fn(&Self::Item, &Self::Item) -> Ordering
+    {
+        self.reduce_with(|a, b| match f(&a, &b) {
+                             Ordering::Greater => a,
+                             _ => b,
+                         })
+    }
+
     /// Computes the item that yields the maximum value for the given
     /// function. If the iterator is empty, `None` is returned;
     /// otherwise, `Some(item)` is returned.
@@ -494,10 +523,7 @@ pub trait ParallelIterator: Sized {
               F: Sync + Fn(&Self::Item) -> K
     {
         self.map(|x| (f(&x), x))
-            .reduce_with(|a, b| match (a.0).cmp(&b.0) {
-                             Ordering::Greater => a,
-                             _ => b,
-                         })
+            .max_by(|a, b| (a.0).cmp(&b.0))
             .map(|(_, x)| x)
     }
 
