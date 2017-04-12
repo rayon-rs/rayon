@@ -91,7 +91,7 @@ computation and then executing it. See the
 more details. (Sorry, proper documentation is still somewhat lacking.)
 
 [regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
-[pt]: https://github.com/nikomatsakis/rayon/blob/master/src/par_iter/mod.rs
+[pt]: https://github.com/nikomatsakis/rayon/blob/master/src/iter/mod.rs
 
 ### Using join for recursive, divide-and-conquer problems
 
