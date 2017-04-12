@@ -8,6 +8,9 @@
 
 extern crate rayon_core;
 
+#[cfg(feature = "unstable")]
+extern crate futures;
+
 #[cfg(test)]
 extern crate rand;
 
@@ -26,6 +29,8 @@ pub mod result;
 pub mod slice;
 pub mod str;
 pub mod vec;
+
+mod pipeline;
 
 mod test;
 

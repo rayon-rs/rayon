@@ -8,5 +8,6 @@ pub use iter::IntoParallelRefIterator;
 pub use iter::IntoParallelRefMutIterator;
 pub use iter::IndexedParallelIterator;
 pub use iter::ParallelIterator;
+pub use pipeline::IntoParPipeline;
 pub use slice::ParallelSlice;
 pub use str::ParallelString;

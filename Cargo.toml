@@ -14,6 +14,7 @@ exclude = ["ci"]
 
 [dependencies]
 rayon-core = { version = "1.0", path = "rayon-core" }
+futures = { version = "0.1.7", optional = true }
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
@@ -25,4 +26,4 @@ rustc-serialize = "0.3"
 [features]
 # Unstable APIs that have not yet
 # proven their utility.
-unstable = ["rayon-core/unstable"]
+unstable = ["rayon-core/unstable", "futures"]
