@@ -213,7 +213,7 @@ pub trait ParallelIterator: Sized {
         where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
               ID: Fn() -> Self::Item + Sync
     {
-        reduce::reduce(self, &reduce::ReduceWithIdentityOp::new(&identity, &op))
+        reduce::reduce(self, identity, op)
     }
 
     /// Reduces the items in the iterator into one item using `op`.
