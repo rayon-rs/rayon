@@ -15,7 +15,7 @@ fn main() {
 
     x.par_iter()
         .map(|&x| x) //~ ERROR Send` is not satisfied
-        .count(); //~ ERROR no method named `count`
+        .count(); //~ ERROR Send` is not satisfied
 
     x.par_iter()
         .filter_map(|&x| Some(x)) //~ ERROR Send` is not satisfied
@@ -23,5 +23,5 @@ fn main() {
 
     x.par_iter()
         .cloned() //~ ERROR Send` is not satisfied
-        .count(); //~ ERROR no method named `count`
+        .count(); //~ ERROR Send` is not satisfied
 }
