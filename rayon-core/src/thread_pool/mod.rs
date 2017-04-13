@@ -1,6 +1,6 @@
 use Configuration;
 #[cfg(feature = "unstable")]
-use future::{Future, RayonFuture};
+use future::{Async, Future, Poll, RayonFuture};
 use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
@@ -47,6 +47,35 @@ impl ThreadPool {
             self.registry.inject(&[job_a.as_job_ref()]);
             job_a.latch.wait();
             job_a.into_result()
+        }
+    }
+
+    /// Executes `op` within the threadpool without blocking the
+    /// calling thread. Any attempts to use `join`, `scope`, or
+    /// parallel iterators will then operate within that
+    /// threadpool.
+    ///
+    /// # Warning: thread-local data
+    ///
+    /// Because `op` is executing within the Rayon thread-pool,
+    /// thread-local data from the current thread will not be
+    /// accessible.
+    ///
+    /// # Panics
+    ///
+    /// Polling the [`InstallFuture`] will propagate panics from
+    /// `op`.
+    ///
+    /// [`InstallFuture`]: struct.InstallFuture.html
+    #[cfg(feature = "unstable")]
+    pub fn install_future<OP, R>(&self, op: OP) -> InstallFuture<OP, R>
+        where OP: FnOnce() -> R + Send
+    {
+        unsafe {
+            let job_a = StackJob::new(op, LockLatch::new());
+            self.registry.inject(&[job_a.as_job_ref()]);
+
+            InstallFuture { job: Some(job_a) }
         }
     }
 
@@ -121,5 +150,49 @@ impl ThreadPool {
 impl Drop for ThreadPool {
     fn drop(&mut self) {
         self.registry.terminate();
+    }
+}
+
+/// The future returned by [`ThreadPool::install_future`].
+///
+/// [`ThreadPool::install_future`]: struct.ThreadPool.html#method.install_future
+#[cfg(feature = "unstable")]
+pub struct InstallFuture<F, R>
+    where F: FnOnce() -> R + Send
+{
+    job: Option<StackJob<LockLatch, F, R>>,
+}
+
+#[cfg(feature = "unstable")]
+impl<F, R> Future for InstallFuture<F, R>
+    where F: FnOnce() -> R + Send
+{
+    type Item = R;
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<R, ()> {
+        use latch::LatchProbe;
+
+        {
+            let job = self.job.as_ref().expect("Contract error: poll already returned a value");
+            if !job.latch.probe() {
+                return Ok(Async::NotReady);
+            }
+        }
+
+        unsafe {
+            Ok(Async::Ready(self.job
+                                .take()
+                                .unwrap()
+                                .into_result()))
+        }
+    }
+
+    fn wait(self) -> Result<R, ()> {
+        let job = self.job.expect("Contract error: poll already returned a value");
+
+        job.latch.wait();
+
+        unsafe { Ok(job.into_result()) }
     }
 }

@@ -18,6 +18,18 @@ fn panic_propagate() {
 }
 
 #[test]
+#[cfg(feature = "unstable")]
+#[should_panic(expected = "Bye, future world!")]
+fn panic_propagate_future() {
+    use future::Future;
+
+    let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
+    thread_pool.install_future(|| {
+        panic!("Bye, future world!");
+    }).wait().unwrap();
+}
+
+#[test]
 fn workers_stop() {
     let registry;
 

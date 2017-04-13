@@ -8,7 +8,6 @@
 use latch::{LatchProbe};
 #[allow(warnings)]
 use log::Event::*;
-use futures::{Async, Poll};
 use futures::executor;
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task, Unpark};
@@ -23,7 +22,7 @@ use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
 use unwind;
 
-pub use futures::Future;
+pub use futures::{Async, Future, Poll};
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
