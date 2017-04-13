@@ -21,41 +21,81 @@ fn icosahedron() -> ([Vertex; 12], Vec<u8>) {
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
 
     let vertices = [
-        Vertex { position: [ phi,  1.0,  0.0] },
-        Vertex { position: [ phi, -1.0,  0.0] },
-        Vertex { position: [-phi,  1.0,  0.0] },
-        Vertex { position: [-phi, -1.0,  0.0] },
-        Vertex { position: [ 0.0,  phi,  1.0] },
-        Vertex { position: [ 0.0,  phi, -1.0] },
-        Vertex { position: [ 0.0, -phi,  1.0] },
-        Vertex { position: [ 0.0, -phi, -1.0] },
-        Vertex { position: [ 1.0,  0.0,  phi] },
-        Vertex { position: [-1.0,  0.0,  phi] },
-        Vertex { position: [ 1.0,  0.0, -phi] },
-        Vertex { position: [-1.0,  0.0, -phi] },
+        Vertex { position: [phi, 1.0, 0.0] },
+        Vertex { position: [phi, -1.0, 0.0] },
+        Vertex { position: [-phi, 1.0, 0.0] },
+        Vertex { position: [-phi, -1.0, 0.0] },
+        Vertex { position: [0.0, phi, 1.0] },
+        Vertex { position: [0.0, phi, -1.0] },
+        Vertex { position: [0.0, -phi, 1.0] },
+        Vertex { position: [0.0, -phi, -1.0] },
+        Vertex { position: [1.0, 0.0, phi] },
+        Vertex { position: [-1.0, 0.0, phi] },
+        Vertex { position: [1.0, 0.0, -phi] },
+        Vertex { position: [-1.0, 0.0, -phi] },
     ];
 
     let indices = vec![
-        0,  1,  8,
-        0,  4,  5,
-        0,  5, 10,
-        0,  8,  4,
-        0, 10,  1,
-        1,  6,  8,
-        1,  7,  6,
-        1, 10,  7,
-        2,  3, 11,
-        2,  4,  9,
-        2,  5,  4,
-        2,  9,  3,
-        2, 11,  5,
-        3,  6,  7,
-        3,  7, 11,
-        3,  9,  6,
-        4,  8,  9,
-        5, 11, 10,
-        6,  9,  8,
-        7, 10, 11,
+        0,
+        1,
+        8,
+        0,
+        4,
+        5,
+        0,
+        5,
+        10,
+        0,
+        8,
+        4,
+        0,
+        10,
+        1,
+        1,
+        6,
+        8,
+        1,
+        7,
+        6,
+        1,
+        10,
+        7,
+        2,
+        3,
+        11,
+        2,
+        4,
+        9,
+        2,
+        5,
+        4,
+        2,
+        9,
+        3,
+        2,
+        11,
+        5,
+        3,
+        6,
+        7,
+        3,
+        7,
+        11,
+        3,
+        9,
+        6,
+        4,
+        8,
+        9,
+        5,
+        11,
+        10,
+        6,
+        9,
+        8,
+        7,
+        10,
+        11,
     ];
 
     (vertices, indices)
@@ -106,17 +146,17 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
         }
     "#;
 
-    let program = Program::from_source(&display, vertex_shader_src,
-                                       fragment_shader_src, None).unwrap();
+    let program = Program::from_source(&display, vertex_shader_src, fragment_shader_src, None)
+        .unwrap();
 
     let (vertices, indices) = icosahedron();
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = IndexBuffer::new(&display, PrimitiveType::TrianglesList, &indices).unwrap();
 
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let instances: Vec<_> =
-        (0..num_bodies)
-            .map(|_| {
+    let instances: Vec<_> = (0..num_bodies)
+        .map(
+            |_| {
                 Instance {
                     color: [
                         rng.gen_range(0.5, 1.0),
@@ -125,8 +165,9 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                     ],
                     world_position: [0.0, 0.0, 0.0],
                 }
-            })
-            .collect();
+            },
+        )
+        .collect();
 
     let mut instance_buffer = VertexBuffer::dynamic(&display, &instances).unwrap();
 
@@ -152,9 +193,9 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
             depth: Depth {
                 test: DepthTest::IfLess,
                 write: true,
-                .. Default::default()
+                ..Default::default()
             },
-            .. Default::default()
+            ..Default::default()
         };
 
         let mut target = display.draw();
@@ -163,15 +204,23 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
         let aspect = width as f32 / height as f32;
 
         let proj = cgmath::perspective(Rad::full_turn() / 6.0, aspect, 0.1, 3000.0);
-        let view = Matrix4::look_at(Point3::new(10.0, 10.0, 10.0), Point3::origin(), Vector3::unit_z());
+        let view = Matrix4::look_at(
+            Point3::new(10.0, 10.0, 10.0),
+            Point3::origin(),
+            Vector3::unit_z(),
+        );
         let view_proj: [[f32; 4]; 4] = (proj * view).into();
 
         target.clear_color_and_depth((0.1, 0.1, 0.1, 1.0), 1.0);
-        target.draw((&vertex_buffer, instance_buffer.per_instance().unwrap()),
-                    &index_buffer,
-                    &program,
-                    &uniform! { matrix: view_proj },
-                    &params).unwrap();
+        target
+            .draw(
+                (&vertex_buffer, instance_buffer.per_instance().unwrap()),
+                &index_buffer,
+                &program,
+                &uniform! { matrix: view_proj },
+                &params,
+            )
+            .unwrap();
         target.finish().unwrap();
 
         for event in display.poll_events() {
@@ -187,7 +236,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                 Event::KeyboardInput(ElementState::Pressed, _, Some(Key::R)) => {
                     mode = ExecutionMode::ParReduce;
                 }
-                _ => ()
+                _ => (),
             }
         }
     }

@@ -31,7 +31,9 @@ fn fib_iterative(n: u32) -> u32 {
 }
 
 fn fib_recursive(n: u32) -> u32 {
-    if n < 2 { return n; }
+    if n < 2 {
+        return n;
+    }
 
     fib_recursive(n - 1) + fib_recursive(n - 2)
 }
@@ -49,11 +51,11 @@ fn fibonacci_recursive(b: &mut test::Bencher) {
 /// The larger branch F(N-1) is computed first.
 fn fibonacci_join_1_2(b: &mut test::Bencher) {
     fn fib(n: u32) -> u32 {
-        if n < 2 { return n; }
+        if n < 2 {
+            return n;
+        }
 
-        let (a, b) = rayon::join(
-            || fib(n - 1),
-            || fib(n - 2));
+        let (a, b) = rayon::join(|| fib(n - 1), || fib(n - 2));
         a + b
     }
 
@@ -66,11 +68,11 @@ fn fibonacci_join_1_2(b: &mut test::Bencher) {
 /// The smaller branch F(N-2) is computed first.
 fn fibonacci_join_2_1(b: &mut test::Bencher) {
     fn fib(n: u32) -> u32 {
-        if n < 2 { return n; }
+        if n < 2 {
+            return n;
+        }
 
-        let (a, b) = rayon::join(
-            || fib(n - 2),
-            || fib(n - 1));
+        let (a, b) = rayon::join(|| fib(n - 2), || fib(n - 1));
         a + b
     }
 
@@ -84,15 +86,15 @@ fn fibonacci_split_recursive(b: &mut test::Bencher) {
     fn fib(n: u32) -> u32 {
         use rayon::iter::ParallelIterator;
 
-        rayon::split(n, |n| {
-                if n < 2 {
-                    (n, None)
-                } else {
-                    (n - 2, Some(n - 1))
-                }
-            })
-            .map(fib_recursive)
-            .sum()
+        rayon::split(
+            n, |n| if n < 2 {
+                (n, None)
+            } else {
+                (n - 2, Some(n - 1))
+            }
+        )
+                .map(fib_recursive)
+                .sum()
     }
 
     b.iter(|| assert_eq!(fib(test::black_box(N)), FN));
@@ -105,15 +107,15 @@ fn fibonacci_split_iterative(b: &mut test::Bencher) {
     fn fib(n: u32) -> u32 {
         use rayon::iter::ParallelIterator;
 
-        rayon::split(n, |n| {
-                if n < 2 {
-                    (n, None)
-                } else {
-                    (n - 2, Some(n - 1))
-                }
-            })
-            .map(fib_iterative)
-            .sum()
+        rayon::split(
+            n, |n| if n < 2 {
+                (n, None)
+            } else {
+                (n - 2, Some(n - 1))
+            }
+        )
+                .map(fib_iterative)
+                .sum()
     }
 
     b.iter(|| assert_eq!(fib(test::black_box(N)), FN));

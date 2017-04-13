@@ -43,7 +43,8 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -55,7 +56,8 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
 
 impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -68,7 +70,8 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         callback.callback(OptionProducer { opt: self.opt })
     }

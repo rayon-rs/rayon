@@ -47,10 +47,12 @@ impl Sleep {
 
     #[inline]
     pub fn work_found(&self, worker_index: usize, yields: usize) -> usize {
-        log!(FoundWork {
-            worker: worker_index,
-            yields: yields,
-        });
+        log!(
+            FoundWork {
+                worker: worker_index,
+                yields: yields,
+            }
+        );
         if yields > ROUNDS_UNTIL_SLEEPY {
             // FIXME tickling here is a bit extreme; mostly we want to "release the lock"
             // from us being sleepy, we don't necessarily need to wake others
@@ -62,10 +64,12 @@ impl Sleep {
 
     #[inline]
     pub fn no_work_found(&self, worker_index: usize, yields: usize) -> usize {
-        log!(DidNotFindWork {
-            worker: worker_index,
-            yields: yields,
-        });
+        log!(
+            DidNotFindWork {
+                worker: worker_index,
+                yields: yields,
+            }
+        );
         if yields < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
             yields + 1
@@ -114,10 +118,12 @@ impl Sleep {
         // were were going to sleep, we will acquire lock and hence
         // acquire their reads.
         let old_state = self.state.swap(AWAKE, Ordering::Release);
-        log!(Tickle {
-            worker: worker_index,
-            old_state: old_state,
-        });
+        log!(
+            Tickle {
+                worker: worker_index,
+                old_state: old_state,
+            }
+        );
         if self.anyone_sleeping(old_state) {
             let _data = self.data.lock().unwrap();
             self.tickle.notify_all();
@@ -133,17 +139,21 @@ impl Sleep {
             // assert a stronger order and acquire any reads etc that
             // we must see.
             let state = self.state.load(Ordering::Acquire);
-            log!(GetSleepy {
-                worker: worker_index,
-                state: state,
-            });
+            log!(
+                GetSleepy {
+                    worker: worker_index,
+                    state: state,
+                }
+            );
             if self.any_worker_is_sleepy(state) {
                 // somebody else is already sleepy, so we'll just wait our turn
-                debug_assert!(!self.worker_is_sleepy(state, worker_index),
-                              "worker {} called `is_sleepy()`, \
+                debug_assert!(
+                    !self.worker_is_sleepy(state, worker_index),
+                    "worker {} called `is_sleepy()`, \
                                but they are already sleepy (state={})",
-                              worker_index,
-                              state);
+                    worker_index,
+                    state
+                );
                 return false;
             } else {
                 // make ourselves the sleepy one
@@ -163,13 +173,20 @@ impl Sleep {
                 // The failure ordering doesn't matter since we are
                 // about to spin around and do a fresh load.
                 if self.state
-                    .compare_exchange(state, new_state, Ordering::SeqCst, Ordering::Relaxed)
-                    .is_ok() {
-                    log!(GotSleepy {
-                        worker: worker_index,
-                        old_state: state,
-                        new_state: new_state,
-                    });
+                       .compare_exchange(
+                    state,
+                    new_state,
+                    Ordering::SeqCst,
+                    Ordering::Relaxed,
+                )
+                       .is_ok() {
+                    log!(
+                        GotSleepy {
+                            worker: worker_index,
+                            old_state: state,
+                            new_state: new_state,
+                        }
+                    );
                     return true;
                 }
             }
@@ -244,8 +261,8 @@ impl Sleep {
                 // The failure ordering doesn't matter since we are
                 // about to spin around and do a fresh load.
                 if self.state
-                    .compare_exchange(state, SLEEPING, Ordering::SeqCst, Ordering::Relaxed)
-                    .is_ok() {
+                       .compare_exchange(state, SLEEPING, Ordering::SeqCst, Ordering::Relaxed)
+                       .is_ok() {
                     // Don't do this in a loop. If we do it in a loop, we need
                     // some way to distinguish the ABA scenario where the pool
                     // was awoken but before we could process it somebody went

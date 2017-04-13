@@ -3,12 +3,12 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Weight {
-    weight: usize
+    weight: usize,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Priority {
-    priority: usize
+    priority: usize,
 }
 
 impl Weight {
@@ -75,4 +75,3 @@ impl SubAssign for Weight {
         *self = *self - rhs;
     }
 }
-

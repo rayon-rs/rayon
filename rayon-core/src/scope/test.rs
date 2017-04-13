@@ -10,8 +10,7 @@ use unwind;
 
 #[test]
 fn scope_empty() {
-    scope(|_| {
-    });
+    scope(|_| {});
 }
 
 #[test]
@@ -23,14 +22,12 @@ fn scope_result() {
 #[test]
 fn scope_two() {
     let counter = &AtomicUsize::new(0);
-    scope(|s| {
-        s.spawn(move |_| {
-            counter.fetch_add(1, Ordering::SeqCst);
-        });
-        s.spawn(move |_| {
-            counter.fetch_add(10, Ordering::SeqCst);
-        });
-    });
+    scope(
+        |s| {
+            s.spawn(move |_| { counter.fetch_add(1, Ordering::SeqCst); });
+            s.spawn(move |_| { counter.fetch_add(10, Ordering::SeqCst); });
+        },
+    );
 
     let v = counter.load(Ordering::SeqCst);
     assert_eq!(v, 11);
@@ -83,21 +80,26 @@ impl<T> Tree<T> {
     }
 
     pub fn update<OP>(&mut self, op: OP)
-        where OP: Fn(&mut T) + Sync,
-              T: Send
+    where
+        OP: Fn(&mut T) + Sync,
+        T: Send,
     {
         scope(|s| self.update_in_scope(&op, s));
     }
 
     fn update_in_scope<'scope, OP>(&'scope mut self, op: &'scope OP, scope: &Scope<'scope>)
-        where OP: Fn(&mut T) + Sync
+    where
+        OP: Fn(&mut T) + Sync,
     {
-        let Tree { ref mut value, ref mut children } = *self;
-        scope.spawn(move |scope| {
-            for child in children {
+        let Tree {
+            ref mut value,
+            ref mut children,
+        } = *self;
+        scope.spawn(
+            move |scope| for child in children {
                 scope.spawn(move |scope| child.update_in_scope(op, scope));
-            }
-        });
+            },
+        );
 
         op(value);
     }
@@ -144,26 +146,32 @@ fn update_tree() {
 fn linear_stack_growth() {
     let config = Configuration::new().num_threads(1);
     let pool = ThreadPool::new(config).unwrap();
-    pool.install(|| {
-        let mut max_diff = Mutex::new(0);
-        let bottom_of_stack = 0;
-        scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 5));
-        let diff_when_5 = *max_diff.get_mut().unwrap() as f64;
+    pool.install(
+        || {
+            let mut max_diff = Mutex::new(0);
+            let bottom_of_stack = 0;
+            scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 5));
+            let diff_when_5 = *max_diff.get_mut().unwrap() as f64;
 
-        scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 500));
-        let diff_when_500 = *max_diff.get_mut().unwrap() as f64;
+            scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 500));
+            let diff_when_500 = *max_diff.get_mut().unwrap() as f64;
 
-        let ratio = diff_when_5 / diff_when_500;
-        assert!(ratio > 0.9 && ratio < 1.1,
+            let ratio = diff_when_5 / diff_when_500;
+            assert!(
+                ratio > 0.9 && ratio < 1.1,
                 "stack usage ratio out of bounds: {}",
-                ratio);
-    });
+                ratio
+            );
+        },
+    );
 }
 
-fn the_final_countdown<'scope>(s: &Scope<'scope>,
-                               bottom_of_stack: &'scope i32,
-                               max: &'scope Mutex<usize>,
-                               n: usize) {
+fn the_final_countdown<'scope>(
+    s: &Scope<'scope>,
+    bottom_of_stack: &'scope i32,
+    max: &'scope Mutex<usize>,
+    n: usize,
+) {
     let top_of_stack = 0;
     let p = bottom_of_stack as *const i32 as usize;
     let q = &top_of_stack as *const i32 as usize;
@@ -192,24 +200,28 @@ fn panic_propagate_spawn() {
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn panic_propagate_nested_spawn() {
-    scope(|s| s.spawn(|s| s.spawn(|s| s.spawn(|_| panic!("Hello, world!")))));
+    scope(|s| s.spawn(|s| s.spawn(|s| s.spawn(|_| panic!("Hello, world!")))),);
 }
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn panic_propagate_nested_scope_spawn() {
-    scope(|s| s.spawn(|_| scope(|s| s.spawn(|_| panic!("Hello, world!")))));
+    scope(|s| s.spawn(|_| scope(|s| s.spawn(|_| panic!("Hello, world!")))),);
 }
 
 #[test]
 fn panic_propagate_still_execute_1() {
     let mut x = false;
-    match unwind::halt_unwinding(|| {
-        scope(|s| {
-            s.spawn(|_| panic!("Hello, world!")); // job A
-            s.spawn(|_| x = true); // job B, should still execute even though A panics
-        });
-    }) {
+    match unwind::halt_unwinding(
+        || {
+            scope(
+                |s| {
+                    s.spawn(|_| panic!("Hello, world!")); // job A
+                    s.spawn(|_| x = true); // job B, should still execute even though A panics
+                },
+            );
+        },
+    ) {
         Ok(_) => panic!("failed to propagate panic"),
         Err(_) => assert!(x, "job b failed to execute"),
     }
@@ -218,12 +230,16 @@ fn panic_propagate_still_execute_1() {
 #[test]
 fn panic_propagate_still_execute_2() {
     let mut x = false;
-    match unwind::halt_unwinding(|| {
-        scope(|s| {
-            s.spawn(|_| x = true); // job B, should still execute even though A panics
-            s.spawn(|_| panic!("Hello, world!")); // job A
-        });
-    }) {
+    match unwind::halt_unwinding(
+        || {
+            scope(
+                |s| {
+                    s.spawn(|_| x = true); // job B, should still execute even though A panics
+                    s.spawn(|_| panic!("Hello, world!")); // job A
+                },
+            );
+        },
+    ) {
         Ok(_) => panic!("failed to propagate panic"),
         Err(_) => assert!(x, "job b failed to execute"),
     }
@@ -232,12 +248,16 @@ fn panic_propagate_still_execute_2() {
 #[test]
 fn panic_propagate_still_execute_3() {
     let mut x = false;
-    match unwind::halt_unwinding(|| {
-        scope(|s| {
-            s.spawn(|_| x = true); // spanwed job should still execute despite later panic
-            panic!("Hello, world!");
-        });
-    }) {
+    match unwind::halt_unwinding(
+        || {
+            scope(
+                |s| {
+                    s.spawn(|_| x = true); // spanwed job should still execute despite later panic
+                    panic!("Hello, world!");
+                },
+            );
+        },
+    ) {
         Ok(_) => panic!("failed to propagate panic"),
         Err(_) => assert!(x, "panic after spawn, spawn failed to execute"),
     }
@@ -246,12 +266,16 @@ fn panic_propagate_still_execute_3() {
 #[test]
 fn panic_propagate_still_execute_4() {
     let mut x = false;
-    match unwind::halt_unwinding(|| {
-        scope(|s| {
-            s.spawn(|_| panic!("Hello, world!"));
-            x = true;
-        });
-    }) {
+    match unwind::halt_unwinding(
+        || {
+            scope(
+                |s| {
+                    s.spawn(|_| panic!("Hello, world!"));
+                    x = true;
+                },
+            );
+        },
+    ) {
         Ok(_) => panic!("failed to propagate panic"),
         Err(_) => assert!(x, "panic in spawn tainted scope"),
     }

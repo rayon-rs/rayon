@@ -243,10 +243,12 @@ pub struct Scope<'scope> {
 /// returns once all spawned jobs have completed, and any panics are
 /// propagated at that point.
 pub fn scope<'scope, OP, R>(op: OP) -> R
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send,
+where
+    OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send,
+    R: Send,
 {
-    in_worker(|owner_thread| {
-        unsafe {
+    in_worker(
+        |owner_thread| unsafe {
             let scope: Scope<'scope> = Scope {
                 owner_thread: owner_thread as *const WorkerThread as *mut WorkerThread,
                 panic: AtomicPtr::new(ptr::null_mut()),
@@ -256,8 +258,8 @@ pub fn scope<'scope, OP, R>(op: OP) -> R
             let result = scope.execute_job_closure(op);
             scope.steal_till_jobs_complete();
             result.unwrap() // only None if `op` panicked, and that would have been propagated
-        }
-    })
+        },
+    )
 }
 
 impl<'scope> Scope<'scope> {
@@ -267,12 +269,12 @@ impl<'scope> Scope<'scope> {
     /// own reference to `self` as argument. This can be used to
     /// inject new jobs into `self`.
     pub fn spawn<BODY>(&self, body: BODY)
-        where BODY: FnOnce(&Scope<'scope>) + 'scope
+    where
+        BODY: FnOnce(&Scope<'scope>) + 'scope,
     {
         unsafe {
             self.job_completed_latch.increment();
-            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
-                .as_job_ref();
+            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body))).as_job_ref();
             let worker_thread = WorkerThread::current();
 
             // the `Scope` is not send or sync, and we only give out
@@ -286,7 +288,8 @@ impl<'scope> Scope<'scope> {
 
     #[cfg(feature = "unstable")]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'scope
+    where
+        F: Future + Send + 'scope,
     {
         // We assert that the scope is allocated in a stable location
         // (an enclosing stack frame, to be exact) which will remain
@@ -296,7 +299,7 @@ impl<'scope> Scope<'scope> {
         return future::new_rayon_future(future, future_scope);
 
         struct ScopeFutureScope<'scope> {
-            scope: *const Scope<'scope>
+            scope: *const Scope<'scope>,
         }
 
         impl<'scope> ScopeFutureScope<'scope> {
@@ -314,9 +317,7 @@ impl<'scope> Scope<'scope> {
         /// that point.
         unsafe impl<'scope> future::FutureScope<'scope> for ScopeFutureScope<'scope> {
             fn registry(&self) -> Arc<Registry> {
-                unsafe {
-                    (*(*self.scope).owner_thread).registry().clone()
-                }
+                unsafe { (*(*self.scope).owner_thread).registry().clone() }
             }
 
             fn future_completed(self) {
@@ -338,7 +339,8 @@ impl<'scope> Scope<'scope> {
     ///
     /// Unsafe because it must be executed on a worker thread.
     unsafe fn execute_job<FUNC>(&self, func: FUNC)
-        where FUNC: FnOnce(&Scope<'scope>) + 'scope
+    where
+        FUNC: FnOnce(&Scope<'scope>) + 'scope,
     {
         let _: Option<()> = self.execute_job_closure(func);
     }
@@ -349,11 +351,18 @@ impl<'scope> Scope<'scope> {
     ///
     /// Unsafe because this must be executed on a worker thread.
     unsafe fn execute_job_closure<FUNC, R>(&self, func: FUNC) -> Option<R>
-        where FUNC: FnOnce(&Scope<'scope>) -> R + 'scope
+    where
+        FUNC: FnOnce(&Scope<'scope>) -> R + 'scope,
     {
         match unwind::halt_unwinding(move || func(self)) {
-            Ok(r) => { self.job_completed_ok(); Some(r) }
-            Err(err) => { self.job_panicked(err); None }
+            Ok(r) => {
+                self.job_completed_ok();
+                Some(r)
+            }
+            Err(err) => {
+                self.job_panicked(err);
+                None
+            }
         }
     }
 
@@ -361,7 +370,9 @@ impl<'scope> Scope<'scope> {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
-        if self.panic.compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed).is_ok() {
+        if self.panic
+               .compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed)
+               .is_ok() {
             log!(JobPanickedErrorStored { owner_thread: (*self.owner_thread).index() });
             mem::forget(err); // ownership now transferred into self.panic
         } else {

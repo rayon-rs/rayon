@@ -43,7 +43,8 @@ use unwind;
 /// });
 /// ```
 pub fn spawn_async<F>(func: F)
-    where F: FnOnce() + Send + 'static
+where
+    F: FnOnce() + Send + 'static,
 {
     // We assert that current registry has not terminated.
     unsafe { spawn_async_in(func, &Registry::current()) }
@@ -55,25 +56,30 @@ pub fn spawn_async<F>(func: F)
 ///
 /// Not a public API, but used elsewhere in Rayon.
 pub unsafe fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
-    where F: FnOnce() + Send + 'static
+where
+    F: FnOnce() + Send + 'static,
 {
     // Ensure that registry cannot terminate until this job has
     // executed. This ref is decremented at the (*) below.
     registry.increment_terminate_count();
 
-    let async_job = Box::new(HeapJob::new({
-        let registry = registry.clone();
-        move || {
-            match unwind::halt_unwinding(func) {
-                Ok(()) => {
+    let async_job = Box::new(
+        HeapJob::new(
+            {
+                let registry = registry.clone();
+                move || {
+                    match unwind::halt_unwinding(func) {
+                        Ok(()) => {
                 }
-                Err(err) => {
-                    registry.handle_panic(err);
+                        Err(err) => {
+                            registry.handle_panic(err);
+                        }
+                    }
+                    registry.terminate(); // (*) permit registry to terminate now
                 }
-            }
-            registry.terminate(); // (*) permit registry to terminate now
-        }
-    }));
+            },
+        ),
+    );
 
     // We assert that this does not hold any references (we know
     // this because of the `'static` bound in the inferface);
@@ -94,7 +100,8 @@ pub unsafe fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
 /// If this future should panic, that panic will be propagated when
 /// `poll()` is invoked on the return value.
 pub fn spawn_future_async<F>(future: F) -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'static
+where
+    F: Future + Send + 'static,
 {
     /// We assert that the current registry cannot yet have terminated.
     unsafe { spawn_future_async_in(future, Registry::current()) }
@@ -103,8 +110,12 @@ pub fn spawn_future_async<F>(future: F) -> RayonFuture<F::Item, F::Error>
 /// Internal helper function.
 ///
 /// Unsafe because caller must guarantee that `registry` has not yet terminated.
-pub unsafe fn spawn_future_async_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'static
+pub unsafe fn spawn_future_async_in<F>(
+    future: F,
+    registry: Arc<Registry>,
+) -> RayonFuture<F::Item, F::Error>
+where
+    F: Future + Send + 'static,
 {
     let scope = StaticFutureScope::new(registry.clone());
 
@@ -112,7 +123,7 @@ pub unsafe fn spawn_future_async_in<F>(future: F, registry: Arc<Registry>) -> Ra
 }
 
 struct StaticFutureScope {
-    registry: Arc<Registry>
+    registry: Arc<Registry>,
 }
 
 impl StaticFutureScope {

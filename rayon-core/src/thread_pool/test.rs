@@ -12,9 +12,11 @@ use unwind;
 #[should_panic(expected = "Hello, world!")]
 fn panic_propagate() {
     let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
-    thread_pool.install(|| {
-                            panic!("Hello, world!");
-                        });
+    thread_pool.install(
+        || {
+            panic!("Hello, world!");
+        },
+    );
 }
 
 #[test]
@@ -24,12 +26,14 @@ fn workers_stop() {
     {
         // once we exit this block, thread-pool will be dropped
         let thread_pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
-        registry = thread_pool.install(|| {
-                                           // do some work on these threads
-                                           join_a_lot(22);
+        registry = thread_pool.install(
+            || {
+                // do some work on these threads
+                join_a_lot(22);
 
-                                           thread_pool.registry.clone()
-                                       });
+                thread_pool.registry.clone()
+            },
+        );
         assert_eq!(registry.num_threads(), 22);
     }
 
@@ -122,12 +126,14 @@ fn panic_thread_name() {
         .num_threads(10)
         .start_handler(move |i| start_handler(i))
         .exit_handler(move |i| exit_handler(i))
-        .thread_name(|i| {
-                         if i >= 5 {
-                             panic!();
-                         }
-                         format!("panic_thread_name#{}", i)
-                     });
+        .thread_name(
+            |i| {
+                if i >= 5 {
+                    panic!();
+                }
+                format!("panic_thread_name#{}", i)
+            },
+        );
 
     let pool = unwind::halt_unwinding(|| ThreadPool::new(config));
     assert!(pool.is_err(), "thread-name panic should propagate!");

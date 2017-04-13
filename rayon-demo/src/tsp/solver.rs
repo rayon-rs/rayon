@@ -6,8 +6,8 @@ use std::usize;
 
 use super::graph::{Graph, Node};
 use super::step;
-use super::tour::{TourPrefix};
-use super::weight::{Weight};
+use super::tour::TourPrefix;
+use super::weight::Weight;
 
 /// Shared context
 pub struct SolverCx<'s> {
@@ -23,7 +23,7 @@ pub struct SolverCx<'s> {
 /// lets us give them an ordering independent from the lower bound.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TourId {
-    id: usize
+    id: usize,
 }
 
 impl<'s> SolverCx<'s> {
@@ -43,15 +43,22 @@ impl<'s> SolverCx<'s> {
         let id = self.tour_id();
         let mut visited = self.graph.node_set();
         visited.insert(node);
-        self.priority_queue.get_mut().unwrap().push(Arc::new(TourPrefix {
-            id: id,
-            node: node,
-            len: 1,
-            prefix_weight: Weight::zero(),
-            priority: Weight::max().to_priority(),
-            visited: visited,
-            previous: None
-        }));
+        self.priority_queue
+            .get_mut()
+            .unwrap()
+            .push(
+                Arc::new(
+                    TourPrefix {
+                        id: id,
+                        node: node,
+                        len: 1,
+                        prefix_weight: Weight::zero(),
+                        priority: Weight::max().to_priority(),
+                        visited: visited,
+                        previous: None,
+                    },
+                ),
+            );
 
         // Start the iteration:
         rayon::scope(|s| step::step(s, self));
@@ -94,7 +101,8 @@ impl<'s> SolverCx<'s> {
             if min_tour.is_none() || weight < self.min_tour_weight() {
                 // this is a new minimum!
                 *min_tour = Some(tour.clone());
-                self.min_tour_weight.store(weight.to_usize(), Ordering::Relaxed);
+                self.min_tour_weight
+                    .store(weight.to_usize(), Ordering::Relaxed);
             }
         }
     }

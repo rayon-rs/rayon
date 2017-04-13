@@ -144,7 +144,9 @@ impl Configuration {
         if self.num_threads > 0 {
             self.num_threads
         } else {
-            match env::var("RAYON_RS_NUM_CPUS").ok().and_then(|s| usize::from_str(&s).ok()) {
+            match env::var("RAYON_RS_NUM_CPUS")
+                      .ok()
+                      .and_then(|s| usize::from_str(&s).ok()) {
                 Some(x) if x > 0 => x,
                 _ => num_cpus::get(),
             }
@@ -159,7 +161,9 @@ impl Configuration {
     /// Set a closure which takes a thread index and returns
     /// the thread's name.
     pub fn thread_name<F>(mut self, closure: F) -> Self
-    where F: FnMut(usize) -> String + 'static {
+    where
+        F: FnMut(usize) -> String + 'static,
+    {
         self.get_thread_name = Some(Box::new(closure));
         self
     }
@@ -173,8 +177,8 @@ impl Configuration {
     /// If `num_threads` is 0, or you do not call this function, then
     /// the Rayon runtime will select the number of threads
     /// automatically. At present, this is based on the
-    /// `RAYON_RS_NUM_CPUS` environment variable (if set), 
-    /// or the number of logical CPUs (otherwise). 
+    /// `RAYON_RS_NUM_CPUS` environment variable (if set),
+    /// or the number of logical CPUs (otherwise).
     /// In the future, however, the default behavior may
     /// change to dynamically add or remove threads as needed.
     ///
@@ -210,14 +214,15 @@ impl Configuration {
     /// process. To prevent this, wrap the body of your panic handler
     /// in a call to `std::panic::catch_unwind()`.
     pub fn panic_handler<H>(mut self, panic_handler: H) -> Configuration
-        where H: Fn(Box<Any + Send>) + Send + Sync + 'static
+    where
+        H: Fn(Box<Any + Send>) + Send + Sync + 'static,
     {
         self.panic_handler = Some(Box::new(panic_handler));
         self
     }
 
     /// Get the stack size of the worker threads
-    fn get_stack_size(&self) -> Option<usize>{
+    fn get_stack_size(&self) -> Option<usize> {
         self.stack_size
     }
 
@@ -237,7 +242,8 @@ impl Configuration {
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then startup will continue normally.
     pub fn start_handler<H>(mut self, start_handler: H) -> Configuration
-        where H: Fn(usize) + Send + Sync + 'static
+    where
+        H: Fn(usize) + Send + Sync + 'static,
     {
         self.start_handler = Some(Box::new(start_handler));
         self
@@ -253,7 +259,8 @@ impl Configuration {
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then the thread will exit normally.
     pub fn exit_handler<H>(mut self, exit_handler: H) -> Configuration
-        where H: Fn(usize) + Send + Sync + 'static
+    where
+        H: Fn(usize) + Send + Sync + 'static,
     {
         self.exit_handler = Some(Box::new(exit_handler));
         self
@@ -292,8 +299,14 @@ pub fn dump_stats() {
 
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size,
-                            ref start_handler, ref exit_handler } = *self;
+        let Configuration {
+            ref num_threads,
+            ref get_thread_name,
+            ref panic_handler,
+            ref stack_size,
+            ref start_handler,
+            ref exit_handler,
+        } = *self;
 
         // Just print `Some("<closure>")` or `None` to the debug
         // output.
@@ -306,12 +319,12 @@ impl fmt::Debug for Configuration {
         let exit_handler = exit_handler.as_ref().map(|_| "<closure>");
 
         f.debug_struct("Configuration")
-         .field("num_threads", num_threads)
-         .field("get_thread_name", &get_thread_name)
-         .field("panic_handler", &panic_handler)
-         .field("stack_size", &stack_size)
-         .field("start_handler", &start_handler)
-         .field("exit_handler", &exit_handler)
-         .finish()
+            .field("num_threads", num_threads)
+            .field("get_thread_name", &get_thread_name)
+            .field("panic_handler", &panic_handler)
+            .field("stack_size", &stack_size)
+            .field("start_handler", &start_handler)
+            .field("exit_handler", &exit_handler)
+            .finish()
     }
 }

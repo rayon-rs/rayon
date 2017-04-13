@@ -47,8 +47,7 @@ impl PartialEq for TourPrefix {
     }
 }
 
-impl Eq for TourPrefix {
-}
+impl Eq for TourPrefix {}
 
 impl PartialOrd for TourPrefix {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

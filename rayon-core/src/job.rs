@@ -36,7 +36,8 @@ unsafe impl Sync for JobRef {}
 
 impl JobRef {
     pub unsafe fn new<T>(data: *const T) -> JobRef
-        where T: Job
+    where
+        T: Job,
     {
         let fn_ptr: unsafe fn(*const T) = <T as Job>::execute;
 
@@ -66,7 +67,8 @@ pub struct StackJob<L: Latch, F, R> {
 }
 
 impl<L: Latch, F, R> StackJob<L, F, R>
-    where F: FnOnce() -> R + Send
+where
+    F: FnOnce() -> R + Send,
 {
     pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
         StackJob {
@@ -90,7 +92,8 @@ impl<L: Latch, F, R> StackJob<L, F, R>
 }
 
 impl<L: Latch, F, R> Job for StackJob<L, F, R>
-    where F: FnOnce() -> R
+where
+    F: FnOnce() -> R,
 {
     unsafe fn execute(this: *const Self) {
         let this = &*this;
@@ -112,13 +115,15 @@ impl<L: Latch, F, R> Job for StackJob<L, F, R>
 ///
 /// (Probably `StackJob` should be refactored in a similar fashion.)
 pub struct HeapJob<BODY>
-    where BODY: FnOnce()
+where
+    BODY: FnOnce(),
 {
     job: UnsafeCell<Option<BODY>>,
 }
 
 impl<BODY> HeapJob<BODY>
-    where BODY: FnOnce()
+where
+    BODY: FnOnce(),
 {
     pub fn new(func: BODY) -> Self {
         HeapJob { job: UnsafeCell::new(Some(func)) }
@@ -134,7 +139,8 @@ impl<BODY> HeapJob<BODY>
 }
 
 impl<BODY> Job for HeapJob<BODY>
-    where BODY: FnOnce()
+where
+    BODY: FnOnce(),
 {
     unsafe fn execute(this: *const Self) {
         let this: Box<Self> = mem::transmute(this);

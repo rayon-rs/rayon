@@ -68,7 +68,9 @@ macro_rules! make_tests {
 
             #[bench]
             fn parallel_find_common(b: &mut Bencher) {
-                b.iter(|| assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] % 1000 == 999).is_some()));
+                b.iter(||
+                    assert!(HAYSTACK.par_iter().find_any(|&&x| x[0] % 1000 == 999).is_some())
+                );
             }
 
             #[bench]

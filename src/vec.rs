@@ -24,7 +24,8 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -36,7 +37,8 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
 
 impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -46,7 +48,8 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     }
 
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         // The producer will move or drop each item from its slice, effectively taking ownership of
         // them.  When we're done, the vector only needs to free its buffer.
@@ -105,13 +108,17 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        self.iter.next().map(|ptr| unsafe { std::ptr::read(ptr) })
+        self.iter
+            .next()
+            .map(|ptr| unsafe { std::ptr::read(ptr) })
     }
 }
 
 impl<'data, T: 'data> DoubleEndedIterator for SliceDrain<'data, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.iter.next_back().map(|ptr| unsafe { std::ptr::read(ptr) })
+        self.iter
+            .next_back()
+            .map(|ptr| unsafe { std::ptr::read(ptr) })
     }
 }
 

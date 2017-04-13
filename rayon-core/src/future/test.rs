@@ -4,7 +4,7 @@ use futures::sync::oneshot;
 use futures::task::{self, Unpark};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use ::{scope, ThreadPool, Configuration};
+use {scope, ThreadPool, Configuration};
 
 /// Basic test of using futures to data on the stack frame.
 #[test]
@@ -14,16 +14,22 @@ fn future_test() {
     // Here we call `wait` on a select future, which will block at
     // least one thread. So we need a second thread to ensure no
     // deadlock.
-    ThreadPool::new(Configuration::new().num_threads(2)).unwrap().install(|| {
-        scope(|s| {
-            let a = s.spawn_future(futures::future::ok::<_, ()>(&data[0]));
-            let b = s.spawn_future(futures::future::ok::<_, ()>(&data[1]));
-            let (item1, next) = a.select(b).wait().ok().unwrap();
-            let item2 = next.wait().unwrap();
-            assert!(*item1 == 0 || *item1 == 1);
-            assert!(*item2 == 1 - *item1);
-        });
-    });
+    ThreadPool::new(Configuration::new().num_threads(2))
+        .unwrap()
+        .install(
+            || {
+                scope(
+                    |s| {
+                        let a = s.spawn_future(futures::future::ok::<_, ()>(&data[0]));
+                        let b = s.spawn_future(futures::future::ok::<_, ()>(&data[1]));
+                        let (item1, next) = a.select(b).wait().ok().unwrap();
+                        let item2 = next.wait().unwrap();
+                        assert!(*item1 == 0 || *item1 == 1);
+                        assert!(*item2 == 1 - *item1);
+                    },
+                );
+            },
+        );
 }
 
 /// Test using `map` on a Rayon future. The `map` closure is eecuted
@@ -34,12 +40,12 @@ fn future_map() {
     let data = &mut [format!("Hello, ")];
 
     let mut future = None;
-    scope(|s| {
-        let a = s.spawn_future(lazy(|| Ok::<_, ()>(&mut data[0])));
-        future = Some(s.spawn_future(a.map(|v| {
-            v.push_str("world!");
-        })));
-    });
+    scope(
+        |s| {
+            let a = s.spawn_future(lazy(|| Ok::<_, ()>(&mut data[0])));
+            future = Some(s.spawn_future(a.map(|v| { v.push_str("world!"); })));
+        },
+    );
 
     // future must have executed for the scope to have ended, even
     // though we never invoked `wait` to observe its result
@@ -55,10 +61,12 @@ fn future_escape_ref() {
 
     {
         let mut future = None;
-        scope(|s| {
-            let data = &mut *data;
-            future = Some(s.spawn_future(lazy(move || Ok::<_, ()>(&mut data[0]))));
-        });
+        scope(
+            |s| {
+                let data = &mut *data;
+                future = Some(s.spawn_future(lazy(move || Ok::<_, ()>(&mut data[0]))));
+            },
+        );
         let s = future.unwrap().wait().unwrap();
         s.push_str("world!");
     }
@@ -69,10 +77,12 @@ fn future_escape_ref() {
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn future_panic_prop() {
-    scope(|s| {
-        let future = s.spawn_future(lazy(move || Ok::<(), ()>(argh())));
-        let _ = future.rayon_wait(); // should panic, not return a value
-    });
+    scope(
+        |s| {
+            let future = s.spawn_future(lazy(move || Ok::<(), ()>(argh())));
+            let _ = future.rayon_wait(); // should panic, not return a value
+        },
+    );
 
     fn argh() -> () {
         if true {
@@ -87,18 +97,24 @@ fn future_panic_prop() {
 fn future_rayon_wait_1_thread() {
     // run with only 1 worker thread; this would deadlock if we couldn't make progress
     let mut result = None;
-    ThreadPool::new(Configuration::new().num_threads(1)).unwrap().install(|| {
-        scope(|s| {
-            use std::sync::mpsc::channel;
-            let (tx, rx) = channel();
-            let a = s.spawn_future(lazy(move || Ok::<usize, ()>(rx.recv().unwrap())));
-            //                          ^^^^ FIXME: why is this needed?
-            let b = s.spawn_future(a.map(|v| v + 1));
-            let c = s.spawn_future(b.map(|v| v + 1));
-            s.spawn(move |_| tx.send(20).unwrap());
-            result = Some(c.rayon_wait().unwrap());
-        });
-    });
+    ThreadPool::new(Configuration::new().num_threads(1))
+        .unwrap()
+        .install(
+            || {
+                scope(
+                    |s| {
+                        use std::sync::mpsc::channel;
+                        let (tx, rx) = channel();
+                        let a = s.spawn_future(lazy(move || Ok::<usize, ()>(rx.recv().unwrap())));
+                        //                          ^^^^ FIXME: why is this needed?
+                        let b = s.spawn_future(a.map(|v| v + 1));
+                        let c = s.spawn_future(b.map(|v| v + 1));
+                        s.spawn(move |_| tx.send(20).unwrap());
+                        result = Some(c.rayon_wait().unwrap());
+                    },
+                );
+            },
+        );
     assert_eq!(result, Some(22));
 }
 
@@ -107,10 +123,12 @@ fn future_rayon_wait_1_thread() {
 #[test]
 #[should_panic]
 fn future_wait_panics_inside_rayon_thread() {
-    scope(|s| {
-        let future = s.spawn_future(lazy(move || Ok::<(), ()>(())));
-        let _ = future.wait(); // should panic, not return a value
-    });
+    scope(
+        |s| {
+            let future = s.spawn_future(lazy(move || Ok::<(), ()>(())));
+            let _ = future.wait(); // should panic, not return a value
+        },
+    );
 }
 
 /// Test that invoking `wait` on a `RayonFuture` will not panic if we
@@ -118,9 +136,7 @@ fn future_wait_panics_inside_rayon_thread() {
 #[test]
 fn future_wait_works_outside_rayon_threads() {
     let mut future = None;
-    scope(|s| {
-        future = Some(s.spawn_future(lazy(move || Ok::<(), ()>(()))));
-    });
+    scope(|s| { future = Some(s.spawn_future(lazy(move || Ok::<(), ()>(())))); },);
     assert_eq!(Ok(()), future.unwrap().wait());
 }
 
@@ -129,33 +145,35 @@ fn future_wait_works_outside_rayon_threads() {
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn panicy_unpark() {
-    scope(|s| {
-        let (a_tx, a_rx) = oneshot::channel::<u32>();
-        let rf = s.spawn_future(a_rx);
+    scope(
+        |s| {
+            let (a_tx, a_rx) = oneshot::channel::<u32>();
+            let rf = s.spawn_future(a_rx);
 
-        // invoke `poll_future` with a `PanicUnpark` instance;
-        // this should get installed as a 'waiting task' on the
-        // Rayon future `rf`
-        let mut spawn = task::spawn(rf);
-        let unpark = Arc::new(PanicUnpark);
-        match spawn.poll_future(unpark.clone()) {
-            Ok(Async::NotReady) => {
-                // good, we expect not to be ready yet
+            // invoke `poll_future` with a `PanicUnpark` instance;
+            // this should get installed as a 'waiting task' on the
+            // Rayon future `rf`
+            let mut spawn = task::spawn(rf);
+            let unpark = Arc::new(PanicUnpark);
+            match spawn.poll_future(unpark.clone()) {
+                Ok(Async::NotReady) => {
+                    // good, we expect not to be ready yet
+                }
+                r => panic!("spawn poll returned: {:?}", r),
             }
-            r => panic!("spawn poll returned: {:?}", r),
-        }
 
-        // this should trigger the future `a_rx` to be awoken
-        // and executing in a Rayon background thread
-        a_tx.send(22).unwrap();
+            // this should trigger the future `a_rx` to be awoken
+            // and executing in a Rayon background thread
+            a_tx.send(22).unwrap();
 
-        // now we wait for `rf` to complete; when it does, it will
-        // also signal the `PanicUnpark` to wake up (that is
-        // *supposed* to be what triggers us to `poll` again, but
-        // we are sidestepping that)
-        let v = spawn.into_inner().rayon_wait().unwrap();
-        assert_eq!(v, 22);
-    });
+            // now we wait for `rf` to complete; when it does, it will
+            // also signal the `PanicUnpark` to wake up (that is
+            // *supposed* to be what triggers us to `poll` again, but
+            // we are sidestepping that)
+            let v = spawn.into_inner().rayon_wait().unwrap();
+            assert_eq!(v, 22);
+        },
+    );
     panic!("scope failed to panic!");
 
     struct PanicUnpark;
@@ -172,33 +190,35 @@ fn double_unpark() {
     let unpark0 = Arc::new(TrackUnpark { value: AtomicUsize::new(0) });
     let unpark1 = Arc::new(TrackUnpark { value: AtomicUsize::new(0) });
     let mut _tag = None;
-    scope(|s| {
-        let (a_tx, a_rx) = oneshot::channel::<u32>();
-        let rf = s.spawn_future(a_rx);
+    scope(
+        |s| {
+            let (a_tx, a_rx) = oneshot::channel::<u32>();
+            let rf = s.spawn_future(a_rx);
 
-        let mut spawn = task::spawn(rf);
+            let mut spawn = task::spawn(rf);
 
-        // test that we don't panic if people try to install a task many times;
-        // even if they are different tasks
-        for i in 0..22 {
-            let u = if i % 2 == 0 {
-                unpark0.clone()
-            } else {
-                unpark1.clone()
-            };
-            match spawn.poll_future(u) {
-                Ok(Async::NotReady) => {
-                    // good, we expect not to be ready yet
+            // test that we don't panic if people try to install a task many times;
+            // even if they are different tasks
+            for i in 0..22 {
+                let u = if i % 2 == 0 {
+                    unpark0.clone()
+                } else {
+                    unpark1.clone()
+                };
+                match spawn.poll_future(u) {
+                    Ok(Async::NotReady) => {
+                        // good, we expect not to be ready yet
+                    }
+                    r => panic!("spawn poll returned: {:?}", r),
                 }
-                r => panic!("spawn poll returned: {:?}", r),
             }
-        }
 
-        a_tx.send(22).unwrap();
+            a_tx.send(22).unwrap();
 
-        // just hold onto `rf` to ensure that nothing is cancelled
-        _tag = Some(spawn.into_inner());
-    });
+            // just hold onto `rf` to ensure that nothing is cancelled
+            _tag = Some(spawn.into_inner());
+        },
+    );
 
     // Since scope is done, our spawned future must have completed. It
     // should have signalled the unpark value we gave it -- but

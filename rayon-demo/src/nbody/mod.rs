@@ -60,24 +60,26 @@ pub struct Args {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
-            .unwrap_or_else(|e| e.exit());
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).decode())
+        .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
         run_benchmarks(args.flag_mode, args.flag_bodies, args.flag_ticks);
     }
 
     if args.cmd_visualize {
-        visualize_benchmarks(args.flag_bodies,
-                             args.flag_mode.unwrap_or(ExecutionMode::Par));
+        visualize_benchmarks(
+            args.flag_bodies,
+            args.flag_mode.unwrap_or(ExecutionMode::Par),
+        );
     }
 }
 
 fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     let run_par = mode.map(|m| m == ExecutionMode::Par).unwrap_or(true);
-    let run_par_reduce = mode.map(|m| m == ExecutionMode::ParReduce).unwrap_or(true);
+    let run_par_reduce = mode.map(|m| m == ExecutionMode::ParReduce)
+        .unwrap_or(true);
     let run_seq = mode.map(|m| m == ExecutionMode::Seq).unwrap_or(true);
 
     let par_time = if run_par {
@@ -139,4 +141,3 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         println!("ParReduce speedup: {}", (st as f32) / (pt as f32));
     }
 }
-

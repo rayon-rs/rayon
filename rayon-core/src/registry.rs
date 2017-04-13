@@ -1,4 +1,4 @@
-use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
+use {Configuration, ExitHandler, PanicHandler, StartHandler};
 use deque;
 use deque::{Worker, Stealer, Stolen};
 use job::{JobRef, StackJob};
@@ -82,11 +82,13 @@ fn global_registry() -> &'static Arc<Registry> {
 /// the given configuration.
 pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, Box<Error>> {
     let mut called = false;
-    let mut init_result = Ok(());;
-    THE_REGISTRY_SET.call_once(|| unsafe {
-        init_result = init_registry(config);
-        called = true;
-    });
+    let mut init_result = Ok(());
+    THE_REGISTRY_SET.call_once(
+        || unsafe {
+            init_result = init_registry(config);
+            called = true;
+        },
+    );
     if called {
         init_result.map(|()| &**global_registry())
     } else {
@@ -117,18 +119,21 @@ impl Registry {
         let (inj_worker, inj_stealer) = deque::new();
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
 
-        let registry = Arc::new(Registry {
-            thread_infos: stealers.into_iter()
-                .map(|s| ThreadInfo::new(s))
-                .collect(),
-            state: Mutex::new(RegistryState::new(inj_worker)),
-            sleep: Sleep::new(),
-            job_uninjector: inj_stealer,
-            terminate_latch: CountLatch::new(),
-            panic_handler: configuration.take_panic_handler(),
-            start_handler: configuration.take_start_handler(),
-            exit_handler: configuration.take_exit_handler(),
-        });
+        let registry = Arc::new(
+            Registry {
+                thread_infos: stealers
+                    .into_iter()
+                    .map(|s| ThreadInfo::new(s))
+                    .collect(),
+                state: Mutex::new(RegistryState::new(inj_worker)),
+                sleep: Sleep::new(),
+                job_uninjector: inj_stealer,
+                terminate_latch: CountLatch::new(),
+                panic_handler: configuration.take_panic_handler(),
+                start_handler: configuration.take_start_handler(),
+                exit_handler: configuration.take_exit_handler(),
+            },
+        );
 
         // If we return early or panic, make sure to terminate existing threads.
         let t1000 = Terminator(&registry);
@@ -255,7 +260,10 @@ impl Registry {
             // drops) a `ThreadPool`; and, in that case, they cannot be
             // calling `inject()` later, since they dropped their
             // `ThreadPool`.
-            assert!(!self.terminate_latch.probe(), "inject() sees state.terminate as true");
+            assert!(
+                !self.terminate_latch.probe(),
+                "inject() sees state.terminate as true"
+            );
 
             for &job_ref in injected_jobs {
                 state.job_injector.push(job_ref);
@@ -312,14 +320,12 @@ impl Registry {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RegistryId {
-    addr: usize
+    addr: usize,
 }
 
 impl RegistryState {
     pub fn new(job_injector: Worker<JobRef>) -> RegistryState {
-        RegistryState {
-            job_injector: job_injector,
-        }
+        RegistryState { job_injector: job_injector }
     }
 }
 
@@ -382,10 +388,12 @@ impl WorkerThread {
     /// Sets `self` as the worker thread index for the current thread.
     /// This is done during worker thread startup.
     unsafe fn set_current(thread: *const WorkerThread) {
-        WORKER_THREAD_STATE.with(|t| {
-            assert!(t.get().is_null());
-            t.set(thread);
-        });
+        WORKER_THREAD_STATE.with(
+            |t| {
+                assert!(t.get().is_null());
+                t.set(thread);
+            },
+        );
     }
 
     /// Returns the registry that owns this worker thread.
@@ -439,8 +447,8 @@ impl WorkerThread {
             // outside. The idea is to finish what we started before
             // we take on something new.
             if let Some(job) = self.pop()
-                                   .or_else(|| self.steal())
-                                   .or_else(|| self.registry.pop_injected_job(self.index)) {
+                   .or_else(|| self.steal())
+                   .or_else(|| self.registry.pop_injected_job(self.index)) {
                 yields = self.registry.sleep.work_found(self.index, yields);
                 self.execute(job);
             } else {
@@ -480,8 +488,10 @@ impl WorkerThread {
         if num_threads <= 1 {
             return None;
         }
-        assert!(num_threads < (u32::MAX as usize),
-                "we do not support more than u32::MAX worker threads");
+        assert!(
+            num_threads < (u32::MAX as usize),
+            "we do not support more than u32::MAX worker threads"
+        );
 
         let start = {
             // OK to use this UnsafeCell because (a) this data is
@@ -491,22 +501,29 @@ impl WorkerThread {
             let rng = &mut *self.rng.get();
             rng.next_u32() % num_threads as u32
         } as usize;
-        (start .. num_threads)
-            .chain(0 .. start)
+        (start..num_threads)
+            .chain(0..start)
             .filter(|&i| i != self.index)
-            .filter_map(|victim_index| {
-                let victim = &self.registry.thread_infos[victim_index];
-                loop {
-                    match victim.stealer.steal() {
-                        Stolen::Empty => return None,
-                        Stolen::Abort => (), // retry
-                        Stolen::Data(v) => {
-                            log!(StoleWork { worker: self.index, victim: victim_index });
-                            return Some(v);
+            .filter_map(
+                |victim_index| {
+                    let victim = &self.registry.thread_infos[victim_index];
+                    loop {
+                        match victim.stealer.steal() {
+                            Stolen::Empty => return None,
+                            Stolen::Abort => (), // retry
+                            Stolen::Data(v) => {
+                                log!(
+                                    StoleWork {
+                                        worker: self.index,
+                                        victim: victim_index,
+                                    }
+                                );
+                                return Some(v);
+                            }
                         }
                     }
-                }
-            })
+                },
+            )
             .next()
     }
 }
@@ -572,7 +589,9 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 /// `op` completes and return its return value. If `op` panics, that
 /// panic will be propagated as well.
 pub fn in_worker<OP, R>(op: OP) -> R
-    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+where
+    OP: FnOnce(&WorkerThread) -> R + Send,
+    R: Send,
 {
     unsafe {
         let owner_thread = WorkerThread::current();
@@ -589,7 +608,9 @@ pub fn in_worker<OP, R>(op: OP) -> R
 
 #[cold]
 unsafe fn in_worker_cold<OP, R>(op: OP) -> R
-    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+where
+    OP: FnOnce(&WorkerThread) -> R + Send,
+    R: Send,
 {
     // never run from a worker thread; just shifts over into worker threads
     debug_assert!(WorkerThread::current().is_null());
