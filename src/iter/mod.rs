@@ -563,6 +563,15 @@ pub trait ParallelIterator: Sized {
         find_first_last::find_last(self, predicate)
     }
 
+    #[doc(hidden)]
+    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, \\
+    `find_first`, or `find_last`")]
+    fn find<P>(self, predicate: P) -> Option<Self::Item>
+        where P: Fn(&Self::Item) -> bool + Sync
+    {
+        self.find_any(predicate)
+    }
+
     /// Searches for **some** item in the parallel iterator that
     /// matches the given predicate, and if so returns true.  Once
     /// a match is found, we'll attempt to stop process the rest
@@ -821,6 +830,15 @@ pub trait IndexedParallelIterator: ParallelIterator {
             .enumerate()
             .find_last(|&(_, p)| p)
             .map(|(i, _)| i)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, \\
+    `position_first`, or `position_last`")]
+    fn position<P>(self, predicate: P) -> Option<usize>
+        where P: Fn(Self::Item) -> bool + Sync
+    {
+        self.position_any(predicate)
     }
 
     /// Produces a new iterator with the elements of this iterator in
