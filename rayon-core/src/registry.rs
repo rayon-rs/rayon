@@ -151,6 +151,10 @@ impl Registry {
         Ok(registry.clone())
     }
 
+    pub fn global() -> Arc<Registry> {
+        global_registry().clone()
+    }
+
     pub fn current() -> Arc<Registry> {
         unsafe {
             let worker_thread = WorkerThread::current();

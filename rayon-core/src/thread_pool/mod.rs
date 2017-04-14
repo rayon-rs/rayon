@@ -26,6 +26,26 @@ impl ThreadPool {
         Ok(ThreadPool { registry: registry })
     }
 
+    /// Returns a handle to the global thread pool. This is the pool
+    /// that Rayon will use by default when you perform a `join()` or
+    /// `scope()` operatioon, if no other thread-pool is installed. If
+    /// no global thread-pool has yet been started when this function
+    /// is called, then the global thread-pool will be created (with
+    /// the default configuration). If you wish to configure the
+    /// global thread-pool differently, then you can use [the
+    /// `rayon::initialize()` function][f] to do so.
+    ///
+    /// [f]: fn.initialize.html
+    #[cfg(feature = "unstable")]
+    pub fn global() -> &'static Arc<ThreadPool> {
+        lazy_static! {
+            static ref DEFAULT_THREAD_POOL: Arc<ThreadPool> =
+                Arc::new(ThreadPool { registry: Registry::global() });
+        }
+
+        &DEFAULT_THREAD_POOL
+    }
+
     /// Executes `op` within the threadpool. Any attempts to use
     /// `join`, `scope`, or parallel iterators will then operate
     /// within that threadpool.
@@ -123,3 +143,4 @@ impl Drop for ThreadPool {
         self.registry.terminate();
     }
 }
+
