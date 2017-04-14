@@ -6,13 +6,13 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 
 use {Configuration, ThreadPool};
-use super::{spawn_async, spawn_future_async};
+use super::{spawn, spawn_future};
 
 #[test]
 fn spawn_then_join_in_worker() {
     let (tx, rx) = channel();
     scope(move |_| {
-        spawn_async(move || tx.send(22).unwrap());
+        spawn(move || tx.send(22).unwrap());
     });
     assert_eq!(22, rx.recv().unwrap());
 }
@@ -20,7 +20,7 @@ fn spawn_then_join_in_worker() {
 #[test]
 fn spawn_then_join_outside_worker() {
     let (tx, rx) = channel();
-    spawn_async(move || tx.send(22).unwrap());
+    spawn(move || tx.send(22).unwrap());
     assert_eq!(22, rx.recv().unwrap());
 }
 
@@ -44,7 +44,7 @@ fn panic_fwd() {
 
     let configuration = Configuration::new().panic_handler(panic_handler);
 
-    ThreadPool::new(configuration).unwrap().spawn_async(move || panic!("Hello, world!"));
+    ThreadPool::new(configuration).unwrap().spawn(move || panic!("Hello, world!"));
 
     assert_eq!(1, rx.recv().unwrap());
 }
@@ -53,11 +53,11 @@ fn panic_fwd() {
 fn async_future_map() {
     let data = Arc::new(Mutex::new(format!("Hello, ")));
 
-    let a = spawn_future_async(lazy({
+    let a = spawn_future(lazy({
         let data = data.clone();
         move || Ok::<_, ()>(data)
     }));
-    let future = spawn_future_async(a.map(|data| {
+    let future = spawn_future(a.map(|data| {
         let mut v = data.lock().unwrap();
         v.push_str("world!");
     }));
@@ -71,7 +71,7 @@ fn async_future_map() {
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn async_future_panic_prop() {
-    let future = spawn_future_async(lazy(move || Ok::<(), ()>(argh())));
+    let future = spawn_future(lazy(move || Ok::<(), ()>(argh())));
     let _ = future.rayon_wait(); // should panic, not return a value
 
     fn argh() -> () {
@@ -83,7 +83,7 @@ fn async_future_panic_prop() {
 
 #[test]
 fn async_future_scope_interact() {
-    let future = spawn_future_async(lazy(move || Ok::<usize, ()>(22)));
+    let future = spawn_future(lazy(move || Ok::<usize, ()>(22)));
 
     let mut vec = vec![];
     scope(|s| {
@@ -108,13 +108,13 @@ fn termination_while_things_are_executing() {
     // our reference to it.
     {
         let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
-        thread_pool.spawn_async(move || {
+        thread_pool.spawn(move || {
             let data = rx0.recv().unwrap();
 
             // At this point, we know the "main" reference to the
             // `ThreadPool` has been dropped, but there are still
             // active threads. Launch one more.
-            spawn_async(move || {
+            spawn(move || {
                 tx1.send(data).unwrap();
             });
         });
@@ -126,7 +126,7 @@ fn termination_while_things_are_executing() {
 }
 
 #[test]
-fn custom_panic_handler_and_spawn_async() {
+fn custom_panic_handler_and_spawn() {
     let (tx, rx) = channel();
 
     // Create a parallel closure that will send panics on the
@@ -139,7 +139,7 @@ fn custom_panic_handler_and_spawn_async() {
 
     // Execute an async that will panic.
     let config = Configuration::new().panic_handler(panic_handler);
-    ThreadPool::new(config).unwrap().spawn_async(move || {
+    ThreadPool::new(config).unwrap().spawn(move || {
         panic!("Hello, world!");
     });
 
@@ -153,7 +153,7 @@ fn custom_panic_handler_and_spawn_async() {
 }
 
 #[test]
-fn custom_panic_handler_and_nested_spawn_async() {
+fn custom_panic_handler_and_nested_spawn() {
     let (tx, rx) = channel();
 
     // Create a parallel closure that will send panics on the
@@ -167,11 +167,11 @@ fn custom_panic_handler_and_nested_spawn_async() {
     // Execute an async that will (eventually) panic.
     const PANICS: usize = 3;
     let config = Configuration::new().panic_handler(panic_handler);
-    ThreadPool::new(config).unwrap().spawn_async(move || {
+    ThreadPool::new(config).unwrap().spawn(move || {
         // launch 3 nested spawn-asyncs; these should be in the same
         // thread-pool and hence inherit the same panic handler
         for _ in 0 .. PANICS {
-            spawn_async(move || {
+            spawn(move || {
                 panic!("Hello, world!");
             });
         }

@@ -56,7 +56,7 @@ mod future;
 mod scope;
 mod sleep;
 #[cfg(feature = "unstable")]
-mod spawn_async;
+mod spawn;
 mod test;
 mod thread_pool;
 mod unwind;
@@ -66,9 +66,9 @@ pub use thread_pool::ThreadPool;
 pub use join::join;
 pub use scope::{scope, Scope};
 #[cfg(feature = "unstable")]
-pub use spawn_async::spawn_async;
+pub use spawn::spawn;
 #[cfg(feature = "unstable")]
-pub use spawn_async::spawn_future_async;
+pub use spawn::spawn_future;
 #[cfg(feature = "unstable")]
 pub use future::RayonFuture;
 
@@ -198,7 +198,7 @@ impl Configuration {
     /// Normally, whenever Rayon catches a panic, it tries to
     /// propagate it to someplace sensible, to try and reflect the
     /// semantics of sequential execution. But in some cases,
-    /// particularly with the `spawn_async()` APIs, there is no
+    /// particularly with the `spawn()` APIs, there is no
     /// obvious place where we should propagate the panic to.
     /// In that case, this panic handler is invoked.
     ///

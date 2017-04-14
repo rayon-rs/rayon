@@ -293,10 +293,10 @@ impl Registry {
     /// since installing the thread-pool blocks until any joins/scopes
     /// complete, this ensures that joins/scopes are covered.
     ///
-    /// The exception is `spawn_async()`, which can create a job
-    /// outside of any blocking scope. In that case, the job itself
-    /// holds a terminate count and is responsible for invoking
-    /// `terminate()` when finished.
+    /// The exception is `::spawn()`, which can create a job outside
+    /// of any blocking scope. In that case, the job itself holds a
+    /// terminate count and is responsible for invoking `terminate()`
+    /// when finished.
     pub fn increment_terminate_count(&self) {
         self.terminate_latch.increment();
     }
