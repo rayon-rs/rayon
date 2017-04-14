@@ -5,6 +5,8 @@ use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
+use join;
+use {scope, Scope};
 #[cfg(feature = "unstable")]
 use spawn;
 use std::sync::Arc;
@@ -28,7 +30,7 @@ impl ThreadPool {
 
     /// Returns a handle to the global thread pool. This is the pool
     /// that Rayon will use by default when you perform a `join()` or
-    /// `scope()` operatioon, if no other thread-pool is installed. If
+    /// `scope()` operation, if no other thread-pool is installed. If
     /// no global thread-pool has yet been started when this function
     /// is called, then the global thread-pool will be created (with
     /// the default configuration). If you wish to configure the
@@ -117,8 +119,30 @@ impl ThreadPool {
         }
     }
 
-    /// Spawns a task in this thread-pool contained within the static
-    /// scope. See `spawn()` for more details.
+    /// Execute `oper_a` and `oper_b` in the thread-pool and return
+    /// the results. Equivalent to `self.install(|| join(oper_a,
+    /// oper_b))`.
+    #[cfg(feature = "unstable")]
+    pub fn join<A, B, RA, RB>(&self, oper_a: A, oper_b: B) -> (RA, RB)
+        where A: FnOnce() -> RA + Send,
+              B: FnOnce() -> RB + Send,
+              RA: Send,
+              RB: Send
+    {
+        self.install(|| join(oper_a, oper_b))
+    }
+
+    /// Execute `oper_a` and `oper_b` in the thread-pool and return
+    /// the results. Equivalent to `self.install(|| scope(...))`.
+    #[cfg(feature = "unstable")]
+    pub fn scope<'scope, OP, R>(&self, op: OP) -> R
+        where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send
+    {
+        self.install(|| scope(op))
+    }
+
+    /// Spawns an asynchronous task in this thread-pool. See `spawn()`
+    /// for more details.
     #[cfg(feature = "unstable")]
     pub fn spawn<OP>(&self, op: OP)
         where OP: FnOnce() + Send + 'static
@@ -127,8 +151,8 @@ impl ThreadPool {
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
 
-    /// Spawns an future in this thread-pool within the static
-    /// scope. See `spawn_future()` for more details.
+    /// Spawns an asynchronous future in this thread-pool. See
+    /// `spawn_future()` for more details.
     #[cfg(feature = "unstable")]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'static
