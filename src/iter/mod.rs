@@ -67,6 +67,8 @@ mod cloned;
 pub use self::cloned::Cloned;
 mod inspect;
 pub use self::inspect::Inspect;
+mod while_some;
+pub use self::while_some::WhileSome;
 
 #[cfg(test)]
 mod test;
@@ -594,6 +596,15 @@ pub trait ParallelIterator: Sized {
         where P: Fn(Self::Item) -> bool + Sync
     {
         self.map(predicate).find_any(|&p| !p).is_none()
+    }
+
+    /// Creates an iterator over the `Some` items of this iterator, halting
+    /// as soon as any `None` is found.
+    fn while_some<T>(self) -> WhileSome<Self>
+        where Self: ParallelIterator<Item = Option<T>>,
+              T: Send
+    {
+        while_some::new(self)
     }
 
     /// Create a fresh collection containing all the element produced
