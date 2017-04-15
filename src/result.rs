@@ -4,6 +4,7 @@
 
 use iter::*;
 use iter::internal::*;
+use std::sync::Mutex;
 
 use option;
 
@@ -53,4 +54,40 @@ delegate_indexed_iterator!{
     #[doc = "Parallel iterator over a mutable reference to a result"]
     IterMut<'a, T> => option::IntoIter<&'a mut T>,
     impl<'a, T: Send + 'a>
+}
+
+
+/// Collect an arbitrary `Result`-wrapped collection.
+///
+/// If any item is `Err`, then all previous `Ok` items collected are
+/// discarded, and it returns that error.  If there are multiple errors, the
+/// one returned is not deterministic.
+impl<'a, C, T, E> FromParallelIterator<Result<T, E>> for Result<C, E>
+    where C: FromParallelIterator<T>,
+          T: Send,
+          E: Send
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = Result<T, E>>
+    {
+        let saved_error = Mutex::new(None);
+        let collection = par_iter
+            .into_par_iter()
+            .map(|item| match item {
+                     Ok(item) => Some(item),
+                     Err(error) => {
+                         if let Ok(mut guard) = saved_error.lock() {
+                             *guard = Some(error);
+                         }
+                         None
+                     }
+                 })
+            .while_some()
+            .collect();
+
+        match saved_error.into_inner().unwrap() {
+            Some(error) => Err(error),
+            None => Ok(collection),
+        }
+    }
 }
