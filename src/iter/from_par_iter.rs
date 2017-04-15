@@ -197,8 +197,8 @@ impl FromParallelIterator<String> for String {
 /// Note, the standard library only has `FromIterator` for `Cow<'a, str>` and
 /// `Cow<'a, [T]>`, because no one thought to add a blanket implementation
 /// before it was stabilized.
-impl<'a, C, T> FromParallelIterator<T> for Cow<'a, C>
-    where C: ToOwned + ?Sized,
+impl<'a, C: ?Sized, T> FromParallelIterator<T> for Cow<'a, C>
+    where C: ToOwned,
           C::Owned: FromParallelIterator<T>,
           T: Send
 {
