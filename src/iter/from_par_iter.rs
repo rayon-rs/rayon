@@ -1,5 +1,6 @@
 use super::{FromParallelIterator, IntoParallelIterator, ParallelIterator};
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
@@ -188,5 +189,22 @@ impl FromParallelIterator<String> for String {
             let len = list.iter().map(|vec| -> usize { vec.iter().map(String::len).sum() }).sum();
             String::with_capacity(len)
         })
+    }
+}
+
+/// Collect an arbitrary `Cow` collection.
+///
+/// Note, the standard library only has `FromIterator` for `Cow<'a, str>` and
+/// `Cow<'a, [T]>`, because no one thought to add a blanket implementation
+/// before it was stabilized.
+impl<'a, C, T> FromParallelIterator<T> for Cow<'a, C>
+    where C: ToOwned + ?Sized,
+          C::Owned: FromParallelIterator<T>,
+          T: Send
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = T>
+    {
+        Cow::Owned(C::Owned::from_par_iter(par_iter))
     }
 }
