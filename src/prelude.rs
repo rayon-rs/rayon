@@ -2,7 +2,6 @@
 //! The intention is that one can include `use rayon::prelude::*` and
 //! have easy access to the various traits and methods you will need.
 
-pub use iter::FromParallelIterator;
 pub use iter::IntoParallelIterator;
 pub use iter::IntoParallelRefIterator;
 pub use iter::IntoParallelRefMutIterator;
