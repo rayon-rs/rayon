@@ -44,7 +44,7 @@ mod from_par_iter;
 pub mod internal;
 mod for_each;
 mod fold;
-pub use self::fold::Fold;
+pub use self::fold::{Fold, FoldWith};
 mod reduce;
 mod skip;
 pub use self::skip::Skip;
@@ -54,6 +54,8 @@ mod take;
 pub use self::take::Take;
 mod map;
 pub use self::map::Map;
+mod map_with;
+pub use self::map_with::MapWith;
 mod zip;
 pub use self::zip::Zip;
 mod noop;
@@ -137,6 +139,20 @@ pub trait ParallelIterator: Sized {
               R: Send
     {
         map::new(self, map_op)
+    }
+
+    /// Applies `map_op` to the given `init` value with each item of this
+    /// iterator, producing a new iterator with the results.
+    ///
+    /// The `init` value will be cloned only as needed to be paired with
+    /// the group of items in each rayon job.  It does not require the type
+    /// to be `Sync`.
+    fn map_with<F, T, R>(self, init: T, map_op: F) -> MapWith<Self, T, F>
+        where F: Fn(&mut T, Self::Item) -> R + Sync,
+              T: Send + Clone,
+              R: Send
+    {
+        map_with::new(self, init, map_op)
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
@@ -375,12 +391,25 @@ pub trait ParallelIterator: Sized {
     ///                .sum::<u32>();
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
-    fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> fold::Fold<Self, ID, F>
+    fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
         where F: Fn(T, Self::Item) -> T + Sync,
               ID: Fn() -> T + Sync,
               T: Send
     {
         fold::fold(self, identity, fold_op)
+    }
+
+    /// Applies `fold_op` to the given `init` value with each item of this
+    /// iterator, finally producing the value for further use.
+    ///
+    /// This works essentially like `fold(|| init.clone(), fold_op)`, except
+    /// it doesn't require the `init` type to be `Sync`, nor any other form
+    /// of added synchronization.
+    fn fold_with<F, T>(self, init: T, fold_op: F) -> FoldWith<Self, T, F>
+        where F: Fn(T, Self::Item) -> T + Sync,
+              T: Send + Clone
+    {
+        fold::fold_with(self, init, fold_op)
     }
 
     /// Sums up the items in the iterator.
