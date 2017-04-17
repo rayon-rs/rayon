@@ -537,30 +537,33 @@ pub trait ParallelIterator: Sized {
         find::find(self, predicate)
     }
 
-    /// Searches for the **first** item in the parallel iterator that
-    /// matches the given predicate and returns it.
+    /// Searches for the sequentially **first** item in the parallel iterator
+    /// that matches the given predicate and returns it.
     ///
     /// Once a match is found, all attempts to the right of the match
     /// will be stopped, while attempts to the left must continue in case
     /// an earlier match is found.
     ///
     /// Note that not all parallel iterators have a useful order, much like
-    /// sequential `HashMap` iteration, so "first" may be nebulous.
+    /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
+    /// just want the first match that discovered anywhere in the iterator,
+    /// `find_any` is a better choice.
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync
     {
         find_first_last::find_first(self, predicate)
     }
 
-    /// Searches for the **last** item in the parallel iterator that
-    /// matches the given predicate and returns it.
+    /// Searches for the sequentially **last** item in the parallel iterator
+    /// that matches the given predicate and returns it.
     ///
     /// Once a match is found, all attempts to the left of the match
     /// will be stopped, while attempts to the right must continue in case
     /// a later match is found.
     ///
     /// Note that not all parallel iterators have a useful order, much like
-    /// sequential `HashMap` iteration, so "last" may be nebulous.
+    /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
+    /// order doesn't actually matter to you, `find_any` is a better choice.
     fn find_last<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync
     {
@@ -798,8 +801,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
             .map(|(i, _)| i)
     }
 
-    /// Searches for the **first** item in the parallel iterator that
-    /// matches the given predicate, and returns its index.
+    /// Searches for the sequentially **first** item in the parallel iterator
+    /// that matches the given predicate, and returns its index.
     ///
     /// Like `ParallelIterator::find_first`, once a match is found,
     /// all attempts to the right of the match will be stopped, while
@@ -807,7 +810,9 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// is found.
     ///
     /// Note that not all parallel iterators have a useful order, much like
-    /// sequential `HashMap` iteration, so "first" may be nebulous.
+    /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
+    /// just want the first match that discovered anywhere in the iterator,
+    /// `position_any` is a better choice.
     fn position_first<P>(self, predicate: P) -> Option<usize>
         where P: Fn(Self::Item) -> bool + Sync
     {
@@ -817,8 +822,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
             .map(|(i, _)| i)
     }
 
-    /// Searches for the **last** item in the parallel iterator that
-    /// matches the given predicate, and returns its index.
+    /// Searches for the sequentially **last** item in the parallel iterator
+    /// that matches the given predicate, and returns its index.
     ///
     /// Like `ParallelIterator::find_last`, once a match is found,
     /// all attempts to the left of the match will be stopped, while
@@ -826,7 +831,9 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// is found.
     ///
     /// Note that not all parallel iterators have a useful order, much like
-    /// sequential `HashMap` iteration, so "last" may be nebulous.
+    /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
+    /// order doesn't actually matter to you, `position_any` is a better
+    /// choice.
     fn position_last<P>(self, predicate: P) -> Option<usize>
         where P: Fn(Self::Item) -> bool + Sync
     {
