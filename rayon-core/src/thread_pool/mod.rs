@@ -1,6 +1,4 @@
 use Configuration;
-#[cfg(feature = "unstable")]
-use future::{Future, RayonFuture};
 use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
@@ -13,6 +11,7 @@ use std::sync::Arc;
 use std::error::Error;
 use registry::{Registry, WorkerThread};
 
+mod internal;
 mod test;
 
 pub struct ThreadPool {
@@ -159,16 +158,6 @@ impl ThreadPool {
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_in(op, &self.registry) }
-    }
-
-    /// Spawns an asynchronous future in this thread-pool. See
-    /// `spawn_future()` for more details.
-    #[cfg(feature = "unstable")]
-    pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'static
-    {
-        // We assert that `self.registry` has not yet terminated.
-        unsafe { spawn::spawn_future_in(future, self.registry.clone()) }
     }
 }
 

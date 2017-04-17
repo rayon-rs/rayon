@@ -8,6 +8,9 @@
 
 extern crate rayon_core;
 
+#[cfg(feature = "unstable")]
+extern crate futures;
+
 #[cfg(test)]
 extern crate rand;
 
@@ -18,6 +21,9 @@ mod delegate;
 mod private;
 
 mod split_producer;
+
+#[cfg(feature = "unstable")]
+pub mod future;
 
 pub mod collections;
 pub mod iter;
@@ -41,7 +47,3 @@ pub use rayon_core::join;
 pub use rayon_core::{scope, Scope};
 #[cfg(feature = "unstable")]
 pub use rayon_core::spawn;
-#[cfg(feature = "unstable")]
-pub use rayon_core::spawn_future;
-#[cfg(feature = "unstable")]
-pub use rayon_core::RayonFuture;

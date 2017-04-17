@@ -31,14 +31,6 @@ pub enum Event {
     JobPanickedErrorNotStored { owner_thread: usize },
     ScopeCompletePanicked { owner_thread: usize },
     ScopeCompleteNoPanic { owner_thread: usize },
-
-    FutureExecute { state: usize },
-    FutureExecuteReady,
-    FutureExecuteNotReady,
-    FutureExecuteErr,
-    FutureInstallWaitingTask { state: usize },
-    FutureUnparkWaitingTask,
-    FutureComplete,
 }
 
 pub const DUMP_LOGS: bool = cfg!(debug_assertions);

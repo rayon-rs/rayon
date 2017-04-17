@@ -35,6 +35,8 @@ unsafe impl Send for JobRef {}
 unsafe impl Sync for JobRef {}
 
 impl JobRef {
+    /// Unsafe: caller asserts that `data` will remain valid until the
+    /// job is executed.
     pub unsafe fn new<T>(data: *const T) -> JobRef
         where T: Job
     {

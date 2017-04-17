@@ -1,9 +1,7 @@
-use future::{self, Future, RayonFuture};
 #[allow(unused_imports)]
 use latch::{Latch, SpinLatch};
 use job::*;
 use registry::Registry;
-use std::any::Any;
 use std::mem;
 use std::sync::Arc;
 use unwind;
@@ -93,75 +91,6 @@ pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
     let job_ref = HeapJob::as_job_ref(async_job);
     registry.inject_or_push(job_ref);
     mem::forget(abort_guard);
-}
-
-/// Spawns a future in the static scope, scheduling it to execute on
-/// Rayon's threadpool. Returns a new future that can be used to poll
-/// for the result. Since this future is executing in the static scope,
-/// it cannot hold references to things in the enclosing stack frame;
-/// if you would like to hold such references, use [the `scope()`
-/// function][scope] to create a scope.
-///
-/// [scope]: fn.scope.html
-///
-/// # Panic handling
-///
-/// If this future should panic, that panic will be propagated when
-/// `poll()` is invoked on the return value.
-pub fn spawn_future<F>(future: F) -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'static
-{
-    /// We assert that the current registry cannot yet have terminated.
-    unsafe { spawn_future_in(future, Registry::current()) }
-}
-
-/// Internal helper function.
-///
-/// Unsafe because caller must guarantee that `registry` has not yet terminated.
-pub unsafe fn spawn_future_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'static
-{
-    let scope = StaticFutureScope::new(registry.clone());
-
-    future::new_rayon_future(future, scope)
-}
-
-struct StaticFutureScope {
-    registry: Arc<Registry>
-}
-
-impl StaticFutureScope {
-    /// Caller asserts that the registry has not yet terminated.
-    unsafe fn new(registry: Arc<Registry>) -> Self {
-        registry.increment_terminate_count();
-        StaticFutureScope { registry: registry }
-    }
-}
-
-/// We assert that:
-///
-/// (a) the scope valid remains valid until a completion method
-///     is called. In this case, "remains valid" means that the
-///     registry is not terminated. This is true because we
-///     acquire a "termination count" in `StaticFutureScope::new()`
-///     which is not released until `future_panicked()` or
-///     `future_completed()` is invoked.
-/// (b) the lifetime `'static` will not end until a completion
-///     method is called. This is true because `'static` doesn't
-///     end until the end of the program.
-unsafe impl future::FutureScope<'static> for StaticFutureScope {
-    fn registry(&self) -> Arc<Registry> {
-        self.registry.clone()
-    }
-
-    fn future_panicked(self, err: Box<Any + Send>) {
-        self.registry.handle_panic(err);
-        self.registry.terminate();
-    }
-
-    fn future_completed(self) {
-        self.registry.terminate();
-    }
 }
 
 #[cfg(test)]
