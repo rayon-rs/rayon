@@ -1,6 +1,4 @@
 use Configuration;
-#[cfg(rayon_unstable)]
-use future::{Future, RayonFuture};
 use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
@@ -12,6 +10,7 @@ use std::sync::Arc;
 use std::error::Error;
 use registry::{Registry, WorkerThread};
 
+mod internal;
 mod test;
 /// # ThreadPool
 ///
@@ -241,45 +240,6 @@ impl ThreadPool {
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_in(op, &self.registry) }
-    }
-
-    /// Spawns an asynchronous future in the thread pool. `spawn_future()` will inject 
-    /// jobs into the threadpool that are not tied to your current stack frame. This means 
-    /// `ThreadPool`'s `spawn` methods are not scoped. As a result, it cannot access data
-    /// owned by the stack.
-    ///
-    /// `spawn_future()` returns a `RayonFuture<F::Item, F::Error>`, allowing you to chain
-    /// multiple jobs togther.
-    ///
-    /// ## Using `spawn_future()`
-    ///
-    /// ```rust
-    ///    # extern crate rayon_core as rayon;
-    ///    extern crate futures;
-    ///    use futures::{future, Future};
-    ///    # fn main() {
-    ///
-    ///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
-    ///
-    ///    let a = pool.spawn_future(future::lazy(move || Ok::<_, ()>(format!("Hello, "))));
-    ///    let b = pool.spawn_future(a.map(|mut data| {
-    ///                                        data.push_str("world");
-    ///                                        data
-    ///                                    }));
-    ///    let result = b.wait().unwrap(); // `Err` is impossible, so use `unwrap()` here
-    ///    println!("{:?}", result); // prints: "Hello, world!"
-    ///    # }
-    /// ```
-    ///
-    /// See also: [the `spawn_future()` function defined on scopes][spawn_future].
-    ///
-    /// [spawn_future]: struct.Scope.html#method.spawn_future
-    #[cfg(rayon_unstable)]
-    pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'static
-    {
-        // We assert that `self.registry` has not yet terminated.
-        unsafe { spawn::spawn_future_in(future, self.registry.clone()) }
     }
 }
 

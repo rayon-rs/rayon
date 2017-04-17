@@ -17,7 +17,4 @@ coco = "0.1.1"
 libc = "0.2.16"
 lazy_static = "0.2.2"
 
-# only if #[cfg(rayon_unstable)], will be removed eventually
-futures = "0.1.7"
-
 [dev-dependencies]

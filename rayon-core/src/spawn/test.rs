@@ -1,15 +1,10 @@
-#[cfg(rayon_unstable)]
-use futures::{lazy, Future};
-
 use scope;
 use std::any::Any;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::sync::mpsc::channel;
 
 use {Configuration, ThreadPool};
 use super::spawn;
-#[cfg(rayon_unstable)]
-use super::spawn_future;
 
 #[test]
 fn spawn_then_join_in_worker() {
@@ -50,56 +45,6 @@ fn panic_fwd() {
     ThreadPool::new(configuration).unwrap().spawn(move || panic!("Hello, world!"));
 
     assert_eq!(1, rx.recv().unwrap());
-}
-
-#[test]
-#[cfg(rayon_unstable)]
-fn async_future_map() {
-    let data = Arc::new(Mutex::new(format!("Hello, ")));
-
-    let a = spawn_future(lazy({
-        let data = data.clone();
-        move || Ok::<_, ()>(data)
-    }));
-    let future = spawn_future(a.map(|data| {
-        let mut v = data.lock().unwrap();
-        v.push_str("world!");
-    }));
-    let () = future.wait().unwrap();
-
-    // future must have executed for the scope to have ended, even
-    // though we never invoked `wait` to observe its result
-    assert_eq!(&data.lock().unwrap()[..], "Hello, world!");
-}
-
-#[test]
-#[should_panic(expected = "Hello, world!")]
-#[cfg(rayon_unstable)]
-fn async_future_panic_prop() {
-    let future = spawn_future(lazy(move || Ok::<(), ()>(argh())));
-    let _ = future.rayon_wait(); // should panic, not return a value
-
-    fn argh() -> () {
-        if true {
-            panic!("Hello, world!");
-        }
-    }
-}
-
-#[test]
-#[cfg(rayon_unstable)]
-fn async_future_scope_interact() {
-    let future = spawn_future(lazy(move || Ok::<usize, ()>(22)));
-
-    let mut vec = vec![];
-    scope(|s| {
-        let future = s.spawn_future(future.map(|x| x * 2));
-        s.spawn(|_| {
-            vec.push(future.rayon_wait().unwrap());
-        }); // just because
-    });
-
-    assert_eq!(vec![44], vec);
 }
 
 /// Test what happens when the thread-pool is dropped but there are

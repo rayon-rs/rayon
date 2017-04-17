@@ -10,6 +10,9 @@
 extern crate rayon_core;
 extern crate either;
 
+#[cfg(rayon_unstable)]
+extern crate futures;
+
 #[cfg(test)]
 extern crate rand;
 
@@ -20,6 +23,9 @@ mod delegate;
 mod private;
 
 mod split_producer;
+
+#[cfg(rayon_unstable)]
+pub mod future;
 
 pub mod collections;
 pub mod iter;
@@ -43,7 +49,3 @@ pub use rayon_core::ThreadPool;
 pub use rayon_core::join;
 pub use rayon_core::{scope, Scope};
 pub use rayon_core::spawn;
-#[cfg(rayon_unstable)]
-pub use rayon_core::spawn_future;
-#[cfg(rayon_unstable)]
-pub use rayon_core::RayonFuture;
