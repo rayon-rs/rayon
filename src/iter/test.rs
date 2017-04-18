@@ -1188,6 +1188,33 @@ pub fn par_iter_collect_linked_list_flat_map_filter() {
 }
 
 #[test]
+pub fn par_iter_collect_cows() {
+    use std::borrow::Cow;
+
+    let s = "Fearless Concurrency with Rust";
+
+    // Collects `i32` into a `Vec`
+    let a: Cow<[i32]> = (0..1024).collect();
+    let b: Cow<[i32]> = a.par_iter().cloned().collect();
+    assert_eq!(a, b);
+
+    // Collects `char` into a `String`
+    let a: Cow<str> = s.chars().collect();
+    let b: Cow<str> = s.par_chars().collect();
+    assert_eq!(a, b);
+
+    // Collects `str` into a `String`
+    let a: Cow<str> = s.split_whitespace().collect();
+    let b: Cow<str> = s.par_split_whitespace().collect();
+    assert_eq!(a, b);
+
+    // Collects `String` into a `String`
+    let a: Cow<str> = s.split_whitespace().map(|s| s.to_owned()).collect();
+    let b: Cow<str> = s.par_split_whitespace().map(|s| s.to_owned()).collect();
+    assert_eq!(a, b);
+}
+
+#[test]
 pub fn par_iter_unindexed_flat_map() {
     let b: Vec<i64> = (0_i64..1024).into_par_iter().flat_map(|i| Some(i)).collect();
     let c: Vec<i64> = (0_i64..1024).flat_map(|i| Some(i)).collect();
