@@ -14,6 +14,12 @@ env:
 
 matrix:
   include:
+  - rust: stable
+    env: FEATURES=unstable
+    os: linux
+  - rust: stable
+    env: FEATURES=unstable
+    os: osx
   - rust: nightly
     env: FEATURES=unstable
     os: linux
