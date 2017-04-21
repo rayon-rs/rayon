@@ -5,6 +5,7 @@
 use iter::*;
 use iter::internal::*;
 use std;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 impl<T: Send> IntoParallelIterator for Option<T> {
     type Item = T;
@@ -108,6 +109,35 @@ impl<T: Send> Producer for OptionProducer<T> {
             (none, self)
         } else {
             (self, none)
+        }
+    }
+}
+
+
+/// Collect an arbitrary `Option`-wrapped collection.
+///
+/// If any item is `None`, then all previous items collected are discarded,
+/// and it returns only `None`.
+impl<'a, C, T> FromParallelIterator<Option<T>> for Option<C>
+    where C: FromParallelIterator<T>,
+          T: Send
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = Option<T>>
+    {
+        let found_none = AtomicBool::new(false);
+        let collection = par_iter
+            .into_par_iter()
+            .inspect(|item| if item.is_none() {
+                         found_none.store(true, Ordering::Relaxed);
+                     })
+            .while_some()
+            .collect();
+
+        if found_none.load(Ordering::Relaxed) {
+            None
+        } else {
+            Some(collection)
         }
     }
 }

@@ -1111,6 +1111,60 @@ pub fn check_find_is_present() {
 }
 
 #[test]
+pub fn check_while_some() {
+    let value = (0_i32..2048)
+        .into_par_iter()
+        .map(Some)
+        .while_some()
+        .max();
+    assert_eq!(value, Some(2047));
+
+    let counter = AtomicUsize::new(0);
+    let value = (0_i32..2048)
+        .into_par_iter()
+        .map(|x| {
+                 counter.fetch_add(1, Ordering::SeqCst);
+                 if x < 1024 { Some(x) } else { None }
+             })
+        .while_some()
+        .max();
+    assert!(value < Some(1024));
+    assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
+}
+
+#[test]
+pub fn par_iter_collect_option() {
+    let a: Option<Vec<_>> = (0_i32..2048).map(Some).collect();
+    let b: Option<Vec<_>> = (0_i32..2048).into_par_iter().map(Some).collect();
+    assert_eq!(a, b);
+
+    let c: Option<Vec<_>> = (0_i32..2048)
+        .into_par_iter()
+        .map(|x| if x == 1234 { None } else { Some(x) })
+        .collect();
+    assert_eq!(c, None);
+}
+
+#[test]
+pub fn par_iter_collect_result() {
+    let a: Result<Vec<_>, ()> = (0_i32..2048).map(Ok).collect();
+    let b: Result<Vec<_>, ()> = (0_i32..2048).into_par_iter().map(Ok).collect();
+    assert_eq!(a, b);
+
+    let c: Result<Vec<_>, _> = (0_i32..2048)
+        .into_par_iter()
+        .map(|x| if x == 1234 { Err(x) } else { Ok(x) })
+        .collect();
+    assert_eq!(c, Err(1234));
+
+    let d: Result<Vec<_>, _> = (0_i32..2048)
+        .into_par_iter()
+        .map(|x| if x % 100 == 99 { Err(x) } else { Ok(x) })
+        .collect();
+    assert_eq!(d.map_err(|x| x % 100), Err(99));
+}
+
+#[test]
 pub fn par_iter_collect() {
     let a: Vec<i32> = (0..1024).collect();
     let b: Vec<i32> = a.par_iter().map(|&i| i + 1).collect();
