@@ -15,10 +15,11 @@ Options:
 use rand::{thread_rng, Rng};
 use std::iter::repeat;
 use std::num::Wrapping;
+use std::sync::Arc;
 use time;
 
-use rayon::prelude::*;
 use docopt::Docopt;
+use rayon::prelude::*;
 
 #[cfg(test)]
 mod bench;
@@ -33,8 +34,8 @@ pub struct Args {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Board {
     board: Vec<bool>,
-    survive: Vec<usize>,
-    born: Vec<usize>,
+    survive: Arc<Vec<usize>>,
+    born: Arc<Vec<usize>>,
     rows: usize,
     cols: usize
 }
@@ -51,8 +52,8 @@ impl Board {
         let new_board = repeat(false).take(rows * cols).collect();
 
         Board { board  : new_board,
-                born   : born,
-                survive: survive,
+                born   : Arc::new(born),
+                survive: Arc::new(survive),
                 rows   : rows,
                 cols   : cols }
     }
