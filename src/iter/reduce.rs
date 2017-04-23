@@ -46,6 +46,10 @@ impl<'r, R, ID, T> Consumer<T> for ReduceConsumer<'r, R, ID>
             item: (self.identity)(),
         }
     }
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<'r, R, ID, T> UnindexedConsumer<T> for ReduceConsumer<'r, R, ID>
@@ -98,5 +102,9 @@ impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
 
     fn complete(self) -> T {
         self.item
+    }
+
+    fn full(&self) -> bool {
+        false
     }
 }
