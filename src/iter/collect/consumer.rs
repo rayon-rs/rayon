@@ -65,7 +65,9 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
     fn consume(mut self, item: T) -> CollectFolder<'c, T> {
         // Compute target pointer and write to it. Safe because the iterator
         // does all the bounds checking; we're only avoiding the target drop.
-        let head = self.target.next().expect("too many values pushed to consumer");
+        let head = self.target
+            .next()
+            .expect("too many values pushed to consumer");
         unsafe {
             ptr::write(head, item);
         }
@@ -78,7 +80,8 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
         assert!(self.target.len() == 0, "too few values pushed to consumer");
 
         // track total values written
-        self.global_writes.fetch_add(self.local_writes, Ordering::Relaxed);
+        self.global_writes
+            .fetch_add(self.local_writes, Ordering::Relaxed);
     }
 }
 

@@ -38,8 +38,9 @@ fn better_position(pos1: usize, pos2: usize, mp: MatchPosition) -> bool {
 }
 
 pub fn find_first<I, P>(pi: I, find_op: P) -> Option<I::Item>
-    where I: ParallelIterator,
-          P: Fn(&I::Item) -> bool + Sync
+where
+    I: ParallelIterator,
+    P: Fn(&I::Item) -> bool + Sync,
 {
     let best_found = AtomicUsize::new(usize::max_value());
     let consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &best_found);
@@ -47,8 +48,9 @@ pub fn find_first<I, P>(pi: I, find_op: P) -> Option<I::Item>
 }
 
 pub fn find_last<I, P>(pi: I, find_op: P) -> Option<I::Item>
-    where I: ParallelIterator,
-          P: Fn(&I::Item) -> bool + Sync
+where
+    I: ParallelIterator,
+    P: Fn(&I::Item) -> bool + Sync,
 {
     let best_found = AtomicUsize::new(0);
     let consumer = FindConsumer::new(&find_op, MatchPosition::Rightmost, &best_found);
@@ -83,8 +85,9 @@ impl<'p, P> FindConsumer<'p, P> {
 }
 
 impl<'p, T, P> Consumer<T> for FindConsumer<'p, P>
-    where T: Send,
-          P: Fn(&T) -> bool + Sync
+where
+    T: Send,
+    P: Fn(&T) -> bool + Sync,
 {
     type Folder = FindFolder<'p, T, P>;
     type Reducer = FindReducer;
@@ -108,15 +111,18 @@ impl<'p, T, P> Consumer<T> for FindConsumer<'p, P>
     fn full(&self) -> bool {
         // can stop consuming if the best found index so far is *strictly*
         // better than anything this consumer will find
-        better_position(self.best_found.load(Ordering::Relaxed),
-                        self.current_index(),
-                        self.match_position)
+        better_position(
+            self.best_found.load(Ordering::Relaxed),
+            self.current_index(),
+            self.match_position,
+        )
     }
 }
 
 impl<'p, T, P> UnindexedConsumer<T> for FindConsumer<'p, P>
-    where T: Send,
-          P: Fn(&T) -> bool + Sync
+where
+    T: Send,
+    P: Fn(&T) -> bool + Sync,
 {
     fn split_off_left(&self) -> Self {
         // Upper bound for one consumer will be lower bound for the other. This
@@ -173,10 +179,13 @@ impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
                 if better_position(current, self.boundary, self.match_position) {
                     break;
                 }
-                match self.best_found.compare_exchange_weak(current,
-                                                            self.boundary,
-                                                            Ordering::Relaxed,
-                                                            Ordering::Relaxed) {
+                match self.best_found
+                          .compare_exchange_weak(
+                    current,
+                    self.boundary,
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                ) {
                     Ok(_) => {
                         self.item = Some(item);
                         break;
@@ -199,9 +208,11 @@ impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
         };
 
         found_best_in_range ||
-        better_position(self.best_found.load(Ordering::Relaxed),
-                        self.boundary,
-                        self.match_position)
+        better_position(
+            self.best_found.load(Ordering::Relaxed),
+            self.boundary,
+            self.match_position,
+        )
     }
 }
 

@@ -40,7 +40,8 @@ impl ThreadPool {
     ///
     /// If `op` should panic, that panic will be propagated.
     pub fn install<OP, R>(&self, op: OP) -> R
-        where OP: FnOnce() -> R + Send
+    where
+        OP: FnOnce() -> R + Send,
     {
         unsafe {
             let job_a = StackJob::new(op, LockLatch::new());
@@ -101,7 +102,8 @@ impl ThreadPool {
     /// `spawn_async()` for more details.
     #[cfg(feature = "unstable")]
     pub fn spawn_async<OP>(&self, op: OP)
-        where OP: FnOnce() + Send + 'static
+    where
+        OP: FnOnce() + Send + 'static,
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn_async::spawn_async_in(op, &self.registry) }
@@ -111,7 +113,8 @@ impl ThreadPool {
     /// `spawn_future_async()` for more details.
     #[cfg(feature = "unstable")]
     pub fn spawn_future_async<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'static
+    where
+        F: Future + Send + 'static,
     {
         // We assert that `self.registry` has not yet terminated.
         unsafe { spawn_async::spawn_future_async_in(future, self.registry.clone()) }

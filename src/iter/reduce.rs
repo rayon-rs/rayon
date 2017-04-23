@@ -2,10 +2,11 @@ use super::ParallelIterator;
 use super::internal::*;
 
 pub fn reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
-    where PI: ParallelIterator<Item = T>,
-          R: Fn(T, T) -> T + Sync,
-          ID: Fn() -> T + Sync,
-          T: Send
+where
+    PI: ParallelIterator<Item = T>,
+    R: Fn(T, T) -> T + Sync,
+    ID: Fn() -> T + Sync,
+    T: Send,
 {
     let consumer = ReduceConsumer {
         identity: &identity,
@@ -28,9 +29,10 @@ impl<'r, R, ID> Clone for ReduceConsumer<'r, R, ID> {
 }
 
 impl<'r, R, ID, T> Consumer<T> for ReduceConsumer<'r, R, ID>
-    where R: Fn(T, T) -> T + Sync,
-          ID: Fn() -> T + Sync,
-          T: Send
+where
+    R: Fn(T, T) -> T + Sync,
+    ID: Fn() -> T + Sync,
+    T: Send,
 {
     type Folder = ReduceFolder<'r, R, T>;
     type Reducer = Self;
@@ -49,9 +51,10 @@ impl<'r, R, ID, T> Consumer<T> for ReduceConsumer<'r, R, ID>
 }
 
 impl<'r, R, ID, T> UnindexedConsumer<T> for ReduceConsumer<'r, R, ID>
-    where R: Fn(T, T) -> T + Sync,
-          ID: Fn() -> T + Sync,
-          T: Send
+where
+    R: Fn(T, T) -> T + Sync,
+    ID: Fn() -> T + Sync,
+    T: Send,
 {
     fn split_off_left(&self) -> Self {
         *self
@@ -63,7 +66,8 @@ impl<'r, R, ID, T> UnindexedConsumer<T> for ReduceConsumer<'r, R, ID>
 }
 
 impl<'r, R, ID, T> Reducer<T> for ReduceConsumer<'r, R, ID>
-    where R: Fn(T, T) -> T + Sync
+where
+    R: Fn(T, T) -> T + Sync,
 {
     fn reduce(self, left: T, right: T) -> T {
         (self.reduce_op)(left, right)
@@ -76,7 +80,8 @@ struct ReduceFolder<'r, R: 'r, T> {
 }
 
 impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
-    where R: Fn(T, T) -> T
+where
+    R: Fn(T, T) -> T,
 {
     type Result = T;
 
@@ -88,7 +93,8 @@ impl<'r, R, T> Folder<T> for ReduceFolder<'r, R, T>
     }
 
     fn consume_iter<I>(self, iter: I) -> Self
-        where I: IntoIterator<Item = T>
+    where
+        I: IntoIterator<Item = T>,
     {
         ReduceFolder {
             reduce_op: self.reduce_op,

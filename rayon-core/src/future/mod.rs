@@ -5,7 +5,7 @@
 //!
 //! See `README.md` for details.
 
-use latch::{LatchProbe};
+use latch::LatchProbe;
 #[allow(warnings)]
 use log::Event::*;
 use futures::{Async, Poll};
@@ -62,7 +62,9 @@ pub unsafe trait FutureScope<'scope> {
 ///
 /// NB. Although this is public, it is not exposed to outside users.
 pub fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     let inner = ScopeFuture::spawn(future, scope);
 
@@ -76,8 +78,8 @@ pub fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Ite
         return RayonFuture { inner: hide_lifetime(inner) };
     }
 
-    unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
-                                      -> Arc<ScopeFutureTrait<T, E>> {
+    unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>,)
+        -> Arc<ScopeFutureTrait<T, E>> {
         mem::transmute(x)
     }
 }
@@ -94,10 +96,13 @@ impl<T, E> RayonFuture<T, E> {
             unsafe {
                 (*worker_thread).wait_until(&*self.inner);
                 debug_assert!(self.inner.probe());
-                self.poll().map(|a_v| match a_v {
-                    Async::Ready(v) => v,
-                    Async::NotReady => panic!("probe() returned true but poll not ready")
-                })
+                self.poll()
+                    .map(
+                        |a_v| match a_v {
+                            Async::Ready(v) => v,
+                            Async::NotReady => panic!("probe() returned true but poll not ready"),
+                        },
+                    )
             }
         }
     }
@@ -134,7 +139,9 @@ impl<T, E> Drop for RayonFuture<T, E> {
 /// ////////////////////////////////////////////////////////////////////////
 
 struct ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     state: AtomicUsize,
     registry: Arc<Registry>,
@@ -146,7 +153,9 @@ type CUItem<F> = <CU<F> as Future>::Item;
 type CUError<F> = <CU<F> as Future>::Error;
 
 struct ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
     unpark: Option<Arc<Unpark>>,
@@ -168,14 +177,22 @@ struct ScopeFutureContents<'scope, F, S>
 
 // Assert that the `*const` is safe to transmit between threads:
 unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
-{}
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
+{
+}
 unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
-{}
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
+{
+}
 
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     fn spawn(future: F, scope: S) -> Arc<Self> {
         // Using `AssertUnwindSafe` is valid here because (a) the data
@@ -183,19 +200,23 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
         // panics will be propagated when the `RayonFuture` is polled.
         let spawn = task::spawn(AssertUnwindSafe(future).catch_unwind());
 
-        let future: Arc<Self> = Arc::new(ScopeFuture::<F, S> {
-            state: AtomicUsize::new(STATE_PARKED),
-            registry: scope.registry(),
-            contents: Mutex::new(ScopeFutureContents {
-                spawn: None,
-                unpark: None,
-                this: None,
-                scope: Some(scope),
-                waiting_task: None,
-                result: Ok(Async::NotReady),
-                canceled: false,
-            }),
-        });
+        let future: Arc<Self> = Arc::new(
+            ScopeFuture::<F, S> {
+                state: AtomicUsize::new(STATE_PARKED),
+                registry: scope.registry(),
+                contents: Mutex::new(
+                    ScopeFutureContents {
+                        spawn: None,
+                        unpark: None,
+                        this: None,
+                        scope: Some(scope),
+                        waiting_task: None,
+                        result: Ok(Async::NotReady),
+                        canceled: false,
+                    },
+                ),
+            },
+        );
 
         // Make the two self-cycles. Note that these imply the future
         // cannot be freed until these fields are set to `None` (which
@@ -249,10 +270,15 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
             match self.state.load(Relaxed) {
                 STATE_PARKED => {
                     if {
-                        self.state
-                            .compare_exchange_weak(STATE_PARKED, STATE_UNPARKED, Release, Relaxed)
-                            .is_ok()
-                    } {
+                           self.state
+                               .compare_exchange_weak(
+                            STATE_PARKED,
+                            STATE_UNPARKED,
+                            Release,
+                            Relaxed,
+                        )
+                               .is_ok()
+                       } {
                         // Contention here is unlikely but possible: a
                         // previous execution might have moved us to the
                         // PARKED state but not yet released the lock.
@@ -273,20 +299,24 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
 
                 STATE_EXECUTING => {
                     if {
-                        self.state
-                            .compare_exchange_weak(STATE_EXECUTING,
-                                                   STATE_EXECUTING_UNPARKED,
-                                                   Release,
-                                                   Relaxed)
-                            .is_ok()
-                    } {
+                           self.state
+                               .compare_exchange_weak(
+                            STATE_EXECUTING,
+                            STATE_EXECUTING_UNPARKED,
+                            Release,
+                            Relaxed,
+                        )
+                               .is_ok()
+                       } {
                         return;
                     }
                 }
 
                 state => {
-                    debug_assert!(state == STATE_UNPARKED || state == STATE_EXECUTING_UNPARKED ||
-                                  state == STATE_COMPLETE);
+                    debug_assert!(
+                        state == STATE_UNPARKED || state == STATE_EXECUTING_UNPARKED ||
+                        state == STATE_COMPLETE
+                    );
                     return;
                 }
             }
@@ -300,7 +330,8 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
         // should be contending with us to change the state here.
         let state = self.state.load(Acquire);
         debug_assert_eq!(state, STATE_UNPARKED);
-        let result = self.state.compare_exchange(state, STATE_EXECUTING, Release, Relaxed);
+        let result = self.state
+            .compare_exchange(state, STATE_EXECUTING, Release, Relaxed);
         debug_assert_eq!(result, Ok(STATE_UNPARKED));
     }
 
@@ -309,10 +340,15 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
             match self.state.load(Relaxed) {
                 STATE_EXECUTING => {
                     if {
-                        self.state
-                            .compare_exchange_weak(STATE_EXECUTING, STATE_PARKED, Release, Relaxed)
-                            .is_ok()
-                    } {
+                           self.state
+                               .compare_exchange_weak(
+                            STATE_EXECUTING,
+                            STATE_PARKED,
+                            Release,
+                            Relaxed,
+                        )
+                               .is_ok()
+                       } {
                         // We put ourselves into parked state, no need to
                         // re-execute.  We'll just wait for the Unpark.
                         return true;
@@ -322,10 +358,10 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                 state => {
                     debug_assert_eq!(state, STATE_EXECUTING_UNPARKED);
                     if {
-                        self.state
-                            .compare_exchange_weak(state, STATE_EXECUTING, Release, Relaxed)
-                            .is_ok()
-                    } {
+                           self.state
+                               .compare_exchange_weak(state, STATE_EXECUTING, Release, Relaxed)
+                               .is_ok()
+                       } {
                         // We finished executing, but an unpark request
                         // came in the meantime.  We need to execute
                         // again. Return false as we failed to end the
@@ -339,7 +375,9 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> Unpark for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     fn unpark(&self) {
         self.unpark_inherent();
@@ -347,7 +385,9 @@ impl<'scope, F, S> Unpark for ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> Job for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     unsafe fn execute(this: *const Self) {
         let this: Arc<Self> = mem::transmute(this);
@@ -386,7 +426,9 @@ impl<'scope, F, S> Job for ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: FutureScope<'scope>,
 {
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
         let unpark = self.unpark.clone().unwrap();
@@ -409,9 +451,11 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         let this = self.this.take().unwrap();
         if cfg!(debug_assertions) {
             let state = this.state.load(Relaxed);
-            debug_assert!(state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
-                          "cannot complete when not executing (state = {})",
-                          state);
+            debug_assert!(
+                state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
+                "cannot complete when not executing (state = {})",
+                state
+            );
         }
         this.state.store(STATE_COMPLETE, Release);
 
@@ -423,7 +467,9 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
             log!(FutureUnparkWaitingTask);
             match unwind::halt_unwinding(|| waiting_task.unpark()) {
                 Ok(()) => { }
-                Err(e) => { err = Some(e); }
+                Err(e) => {
+                    err = Some(e);
+                }
             }
         }
 
@@ -440,7 +486,9 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
 }
 
 impl<'scope, F, S> LatchProbe for ScopeFuture<'scope, F, S>
-    where F: Future + Send, S: FutureScope<'scope>,
+where
+    F: Future + Send,
+    S: FutureScope<'scope>,
 {
     fn probe(&self) -> bool {
         self.state.load(Acquire) == STATE_COMPLETE

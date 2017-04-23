@@ -54,10 +54,7 @@ struct SplayedBitsCounter {
 
 impl SplayedBitsCounter {
     fn new(max: usize) -> Self {
-        SplayedBitsCounter {
-            value: 0,
-            max: max,
-        }
+        SplayedBitsCounter { value: 0, max: max }
     }
 }
 
@@ -82,9 +79,10 @@ impl Iterator for SplayedBitsCounter {
 #[test]
 fn test_splayed_counter() {
     let bits: Vec<usize> = SplayedBitsCounter::new(64).collect();
-    assert_eq!(vec![0b0, 0b1, 0b100, 0b101,
-                    0b10000, 0b10001, 0b10100, 0b10101],
-               bits);
+    assert_eq!(
+        vec![0b0, 0b1, 0b100, 0b101, 0b10000, 0b10001, 0b10100, 0b10101],
+        bits
+    );
 }
 
 // Multiply the matrices laid out in z order.
@@ -131,8 +129,8 @@ fn quarter_chunks<'a>(v: &'a [f32]) -> (&'a [f32], &'a [f32], &'a [f32], &'a [f3
     (a, b, c, d)
 }
 
-fn quarter_chunks_mut<'a>(v: &'a mut [f32])
-                          -> (&'a mut [f32], &'a mut [f32], &'a mut [f32], &'a mut [f32]) {
+fn quarter_chunks_mut<'a>(v: &'a mut [f32],)
+    -> (&'a mut [f32], &'a mut [f32], &'a mut [f32], &'a mut [f32]) {
     let mid = v.len() / 2;
     let quarter = mid / 2;
     let (left, right) = v.split_at_mut(mid);
@@ -141,36 +139,55 @@ fn quarter_chunks_mut<'a>(v: &'a mut [f32])
     (a, b, c, d)
 }
 
-fn join4<F1, F2, F3, F4, R1, R2, R3, R4>
-    (f1: F1, f2: F2, f3: F3, f4: F4) -> (R1, R2, R3, R4) where
-    F1: FnOnce() -> R1 + Send, R1: Send,
-    F2: FnOnce() -> R2 + Send, R2: Send,
-    F3: FnOnce() -> R3 + Send, R3: Send,
-    F4: FnOnce() -> R4 + Send, R4: Send,
+fn join4<F1, F2, F3, F4, R1, R2, R3, R4>(f1: F1, f2: F2, f3: F3, f4: F4) -> (R1, R2, R3, R4)
+where
+    F1: FnOnce() -> R1 + Send,
+    R1: Send,
+    F2: FnOnce() -> R2 + Send,
+    R2: Send,
+    F3: FnOnce() -> R3 + Send,
+    R3: Send,
+    F4: FnOnce() -> R4 + Send,
+    R4: Send,
 {
-    let ((r1, r2), (r3, r4)) =
-        rayon::join(|| rayon::join(f1, f2),
-                    || rayon::join(f3, f4));
+    let ((r1, r2), (r3, r4)) = rayon::join(|| rayon::join(f1, f2), || rayon::join(f3, f4));
     (r1, r2, r3, r4)
 }
 
 fn join8<F1, F2, F3, F4, F5, F6, F7, F8, R1, R2, R3, R4, R5, R6, R7, R8>
-    (f1: F1, f2: F2, f3: F3, f4: F4, f5: F5, f6: F6, f7: F7, f8: F8) ->
-    (R1, R2, R3, R4, R5, R6, R7, R8) where
-    F1: FnOnce() -> R1 + Send, R1: Send,
-    F2: FnOnce() -> R2 + Send, R2: Send,
-    F3: FnOnce() -> R3 + Send, R3: Send,
-    F4: FnOnce() -> R4 + Send, R4: Send,
-    F5: FnOnce() -> R5 + Send, R5: Send,
-    F6: FnOnce() -> R6 + Send, R6: Send,
-    F7: FnOnce() -> R7 + Send, R7: Send,
-    F8: FnOnce() -> R8 + Send, R8: Send
+    (
+    f1: F1,
+    f2: F2,
+    f3: F3,
+    f4: F4,
+    f5: F5,
+    f6: F6,
+    f7: F7,
+    f8: F8,
+) -> (R1, R2, R3, R4, R5, R6, R7, R8)
+where
+    F1: FnOnce() -> R1 + Send,
+    R1: Send,
+    F2: FnOnce() -> R2 + Send,
+    R2: Send,
+    F3: FnOnce() -> R3 + Send,
+    R3: Send,
+    F4: FnOnce() -> R4 + Send,
+    R4: Send,
+    F5: FnOnce() -> R5 + Send,
+    R5: Send,
+    F6: FnOnce() -> R6 + Send,
+    R6: Send,
+    F7: FnOnce() -> R7 + Send,
+    R7: Send,
+    F8: FnOnce() -> R8 + Send,
+    R8: Send,
 {
     let (((r1, r2), (r3, r4)), ((r5, r6), (r7, r8))) =
-        rayon::join(|| rayon::join(|| rayon::join(f1, f2),
-                                   || rayon::join(f3, f4)),
-                    || rayon::join(|| rayon::join(f5, f6),
-                                   || rayon::join(f7, f8)));
+        rayon::join(
+            || rayon::join(|| rayon::join(f1, f2), || rayon::join(f3, f4)),
+            || rayon::join(|| rayon::join(f5, f6), || rayon::join(f7, f8)),
+        );
     (r1, r2, r3, r4, r5, r6, r7, r8)
 }
 
@@ -190,10 +207,16 @@ pub fn matmulz(a: &[f32], b: &[f32], dest: &mut [f32]) {
         let (d1, d2, d3, d4) = quarter_chunks_mut(dest);
         let (t1, t2, t3, t4) = quarter_chunks_mut(&mut tmp[..]);
         // Multiply 8 submatrices
-        join8(|| matmulz(a1, b1, d1), || matmulz(a1, b2, d2),
-              || matmulz(a3, b1, d3), || matmulz(a3, b2, d4),
-              || matmulz(a2, b3, t1), || matmulz(a2, b4, t2),
-              || matmulz(a4, b3, t3), || matmulz(a4, b4, t4));
+        join8(
+            || matmulz(a1, b1, d1),
+            || matmulz(a1, b2, d2),
+            || matmulz(a3, b1, d3),
+            || matmulz(a3, b2, d4),
+            || matmulz(a2, b3, t1),
+            || matmulz(a2, b4, t2),
+            || matmulz(a4, b3, t3),
+            || matmulz(a4, b4, t4),
+        );
     }
 
     // Sum each quarter
@@ -219,14 +242,17 @@ pub fn matmul_strassen(a: &[f32], b: &[f32], dest: &mut [f32]) {
         || strassen_add_mul(a11, a12, b22),
         || strassen_sub_add_mul(a21, a11, b11, b12),
         || strassen_sub_add_mul(a12, a22, b21, b22),
-        || ());
+        || (),
+    );
 
     // Sum results into dest.
     let (c11, c12, c21, c22) = quarter_chunks_mut(dest);
-    join4(|| strassen_sum_sub(&m1[..], &m4[..], &m7[..], &m5[..], c11),
-          || strassen_sum(&m3[..], &m5[..], c12),
-          || strassen_sum(&m2[..], &m4[..], c21),
-          || strassen_sum_sub(&m1[..], &m3[..], &m6[..], &m2[..], c22));
+    join4(
+        || strassen_sum_sub(&m1[..], &m4[..], &m7[..], &m5[..], c11),
+        || strassen_sum(&m3[..], &m5[..], c12),
+        || strassen_sum(&m2[..], &m4[..], c21),
+        || strassen_sum_sub(&m1[..], &m3[..], &m6[..], &m2[..], c22),
+    );
 }
 
 fn raw_buffer(n: usize) -> Vec<f32> {
@@ -293,11 +319,15 @@ fn rtmp_sub(a: &[f32], b: &[f32]) -> Vec<f32> {
 
 // Any layout works, we're just adding by element.
 fn rmatsum(src: &[f32], dest: &mut [f32]) {
-    dest.par_iter_mut().zip(src.par_iter()).for_each(|(d, s)| *d += *s);
+    dest.par_iter_mut()
+        .zip(src.par_iter())
+        .for_each(|(d, s)| *d += *s);
 }
 
 fn rmatsub(src: &[f32], dest: &mut [f32]) {
-    dest.par_iter_mut().zip(src.par_iter()).for_each(|(d, s)| *d -= *s);
+    dest.par_iter_mut()
+        .zip(src.par_iter())
+        .for_each(|(d, s)| *d -= *s);
 }
 
 fn rcopy(src: &[f32], dest: &mut [f32]) {
@@ -330,7 +360,7 @@ fn test_matmul() {
 
     // Verify that large matrix gets the same results in parallel and serial algorithms.
     let n = 1 << 14;
-    assert!(n > MULT_CHUNK);  // If we don't recurse we're not testing much.
+    assert!(n > MULT_CHUNK); // If we don't recurse we're not testing much.
     let a: Vec<f32> = (0..n).map(|i| (i % 101) as f32).collect();
     let b: Vec<f32> = (0..n).map(|i| (i % 101 + 7) as f32).collect();
     let mut seqmul = vec![0f32; n];
@@ -362,13 +392,18 @@ fn timed_matmul<F: FnOnce(&[f32], &[f32], &mut [f32])>(size: usize, f: F, name: 
     f(&a[..], &b[..], &mut dest[..]);
     let dur = Instant::now() - start;
     let nanos = dur.subsec_nanos() as u64 + dur.as_secs() * 1_000_000_000u64;
-    println!("{}:\t{}x{} matrix: {} s", name, size, size, nanos as f32 / 1e9f32);
-    return nanos
+    println!(
+        "{}:\t{}x{} matrix: {} s",
+        name,
+        size,
+        size,
+        nanos as f32 / 1e9f32
+    );
+    return nanos;
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
+    let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.argv(args).decode())
         .unwrap_or_else(|e| e.exit());
 
@@ -379,7 +414,9 @@ pub fn main(args: &[String]) {
         }
         let seq = if args.flag_size <= 2048 {
             timed_matmul(args.flag_size, seq_matmulz, "seq z-order")
-        } else { 0 };
+        } else {
+            0
+        };
         let par = timed_matmul(args.flag_size, matmulz, "par z-order");
         timed_matmul(args.flag_size, matmul_strassen, "par strassen");
         let speedup = seq as f64 / par as f64;

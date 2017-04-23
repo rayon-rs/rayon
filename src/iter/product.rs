@@ -6,8 +6,9 @@ use std::marker::PhantomData;
 
 
 pub fn product<PI, P>(pi: PI) -> P
-    where PI: ParallelIterator,
-          P: Send + Product<PI::Item> + Product
+where
+    PI: ParallelIterator,
+    P: Send + Product<PI::Item> + Product,
 {
     pi.drive_unindexed(ProductConsumer::new())
 }
@@ -30,7 +31,8 @@ impl<P: Send> ProductConsumer<P> {
 }
 
 impl<P, T> Consumer<T> for ProductConsumer<P>
-    where P: Send + Product<T> + Product
+where
+    P: Send + Product<T> + Product,
 {
     type Folder = ProductFolder<P>;
     type Reducer = Self;
@@ -46,7 +48,8 @@ impl<P, T> Consumer<T> for ProductConsumer<P>
 }
 
 impl<P, T> UnindexedConsumer<T> for ProductConsumer<P>
-    where P: Send + Product<T> + Product
+where
+    P: Send + Product<T> + Product,
 {
     fn split_off_left(&self) -> Self {
         ProductConsumer::new()
@@ -58,7 +61,8 @@ impl<P, T> UnindexedConsumer<T> for ProductConsumer<P>
 }
 
 impl<P> Reducer<P> for ProductConsumer<P>
-    where P: Send + Product
+where
+    P: Send + Product,
 {
     fn reduce(self, left: P, right: P) -> P {
         mul(left, right)
@@ -71,7 +75,8 @@ struct ProductFolder<P> {
 }
 
 impl<P, T> Folder<T> for ProductFolder<P>
-    where P: Product<T> + Product
+where
+    P: Product<T> + Product,
 {
     type Result = P;
 
@@ -80,7 +85,8 @@ impl<P, T> Folder<T> for ProductFolder<P>
     }
 
     fn consume_iter<I>(self, iter: I) -> Self
-        where I: IntoIterator<Item = T>
+    where
+        I: IntoIterator<Item = T>,
     {
         ProductFolder { product: mul(self.product, iter.into_iter().product()) }
     }

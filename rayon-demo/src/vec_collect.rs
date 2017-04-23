@@ -6,54 +6,77 @@ mod util {
 
     /// Do whatever `collect` does by default.
     pub fn collect<T, PI>(pi: PI) -> Vec<T>
-        where T: Send,
-              PI: ParallelIterator<Item = T> + Send
+    where
+        T: Send,
+        PI: ParallelIterator<Item = T> + Send,
     {
         pi.collect()
     }
 
     /// Use a linked list of vectors intermediary.
     pub fn linked_list_vec<T, PI>(pi: PI) -> Vec<T>
-        where T: Send,
-              PI: ParallelIterator<Item = T> + Send
+    where
+        T: Send,
+        PI: ParallelIterator<Item = T> + Send,
     {
-        let list: LinkedList<Vec<_>> = pi
-            .fold(|| Vec::new(),
-                  |mut vec, elem| { vec.push(elem); vec })
+        let list: LinkedList<Vec<_>> = pi.fold(
+                || Vec::new(), |mut vec, elem| {
+                    vec.push(elem);
+                    vec
+                }
+            )
             .collect();
         list.into_iter()
-            .fold(Vec::new(),
-                  |mut vec, mut sub| { vec.append(&mut sub); vec })
+            .fold(
+                Vec::new(), |mut vec, mut sub| {
+                    vec.append(&mut sub);
+                    vec
+                }
+            )
     }
 
     /// Use a linked list of vectors intermediary, with a size hint.
     pub fn linked_list_vec_sized<T, PI>(pi: PI) -> Vec<T>
-        where T: Send,
-              PI: ParallelIterator<Item = T> + Send
+    where
+        T: Send,
+        PI: ParallelIterator<Item = T> + Send,
     {
-        let list: LinkedList<Vec<_>> = pi
-            .fold(|| Vec::new(),
-                  |mut vec, elem| { vec.push(elem); vec })
+        let list: LinkedList<Vec<_>> = pi.fold(
+                || Vec::new(), |mut vec, elem| {
+                    vec.push(elem);
+                    vec
+                }
+            )
             .collect();
 
         let len = list.iter().map(Vec::len).sum();
         list.into_iter()
-            .fold(Vec::with_capacity(len),
-                  |mut vec, mut sub| { vec.append(&mut sub); vec })
+            .fold(
+                Vec::with_capacity(len), |mut vec, mut sub| {
+                    vec.append(&mut sub);
+                    vec
+                }
+            )
     }
 
     /// Fold into vectors and then reduce them together.
     pub fn fold<T, PI>(pi: PI) -> Vec<T>
-        where T: Send,
-              PI: ParallelIterator<Item = T> + Send
+    where
+        T: Send,
+        PI: ParallelIterator<Item = T> + Send,
     {
-        pi.fold(|| Vec::new(),
-                |mut vec, x| {
+        pi.fold(
+                || Vec::new(), |mut vec, x| {
                     vec.push(x);
                     vec
-                })
-          .reduce(|| Vec::new(),
-                  |mut vec1, mut vec2| { vec1.append(&mut vec2); vec1 })
+                }
+            )
+            .reduce(
+                || Vec::new(), |mut vec1, mut vec2| {
+                    vec1.append(&mut vec2);
+                    vec1
+                }
+            )
     }
 }
 
@@ -100,9 +123,8 @@ mod vec_i {
 
     const N: u32 = 4 * 1024 * 1024;
 
-    fn generate() -> impl IndexedParallelIterator<Item=u32> {
-        (0_u32..N)
-            .into_par_iter()
+    fn generate() -> impl IndexedParallelIterator<Item = u32> {
+        (0_u32..N).into_par_iter()
     }
 
     fn check(v: &Vec<u32>) {
@@ -112,11 +134,13 @@ mod vec_i {
     #[bench]
     fn with_collect_into(b: &mut ::test::Bencher) {
         let mut vec = None;
-        b.iter(|| {
-            let mut v = vec![];
-            generate().collect_into(&mut v);
-            vec = Some(v);
-        });
+        b.iter(
+            || {
+                let mut v = vec![];
+                generate().collect_into(&mut v);
+                vec = Some(v);
+            },
+        );
         check(&vec.unwrap());
     }
 
@@ -137,10 +161,8 @@ mod vec_i_filtered {
 
     const N: u32 = 4 * 1024 * 1024;
 
-    fn generate() -> impl ParallelIterator<Item=u32> {
-        (0_u32..N)
-            .into_par_iter()
-            .filter(|_| true)
+    fn generate() -> impl ParallelIterator<Item = u32> {
+        (0_u32..N).into_par_iter().filter(|_| true)
     }
 
     fn check(v: &Vec<u32>) {

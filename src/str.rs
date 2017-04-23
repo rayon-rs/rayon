@@ -24,7 +24,8 @@ fn find_char_midpoint(chars: &str) -> usize {
     // character boundary.  So we look at the raw bytes, first scanning
     // forward from the midpoint for a boundary, then trying backward.
     let (left, right) = chars.as_bytes().split_at(mid);
-    right.iter()
+    right
+        .iter()
         .cloned()
         .position(is_char_boundary)
         .map(|i| mid + i)
@@ -102,7 +103,9 @@ pub trait Pattern: Sized + Sync {
     fn find_in(&self, &str) -> Option<usize>;
     fn rfind_in(&self, &str) -> Option<usize>;
     fn is_suffix_of(&self, &str) -> bool;
-    fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F where F: Folder<&'ch str>;
+    fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
+    where
+        F: Folder<&'ch str>;
 }
 
 impl Pattern for char {
@@ -121,7 +124,8 @@ impl Pattern for char {
     }
 
     fn fold_with<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
-        where F: Folder<&'ch str>
+    where
+        F: Folder<&'ch str>,
     {
         let mut split = chars.split(*self);
         if skip_last {
@@ -147,7 +151,8 @@ impl<FN: Sync + Fn(char) -> bool> Pattern for FN {
     }
 
     fn fold_with<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
-        where F: Folder<&'ch str>
+    where
+        F: Folder<&'ch str>,
     {
         let mut split = chars.split(self);
         if skip_last {
@@ -173,7 +178,8 @@ impl<'ch> ParallelIterator for Chars<'ch> {
     type Item = char;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge_unindexed(CharsProducer { chars: self.chars }, consumer)
     }
@@ -194,7 +200,8 @@ impl<'ch> UnindexedProducer for CharsProducer<'ch> {
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         folder.consume_iter(self.chars.chars())
     }
@@ -238,9 +245,14 @@ impl<'ch, 'sep, P: Pattern + 'sep> SplitProducer<'ch, 'sep, P> {
     /// Common `fold_with` implementation, integrating `SplitTerminator`'s
     /// need to sometimes skip its final empty item.
     fn fold_with<F>(self, folder: F, skip_last: bool) -> F
-        where F: Folder<<Self as UnindexedProducer>::Item>
+    where
+        F: Folder<<Self as UnindexedProducer>::Item>,
     {
-        let SplitProducer { chars, separator, tail } = self;
+        let SplitProducer {
+            chars,
+            separator,
+            tail,
+        } = self;
 
         if tail == chars.len() {
             // No tail section, so just let `str::split` handle it.
@@ -274,7 +286,8 @@ impl<'ch, P: Pattern> ParallelIterator for Split<'ch, P> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let producer = SplitProducer::new(&self);
         bridge_unindexed(producer, consumer)
@@ -285,13 +298,18 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitProducer<'ch, 'sep
     type Item = &'ch str;
 
     fn split(mut self) -> (Self, Option<Self>) {
-        let SplitProducer { chars, separator, tail } = self;
+        let SplitProducer {
+            chars,
+            separator,
+            tail,
+        } = self;
 
         // First find a suitable UTF-8 boundary in the unsearched region.
         let char_index = find_char_midpoint(&chars[..tail]);
 
         // Look forward for the separator, and failing that look backward.
-        let index = separator.find_in(&chars[char_index..tail])
+        let index = separator
+            .find_in(&chars[char_index..tail])
             .map(|i| char_index + i)
             .or_else(|| separator.rfind_in(&chars[..char_index]));
 
@@ -329,7 +347,8 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitProducer<'ch, 'sep
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         self.fold_with(folder, false)
     }
@@ -367,7 +386,8 @@ impl<'ch, P: Pattern> ParallelIterator for SplitTerminator<'ch, P> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let producer = SplitTerminatorProducer::new(&self);
         bridge_unindexed(producer, consumer)
@@ -380,19 +400,22 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
     fn split(mut self) -> (Self, Option<Self>) {
         let (left, right) = self.splitter.split();
         self.splitter = left;
-        let right = right.map(|right| {
-            let endpoint = self.endpoint;
-            self.endpoint = false;
-            SplitTerminatorProducer {
-                splitter: right,
-                endpoint: endpoint,
-            }
-        });
+        let right = right.map(
+            |right| {
+                let endpoint = self.endpoint;
+                self.endpoint = false;
+                SplitTerminatorProducer {
+                    splitter: right,
+                    endpoint: endpoint,
+                }
+            },
+        );
         (self, right)
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         // See if we need to eat the empty trailing substring
         let skip_last = if self.endpoint {
@@ -417,15 +440,18 @@ impl<'ch> ParallelIterator for Lines<'ch> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         self.0
             .par_split_terminator('\n')
-            .map(|line| if line.ends_with('\r') {
-                     &line[..line.len() - 1]
-                 } else {
-                     line
-                 })
+            .map(
+                |line| if line.ends_with('\r') {
+                    &line[..line.len() - 1]
+                } else {
+                    line
+                },
+            )
             .drive_unindexed(consumer)
     }
 }
@@ -440,7 +466,8 @@ impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
     type Item = &'ch str;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         self.0
             .par_split(char::is_whitespace)

@@ -11,9 +11,7 @@ use super::{spawn_async, spawn_future_async};
 #[test]
 fn spawn_then_join_in_worker() {
     let (tx, rx) = channel();
-    scope(move |_| {
-        spawn_async(move || tx.send(22).unwrap());
-    });
+    scope(move |_| { spawn_async(move || tx.send(22).unwrap()); });
     assert_eq!(22, rx.recv().unwrap());
 }
 
@@ -44,7 +42,9 @@ fn panic_fwd() {
 
     let configuration = Configuration::new().panic_handler(panic_handler);
 
-    ThreadPool::new(configuration).unwrap().spawn_async(move || panic!("Hello, world!"));
+    ThreadPool::new(configuration)
+        .unwrap()
+        .spawn_async(move || panic!("Hello, world!"));
 
     assert_eq!(1, rx.recv().unwrap());
 }
@@ -53,14 +53,22 @@ fn panic_fwd() {
 fn async_future_map() {
     let data = Arc::new(Mutex::new(format!("Hello, ")));
 
-    let a = spawn_future_async(lazy({
-        let data = data.clone();
-        move || Ok::<_, ()>(data)
-    }));
-    let future = spawn_future_async(a.map(|data| {
-        let mut v = data.lock().unwrap();
-        v.push_str("world!");
-    }));
+    let a = spawn_future_async(
+        lazy(
+            {
+                let data = data.clone();
+                move || Ok::<_, ()>(data)
+            },
+        ),
+    );
+    let future = spawn_future_async(
+        a.map(
+            |data| {
+                let mut v = data.lock().unwrap();
+                v.push_str("world!");
+            },
+        ),
+    );
     let () = future.wait().unwrap();
 
     // future must have executed for the scope to have ended, even
@@ -86,12 +94,12 @@ fn async_future_scope_interact() {
     let future = spawn_future_async(lazy(move || Ok::<usize, ()>(22)));
 
     let mut vec = vec![];
-    scope(|s| {
-        let future = s.spawn_future(future.map(|x| x * 2));
-        s.spawn(|_| {
-            vec.push(future.rayon_wait().unwrap());
-        }); // just because
-    });
+    scope(
+        |s| {
+            let future = s.spawn_future(future.map(|x| x * 2));
+            s.spawn(|_| { vec.push(future.rayon_wait().unwrap()); }); // just because
+        },
+    );
 
     assert_eq!(vec![44], vec);
 }
@@ -108,16 +116,16 @@ fn termination_while_things_are_executing() {
     // our reference to it.
     {
         let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
-        thread_pool.spawn_async(move || {
-            let data = rx0.recv().unwrap();
+        thread_pool.spawn_async(
+            move || {
+                let data = rx0.recv().unwrap();
 
-            // At this point, we know the "main" reference to the
-            // `ThreadPool` has been dropped, but there are still
-            // active threads. Launch one more.
-            spawn_async(move || {
-                tx1.send(data).unwrap();
-            });
-        });
+                // At this point, we know the "main" reference to the
+                // `ThreadPool` has been dropped, but there are still
+                // active threads. Launch one more.
+                spawn_async(move || { tx1.send(data).unwrap(); });
+            },
+        );
     }
 
     tx0.send(22).unwrap();
@@ -133,15 +141,17 @@ fn custom_panic_handler_and_spawn_async() {
     // channel; since the closure is potentially executed in parallel
     // with itself, we have to wrap `tx` in a mutex.
     let tx = Mutex::new(tx);
-    let panic_handler = move |e: Box<Any + Send>| {
-        tx.lock().unwrap().send(e).unwrap();
-    };
+    let panic_handler = move |e: Box<Any + Send>| { tx.lock().unwrap().send(e).unwrap(); };
 
     // Execute an async that will panic.
     let config = Configuration::new().panic_handler(panic_handler);
-    ThreadPool::new(config).unwrap().spawn_async(move || {
-        panic!("Hello, world!");
-    });
+    ThreadPool::new(config)
+        .unwrap()
+        .spawn_async(
+            move || {
+                panic!("Hello, world!");
+            },
+        );
 
     // Check that we got back the panic we expected.
     let error = rx.recv().unwrap();
@@ -160,25 +170,29 @@ fn custom_panic_handler_and_nested_spawn_async() {
     // channel; since the closure is potentially executed in parallel
     // with itself, we have to wrap `tx` in a mutex.
     let tx = Mutex::new(tx);
-    let panic_handler = move |e| {
-        tx.lock().unwrap().send(e).unwrap();
-    };
+    let panic_handler = move |e| { tx.lock().unwrap().send(e).unwrap(); };
 
     // Execute an async that will (eventually) panic.
     const PANICS: usize = 3;
     let config = Configuration::new().panic_handler(panic_handler);
-    ThreadPool::new(config).unwrap().spawn_async(move || {
-        // launch 3 nested spawn-asyncs; these should be in the same
-        // thread-pool and hence inherit the same panic handler
-        for _ in 0 .. PANICS {
-            spawn_async(move || {
-                panic!("Hello, world!");
-            });
-        }
-    });
+    ThreadPool::new(config)
+        .unwrap()
+        .spawn_async(
+            move || {
+                // launch 3 nested spawn-asyncs; these should be in the same
+                // thread-pool and hence inherit the same panic handler
+                for _ in 0..PANICS {
+                    spawn_async(
+                        move || {
+                            panic!("Hello, world!");
+                        },
+                    );
+                }
+            },
+        );
 
     // Check that we get back the panics we expected.
-    for _ in 0 .. PANICS {
+    for _ in 0..PANICS {
         let error = rx.recv().unwrap();
         if let Some(&msg) = error.downcast_ref::<&str>() {
             assert_eq!(msg, "Hello, world!");

@@ -13,7 +13,8 @@ pub struct Iter<T> {
 }
 
 impl<T> IntoParallelIterator for Range<T>
-    where Iter<T>: ParallelIterator
+where
+    Iter<T>: ParallelIterator,
 {
     type Item = <Iter<T> as ParallelIterator>::Item;
     type Iter = Iter<T>;
@@ -28,7 +29,8 @@ struct IterProducer<T> {
 }
 
 impl<T> IntoIterator for IterProducer<T>
-    where Range<T>: Iterator
+where
+    Range<T>: Iterator,
 {
     type Item = <Range<T> as Iterator>::Item;
     type IntoIter = Range<T>;

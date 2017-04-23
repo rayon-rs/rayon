@@ -15,13 +15,20 @@ mod tsp;
 
 // these are not "full-fledged" benchmarks yet,
 // they only run with cargo bench
-#[cfg(test)] mod map_collect;
-#[cfg(test)] mod vec_collect;
-#[cfg(test)] mod factorial;
-#[cfg(test)] mod pythagoras;
-#[cfg(test)] mod fibonacci;
-#[cfg(test)] mod find;
-#[cfg(test)] mod join_microbench;
+#[cfg(test)]
+mod map_collect;
+#[cfg(test)]
+mod vec_collect;
+#[cfg(test)]
+mod factorial;
+#[cfg(test)]
+mod pythagoras;
+#[cfg(test)]
+mod fibonacci;
+#[cfg(test)]
+mod find;
+#[cfg(test)]
+mod join_microbench;
 
 extern crate rayon; // all
 extern crate docopt; // all
@@ -86,6 +93,6 @@ fn main() {
         "quicksort" => quicksort::main(&args[1..]),
         "sieve" => sieve::main(&args[1..]),
         "tsp" => tsp::main(&args[1..]),
-        _ => usage()
+        _ => usage(),
     }
 }

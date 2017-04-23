@@ -12,7 +12,8 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::time::Instant;
 
-#[cfg(test)] mod bench;
+#[cfg(test)]
+mod bench;
 mod graph;
 mod tour;
 mod step;
@@ -52,13 +53,16 @@ pub struct Args {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
-            .unwrap_or_else(|e| e.exit());
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).decode())
+        .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        let _ = run_solver(Path::new(&args.arg_datafile), args.flag_seq_threshold, args.flag_from);
+        let _ = run_solver(
+            Path::new(&args.arg_datafile),
+            args.flag_seq_threshold,
+            args.flag_from,
+        );
     }
 }
 

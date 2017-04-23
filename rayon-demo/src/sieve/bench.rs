@@ -5,7 +5,8 @@ use super::NUM_PRIMES;
 const MAGNITUDE: usize = 7;
 
 fn sieve_bench<TICK>(b: &mut test::Bencher, mut tick: TICK)
-    where TICK: FnMut(usize) -> Vec<bool>
+where
+    TICK: FnMut(usize) -> Vec<bool>,
 {
     let mut result = vec![];
     b.iter(|| result = tick(super::max(MAGNITUDE)));

@@ -10,8 +10,9 @@ mod test;
 
 /// Collects the results of the exact iterator into the specified vector.
 pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
-    where I: IndexedParallelIterator<Item = T>,
-          T: Send
+where
+    I: IndexedParallelIterator<Item = T>,
+    T: Send,
 {
     let mut collect = Collect::new(v, pi.len());
     pi.drive(collect.as_consumer());
@@ -30,8 +31,9 @@ pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
 /// `UnindexedConsumer`.  That implementation panics `unreachable!` in case
 /// there's a bug where we actually do try to use this unindexed.
 fn special_collect_into<I, T>(pi: I, len: usize, v: &mut Vec<T>)
-    where I: ParallelIterator<Item = T>,
-          T: Send
+where
+    I: ParallelIterator<Item = T>,
+    T: Send,
 {
     let mut collect = Collect::new(v, len);
     pi.drive_unindexed(collect.as_consumer());
@@ -77,10 +79,12 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
             // have happened. Unless some code is buggy, that means we
             // should have seen `len` total writes.
             let actual_writes = self.writes.load(Ordering::Relaxed);
-            assert!(actual_writes == self.len,
-                    "expected {} total writes, but got {}",
-                    self.len,
-                    actual_writes);
+            assert!(
+                actual_writes == self.len,
+                "expected {} total writes, but got {}",
+                self.len,
+                actual_writes
+            );
             self.vec.set_len(self.len);
         }
     }
@@ -89,10 +93,12 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
 
 /// Collect items from a parallel iterator into a freshly allocated vector.
 impl<T> FromParallelIterator<T> for Vec<T>
-    where T: Send
+where
+    T: Send,
 {
     fn from_par_iter<I>(par_iter: I) -> Self
-        where I: IntoParallelIterator<Item = T>
+    where
+        I: IntoParallelIterator<Item = T>,
     {
         // See the vec_collect benchmarks in rayon-demo for different strategies.
         let mut par_iter = par_iter.into_par_iter();
@@ -107,18 +113,24 @@ impl<T> FromParallelIterator<T> for Vec<T>
             }
             None => {
                 // This works like `combine`, but `Vec::append` is more efficient than `extend`.
-                let list: LinkedList<_> = par_iter.fold(Vec::new, |mut vec, elem| {
-                        vec.push(elem);
-                        vec
-                    })
+                let list: LinkedList<_> = par_iter
+                    .fold(
+                        Vec::new, |mut vec, elem| {
+                            vec.push(elem);
+                            vec
+                        }
+                    )
                     .collect();
 
                 let len = list.iter().map(Vec::len).sum();
                 let start = Vec::with_capacity(len);
-                list.into_iter().fold(start, |mut vec, mut sub| {
-                    vec.append(&mut sub);
-                    vec
-                })
+                list.into_iter()
+                    .fold(
+                        start, |mut vec, mut sub| {
+                            vec.append(&mut sub);
+                            vec
+                        }
+                    )
             }
         }
     }

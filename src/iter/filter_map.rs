@@ -15,7 +15,8 @@ pub struct FilterMap<I: ParallelIterator, P> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I, P>(base: I, filter_op: P) -> FilterMap<I, P>
-    where I: ParallelIterator
+where
+    I: ParallelIterator,
 {
     FilterMap {
         base: base,
@@ -24,14 +25,16 @@ pub fn new<I, P>(base: I, filter_op: P) -> FilterMap<I, P>
 }
 
 impl<I, P, R> ParallelIterator for FilterMap<I, P>
-    where I: ParallelIterator,
-          P: Fn(I::Item) -> Option<R> + Sync,
-          R: Send
+where
+    I: ParallelIterator,
+    P: Fn(I::Item) -> Option<R> + Sync,
+    R: Send,
 {
     type Item = R;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer = FilterMapConsumer::new(consumer, &self.filter_op);
         self.base.drive_unindexed(consumer)
@@ -56,8 +59,9 @@ impl<'p, C, P: 'p> FilterMapConsumer<'p, C, P> {
 }
 
 impl<'p, T, U, C, P> Consumer<T> for FilterMapConsumer<'p, C, P>
-    where C: Consumer<U>,
-          P: Fn(T) -> Option<U> + Sync + 'p
+where
+    C: Consumer<U>,
+    P: Fn(T) -> Option<U> + Sync + 'p,
 {
     type Folder = FilterMapFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
@@ -102,8 +106,9 @@ struct FilterMapFolder<'p, C, P: 'p> {
 }
 
 impl<'p, T, U, C, P> Folder<T> for FilterMapFolder<'p, C, P>
-    where C: Folder<U>,
-          P: Fn(T) -> Option<U> + Sync + 'p
+where
+    C: Folder<U>,
+    P: Fn(T) -> Option<U> + Sync + 'p,
 {
     type Result = C::Result;
 

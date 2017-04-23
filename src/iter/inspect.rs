@@ -20,7 +20,8 @@ pub struct Inspect<I: ParallelIterator, F> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I, F>(base: I, inspect_op: F) -> Inspect<I, F>
-    where I: ParallelIterator
+where
+    I: ParallelIterator,
 {
     Inspect {
         base: base,
@@ -29,13 +30,15 @@ pub fn new<I, F>(base: I, inspect_op: F) -> Inspect<I, F>
 }
 
 impl<I, F> ParallelIterator for Inspect<I, F>
-    where I: ParallelIterator,
-          F: Fn(&I::Item) + Sync
+where
+    I: ParallelIterator,
+    F: Fn(&I::Item) + Sync,
 {
     type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer1 = InspectConsumer::new(consumer, &self.inspect_op);
         self.base.drive_unindexed(consumer1)
@@ -47,11 +50,13 @@ impl<I, F> ParallelIterator for Inspect<I, F>
 }
 
 impl<I, F> IndexedParallelIterator for Inspect<I, F>
-    where I: IndexedParallelIterator,
-          F: Fn(&I::Item) + Sync
+where
+    I: IndexedParallelIterator,
+    F: Fn(&I::Item) + Sync,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         let consumer1 = InspectConsumer::new(consumer, &self.inspect_op);
         self.base.drive(consumer1)
@@ -62,13 +67,16 @@ impl<I, F> IndexedParallelIterator for Inspect<I, F>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         return self.base
-                   .with_producer(Callback {
-                                      callback: callback,
-                                      inspect_op: self.inspect_op,
-                                  });
+                   .with_producer(
+            Callback {
+                callback: callback,
+                inspect_op: self.inspect_op,
+            },
+        );
 
         struct Callback<CB, F> {
             callback: CB,
@@ -76,13 +84,15 @@ impl<I, F> IndexedParallelIterator for Inspect<I, F>
         }
 
         impl<T, F, CB> ProducerCallback<T> for Callback<CB, F>
-            where CB: ProducerCallback<T>,
-                  F: Fn(&T) + Sync
+        where
+            CB: ProducerCallback<T>,
+            F: Fn(&T) + Sync,
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            where
+                P: Producer<Item = T>,
             {
                 let producer = InspectProducer {
                     base: base,
@@ -102,8 +112,9 @@ struct InspectProducer<'f, P, F: 'f> {
 }
 
 impl<'f, P, F> Producer for InspectProducer<'f, P, F>
-    where P: Producer,
-          F: Fn(&P::Item) + Sync
+where
+    P: Producer,
+    F: Fn(&P::Item) + Sync,
 {
     type Item = P::Item;
     type IntoIter = iter::Inspect<P::IntoIter, &'f F>;
@@ -152,8 +163,9 @@ impl<'f, C, F> InspectConsumer<'f, C, F> {
 }
 
 impl<'f, T, C, F> Consumer<T> for InspectConsumer<'f, C, F>
-    where C: Consumer<T>,
-          F: Fn(&T) + Sync
+where
+    C: Consumer<T>,
+    F: Fn(&T) + Sync,
 {
     type Folder = InspectFolder<'f, C::Folder, F>;
     type Reducer = C::Reducer;
@@ -179,8 +191,9 @@ impl<'f, T, C, F> Consumer<T> for InspectConsumer<'f, C, F>
 }
 
 impl<'f, T, C, F> UnindexedConsumer<T> for InspectConsumer<'f, C, F>
-    where C: UnindexedConsumer<T>,
-          F: Fn(&T) + Sync
+where
+    C: UnindexedConsumer<T>,
+    F: Fn(&T) + Sync,
 {
     fn split_off_left(&self) -> Self {
         InspectConsumer::new(self.base.split_off_left(), &self.inspect_op)
@@ -197,8 +210,9 @@ struct InspectFolder<'f, C, F: 'f> {
 }
 
 impl<'f, T, C, F> Folder<T> for InspectFolder<'f, C, F>
-    where C: Folder<T>,
-          F: Fn(&T)
+where
+    C: Folder<T>,
+    F: Fn(&T),
 {
     type Result = C::Result;
 

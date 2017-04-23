@@ -82,11 +82,13 @@ fn max(magnitude: usize) -> usize {
 fn sieve_serial(max: usize) -> Vec<bool> {
     let mut sieve = vec![true; max / 2];
     sieve[0] = false; // 1 is not prime
-    for i in 1 .. {
+    for i in 1.. {
         if sieve[i] {
             let p = 2 * i + 1;
             let pp = p * p;
-            if pp >= max { break }
+            if pp >= max {
+                break;
+            }
             clear_stride(&mut sieve, pp / 2, p);
         }
     }
@@ -141,12 +143,16 @@ fn update_chunk(low: &[bool], chunk: &mut [bool], base: usize) {
         if is_prime {
             let p = 2 * i + 1;
             let pp = p * p;
-            if pp >= max { break }
+            if pp >= max {
+                break;
+            }
 
             let pm = if pp < base {
                 // p² is too small - find the first odd multiple that's in range
                 ((base + p - 1) / p | 1) * p
-            } else { pp };
+            } else {
+                pp
+            };
 
             if pm < max {
                 clear_stride(chunk, (pm - base) / 2, p);
@@ -177,21 +183,26 @@ fn measure(f: fn(usize) -> Vec<bool>) -> u64 {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
-            .unwrap_or_else(|e| e.exit());
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).decode())
+        .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
         let serial = measure(sieve_serial);
         println!("  serial: {:10} ns", serial);
 
         let chunks = measure(sieve_chunks);
-        println!("  chunks: {:10} ns -> {:.2}x speedup", chunks,
-                 serial as f64 / chunks as f64);
+        println!(
+            "  chunks: {:10} ns -> {:.2}x speedup",
+            chunks,
+            serial as f64 / chunks as f64
+        );
 
         let parallel = measure(sieve_parallel);
-        println!("parallel: {:10} ns -> {:.2}x speedup", parallel,
-                 chunks as f64 / parallel as f64);
+        println!(
+            "parallel: {:10} ns -> {:.2}x speedup",
+            parallel,
+            chunks as f64 / parallel as f64
+        );
     }
 }

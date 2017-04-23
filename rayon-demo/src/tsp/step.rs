@@ -33,20 +33,20 @@ fn split_tour<'s>(scope: &Scope<'s>, solver: &'s SolverCx<'s>, element: Arc<Tour
 
                 let prefix_weight = element.prefix_weight + weight;
 
-                let next_lower_bound = compute_lower_bound(solver.graph(),
-                                                           &element.visited,
-                                                           &visited,
-                                                           prefix_weight);
+                let next_lower_bound =
+                    compute_lower_bound(solver.graph(), &element.visited, &visited, prefix_weight);
 
-                let next_tour = Arc::new(TourPrefix {
-                    id: solver.tour_id(),
-                    priority: next_lower_bound.to_priority(),
-                    node: next_node,
-                    len: element.len + 1,
-                    prefix_weight: prefix_weight,
-                    visited: visited,
-                    previous: Some(element.clone()),
-                });
+                let next_tour = Arc::new(
+                    TourPrefix {
+                        id: solver.tour_id(),
+                        priority: next_lower_bound.to_priority(),
+                        node: next_node,
+                        len: element.len + 1,
+                        prefix_weight: prefix_weight,
+                        visited: visited,
+                        previous: Some(element.clone()),
+                    },
+                );
                 solver.enqueue(next_tour);
                 scope.spawn(move |s| step(s, solver));
             }
@@ -60,11 +60,12 @@ fn split_tour<'s>(scope: &Scope<'s>, solver: &'s SolverCx<'s>, element: Arc<Tour
 /// is intended to be a general method. We look at each node that is
 /// not yet visited and find the cheapest incoming edge and sum those
 /// up.  The idea is that we must *somehow* get to each of those nodes.
-fn compute_lower_bound(graph: &Graph,
-                       prev_visited: &NodeSet,
-                       visited: &NodeSet,
-                       weight: Weight)
-                       -> Weight {
+fn compute_lower_bound(
+    graph: &Graph,
+    prev_visited: &NodeSet,
+    visited: &NodeSet,
+    weight: Weight,
+) -> Weight {
     // Our path looks like this
     //
     //     START ~> n0 ... nJ ~> nK ~> ... nZ -> START
@@ -74,10 +75,16 @@ fn compute_lower_bound(graph: &Graph,
     // We want to find all edges that are targeting "the future"
     // from a node that is *not* in `prev_visited`.
 
-    let mut min_weights: Vec<_> =
-        graph.all_nodes()
-             .map(|i| if visited.contains(i) { Weight::zero() } else { Weight::max() })
-             .collect();
+    let mut min_weights: Vec<_> = graph
+        .all_nodes()
+        .map(
+            |i| if visited.contains(i) {
+                Weight::zero()
+            } else {
+                Weight::max()
+            },
+        )
+        .collect();
 
     for i in graph.all_nodes().filter(|&i| !prev_visited.contains(i)) {
         for j in graph.all_nodes().filter(|&j| !visited.contains(j)) {
@@ -90,7 +97,9 @@ fn compute_lower_bound(graph: &Graph,
         }
     }
 
-    min_weights.iter().fold(Weight::zero(), |w1, &w2| w1 + w2) + weight
+    min_weights
+        .iter()
+        .fold(Weight::zero(), |w1, &w2| w1 + w2) + weight
 }
 
 fn solve_tour_seq(solver: &SolverCx, element: Arc<TourPrefix>) {
@@ -118,18 +127,16 @@ fn solve_tour_seq(solver: &SolverCx, element: Arc<TourPrefix>) {
     if path.len() == graph.num_nodes() {
         complete_tour(solver, &mut path, element.prefix_weight);
     } else {
-        enumerate_sequentially(solver,
-                               &mut path,
-                               &mut visited,
-                               element.prefix_weight);
+        enumerate_sequentially(solver, &mut path, &mut visited, element.prefix_weight);
     }
 }
 
-fn enumerate_sequentially(solver: &SolverCx,
-                          path: &mut Vec<Node>,
-                          visited: &mut NodeSet,
-                          mut weight: Weight)
-{
+fn enumerate_sequentially(
+    solver: &SolverCx,
+    path: &mut Vec<Node>,
+    visited: &mut NodeSet,
+    mut weight: Weight,
+) {
     // Try to figure out what node to visit next.
     let graph = solver.graph();
     let prev = *path.last().unwrap();
@@ -170,10 +177,7 @@ fn enumerate_sequentially(solver: &SolverCx,
     }
 }
 
-fn complete_tour(solver: &SolverCx,
-                 path: &mut Vec<Node>,
-                 weight: Weight)
-{
+fn complete_tour(solver: &SolverCx, path: &mut Vec<Node>, weight: Weight) {
     let graph = solver.graph();
     debug_assert!(path.len() == graph.num_nodes());
     let home = path[0];
