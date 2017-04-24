@@ -86,9 +86,8 @@ impl Board {
 
     pub fn parallel_next_generation(&self) -> Board {
         let new_brd = (0..self.len())
-            .collect::<Vec<usize>>()
-            .par_iter()
-            .map(|&x| self.successor_cell(x))
+            .into_par_iter()
+            .map(|cell| self.successor_cell(cell))
             .collect();
 
         self.next_board(new_brd)
