@@ -73,6 +73,10 @@ impl<'r, U, T, C, ID, F> Consumer<T> for FoldConsumer<'r, C, ID, F>
             fold_op: self.fold_op,
         }
     }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
 }
 
 impl<'r, U, T, C, ID, F> UnindexedConsumer<T> for FoldConsumer<'r, C, ID, F>
@@ -113,5 +117,9 @@ impl<'r, C, ID, F, T> Folder<T> for FoldFolder<'r, C, ID, F>
 
     fn complete(self) -> C::Result {
         self.base.consume(self.item).complete()
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
     }
 }

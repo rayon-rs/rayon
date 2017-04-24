@@ -67,9 +67,7 @@ pub trait Consumer<Item>: Send + Sized {
 
     /// Hint whether this `Consumer` would like to stop processing
     /// further items, e.g. if a search has been completed.
-    fn full(&self) -> bool {
-        false
-    }
+    fn full(&self) -> bool;
 }
 
 pub trait Folder<Item>: Sized {
@@ -96,9 +94,7 @@ pub trait Folder<Item>: Sized {
 
     /// Hint whether this `Folder` would like to stop processing
     /// further items, e.g. if a search has been completed.
-    fn full(&self) -> bool {
-        false
-    }
+    fn full(&self) -> bool;
 }
 
 pub trait Reducer<Result> {

@@ -57,6 +57,10 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
             target: self.target.into_iter(),
         }
     }
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
@@ -79,6 +83,10 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
 
         // track total values written
         self.global_writes.fetch_add(self.local_writes, Ordering::Relaxed);
+    }
+
+    fn full(&self) -> bool {
+        false
     }
 }
 

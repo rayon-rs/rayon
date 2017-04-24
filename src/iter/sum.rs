@@ -43,6 +43,10 @@ impl<S, T> Consumer<T> for SumConsumer<S>
     fn into_folder(self) -> Self::Folder {
         SumFolder { sum: iter::empty::<T>().sum() }
     }
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<S, T> UnindexedConsumer<T> for SumConsumer<S>
@@ -87,5 +91,9 @@ impl<S, T> Folder<T> for SumFolder<S>
 
     fn complete(self) -> S {
         self.sum
+    }
+
+    fn full(&self) -> bool {
+        false
     }
 }

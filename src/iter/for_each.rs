@@ -29,6 +29,10 @@ impl<'f, F, T> Consumer<T> for ForEachConsumer<'f, F>
     fn into_folder(self) -> Self {
         self
     }
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<'f, F, T> Folder<T> for ForEachConsumer<'f, F>
@@ -42,6 +46,10 @@ impl<'f, F, T> Folder<T> for ForEachConsumer<'f, F>
     }
 
     fn complete(self) {}
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<'f, F, T> UnindexedConsumer<T> for ForEachConsumer<'f, F>

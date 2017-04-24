@@ -43,6 +43,10 @@ impl<P, T> Consumer<T> for ProductConsumer<P>
     fn into_folder(self) -> Self::Folder {
         ProductFolder { product: iter::empty::<T>().product() }
     }
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<P, T> UnindexedConsumer<T> for ProductConsumer<P>
@@ -87,5 +91,9 @@ impl<P, T> Folder<T> for ProductFolder<P>
 
     fn complete(self) -> P {
         self.product
+    }
+
+    fn full(&self) -> bool {
+        false
     }
 }

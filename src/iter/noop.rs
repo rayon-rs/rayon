@@ -20,6 +20,10 @@ impl<T> Consumer<T> for NoopConsumer {
     fn into_folder(self) -> Self {
         self
     }
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<T> Folder<T> for NoopConsumer {
@@ -30,6 +34,10 @@ impl<T> Folder<T> for NoopConsumer {
     }
 
     fn complete(self) {}
+
+    fn full(&self) -> bool {
+        false
+    }
 }
 
 impl<T> UnindexedConsumer<T> for NoopConsumer {
