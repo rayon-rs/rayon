@@ -73,7 +73,7 @@ impl Board {
     }
 
     pub fn random(&self) -> Board {
-        let new_brd = thread_rng().gen_iter::<bool>().take(self.len()).collect();
+        let new_brd = thread_rng().gen_iter().take(self.len()).collect();
 
         self.next_board(new_brd)
     }
