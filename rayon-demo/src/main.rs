@@ -12,6 +12,7 @@ mod nbody;
 mod quicksort;
 mod sieve;
 mod tsp;
+mod life;
 
 // these are not "full-fledged" benchmarks yet,
 // they only run with cargo bench
@@ -57,6 +58,7 @@ benchmark has its own options and modes, so try `rayon-demo foo
 
 Benchmarks:
 
+  - life : Conway's Game of Life.
   - nbody: A physics simulation of multiple bodies attracting and repelling
            one another.
   - sieve: Finding primes using a Sieve of Eratosthenes.
@@ -86,6 +88,7 @@ fn main() {
         "quicksort" => quicksort::main(&args[1..]),
         "sieve" => sieve::main(&args[1..]),
         "tsp" => tsp::main(&args[1..]),
+        "life" => life::main(&args[1..]),
         _ => usage()
     }
 }
