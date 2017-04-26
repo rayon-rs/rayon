@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! The `ParallelIterator` module makes it easy to write parallel
 //! programs using an iterator-style interface. To get access to all
 //! the methods you want, the easiest is to write `use
@@ -71,6 +69,7 @@ mod inspect;
 pub use self::inspect::Inspect;
 mod while_some;
 pub use self::while_some::WhileSome;
+mod extend;
 
 #[cfg(test)]
 mod test;
@@ -964,4 +963,13 @@ pub trait FromParallelIterator<T>
     where T: Send
 {
     fn from_par_iter<I>(par_iter: I) -> Self where I: IntoParallelIterator<Item = T>;
+}
+
+/// `ParallelExtend` extends an existing collection with items from a [`ParallelIterator`].
+///
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+pub trait ParallelExtend<T>
+    where T: Send
+{
+    fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
 }

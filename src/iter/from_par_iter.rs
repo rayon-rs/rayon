@@ -1,4 +1,4 @@
-use super::{FromParallelIterator, IntoParallelIterator, ParallelIterator};
+use super::{FromParallelIterator, IntoParallelIterator, ParallelExtend};
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -6,31 +6,28 @@ use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
 use std::collections::{BinaryHeap, VecDeque};
 
-fn combine<I, START, COLL>(par_iter: I, make_start: START) -> COLL
+
+/// Create an empty default collection and extend it.
+fn collect_extended<C, I>(par_iter: I) -> C
     where I: IntoParallelIterator,
-          START: FnOnce(&LinkedList<Vec<I::Item>>) -> COLL,
-          COLL: Extend<I::Item>
+          C: ParallelExtend<I::Item> + Default
 {
-    let list = par_iter.into_par_iter()
-        .fold(Vec::new, |mut vec, elem| {
-            vec.push(elem);
-            vec
-        })
-        .collect();
-
-    let start = make_start(&list);
-    list.into_iter().fold(start, |mut coll, vec| {
-        coll.extend(vec);
-        coll
-    })
-}
-
-fn combined_len<T>(list: &LinkedList<Vec<T>>) -> usize {
-    list.iter().map(Vec::len).sum()
+    let mut collection = C::default();
+    collection.par_extend(par_iter);
+    collection
 }
 
 
-// See the `collect` module for the `Vec<T>` implementation.
+/// Collect items from a parallel iterator into a vector.
+impl<T> FromParallelIterator<T> for Vec<T>
+    where T: Send
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = T>
+    {
+        collect_extended(par_iter)
+    }
+}
 
 /// Collect items from a parallel iterator into a vecdeque.
 impl<T> FromParallelIterator<T> for VecDeque<T>
@@ -63,17 +60,7 @@ impl<T> FromParallelIterator<T> for LinkedList<T>
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = T>
     {
-        par_iter.into_par_iter()
-            .map(|elem| {
-                     let mut list = LinkedList::new();
-                     list.push_back(elem);
-                     list
-                 })
-            .reduce_with(|mut list1, mut list2| {
-                             list1.append(&mut list2);
-                             list1
-                         })
-            .unwrap_or_else(LinkedList::new)
+        collect_extended(par_iter)
     }
 }
 
@@ -89,11 +76,7 @@ impl<K, V, S> FromParallelIterator<(K, V)> for HashMap<K, V, S>
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = (K, V)>
     {
-        // See the map_collect benchmarks in rayon-demo for different strategies.
-        combine(par_iter, |list| {
-            let len = combined_len(list);
-            HashMap::with_capacity_and_hasher(len, Default::default())
-        })
+        collect_extended(par_iter)
     }
 }
 
@@ -108,7 +91,7 @@ impl<K, V> FromParallelIterator<(K, V)> for BTreeMap<K, V>
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = (K, V)>
     {
-        combine(par_iter, |_| BTreeMap::new())
+        collect_extended(par_iter)
     }
 }
 
@@ -120,10 +103,7 @@ impl<V, S> FromParallelIterator<V> for HashSet<V, S>
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = V>
     {
-        combine(par_iter, |list| {
-            let len = combined_len(list);
-            HashSet::with_capacity_and_hasher(len, Default::default())
-        })
+        collect_extended(par_iter)
     }
 }
 
@@ -134,7 +114,7 @@ impl<V> FromParallelIterator<V> for BTreeSet<V>
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = V>
     {
-        combine(par_iter, |_| BTreeSet::new())
+        collect_extended(par_iter)
     }
 }
 
@@ -143,21 +123,7 @@ impl FromParallelIterator<char> for String {
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = char>
     {
-        // This is like `combine`, but `Vec<char>` is less efficient to deal
-        // with than `String`, so instead collect to `LinkedList<String>`.
-        let list: LinkedList<_> = par_iter.into_par_iter()
-            .fold(String::new, |mut string, ch| {
-                string.push(ch);
-                string
-            })
-            .collect();
-
-        let len = list.iter().map(String::len).sum();
-        let start = String::with_capacity(len);
-        list.into_iter().fold(start, |mut string, sub| {
-            string.push_str(&sub);
-            string
-        })
+        collect_extended(par_iter)
     }
 }
 
@@ -166,17 +132,7 @@ impl<'a> FromParallelIterator<&'a str> for String {
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = &'a str>
     {
-        combine(par_iter, |list| {
-            let len = list.iter()
-                .map(|vec| -> usize {
-                         vec.iter()
-                             .cloned()
-                             .map(str::len)
-                             .sum()
-                     })
-                .sum();
-            String::with_capacity(len)
-        })
+        collect_extended(par_iter)
     }
 }
 
@@ -185,10 +141,7 @@ impl FromParallelIterator<String> for String {
     fn from_par_iter<I>(par_iter: I) -> Self
         where I: IntoParallelIterator<Item = String>
     {
-        combine(par_iter, |list| {
-            let len = list.iter().map(|vec| -> usize { vec.iter().map(String::len).sum() }).sum();
-            String::with_capacity(len)
-        })
+        collect_extended(par_iter)
     }
 }
 
