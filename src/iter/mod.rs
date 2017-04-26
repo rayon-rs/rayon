@@ -71,6 +71,7 @@ mod while_some;
 pub use self::while_some::WhileSome;
 mod extend;
 mod unzip;
+mod partition;
 
 #[cfg(test)]
 mod test;
@@ -667,6 +668,16 @@ pub trait ParallelIterator: Sized {
               B: Send
     {
         unzip::unzip(self)
+    }
+
+    /// Partitions the items of a parallel iterator into a pair of arbitrary
+    /// `ParallelExtend` containers.  Items for which the `predicate` returns
+    /// true go into the first container, and the rest go into the second.
+    fn partition<C, P>(self, predicate: P) -> (C, C)
+        where C: Default + ParallelExtend<Self::Item>,
+              P: Fn(&Self::Item) -> bool + Sync
+    {
+        partition::partition(self, predicate)
     }
 
     /// Internal method used to define the behavior of this parallel
