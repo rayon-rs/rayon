@@ -1540,3 +1540,45 @@ fn check_unzip_into() {
     assert_eq!(a, c);
     assert_eq!(b, d);
 }
+
+#[test]
+fn check_unzip() {
+    // indexed, unindexed
+    let (a, b): (Vec<_>, HashSet<_>) = (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip();
+    let (c, d): (Vec<_>, HashSet<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+
+    // unindexed, indexed
+    let (a, b): (HashSet<_>, Vec<_>) = (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip();
+    let (c, d): (HashSet<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+
+    // indexed, indexed
+    let (a, b): (Vec<_>, Vec<_>) = (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip();
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+
+    // unindexed producer
+    let (a, b): (Vec<_>, Vec<_>) = (0..1024)
+        .into_par_iter()
+        .filter_map(|i| Some((i, i * i)))
+        .unzip();
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).filter_map(|i| Some((i, i * i))).unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+}

@@ -652,6 +652,23 @@ pub trait ParallelIterator: Sized {
         C::from_par_iter(self)
     }
 
+    /// Unzips the items of a parallel iterator into a pair of arbitrary
+    /// `ParallelExtend` containers.
+    ///
+    /// You may prefer to use `unzip_into()`, which allocates more
+    /// efficiently with precise knowledge of how many elements the
+    /// iterator contains, and even allows you to reuse existing
+    /// vectors' backing stores rather than allocating fresh vectors.
+    fn unzip<A, B, FromA, FromB>(self) -> (FromA, FromB)
+        where Self: ParallelIterator<Item = (A, B)>,
+              FromA: Default + ParallelExtend<A>,
+              FromB: Default + ParallelExtend<B>,
+              A: Send,
+              B: Send
+    {
+        unzip::unzip(self)
+    }
+
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
     ///
