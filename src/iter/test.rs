@@ -1525,3 +1525,18 @@ fn check_extend_pairs() {
     check::<BTreeMap<usize, i32>>();
     check::<HashMap<usize, i32>>();
 }
+
+#[test]
+fn check_unzip_into() {
+    let mut a = vec![];
+    let mut b = vec![];
+    (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip_into(&mut a, &mut b);
+
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+}

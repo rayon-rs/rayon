@@ -70,6 +70,7 @@ pub use self::inspect::Inspect;
 mod while_some;
 pub use self::while_some::WhileSome;
 mod extend;
+mod unzip;
 
 #[cfg(test)]
 mod test;
@@ -704,6 +705,18 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// to better performance since it reuses the same backing buffer.
     fn collect_into(self, target: &mut Vec<Self::Item>) {
         collect::collect_into(self, target);
+    }
+
+    /// Unzips the results of the iterator into the specified
+    /// vectors. The vectors are always truncated before execution
+    /// begins. If possible, reusing the vectors across calls can lead
+    /// to better performance since they reuse the same backing buffer.
+    fn unzip_into<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
+        where Self: IndexedParallelIterator<Item = (A, B)>,
+              A: Send,
+              B: Send
+    {
+        collect::unzip_into(self, left, right);
     }
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from

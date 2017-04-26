@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod consumer;
 use self::consumer::CollectConsumer;
+use super::unzip::unzip_indexed;
 
 mod test;
 
@@ -37,6 +38,26 @@ fn special_extend<I, T>(pi: I, len: usize, v: &mut Vec<T>)
     let mut collect = Collect::new(v, len);
     pi.drive_unindexed(collect.as_consumer());
     collect.complete();
+}
+
+/// Unzips the results of the exact iterator into the specified vectors.
+pub fn unzip_into<I, A, B>(mut pi: I, left: &mut Vec<A>, right: &mut Vec<B>)
+    where I: IndexedParallelIterator<Item = (A, B)>,
+          A: Send,
+          B: Send
+{
+    // clear any old data
+    left.truncate(0);
+    right.truncate(0);
+
+    let len = pi.len();
+    let mut left = Collect::new(left, len);
+    let mut right = Collect::new(right, len);
+
+    unzip_indexed(pi, left.as_consumer(), right.as_consumer());
+
+    left.complete();
+    right.complete();
 }
 
 
