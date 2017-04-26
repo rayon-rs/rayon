@@ -639,6 +639,7 @@ pub fn check_lt_direct() {
     assert!(!(1..1024).into_par_iter().lt(0..1024));
 }
 
+#[test]
 pub fn check_lt_to_seq() {
     let par_result = (0..1024).into_par_iter().lt((1..1024).into_par_iter());
     let seq_result = (0..1024).lt(1..1024);
@@ -651,6 +652,7 @@ pub fn check_le_equal_direct() {
     assert!((0..1024).into_par_iter().le((0..1024).into_par_iter()));
 }
 
+#[test]
 pub fn check_le_equal_to_seq() {
     let par_result = (0..1024).into_par_iter().le((0..1024).into_par_iter());
     let seq_result = (0..1024).le(0..1024);
@@ -663,6 +665,7 @@ pub fn check_le_less_direct() {
     assert!((0..1024).into_par_iter().le((1..1024).into_par_iter()));
 }
 
+#[test]
 pub fn check_le_less_to_seq() {
     let par_result = (0..1024).into_par_iter().le((1..1024).into_par_iter());
     let seq_result = (0..1024).le(1..1024);
