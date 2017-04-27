@@ -75,6 +75,12 @@ mod unzip;
 #[cfg(test)]
 mod test;
 
+/// Represents a value of one of two possible types.
+pub enum Either<L, R> {
+    Left(L),
+    Right(R)
+}
+
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item = Self::Item>;
     type Item: Send;
@@ -677,6 +683,19 @@ pub trait ParallelIterator: Sized {
               P: Fn(&Self::Item) -> bool + Sync
     {
         unzip::partition(self, predicate)
+    }
+
+    /// Partitions and maps the items of a parallel iterator into a pair of
+    /// arbitrary `ParallelExtend` containers.  `Either::Left` items go into
+    /// the first container, and `Either::Right` items go into the second.
+    fn partition_map<A, B, P, L, R>(self, predicate: P) -> (A, B)
+        where A: Default + ParallelExtend<L>,
+              B: Default + ParallelExtend<R>,
+              P: Fn(Self::Item) -> Either<L, R> + Sync,
+              L: Send,
+              R: Send
+    {
+        unzip::partition_map(self, predicate)
     }
 
     /// Internal method used to define the behavior of this parallel
