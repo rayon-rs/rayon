@@ -86,9 +86,10 @@ impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
 
 /// Partitions the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
-pub fn partition<I, C, P>(pi: I, predicate: P) -> (C, C)
+pub fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
     where I: ParallelIterator,
-          C: Default + ParallelExtend<I::Item>,
+          A: Default + ParallelExtend<I::Item>,
+          B: Default + ParallelExtend<I::Item>,
           P: Fn(&I::Item) -> bool + Sync
 {
     execute(pi, Partition { predicate: predicate })

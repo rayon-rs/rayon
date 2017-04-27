@@ -678,8 +678,9 @@ pub trait ParallelIterator: Sized {
     /// Partitions the items of a parallel iterator into a pair of arbitrary
     /// `ParallelExtend` containers.  Items for which the `predicate` returns
     /// true go into the first container, and the rest go into the second.
-    fn partition<C, P>(self, predicate: P) -> (C, C)
-        where C: Default + ParallelExtend<Self::Item>,
+    fn partition<A, B, P>(self, predicate: P) -> (A, B)
+        where A: Default + ParallelExtend<Self::Item>,
+              B: Default + ParallelExtend<Self::Item>,
               P: Fn(&Self::Item) -> bool + Sync
     {
         unzip::partition(self, predicate)
