@@ -1,6 +1,41 @@
 use super::internal::*;
 use super::*;
 
+trait UnzipOp<T>: Sync {
+    type Left: Send;
+    type Right: Send;
+
+    fn consume<FA, FB>(&self, item: T, left: FA, right: FB) -> (FA, FB)
+        where FA: Folder<Self::Left>,
+              FB: Folder<Self::Right>;
+
+    fn indexable() -> bool {
+        false
+    }
+}
+
+fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
+    where I: ParallelIterator,
+          OP: UnzipOp<I::Item>,
+          FromA: Default + ParallelExtend<OP::Left>,
+          FromB: Default + ParallelExtend<OP::Right>
+{
+    let mut a = FromA::default();
+    let mut b = FromB::default();
+    {
+        // We have no idea what the consumers will look like for these
+        // collections' `par_extend`, but we can intercept them in our own
+        // `drive_unindexed`.  Start with the left side, type `A`:
+        let iter = UnzipA {
+            base: pi,
+            op: op,
+            b: &mut b,
+        };
+        a.par_extend(iter);
+    }
+    (a, b)
+}
+
 
 /// Unzips the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
@@ -11,19 +46,7 @@ pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
           A: Send,
           B: Send
 {
-    let mut a = FromA::default();
-    let mut b = FromB::default();
-    {
-        // We have no idea what the consumers will look like for these
-        // collections' `par_extend`, but we can intercept them in our own
-        // `drive_unindexed`.  Start with the left side, type `A`:
-        let iter = UnzipA {
-            base: pi,
-            b: &mut b,
-        };
-        a.par_extend(iter);
-    }
-    (a, b)
+    execute(pi, Unzip)
 }
 
 /// Unzip an `IndexedParallelIterator` into two arbitrary `Consumer`s.
@@ -35,41 +58,45 @@ pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result
           B: Send
 {
     let consumer = UnzipConsumer {
+        op: &Unzip,
         left: left,
         right: right,
     };
     pi.drive(consumer)
 }
 
-/// Unzip a `ParallelIterator` into two arbitrary `UnindexedConsumer`s.
-pub fn unzip_unindexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
-    where I: ParallelIterator<Item = (A, B)>,
-          CA: UnindexedConsumer<A>,
-          CB: UnindexedConsumer<B>,
-          A: Send,
-          B: Send
-{
-    let consumer = UnzipConsumer {
-        left: left,
-        right: right,
-    };
-    pi.drive_unindexed(consumer)
+struct Unzip;
+
+impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
+    type Left = A;
+    type Right = B;
+
+    fn consume<FA, FB>(&self, item: (A, B), left: FA, right: FB) -> (FA, FB)
+        where FA: Folder<A>,
+              FB: Folder<B>
+    {
+        (left.consume(item.0), right.consume(item.1))
+    }
+
+    fn indexable() -> bool {
+        true
+    }
 }
 
 
 /// A fake iterator to intercept the `Consumer` for type `A`.
-struct UnzipA<'b, I, FromB: 'b> {
+struct UnzipA<'b, I, OP, FromB: 'b> {
     base: I,
+    op: OP,
     b: &'b mut FromB,
 }
 
-impl<'b, I, A, B, FromB> ParallelIterator for UnzipA<'b, I, FromB>
-    where I: ParallelIterator<Item = (A, B)>,
-          FromB: Default + ParallelExtend<B>,
-          A: Send,
-          B: Send
+impl<'b, I, OP, FromB> ParallelIterator for UnzipA<'b, I, OP, FromB>
+    where I: ParallelIterator,
+          OP: UnzipOp<I::Item>,
+          FromB: Default + ParallelExtend<OP::Right>
 {
-    type Item = A;
+    type Item = OP::Left;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
@@ -79,6 +106,7 @@ impl<'b, I, A, B, FromB> ParallelIterator for UnzipA<'b, I, FromB>
             // Now it's time to find the consumer for type `B`
             let iter = UnzipB {
                 base: self.base,
+                op: self.op,
                 left_consumer: consumer,
                 left_result: &mut result,
             };
@@ -88,54 +116,72 @@ impl<'b, I, A, B, FromB> ParallelIterator for UnzipA<'b, I, FromB>
     }
 
     fn opt_len(&mut self) -> Option<usize> {
-        self.base.opt_len()
+        if OP::indexable() {
+            self.base.opt_len()
+        } else {
+            None
+        }
     }
 }
 
 /// A fake iterator to intercept the `Consumer` for type `B`.
-struct UnzipB<'r, I, A, CA>
-    where CA: UnindexedConsumer<A>,
+struct UnzipB<'r, I, OP, CA>
+    where I: ParallelIterator,
+          OP: UnzipOp<I::Item>,
+          CA: UnindexedConsumer<OP::Left>,
           CA::Result: 'r
 {
     base: I,
+    op: OP,
     left_consumer: CA,
     left_result: &'r mut Option<CA::Result>,
 }
 
-impl<'r, I, A, B, CA> ParallelIterator for UnzipB<'r, I, A, CA>
-    where I: ParallelIterator<Item = (A, B)>,
-          CA: UnindexedConsumer<A>,
-          A: Send,
-          B: Send
+impl<'r, I, OP, CA> ParallelIterator for UnzipB<'r, I, OP, CA>
+    where I: ParallelIterator,
+          OP: UnzipOp<I::Item>,
+          CA: UnindexedConsumer<OP::Left>
 {
-    type Item = B;
+    type Item = OP::Right;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
         // Now that we have two consumers, we can unzip the real iterator.
-        let result = unzip_unindexed(self.base, self.left_consumer, consumer);
+        let consumer = UnzipConsumer {
+            op: &self.op,
+            left: self.left_consumer,
+            right: consumer,
+        };
+
+        let result = self.base.drive_unindexed(consumer);
         *self.left_result = Some(result.0);
         result.1
     }
 
     fn opt_len(&mut self) -> Option<usize> {
-        self.base.opt_len()
+        if OP::indexable() {
+            self.base.opt_len()
+        } else {
+            None
+        }
     }
 }
 
 
 /// `Consumer` that unzips into two other `Consumer`s
-struct UnzipConsumer<CA, CB> {
+struct UnzipConsumer<'a, OP: 'a, CA, CB> {
+    op: &'a OP,
     left: CA,
     right: CB,
 }
 
-impl<A, B, CA, CB> Consumer<(A, B)> for UnzipConsumer<CA, CB>
-    where CA: Consumer<A>,
-          CB: Consumer<B>
+impl<'a, T, OP, CA, CB> Consumer<T> for UnzipConsumer<'a, OP, CA, CB>
+    where OP: UnzipOp<T>,
+          CA: Consumer<OP::Left>,
+          CB: Consumer<OP::Right>
 {
-    type Folder = UnzipFolder<CA::Folder, CB::Folder>;
+    type Folder = UnzipFolder<'a, OP, CA::Folder, CB::Folder>;
     type Reducer = UnzipReducer<CA::Reducer, CB::Reducer>;
     type Result = (CA::Result, CB::Result);
 
@@ -144,10 +190,12 @@ impl<A, B, CA, CB> Consumer<(A, B)> for UnzipConsumer<CA, CB>
         let (right1, right2, right_reducer) = self.right.split_at(index);
 
         (UnzipConsumer {
+             op: self.op,
              left: left1,
              right: right1,
          },
          UnzipConsumer {
+             op: self.op,
              left: left2,
              right: right2,
          },
@@ -159,6 +207,7 @@ impl<A, B, CA, CB> Consumer<(A, B)> for UnzipConsumer<CA, CB>
 
     fn into_folder(self) -> Self::Folder {
         UnzipFolder {
+            op: self.op,
             left: self.left.into_folder(),
             right: self.right.into_folder(),
         }
@@ -170,12 +219,14 @@ impl<A, B, CA, CB> Consumer<(A, B)> for UnzipConsumer<CA, CB>
     }
 }
 
-impl<A, B, CA, CB> UnindexedConsumer<(A, B)> for UnzipConsumer<CA, CB>
-    where CA: UnindexedConsumer<A>,
-          CB: UnindexedConsumer<B>
+impl<'a, T, OP, CA, CB> UnindexedConsumer<T> for UnzipConsumer<'a, OP, CA, CB>
+    where OP: UnzipOp<T>,
+          CA: UnindexedConsumer<OP::Left>,
+          CB: UnindexedConsumer<OP::Right>
 {
     fn split_off_left(&self) -> Self {
         UnzipConsumer {
+            op: self.op,
             left: self.left.split_off_left(),
             right: self.right.split_off_left(),
         }
@@ -191,21 +242,25 @@ impl<A, B, CA, CB> UnindexedConsumer<(A, B)> for UnzipConsumer<CA, CB>
 
 
 /// `Folder` that unzips into two other `Folder`s
-struct UnzipFolder<FA, FB> {
+struct UnzipFolder<'a, OP: 'a, FA, FB> {
+    op: &'a OP,
     left: FA,
     right: FB,
 }
 
-impl<A, B, FA, FB> Folder<(A, B)> for UnzipFolder<FA, FB>
-    where FA: Folder<A>,
-          FB: Folder<B>
+impl<'a, T, OP, FA, FB> Folder<T> for UnzipFolder<'a, OP, FA, FB>
+    where OP: UnzipOp<T>,
+          FA: Folder<OP::Left>,
+          FB: Folder<OP::Right>
 {
     type Result = (FA::Result, FB::Result);
 
-    fn consume(self, (left, right): (A, B)) -> Self {
+    fn consume(self, item: T) -> Self {
+        let (left, right) = self.op.consume(item, self.left, self.right);
         UnzipFolder {
-            left: self.left.consume(left),
-            right: self.right.consume(right),
+            op: self.op,
+            left: left,
+            right: right,
         }
     }
 
