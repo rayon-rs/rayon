@@ -84,6 +84,40 @@ impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
 }
 
 
+/// Partitions the items of a parallel iterator into a pair of arbitrary
+/// `ParallelExtend` containers.
+pub fn partition<I, C, P>(pi: I, predicate: P) -> (C, C)
+    where I: ParallelIterator,
+          C: Default + ParallelExtend<I::Item>,
+          P: Fn(&I::Item) -> bool + Sync
+{
+    execute(pi, Partition { predicate: predicate })
+}
+
+struct Partition<P> {
+    predicate: P,
+}
+
+impl<P, T> UnzipOp<T> for Partition<P>
+    where P: Fn(&T) -> bool + Sync,
+          T: Send
+{
+    type Left = T;
+    type Right = T;
+
+    fn consume<FA, FB>(&self, item: T, left: FA, right: FB) -> (FA, FB)
+        where FA: Folder<T>,
+              FB: Folder<T>
+    {
+        if (self.predicate)(&item) {
+            (left.consume(item), right)
+        } else {
+            (left, right.consume(item))
+        }
+    }
+}
+
+
 /// A fake iterator to intercept the `Consumer` for type `A`.
 struct UnzipA<'b, I, OP, FromB: 'b> {
     base: I,
