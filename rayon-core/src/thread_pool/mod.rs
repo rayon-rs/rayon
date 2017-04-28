@@ -14,101 +14,37 @@ use std::error::Error;
 use registry::{Registry, WorkerThread};
 
 mod test;
-/// ## ThreadPool
+/// # ThreadPool
 ///
-/// `ThreadPool` represents a user crated [threadpool]. [`ThreadPool::new()`]
+/// The [`ThreadPool`] struct represents a user created [thread-pool]. [`ThreadPool::new()`]
 /// takes a [`Configuration`] struct that you can use to specify the number and/or
-/// names of threads in the pool.
-///
-/// Once the `ThreadPool` is created, there are two ways you can run jobs on it.
-/// You can use [`ThreadPool::install()`] to execute a closure in one of the
-/// threadpool's threads, or you can use [`ThreadPool::spawn_async()`]/[`ThreadPool::spawn_future_async()`].
-///
+/// names of threads in the pool. You can then execute functions explicitly within
+/// this [`ThreadPool`] using [`ThreadPool::install()`]. By contrast, top level
+/// rayon functions (like `join()`)  will execute implicitly within the current thread-pool.
+/// 
 ///
 /// ## Creating a ThreadPool
 ///
 /// ```rust
 ///    # use rayon_core as rayon;
-///    use rayon::{ThreadPool, Configuration};
 ///
-///    let pool = ThreadPool::new(Configuration::new().num_threads(8)).unwrap();
+///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
 /// ```
 ///
-/// Let's look at [`install()`] first. This executes a closure in one of the `ThreadPool`'s
-/// threads. In addition, it's important to note, that any other rayon operations called
-/// inside of `install` will also execute in the context of the `ThreadPool`.
-///
-/// ## Using `install()`
-///
-/// ```rust
-///    # use rayon_core as rayon;
-///    fn main() {
-///         let pool = ThreadPool::new(Configuration::new().num_threads(8)).unwrap();
-///         pool.install(|| {
-///                          let n = fib(20);
-///                          println!("{}", n);
-///                      });
-///    }
-///
-///    fn fib(n: usize) -> usize {
-///         if n == 0 || n == 1 {
-///             return n;
-///         }
-///         let (a, b) = rayon::join(|| fib(n - 1), || fib(n - 2));
-///         return a + b;
-///     }
-/// ```
-///
-/// The other way to execute a closure in the `ThreadPool` is to invoke [`ThreadPool::spawn_async()`]
-/// or [`ThreadPool::spawn_future_async()`]. These methods will inject jobs into the threadpool that
-/// are not tied to your current stack frame. This means `ThreadPool`'s `spawn` methods are not scoped,
-/// similar to `std::thread::spawn`. As a result, the jobs you run in `spawn_async` and `spawn_future_async`
-/// cannot access data owned by the stack.
-///
-/// ## Using `spawn_future_async()`
-/// ```rust
-///    # use rayon_core as rayon;
-///    # extern crate futures;
-///
-///    use rayon::{Configuration, ThreadPool};
-///    use futures::{future, Future};
-///    use std::sync::{Arc, Mutex};
-///
-///    let data = Arc::new(Mutex::new(String::from("Hello, ")));
-///    let pool = ThreadPool::new(Configuration::new().num_threads(8)).unwrap();
-///
-///    let a = pool.spawn_future_async(future::lazy({
-///                                                     let data = data.clone();
-///                                                     let n = fib(20);
-///                                                     {
-///                                                         let mut v = data.lock().unwrap();
-///                                                         v.push_str(&n.to_string());
-///                                                     }
-///                                                     move || Ok::<_, ()>(data)
-///                                                 }));
-///    let b = pool.spawn_future_async(a.map(|data| {
-///                                              let mut v = data.lock().unwrap();
-///                                              v.push_str(" world!");
-///                                          }));
-///    let () = b.wait().unwrap();
-///    println!("{:?}", &data.lock().unwrap()[..]);
-///    // prints: "Hello, 6765 world!"
-/// ```
-///
-/// The jobs placed in `spawn_future_async`, and the `rayon::join` that happens as a result of calling
-/// `fib(20)`, will all execute inside the `ThreadPool` context.
+/// [`install()`] executes a closure in one of the `ThreadPool`'s threads. In addition, 
+/// any other rayon operations called inside of `install()` will also execute in the
+/// context of the `ThreadPool`.
 ///
 /// When the `ThreadPool` is dropped, that's a signal for the threads it manages to terminate,
 /// they will complete executing any remaining work that you have spawned, and automatically
 /// terminate.
 ///
 ///
-/// [threadpool]: https://en.wikipedia.org/wiki/Thread_pool
+/// [thread-pool]: https://en.wikipedia.org/wiki/Thread_pool
+/// [`ThreadPool`]: struct.ThreadPool.html
 /// [`ThreadPool::new()`]: struct.ThreadPool.html#method.new
 /// [`Configuration`]: struct.Configuration.html
 /// [`ThreadPool::install()`]: struct.ThreadPool.html#method.install
-/// [`ThreadPool::spawn_async()`]: struct.ThreadPool.html#method.spawn_async
-/// [`ThreadPool::spawn_future_async()`]: struct.ThreadPool.html#method.spawn_future_async
 pub struct ThreadPool {
     registry: Arc<Registry>,
 }
@@ -155,6 +91,27 @@ impl ThreadPool {
     /// # Panics
     ///
     /// If `op` should panic, that panic will be propagated.
+    ///
+    /// ## Using `install()`
+    ///  
+    /// ```rust
+    ///    # use rayon_core as rayon;
+    ///    fn main() {
+    ///         let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
+    ///         pool.install(|| {
+    ///                          let n = fib(20);
+    ///                          println!("{}", n);
+    ///                      });
+    ///    }
+    ///
+    ///    fn fib(n: usize) -> usize {
+    ///         if n == 0 || n == 1 {
+    ///             return n;
+    ///         }
+    ///         let (a, b) = rayon::join(|| fib(n - 1), || fib(n - 2)); // runs inside of `pool`
+    ///         return a + b;
+    ///     }
+    /// ```
     pub fn install<OP, R>(&self, op: OP) -> R
         where OP: FnOnce() -> R + Send
     {
@@ -255,8 +212,43 @@ impl ThreadPool {
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
 
-    /// Spawns an asynchronous future in this thread-pool. See
-    /// `spawn_future()` for more details.
+    /// Spawns an asynchronous future in the thread pool. `spawn_future()` will inject 
+    /// jobs into the threadpool that are not tied to your current stack frame. This means 
+    /// `ThreadPool`'s `spawn` methods are not scoped. As a result, it cannot access data
+    /// owned by the stack.
+    ///
+    /// `spawn_future()` returns a `RayonFuture<F::Item, F::Error>`, allowing you to chain
+    /// multiple jobs togther.
+    ///
+    /// ## Using `spawn_future()`
+    ///
+    /// ```rust
+    ///    # extern crate rayon_core as rayon;
+    ///    extern crate futures;
+    ///    
+    ///    use futures::{future, Future};
+    ///    use std::sync::{Arc, Mutex};
+    ///    # fn main() {
+    ///    let data = Arc::new(Mutex::new(String::from("Hello,")));
+    ///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
+    ///
+    ///    let a = pool.spawn_future(future::lazy({
+    ///                                               let data = data.clone();
+    ///                                               move || Ok::<_, ()>(data)
+    ///                                           }));
+    ///    let b = pool.spawn_future(a.map(|data| {
+    ///                                               let mut v = data.lock().unwrap();
+    ///                                               v.push_str(" world!");
+    ///                                           }));
+    ///    let () = b.wait().unwrap();
+    ///    println!("{:?}", &data.lock().unwrap()[..]);
+    ///    // prints: "Hello, world!"
+    ///    # }
+    /// ```
+    ///
+    /// See the [`spawn_future()` method defined on scopes][spawn_future] for more details.
+    ///
+    /// [spawn_future]: struct.Scope.html#method.spawn_future
     #[cfg(feature = "unstable")]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'static
