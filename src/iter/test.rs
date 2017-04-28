@@ -61,6 +61,11 @@ pub fn execute_strings() {
     let par_even: String = s.par_chars().filter(|&c| (c as u32) & 1 == 0).collect();
     let ser_even: String = s.chars().filter(|&c| (c as u32) & 1 == 0).collect();
     assert_eq!(par_even, ser_even);
+
+    // test `FromParallelIterator<&char> for String`
+    let vchars: Vec<char> = s.par_chars().collect();
+    let par_chars: String = vchars.par_iter().collect();
+    assert_eq!(s, par_chars);
 }
 
 #[test]

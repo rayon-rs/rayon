@@ -127,6 +127,15 @@ impl FromParallelIterator<char> for String {
     }
 }
 
+/// Collect characters from a parallel iterator into a string.
+impl<'a> FromParallelIterator<&'a char> for String {
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = &'a char>
+    {
+        collect_extended(par_iter)
+    }
+}
+
 /// Collect string slices from a parallel iterator into a string.
 impl<'a> FromParallelIterator<&'a str> for String {
     fn from_par_iter<I>(par_iter: I) -> Self
