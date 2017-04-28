@@ -6,6 +6,7 @@
 
 use iter::*;
 use iter::internal::*;
+use std::borrow::Borrow;
 use std::cmp::min;
 
 
@@ -34,61 +35,45 @@ fn find_char_midpoint(chars: &str) -> usize {
 
 
 /// Parallel extensions for strings.
-///
-/// Implementing this trait is not permitted outside of `rayon`.
-pub trait ParallelString {
-    private_decl!{}
-
+pub trait ParallelString: Borrow<str> {
     /// Returns a parallel iterator over the characters of a string.
-    fn par_chars(&self) -> Chars;
+    fn par_chars(&self) -> Chars {
+        Chars { chars: self.borrow() }
+    }
 
     /// Returns a parallel iterator over substrings separated by a
     /// given character, similar to `str::split`.
-    fn par_split<P: Pattern>(&self, P) -> Split<P>;
+    fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
+        Split::new(self.borrow(), separator)
+    }
 
     /// Returns a parallel iterator over substrings terminated by a
     /// given character, similar to `str::split_terminator`.  It's
     /// equivalent to `par_split`, except it doesn't produce an empty
     /// substring after a trailing terminator.
-    fn par_split_terminator<P: Pattern>(&self, P) -> SplitTerminator<P>;
+    fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
+        SplitTerminator::new(self.borrow(), terminator)
+    }
 
     /// Returns a parallel iterator over the lines of a string, ending with an
     /// optional carriage return and with a newline (`\r\n` or just `\n`).
     /// The final line ending is optional, and line endings are not included in
     /// the output strings.
-    fn par_lines(&self) -> Lines;
+    fn par_lines(&self) -> Lines {
+        Lines(self.borrow())
+    }
 
     /// Returns a parallel iterator over the sub-slices of a string that are
     /// separated by any amount of whitespace.
     ///
     /// As with `str::split_whitespace`, 'whitespace' is defined according to
     /// the terms of the Unicode Derived Core Property `White_Space`.
-    fn par_split_whitespace(&self) -> SplitWhitespace;
-}
-
-impl ParallelString for str {
-    private_impl!{}
-
-    fn par_chars(&self) -> Chars {
-        Chars { chars: self }
-    }
-
-    fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
-        Split::new(self, separator)
-    }
-
-    fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
-        SplitTerminator::new(self, terminator)
-    }
-
-    fn par_lines(&self) -> Lines {
-        Lines(self)
-    }
-
     fn par_split_whitespace(&self) -> SplitWhitespace {
-        SplitWhitespace(self)
+        SplitWhitespace(self.borrow())
     }
 }
+
+impl<T: ?Sized + Borrow<str>> ParallelString for T {}
 
 
 // /////////////////////////////////////////////////////////////////////////
