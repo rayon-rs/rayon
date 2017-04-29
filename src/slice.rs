@@ -4,57 +4,47 @@
 
 use iter::*;
 use iter::internal::*;
+use std::borrow::{Borrow, BorrowMut};
 use std::cmp;
 
 /// Parallel extensions for slices.
-///
-/// Implementing this trait is not permitted outside of `rayon`.
-pub trait ParallelSlice<T> {
-    private_decl!{}
-
+pub trait ParallelSlice<T: Sync>: Borrow<[T]> {
     /// Returns a parallel iterator over all contiguous windows of
     /// length `size`. The windows overlap.
-    fn par_windows(&self, size: usize) -> Windows<T> where T: Sync;
+    fn par_windows(&self, window_size: usize) -> Windows<T> {
+        Windows {
+            window_size: window_size,
+            slice: self.borrow(),
+        }
+    }
 
     /// Returns a parallel iterator over at most `size` elements of
     /// `self` at a time. The chunks do not overlap.
-    fn par_chunks(&self, size: usize) -> Chunks<T> where T: Sync;
-
-    /// Returns a parallel iterator over at most `size` elements of
-    /// `self` at a time. The chunks are mutable and do not overlap.
-    fn par_chunks_mut(&mut self, size: usize) -> ChunksMut<T> where T: Send;
-}
-
-impl<T> ParallelSlice<T> for [T] {
-    private_impl!{}
-
-    fn par_windows(&self, window_size: usize) -> Windows<T>
-        where T: Sync
-    {
-        Windows {
-            window_size: window_size,
-            slice: self,
-        }
-    }
-
-    fn par_chunks(&self, chunk_size: usize) -> Chunks<T>
-        where T: Sync
-    {
+    fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
         Chunks {
             chunk_size: chunk_size,
-            slice: self,
-        }
-    }
-
-    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T>
-        where T: Send
-    {
-        ChunksMut {
-            chunk_size: chunk_size,
-            slice: self,
+            slice: self.borrow(),
         }
     }
 }
+
+impl<T: Sync, V: ?Sized + Borrow<[T]>> ParallelSlice<T> for V {}
+
+
+/// Parallel extensions for mutable slices.
+pub trait ParallelSliceMut<T: Send>: BorrowMut<[T]> {
+    /// Returns a parallel iterator over at most `size` elements of
+    /// `self` at a time. The chunks are mutable and do not overlap.
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
+        ChunksMut {
+            chunk_size: chunk_size,
+            slice: self.borrow_mut(),
+        }
+    }
+}
+
+impl<T: Send, V: ?Sized + BorrowMut<[T]>> ParallelSliceMut<T> for V {}
+
 
 impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
     type Item = &'data T;

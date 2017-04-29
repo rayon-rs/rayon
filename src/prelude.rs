@@ -9,4 +9,5 @@ pub use iter::IntoParallelRefMutIterator;
 pub use iter::IndexedParallelIterator;
 pub use iter::ParallelIterator;
 pub use slice::ParallelSlice;
+pub use slice::ParallelSliceMut;
 pub use str::ParallelString;
