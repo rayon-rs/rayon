@@ -44,6 +44,17 @@ impl<T: Sync, V: ?Sized + Borrow<[T]>> ParallelSlice<T> for V {}
 
 /// Parallel extensions for mutable slices.
 pub trait ParallelSliceMut<T: Send>: BorrowMut<[T]> {
+    /// Returns a parallel iterator over mutable subslices separated by
+    /// elements that match the separator.
+    fn par_split_mut<P>(&mut self, separator: P) -> SplitMut<T, P>
+        where P: Fn(&T) -> bool + Sync
+    {
+        SplitMut {
+            slice: self.borrow_mut(),
+            separator: separator,
+        }
+    }
+
     /// Returns a parallel iterator over at most `size` elements of
     /// `self` at a time. The chunks are mutable and do not overlap.
     fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
@@ -509,6 +520,111 @@ impl<'data, 'sep, T, P> UnindexedProducer for SplitProducer<'data, 'sep, T, P>
             } else {
                 // skip the separator
                 folder.consume(&right[1..])
+            }
+
+        } else {
+            // We know there are no separators at all.  Return our whole slice.
+            folder.consume(slice)
+        }
+    }
+}
+
+
+/// Parallel iterator over mutable slices separated by a predicate
+pub struct SplitMut<'data, T: 'data, P> {
+    slice: &'data mut [T],
+    separator: P,
+}
+
+struct SplitMutProducer<'data, 'sep, T: 'data, P: 'sep> {
+    slice: &'data mut [T],
+    separator: &'sep P,
+
+    /// Marks the endpoint beyond which we've already found no separators.
+    tail: usize,
+}
+
+impl<'data, T, P> ParallelIterator for SplitMut<'data, T, P>
+    where P: Fn(&T) -> bool + Sync,
+          T: Send
+{
+    type Item = &'data mut [T];
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let producer = SplitMutProducer {
+            separator: &self.separator,
+            tail: self.slice.len(),
+            slice: self.slice,
+        };
+        bridge_unindexed(producer, consumer)
+    }
+}
+
+impl<'data, 'sep, T, P> UnindexedProducer for SplitMutProducer<'data, 'sep, T, P>
+    where P: Fn(&T) -> bool + Sync,
+          T: Send
+{
+    type Item = &'data mut [T];
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let SplitMutProducer { slice, separator, tail } = self;
+
+        // Look forward for the separator, and failing that look backward.
+        let mid = tail / 2;
+        let index = slice[mid..tail].iter().position(separator)
+            .map(|i| mid + i)
+            .or_else(|| slice[..mid].iter().rposition(separator));
+
+        if let Some(index) = index {
+            let (left, right) = slice.split_at_mut(index);
+
+            // Update `self` as the region before the separator.
+            self.slice = left;
+            self.tail = cmp::min(mid, index);
+
+            // Create the right split following the separator.
+            let mut right = SplitMutProducer {
+                slice: &mut right[1..],
+                separator: separator,
+                tail: tail - index - 1,
+            };
+
+            // If we scanned backwards to find the separator, everything in
+            // the right side is exhausted, with no separators left to find.
+            if index < mid {
+                right.tail = 0;
+            }
+
+            (self, Some(right))
+
+        } else {
+            self.slice = slice;
+            self.tail = 0;
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        let SplitMutProducer { slice, separator, tail } = self;
+
+        if tail == slice.len() {
+            // No tail section, so just let `slice::split_mut` handle it.
+            folder.consume_iter(slice.split_mut(separator))
+
+        } else if let Some(index) = slice[..tail].iter().rposition(separator) {
+            // We found the last separator to complete the tail, so
+            // end with that slice after `slice::split_mut` finds the rest.
+            let (left, right) = slice.split_at_mut(index);
+            let folder = folder.consume_iter(left.split_mut(separator));
+            if folder.full() {
+                folder
+            } else {
+                // skip the separator
+                folder.consume(&mut right[1..])
             }
 
         } else {
