@@ -9,6 +9,17 @@ use std::cmp;
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync>: Borrow<[T]> {
+    /// Returns a parallel iterator over subslices separated by elements that
+    /// match the separator.
+    fn par_split<P>(&self, separator: P) -> Split<T, P>
+        where P: Fn(&T) -> bool + Sync
+    {
+        Split {
+            slice: self.borrow(),
+            separator: separator,
+        }
+    }
+
     /// Returns a parallel iterator over all contiguous windows of
     /// length `size`. The windows overlap.
     fn par_windows(&self, window_size: usize) -> Windows<T> {
@@ -400,5 +411,109 @@ impl<'data, T: 'data + Send> Producer for ChunksMutProducer<'data, T> {
              chunk_size: self.chunk_size,
              slice: right,
          })
+    }
+}
+
+
+/// Parallel iterator over slices separated by a predicate
+pub struct Split<'data, T: 'data, P> {
+    slice: &'data [T],
+    separator: P,
+}
+
+struct SplitProducer<'data, 'sep, T: 'data, P: 'sep> {
+    slice: &'data [T],
+    separator: &'sep P,
+
+    /// Marks the endpoint beyond which we've already found no separators.
+    tail: usize,
+}
+
+impl<'data, T, P> ParallelIterator for Split<'data, T, P>
+    where P: Fn(&T) -> bool + Sync,
+          T: Sync
+{
+    type Item = &'data [T];
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let producer = SplitProducer {
+            slice: self.slice,
+            separator: &self.separator,
+            tail: self.slice.len(),
+        };
+        bridge_unindexed(producer, consumer)
+    }
+}
+
+impl<'data, 'sep, T, P> UnindexedProducer for SplitProducer<'data, 'sep, T, P>
+    where P: Fn(&T) -> bool + Sync,
+          T: Sync
+{
+    type Item = &'data [T];
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let SplitProducer { slice, separator, tail } = self;
+
+        // Look forward for the separator, and failing that look backward.
+        let mid = tail / 2;
+        let index = slice[mid..tail].iter().position(separator)
+            .map(|i| mid + i)
+            .or_else(|| slice[..mid].iter().rposition(separator));
+
+        if let Some(index) = index {
+            let (left, right) = slice.split_at(index);
+
+            // Update `self` as the region before the separator.
+            self.slice = left;
+            self.tail = cmp::min(mid, index);
+
+            // Create the right split following the separator.
+            let mut right = SplitProducer {
+                slice: &right[1..],
+                separator: separator,
+                tail: tail - index - 1,
+            };
+
+            // If we scanned backwards to find the separator, everything in
+            // the right side is exhausted, with no separators left to find.
+            if index < mid {
+                right.tail = 0;
+            }
+
+            (self, Some(right))
+
+        } else {
+            self.tail = 0;
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        let SplitProducer { slice, separator, tail } = self;
+
+        if tail == slice.len() {
+            // No tail section, so just let `slice::split` handle it.
+            folder.consume_iter(slice.split(separator))
+
+        } else if let Some(index) = slice[..tail].iter().rposition(separator) {
+            // We found the last separator to complete the tail, so
+            // end with that slice after `slice::split` finds the rest.
+            let (left, right) = slice.split_at(index);
+            let folder = folder.consume_iter(left.split(separator));
+            if folder.full() {
+                folder
+            } else {
+                // skip the separator
+                folder.consume(&right[1..])
+            }
+
+        } else {
+            // We know there are no separators at all.  Return our whole slice.
+            folder.consume(slice)
+        }
     }
 }
