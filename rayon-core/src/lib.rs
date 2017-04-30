@@ -35,7 +35,7 @@ use std::error::Error;
 use std::str::FromStr;
 use std::fmt;
 
-extern crate deque;
+extern crate coco;
 #[macro_use]
 extern crate lazy_static;
 #[cfg(feature = "unstable")]
