@@ -1,19 +1,30 @@
 use super::internal::*;
 use super::*;
 
+/// This trait abstracts the different ways we can "unzip" one parallel
+/// iterator into two distinct consumers, which we can handle almost
+/// identically apart from how to process the individual items.
 trait UnzipOp<T>: Sync {
+    /// The type of item expected by the left consumer.
     type Left: Send;
+
+    /// The type of item expected by the right consumer.
     type Right: Send;
 
+    /// Consume one item and feed it to one or both of the underlying folders.
     fn consume<FA, FB>(&self, item: T, left: FA, right: FB) -> (FA, FB)
         where FA: Folder<Self::Left>,
               FB: Folder<Self::Right>;
 
+    /// Reports whether this op may support indexed consumers.
+    /// - e.g. true for `unzip` where the item count passed through directly.
+    /// - e.g. false for `partition` where the sorting is not yet known.
     fn indexable() -> bool {
         false
     }
 }
 
+/// Run an unzip-like operation into `ParallelExtend` collections.
 fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
     where I: ParallelIterator,
           OP: UnzipOp<I::Item>,
@@ -39,6 +50,8 @@ fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
 
 /// Unzips the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
+///
+/// This is not directly public, but called by `ParallelIterator::unzip`.
 pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
     where I: ParallelIterator<Item = (A, B)>,
           FromA: Default + ParallelExtend<A>,
@@ -50,6 +63,8 @@ pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
 }
 
 /// Unzip an `IndexedParallelIterator` into two arbitrary `Consumer`s.
+///
+/// This is not directly public, but called by `super::collect::unzip_into`.
 pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
     where I: IndexedParallelIterator<Item = (A, B)>,
           CA: Consumer<A>,
@@ -65,6 +80,7 @@ pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result
     pi.drive(consumer)
 }
 
+/// An `UnzipOp` that splits a tuple directly into the two consumers.
 struct Unzip;
 
 impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
@@ -86,6 +102,8 @@ impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
 
 /// Partitions the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
+///
+/// This is not directly public, but called by `ParallelIterator::partition`.
 pub fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
     where I: ParallelIterator,
           A: Default + ParallelExtend<I::Item>,
@@ -95,6 +113,7 @@ pub fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
     execute(pi, Partition { predicate: predicate })
 }
 
+/// An `UnzipOp` that routes items depending on a predicate function.
 struct Partition<P> {
     predicate: P,
 }
@@ -121,6 +140,8 @@ impl<P, T> UnzipOp<T> for Partition<P>
 
 /// Partitions and maps the items of a parallel iterator into a pair of
 /// arbitrary `ParallelExtend` containers.
+///
+/// This is not directly public, but called by `ParallelIterator::partition_map`.
 pub fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
     where I: ParallelIterator,
           A: Default + ParallelExtend<L>,
@@ -132,6 +153,7 @@ pub fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
     execute(pi, PartitionMap { predicate: predicate })
 }
 
+/// An `UnzipOp` that routes items depending on how they are mapped `Either`.
 struct PartitionMap<P> {
     predicate: P,
 }
@@ -184,7 +206,10 @@ impl<'b, I, OP, FromB> ParallelIterator for UnzipA<'b, I, OP, FromB>
             };
             self.b.par_extend(iter);
         }
-        result.unwrap()
+        // NB: If for some reason `b.par_extend` doesn't actually drive the
+        // iterator, then we won't have a result for the left side to return
+        // at all.  We can't fake an arbitrary consumer's result, so panic.
+        result.expect("unzip consumers didn't execute!")
     }
 
     fn opt_len(&mut self) -> Option<usize> {

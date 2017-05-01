@@ -10,6 +10,8 @@ use super::unzip::unzip_indexed;
 mod test;
 
 /// Collects the results of the exact iterator into the specified vector.
+///
+/// This is not directly public, but called by `IndexedParallelIterator::collect_into`.
 pub fn collect_into<I, T>(mut pi: I, v: &mut Vec<T>)
     where I: IndexedParallelIterator<Item = T>,
           T: Send
@@ -41,6 +43,8 @@ fn special_extend<I, T>(pi: I, len: usize, v: &mut Vec<T>)
 }
 
 /// Unzips the results of the exact iterator into the specified vectors.
+///
+/// This is not directly public, but called by `IndexedParallelIterator::unzip_into`.
 pub fn unzip_into<I, A, B>(mut pi: I, left: &mut Vec<A>, right: &mut Vec<B>)
     where I: IndexedParallelIterator<Item = (A, B)>,
           A: Send,
