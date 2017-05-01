@@ -17,6 +17,8 @@ mod delegate;
 #[macro_use]
 mod private;
 
+mod split_producer;
+
 pub mod collections;
 pub mod iter;
 pub mod option;

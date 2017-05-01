@@ -6,8 +6,8 @@
 
 use iter::*;
 use iter::internal::*;
+use split_producer::*;
 use std::borrow::Borrow;
-use std::cmp::min;
 
 
 /// Test if a byte is the start of a UTF-8 character.
@@ -194,63 +194,11 @@ pub struct Split<'ch, P: Pattern> {
     separator: P,
 }
 
-struct SplitProducer<'ch, 'sep, P: Pattern + 'sep> {
-    chars: &'ch str,
-    separator: &'sep P,
-
-    /// Marks the endpoint beyond which we've already found no separators.
-    tail: usize,
-}
-
 impl<'ch, P: Pattern> Split<'ch, P> {
     fn new(chars: &'ch str, separator: P) -> Self {
         Split {
             chars: chars,
             separator: separator,
-        }
-    }
-}
-
-impl<'ch, 'sep, P: Pattern + 'sep> SplitProducer<'ch, 'sep, P> {
-    fn new(split: &'sep Split<'ch, P>) -> Self {
-        SplitProducer {
-            chars: split.chars,
-            separator: &split.separator,
-            tail: split.chars.len(),
-        }
-    }
-
-    /// Common `fold_with` implementation, integrating `SplitTerminator`'s
-    /// need to sometimes skip its final empty item.
-    fn fold_with<F>(self, folder: F, skip_last: bool) -> F
-        where F: Folder<<Self as UnindexedProducer>::Item>
-    {
-        let SplitProducer { chars, separator, tail } = self;
-
-        if tail == chars.len() {
-            // No tail section, so just let `str::split` handle it.
-            separator.fold_with(chars, folder, skip_last)
-
-        } else if let Some(index) = separator.rfind_in(&chars[..tail]) {
-            // We found the last separator to complete the tail, so
-            // end with that slice after `str::split` finds the rest.
-            let (left, right) = chars.split_at(index);
-            let folder = separator.fold_with(left, folder, false);
-            if skip_last || folder.full() {
-                folder
-            } else {
-                let mut right_iter = right.chars();
-                right_iter.next(); // skip the separator
-                folder.consume(right_iter.as_str())
-            }
-
-        } else {
-            // We know there are no separators at all.  Return our whole string.
-            if skip_last {
-                folder
-            } else {
-                folder.consume(chars)
-            }
         }
     }
 }
@@ -261,62 +209,41 @@ impl<'ch, P: Pattern> ParallelIterator for Split<'ch, P> {
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let producer = SplitProducer::new(&self);
+        let producer = SplitProducer::new(self.chars, &self.separator);
         bridge_unindexed(producer, consumer)
     }
 }
 
-impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitProducer<'ch, 'sep, P> {
-    type Item = &'ch str;
-
-    fn split(mut self) -> (Self, Option<Self>) {
-        let SplitProducer { chars, separator, tail } = self;
-
-        // First find a suitable UTF-8 boundary in the unsearched region.
-        let char_index = find_char_midpoint(&chars[..tail]);
-
-        // Look forward for the separator, and failing that look backward.
-        let index = separator.find_in(&chars[char_index..tail])
-            .map(|i| char_index + i)
-            .or_else(|| separator.rfind_in(&chars[..char_index]));
-
-        if let Some(index) = index {
-            let (left, right) = chars.split_at(index);
-
-            // Update `self` as the region before the separator.
-            self.chars = left;
-            self.tail = min(char_index, index);
-
-            // Create the right split following the separator.
-            let mut right_iter = right.chars();
-            right_iter.next(); // skip the separator
-            let right_chars = right_iter.as_str();
-            let right_index = chars.len() - right_chars.len();
-
-            let mut right = SplitProducer {
-                chars: right_chars,
-                separator: separator,
-                tail: tail - right_index,
-            };
-
-            // If we scanned backwards to find the separator, everything in
-            // the right side is exhausted, with no separators left to find.
-            if index < char_index {
-                right.tail = 0;
-            }
-
-            (self, Some(right))
-
-        } else {
-            self.tail = 0;
-            (self, None)
-        }
+/// Implement support for `SplitProducer`.
+impl<'ch, P: Pattern> Fissile<P> for &'ch str {
+    fn length(&self) -> usize {
+        self.len()
     }
 
-    fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    fn midpoint(&self, end: usize) -> usize {
+        // First find a suitable UTF-8 boundary.
+        find_char_midpoint(&self[..end])
+    }
+
+    fn find(&self, separator: &P, start: usize, end: usize) -> Option<usize> {
+        separator.find_in(&self[start..end])
+    }
+
+    fn rfind(&self, separator: &P, end: usize) -> Option<usize> {
+        separator.rfind_in(&self[..end])
+    }
+
+    fn split_once(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.split_at(index);
+        let mut right_iter = right.chars();
+        right_iter.next(); // skip the separator
+        (left, right_iter.as_str())
+    }
+
+    fn fold_splits<F>(self, separator: &P, folder: F, skip_last: bool) -> F
+        where F: Folder<Self>
     {
-        self.fold_with(folder, false)
+        separator.fold_with(self, folder, skip_last)
     }
 }
 
@@ -325,25 +252,29 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitProducer<'ch, 'sep
 
 /// Parallel iterator over substrings separated by a terminator pattern
 pub struct SplitTerminator<'ch, P: Pattern> {
-    splitter: Split<'ch, P>,
+    chars: &'ch str,
+    terminator: P,
 }
 
 struct SplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
-    splitter: SplitProducer<'ch, 'sep, P>,
-    endpoint: bool,
+    splitter: SplitProducer<'sep, P, &'ch str>,
+    skip_last: bool,
 }
 
 impl<'ch, P: Pattern> SplitTerminator<'ch, P> {
     fn new(chars: &'ch str, terminator: P) -> Self {
-        SplitTerminator { splitter: Split::new(chars, terminator) }
+        SplitTerminator {
+            chars: chars,
+            terminator: terminator,
+        }
     }
 }
 
 impl<'ch, 'sep, P: Pattern + 'sep> SplitTerminatorProducer<'ch, 'sep, P> {
-    fn new(split: &'sep SplitTerminator<'ch, P>) -> Self {
+    fn new(chars: &'ch str, terminator: &'sep P) -> Self {
         SplitTerminatorProducer {
-            splitter: SplitProducer::new(&split.splitter),
-            endpoint: true,
+            splitter: SplitProducer::new(chars, terminator),
+            skip_last: chars.is_empty() || terminator.is_suffix_of(chars),
         }
     }
 }
@@ -354,7 +285,7 @@ impl<'ch, P: Pattern> ParallelIterator for SplitTerminator<'ch, P> {
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let producer = SplitTerminatorProducer::new(&self);
+        let producer = SplitTerminatorProducer::new(self.chars, &self.terminator);
         bridge_unindexed(producer, consumer)
     }
 }
@@ -366,11 +297,11 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
         let (left, right) = self.splitter.split();
         self.splitter = left;
         let right = right.map(|right| {
-            let endpoint = self.endpoint;
-            self.endpoint = false;
+            let skip_last = self.skip_last;
+            self.skip_last = false;
             SplitTerminatorProducer {
                 splitter: right,
-                endpoint: endpoint,
+                skip_last: skip_last,
             }
         });
         (self, right)
@@ -379,16 +310,7 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
     fn fold_with<F>(self, folder: F) -> F
         where F: Folder<Self::Item>
     {
-        // See if we need to eat the empty trailing substring
-        let skip_last = if self.endpoint {
-            let chars = self.splitter.chars;
-            let terminator = self.splitter.separator;
-            chars.is_empty() || terminator.is_suffix_of(chars)
-        } else {
-            false
-        };
-
-        self.splitter.fold_with(folder, skip_last)
+        self.splitter.fold_with(folder, self.skip_last)
     }
 }
 
