@@ -678,6 +678,11 @@ pub trait ParallelIterator: Sized {
     /// Partitions the items of a parallel iterator into a pair of arbitrary
     /// `ParallelExtend` containers.  Items for which the `predicate` returns
     /// true go into the first container, and the rest go into the second.
+    ///
+    /// Note: unlike the standard `Iterator::partition`, this allows distinct
+    /// collection types for the left and right items.  This is more flexible,
+    /// but may require new type annotations when converting sequential code
+    /// that used type inferrence assuming the two were the same.
     fn partition<A, B, P>(self, predicate: P) -> (A, B)
         where A: Default + ParallelExtend<Self::Item>,
               B: Default + ParallelExtend<Self::Item>,
