@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
 use std::usize;
+use std::sync::mpsc;
 
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 
@@ -1418,4 +1419,35 @@ fn check_lengths() {
             check(min, max);
         }
     }
+}
+
+#[test]
+fn check_map_with() {
+    let (sender, receiver) = mpsc::channel();
+    let a: HashSet<_> = (0..1024).collect();
+
+    a.par_iter()
+        .cloned()
+        .map_with(sender, |s, i| s.send(i).unwrap())
+        .count();
+
+    let b: HashSet<_> = receiver.iter().collect();
+    assert_eq!(a, b);
+}
+
+#[test]
+fn check_fold_with() {
+    let (sender, receiver) = mpsc::channel();
+    let a: HashSet<_> = (0..1024).collect();
+
+    a.par_iter()
+        .cloned()
+        .fold_with(sender, |s, i| {
+            s.send(i).unwrap();
+            s
+        })
+        .count();
+
+    let b: HashSet<_> = receiver.iter().collect();
+    assert_eq!(a, b);
 }

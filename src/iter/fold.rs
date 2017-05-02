@@ -123,3 +123,95 @@ impl<'r, C, ID, F, T> Folder<T> for FoldFolder<'r, C, ID, F>
         self.base.full()
     }
 }
+
+// ///////////////////////////////////////////////////////////////////////////
+
+pub fn fold_with<U, I, F>(base: I, item: U, fold_op: F) -> FoldWith<I, U, F>
+    where I: ParallelIterator,
+          F: Fn(U, I::Item) -> U + Sync,
+          U: Send + Clone
+{
+    FoldWith {
+        base: base,
+        item: item,
+        fold_op: fold_op,
+    }
+}
+
+/// `FoldWith` is an iterator that applies a function over an iterator producing a single value.
+/// This struct is created by the [`fold_with()`] method on [`ParallelIterator`]
+///
+/// [`fold_with()`]: trait.ParallelIterator.html#method.fold_with
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+pub struct FoldWith<I, U, F> {
+    base: I,
+    item: U,
+    fold_op: F,
+}
+
+impl<U, I, F> ParallelIterator for FoldWith<I, U, F>
+    where I: ParallelIterator,
+          F: Fn(U, I::Item) -> U + Sync,
+          U: Send + Clone
+{
+    type Item = U;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let consumer1 = FoldWithConsumer {
+            base: consumer,
+            item: self.item,
+            fold_op: &self.fold_op,
+        };
+        self.base.drive_unindexed(consumer1)
+    }
+}
+
+struct FoldWithConsumer<'c, C, U, F: 'c> {
+    base: C,
+    item: U,
+    fold_op: &'c F,
+}
+
+impl<'r, U, T, C, F> Consumer<T> for FoldWithConsumer<'r, C, U, F>
+    where C: Consumer<U>,
+          F: Fn(U, T) -> U + Sync,
+          U: Send + Clone
+{
+    type Folder = FoldFolder<'r, C::Folder, U, F>;
+    type Reducer = C::Reducer;
+    type Result = C::Result;
+
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let (left, right, reducer) = self.base.split_at(index);
+        (FoldWithConsumer { base: left, item: self.item.clone(), ..self },
+         FoldWithConsumer { base: right, ..self }, reducer)
+    }
+
+    fn into_folder(self) -> Self::Folder {
+        FoldFolder {
+            base: self.base.into_folder(),
+            item: self.item,
+            fold_op: self.fold_op,
+        }
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
+}
+
+impl<'r, U, T, C, F> UnindexedConsumer<T> for FoldWithConsumer<'r, C, U, F>
+    where C: UnindexedConsumer<U>,
+          F: Fn(U, T) -> U + Sync,
+          U: Send + Clone
+{
+    fn split_off_left(&self) -> Self {
+        FoldWithConsumer { base: self.base.split_off_left(), item: self.item.clone(), ..*self }
+    }
+
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
