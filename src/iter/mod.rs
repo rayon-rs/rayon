@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! The `ParallelIterator` module makes it easy to write parallel
 //! programs using an iterator-style interface. To get access to all
 //! the methods you want, the easiest is to write `use
@@ -71,9 +69,17 @@ mod inspect;
 pub use self::inspect::Inspect;
 mod while_some;
 pub use self::while_some::WhileSome;
+mod extend;
+mod unzip;
 
 #[cfg(test)]
 mod test;
+
+/// Represents a value of one of two possible types.
+pub enum Either<L, R> {
+    Left(L),
+    Right(R)
+}
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item = Self::Item>;
@@ -652,6 +658,52 @@ pub trait ParallelIterator: Sized {
         C::from_par_iter(self)
     }
 
+    /// Unzips the items of a parallel iterator into a pair of arbitrary
+    /// `ParallelExtend` containers.
+    ///
+    /// You may prefer to use `unzip_into()`, which allocates more
+    /// efficiently with precise knowledge of how many elements the
+    /// iterator contains, and even allows you to reuse existing
+    /// vectors' backing stores rather than allocating fresh vectors.
+    fn unzip<A, B, FromA, FromB>(self) -> (FromA, FromB)
+        where Self: ParallelIterator<Item = (A, B)>,
+              FromA: Default + ParallelExtend<A>,
+              FromB: Default + ParallelExtend<B>,
+              A: Send,
+              B: Send
+    {
+        unzip::unzip(self)
+    }
+
+    /// Partitions the items of a parallel iterator into a pair of arbitrary
+    /// `ParallelExtend` containers.  Items for which the `predicate` returns
+    /// true go into the first container, and the rest go into the second.
+    ///
+    /// Note: unlike the standard `Iterator::partition`, this allows distinct
+    /// collection types for the left and right items.  This is more flexible,
+    /// but may require new type annotations when converting sequential code
+    /// that used type inferrence assuming the two were the same.
+    fn partition<A, B, P>(self, predicate: P) -> (A, B)
+        where A: Default + ParallelExtend<Self::Item>,
+              B: Default + ParallelExtend<Self::Item>,
+              P: Fn(&Self::Item) -> bool + Sync
+    {
+        unzip::partition(self, predicate)
+    }
+
+    /// Partitions and maps the items of a parallel iterator into a pair of
+    /// arbitrary `ParallelExtend` containers.  `Either::Left` items go into
+    /// the first container, and `Either::Right` items go into the second.
+    fn partition_map<A, B, P, L, R>(self, predicate: P) -> (A, B)
+        where A: Default + ParallelExtend<L>,
+              B: Default + ParallelExtend<R>,
+              P: Fn(Self::Item) -> Either<L, R> + Sync,
+              L: Send,
+              R: Send
+    {
+        unzip::partition_map(self, predicate)
+    }
+
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
     ///
@@ -705,6 +757,18 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// to better performance since it reuses the same backing buffer.
     fn collect_into(self, target: &mut Vec<Self::Item>) {
         collect::collect_into(self, target);
+    }
+
+    /// Unzips the results of the iterator into the specified
+    /// vectors. The vectors are always truncated before execution
+    /// begins. If possible, reusing the vectors across calls can lead
+    /// to better performance since they reuse the same backing buffer.
+    fn unzip_into<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
+        where Self: IndexedParallelIterator<Item = (A, B)>,
+              A: Send,
+              B: Send
+    {
+        collect::unzip_into(self, left, right);
     }
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from
@@ -964,4 +1028,13 @@ pub trait FromParallelIterator<T>
     where T: Send
 {
     fn from_par_iter<I>(par_iter: I) -> Self where I: IntoParallelIterator<Item = T>;
+}
+
+/// `ParallelExtend` extends an existing collection with items from a [`ParallelIterator`].
+///
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+pub trait ParallelExtend<T>
+    where T: Send
+{
+    fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
 }

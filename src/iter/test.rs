@@ -9,6 +9,7 @@ use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
+use std::fmt::Debug;
 use std::usize;
 use std::sync::mpsc;
 
@@ -60,6 +61,11 @@ pub fn execute_strings() {
     let par_even: String = s.par_chars().filter(|&c| (c as u32) & 1 == 0).collect();
     let ser_even: String = s.chars().filter(|&c| (c as u32) & 1 == 0).collect();
     assert_eq!(par_even, ser_even);
+
+    // test `FromParallelIterator<&char> for String`
+    let vchars: Vec<char> = s.par_chars().collect();
+    let par_chars: String = vchars.par_iter().collect();
+    assert_eq!(s, par_chars);
 }
 
 #[test]
@@ -1450,4 +1456,155 @@ fn check_fold_with() {
 
     let b: HashSet<_> = receiver.iter().collect();
     assert_eq!(a, b);
+}
+
+#[test]
+fn check_extend_items() {
+    fn check<C>()
+        where C: Default + Eq + Debug
+               + Extend<i32> + for<'a> Extend<&'a i32>
+               + ParallelExtend<i32> + for<'a> ParallelExtend<&'a i32>
+    {
+        let mut serial = C::default();
+        let mut parallel = C::default();
+
+        // extend with references
+        let v: Vec<_> = (0..128).collect();
+        serial.extend(&v);
+        parallel.par_extend(&v);
+        assert_eq!(serial, parallel);
+
+        // extend with values
+        serial.extend(-128..0);
+        parallel.par_extend(-128..0);
+        assert_eq!(serial, parallel);
+    }
+
+    check::<BTreeSet<_>>();
+    check::<HashSet<_>>();
+    check::<LinkedList<_>>();
+    check::<Vec<_>>();
+    check::<VecDeque<_>>();
+}
+
+#[test]
+fn check_extend_heap() {
+    let mut serial: BinaryHeap<_> = Default::default();
+    let mut parallel: BinaryHeap<_> = Default::default();
+
+    // extend with references
+    let v: Vec<_> = (0..128).collect();
+    serial.extend(&v);
+    parallel.par_extend(&v);
+    assert_eq!(serial.clone().into_sorted_vec(), parallel.clone().into_sorted_vec());
+
+    // extend with values
+    serial.extend(-128..0);
+    parallel.par_extend(-128..0);
+    assert_eq!(serial.into_sorted_vec(), parallel.into_sorted_vec());
+}
+
+#[test]
+fn check_extend_pairs() {
+    fn check<C>()
+        where C: Default + Eq + Debug
+               + Extend<(usize, i32)> + for<'a> Extend<(&'a usize, &'a i32)>
+               + ParallelExtend<(usize, i32)> + for<'a> ParallelExtend<(&'a usize, &'a i32)>
+    {
+        let mut serial = C::default();
+        let mut parallel = C::default();
+
+        // extend with references
+        let m: HashMap<_, _> = (0..128).enumerate().collect();
+        serial.extend(&m);
+        parallel.par_extend(&m);
+        assert_eq!(serial, parallel);
+
+        // extend with values
+        let v: Vec<(_, _)> = (-128..0).enumerate().collect();
+        serial.extend(v.clone());
+        parallel.par_extend(v);
+        assert_eq!(serial, parallel);
+    }
+
+    check::<BTreeMap<usize, i32>>();
+    check::<HashMap<usize, i32>>();
+}
+
+#[test]
+fn check_unzip_into() {
+    let mut a = vec![];
+    let mut b = vec![];
+    (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip_into(&mut a, &mut b);
+
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+}
+
+#[test]
+fn check_unzip() {
+    // indexed, unindexed
+    let (a, b): (Vec<_>, HashSet<_>) = (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip();
+    let (c, d): (Vec<_>, HashSet<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+
+    // unindexed, indexed
+    let (a, b): (HashSet<_>, Vec<_>) = (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip();
+    let (c, d): (HashSet<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+
+    // indexed, indexed
+    let (a, b): (Vec<_>, Vec<_>) = (0..1024)
+        .into_par_iter()
+        .map(|i| i * i)
+        .enumerate()
+        .unzip();
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+
+    // unindexed producer
+    let (a, b): (Vec<_>, Vec<_>) = (0..1024)
+        .into_par_iter()
+        .filter_map(|i| Some((i, i * i)))
+        .unzip();
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).filter_map(|i| Some((i, i * i))).unzip();
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+}
+
+#[test]
+fn check_partition() {
+    let (a, b): (Vec<_>, Vec<_>) = (0..1024).into_par_iter().partition(|&i| i % 3 == 0);
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).partition(|&i| i % 3 == 0);
+    assert_eq!(a, c);
+    assert_eq!(b, d);
+}
+
+#[test]
+fn check_partition_map() {
+    let input = "a b c 1 2 3 x y z";
+    let (a, b): (Vec<_>, String) = input
+        .par_split_whitespace()
+        .partition_map(|s| match s.parse::<i32>() {
+                           Ok(n) => Either::Left(n),
+                           Err(_) => Either::Right(s),
+                       });
+    assert_eq!(a, vec![1, 2, 3]);
+    assert_eq!(b, "abcxyz");
 }

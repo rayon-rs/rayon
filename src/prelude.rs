@@ -7,6 +7,7 @@ pub use iter::IntoParallelIterator;
 pub use iter::IntoParallelRefIterator;
 pub use iter::IntoParallelRefMutIterator;
 pub use iter::IndexedParallelIterator;
+pub use iter::ParallelExtend;
 pub use iter::ParallelIterator;
 pub use slice::ParallelSlice;
 pub use str::ParallelString;
