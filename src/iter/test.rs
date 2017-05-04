@@ -1682,3 +1682,20 @@ fn check_either() {
     let left: E = Either::Left(v.clone().into_par_iter());
     assert!(left.enumerate().eq(v.clone().into_par_iter().enumerate()));
 }
+
+#[test]
+fn check_either_extend() {
+    type E = Either<Vec<i32>, HashSet<i32>>;
+
+    let v: Vec<i32> = (0..1024).collect();
+
+    // try extending the left side
+    let mut left: E = Either::Left(vec![]);
+    left.par_extend(v.clone());
+    assert_eq!(left.as_ref(), Either::Left(&v));
+
+    // try extending the right side
+    let mut right: E = Either::Right(HashSet::default());
+    right.par_extend(v.clone());
+    assert_eq!(right, Either::Right(v.iter().cloned().collect()));
+}
