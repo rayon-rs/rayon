@@ -31,6 +31,7 @@ pub mod slice;
 pub mod str;
 pub mod vec;
 
+mod par_either;
 mod test;
 
 pub use iter::split;

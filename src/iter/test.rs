@@ -1662,3 +1662,23 @@ fn check_partition_map() {
     assert_eq!(a, vec![1, 2, 3]);
     assert_eq!(b, "abcxyz");
 }
+
+#[test]
+fn check_either() {
+    type I = ::vec::IntoIter<i32>;
+    type E = Either<I, I>;
+
+    let v: Vec<i32> = (0..1024).collect();
+
+    // try iterating the left side
+    let left: E = Either::Left(v.clone().into_par_iter());
+    assert!(left.eq(v.clone()));
+
+    // try iterating the right side
+    let right: E = Either::Right(v.clone().into_par_iter());
+    assert!(right.eq(v.clone()));
+
+    // try an indexed iterator
+    let left: E = Either::Left(v.clone().into_par_iter());
+    assert!(left.enumerate().eq(v.clone().into_par_iter().enumerate()));
+}
