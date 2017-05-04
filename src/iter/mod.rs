@@ -9,6 +9,7 @@
 //! the code itself, the `internal` module and `README.md` file are a
 //! good place to start.
 
+use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
 use std::ops::Fn;
@@ -74,12 +75,6 @@ mod unzip;
 
 #[cfg(test)]
 mod test;
-
-/// Represents a value of one of two possible types.
-pub enum Either<L, R> {
-    Left(L),
-    Right(R)
-}
 
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item = Self::Item>;

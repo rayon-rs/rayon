@@ -8,6 +8,7 @@
 #![cfg_attr(not(feature = "unstable"), allow(warnings))]
 
 extern crate rayon_core;
+extern crate either;
 
 #[cfg(test)]
 extern crate rand;
