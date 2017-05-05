@@ -38,8 +38,8 @@ pub use rayon_core::ThreadPool;
 pub use rayon_core::join;
 pub use rayon_core::{scope, Scope};
 #[cfg(feature = "unstable")]
-pub use rayon_core::spawn_async;
+pub use rayon_core::spawn;
 #[cfg(feature = "unstable")]
-pub use rayon_core::spawn_future_async;
+pub use rayon_core::spawn_future;
 #[cfg(feature = "unstable")]
 pub use rayon_core::RayonFuture;

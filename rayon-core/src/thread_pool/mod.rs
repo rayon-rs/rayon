@@ -5,8 +5,10 @@ use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
+use join;
+use {scope, Scope};
 #[cfg(feature = "unstable")]
-use spawn_async;
+use spawn;
 use std::sync::Arc;
 use std::error::Error;
 use registry::{Registry, WorkerThread};
@@ -24,6 +26,26 @@ impl ThreadPool {
     pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
         let registry = try!(Registry::new(configuration));
         Ok(ThreadPool { registry: registry })
+    }
+
+    /// Returns a handle to the global thread pool. This is the pool
+    /// that Rayon will use by default when you perform a `join()` or
+    /// `scope()` operation, if no other thread-pool is installed. If
+    /// no global thread-pool has yet been started when this function
+    /// is called, then the global thread-pool will be created (with
+    /// the default configuration). If you wish to configure the
+    /// global thread-pool differently, then you can use [the
+    /// `rayon::initialize()` function][f] to do so.
+    ///
+    /// [f]: fn.initialize.html
+    #[cfg(feature = "unstable")]
+    pub fn global() -> &'static Arc<ThreadPool> {
+        lazy_static! {
+            static ref DEFAULT_THREAD_POOL: Arc<ThreadPool> =
+                Arc::new(ThreadPool { registry: Registry::global() });
+        }
+
+        &DEFAULT_THREAD_POOL
     }
 
     /// Executes `op` within the threadpool. Any attempts to use
@@ -97,24 +119,56 @@ impl ThreadPool {
         }
     }
 
-    /// Spawns an asynchronous task in this thread-pool. See
-    /// `spawn_async()` for more details.
+    /// Execute `oper_a` and `oper_b` in the thread-pool and return
+    /// the results. Equivalent to `self.install(|| join(oper_a,
+    /// oper_b))`.
     #[cfg(feature = "unstable")]
-    pub fn spawn_async<OP>(&self, op: OP)
+    pub fn join<A, B, RA, RB>(&self, oper_a: A, oper_b: B) -> (RA, RB)
+        where A: FnOnce() -> RA + Send,
+              B: FnOnce() -> RB + Send,
+              RA: Send,
+              RB: Send
+    {
+        self.install(|| join(oper_a, oper_b))
+    }
+
+    /// Creates a scope that executes within this thread-pool.
+    /// Equivalent to `self.install(|| scope(...))`.
+    ///
+    /// See also: [the `scope()` function][scope].
+    ///
+    /// [scope]: fn.scope.html
+    #[cfg(feature = "unstable")]
+    pub fn scope<'scope, OP, R>(&self, op: OP) -> R
+        where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send
+    {
+        self.install(|| scope(op))
+    }
+
+    /// Spawns an asynchronous task in this thread-pool. This task will
+    /// run in the implicit, global scope, which means that it may outlast
+    /// the current stack frame -- therefore, it cannot capture any references
+    /// onto the stack (you will likely need a `move` closure).
+    ///
+    /// See the [`spawn()` method defined on scopes][spawn] for more details.
+    ///
+    /// [spawn]: struct.Scope.html#method.spawn
+    #[cfg(feature = "unstable")]
+    pub fn spawn<OP>(&self, op: OP)
         where OP: FnOnce() + Send + 'static
     {
         // We assert that `self.registry` has not terminated.
-        unsafe { spawn_async::spawn_async_in(op, &self.registry) }
+        unsafe { spawn::spawn_in(op, &self.registry) }
     }
 
-    /// Spawns an asynchronous task in this thread-pool. See
-    /// `spawn_future_async()` for more details.
+    /// Spawns an asynchronous future in this thread-pool. See
+    /// `spawn_future()` for more details.
     #[cfg(feature = "unstable")]
-    pub fn spawn_future_async<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
+    pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'static
     {
         // We assert that `self.registry` has not yet terminated.
-        unsafe { spawn_async::spawn_future_async_in(future, self.registry.clone()) }
+        unsafe { spawn::spawn_future_in(future, self.registry.clone()) }
     }
 }
 
@@ -123,3 +177,4 @@ impl Drop for ThreadPool {
         self.registry.terminate();
     }
 }
+

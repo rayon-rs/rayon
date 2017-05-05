@@ -8,16 +8,25 @@ use std::mem;
 use std::sync::Arc;
 use unwind;
 
-/// Fires off a task into the Rayon threadpool that will run
-/// asynchronously. As this task runs asynchronously, it cannot hold
-/// any references to the enclosing stack frame. Like a regular Rust
-/// thread, it should always be created with a `move` closure and
-/// should not hold any references (except for `&'static` references).
+/// Fires off a task into the Rayon threadpool in the "static" or
+/// "global" scope.  Just like a standard thread, this task is not
+/// tied to the current stack frame, and hence it cannot hold any
+/// references other than those with `'static` lifetime. If you want
+/// to spawn a task that references stack data, use [the `scope()`
+/// function][scope] to create a scope.
+///
+/// [scope]: fn.scope.html
+///
+/// Since tasks spawned with this function cannot hold references into
+/// the enclosing stack frame, you almost certainly want to use a
+/// `move` closure as their argument (otherwise, the closure will
+/// typically hold references to any variables from the enclosing
+/// function that you happen to use).
 ///
 /// This API assumes that the closure is executed purely for its
 /// side-effects (i.e., it might send messages, modify data protected
 /// by a mutex, or some such thing). If you want to compute a result,
-/// consider `spawn_future_async()`.
+/// consider `spawn_future()`.
 ///
 /// # Panic handling
 ///
@@ -38,15 +47,15 @@ use unwind;
 ///
 /// static GLOBAL_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 ///
-/// rayon::spawn_async(move || {
+/// rayon::spawn(move || {
 ///     GLOBAL_COUNTER.fetch_add(1, Ordering::SeqCst);
 /// });
 /// ```
-pub fn spawn_async<F>(func: F)
+pub fn spawn<F>(func: F)
     where F: FnOnce() + Send + 'static
 {
     // We assert that current registry has not terminated.
-    unsafe { spawn_async_in(func, &Registry::current()) }
+    unsafe { spawn_in(func, &Registry::current()) }
 }
 
 /// Spawn an asynchronous job in `registry.`
@@ -54,7 +63,7 @@ pub fn spawn_async<F>(func: F)
 /// Unsafe because `registry` must not yet have terminated.
 ///
 /// Not a public API, but used elsewhere in Rayon.
-pub unsafe fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
+pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
     where F: FnOnce() + Send + 'static
 {
     // Ensure that registry cannot terminate until this job has
@@ -86,24 +95,30 @@ pub unsafe fn spawn_async_in<F>(func: F, registry: &Arc<Registry>)
     mem::forget(abort_guard);
 }
 
-/// Spawns a future, scheduling it to execute on Rayon's threadpool.
-/// Returns a new future that can be used to poll for the result.
+/// Spawns a future in the static scope, scheduling it to execute on
+/// Rayon's threadpool. Returns a new future that can be used to poll
+/// for the result. Since this future is executing in the static scope,
+/// it cannot hold references to things in the enclosing stack frame;
+/// if you would like to hold such references, use [the `scope()`
+/// function][scope] to create a scope.
+///
+/// [scope]: fn.scope.html
 ///
 /// # Panic handling
 ///
 /// If this future should panic, that panic will be propagated when
 /// `poll()` is invoked on the return value.
-pub fn spawn_future_async<F>(future: F) -> RayonFuture<F::Item, F::Error>
+pub fn spawn_future<F>(future: F) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'static
 {
     /// We assert that the current registry cannot yet have terminated.
-    unsafe { spawn_future_async_in(future, Registry::current()) }
+    unsafe { spawn_future_in(future, Registry::current()) }
 }
 
 /// Internal helper function.
 ///
 /// Unsafe because caller must guarantee that `registry` has not yet terminated.
-pub unsafe fn spawn_future_async_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
+pub unsafe fn spawn_future_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'static
 {
     let scope = StaticFutureScope::new(registry.clone());

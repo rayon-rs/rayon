@@ -1,6 +1,6 @@
 //! Future support in Rayon. This module *primary* consists of
 //! internal APIs that are exposed through `Scope::spawn_future` and
-//! `spawn_future_async`.  However, the type `RayonFuture` is a public
+//! `::spawn_future`.  However, the type `RayonFuture` is a public
 //! type exposed to all users.
 //!
 //! See `README.md` for details.
