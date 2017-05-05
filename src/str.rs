@@ -3,6 +3,14 @@
 //! rarely need to interact with it directly, since if you add `use
 //! rayon::prelude::*` to your file, that will include the helper
 //! traits defined in this module.
+//!
+//! Note: [`ParallelString::par_split()`] and [`par_split_terminator()`]
+//! reference a `Pattern` trait which is not visible outside this crate.
+//! This trait is intentionally kept private, for use only by Rayon itself.
+//! It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
+//!
+//! [`ParallelString::par_split()`]: trait.ParallelString.html#method.par_split
+//! [`par_split_terminator()`]: trait.ParallelString.html#method.par_split_terminator
 
 use iter::*;
 use iter::internal::*;
@@ -42,15 +50,21 @@ pub trait ParallelString: Borrow<str> {
     }
 
     /// Returns a parallel iterator over substrings separated by a
-    /// given character, similar to `str::split`.
+    /// given character or predicate, similar to `str::split`.
+    ///
+    /// Note: the `Pattern` trait is private, for use only by Rayon itself.
+    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
     fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
         Split::new(self.borrow(), separator)
     }
 
     /// Returns a parallel iterator over substrings terminated by a
-    /// given character, similar to `str::split_terminator`.  It's
-    /// equivalent to `par_split`, except it doesn't produce an empty
+    /// given character or predicate, similar to `str::split_terminator`.
+    /// It's equivalent to `par_split`, except it doesn't produce an empty
     /// substring after a trailing terminator.
+    ///
+    /// Note: the `Pattern` trait is private, for use only by Rayon itself.
+    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
     fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
         SplitTerminator::new(self.borrow(), terminator)
     }
@@ -78,17 +92,27 @@ impl<T: ?Sized + Borrow<str>> ParallelString for T {}
 
 // /////////////////////////////////////////////////////////////////////////
 
-/// Pattern-matching trait for `ParallelString`, somewhat like a mix of
-/// `std::str::pattern::{Pattern, Searcher}`.
-///
-/// Implementing this trait is not permitted outside of `rayon`.
-pub trait Pattern: Sized + Sync {
-    private_decl!{}
-    fn find_in(&self, &str) -> Option<usize>;
-    fn rfind_in(&self, &str) -> Option<usize>;
-    fn is_suffix_of(&self, &str) -> bool;
-    fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F where F: Folder<&'ch str>;
+/// We hide the `Pattern` trait in a private module, as its API is not meant
+/// for general consumption.  If we could have privacy on trait items, then it
+/// would be nicer to have its basic existence and implementors public while
+/// keeping all of the methods private.
+mod private {
+    use iter::internal::Folder;
+
+    /// Pattern-matching trait for `ParallelString`, somewhat like a mix of
+    /// `std::str::pattern::{Pattern, Searcher}`.
+    ///
+    /// Implementing this trait is not permitted outside of `rayon`.
+    pub trait Pattern: Sized + Sync {
+        private_decl!{}
+        fn find_in(&self, &str) -> Option<usize>;
+        fn rfind_in(&self, &str) -> Option<usize>;
+        fn is_suffix_of(&self, &str) -> bool;
+        fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
+            where F: Folder<&'ch str>;
+    }
 }
+use self::private::Pattern;
 
 impl Pattern for char {
     private_impl!{}
