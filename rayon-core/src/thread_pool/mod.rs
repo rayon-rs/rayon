@@ -132,8 +132,12 @@ impl ThreadPool {
         self.install(|| join(oper_a, oper_b))
     }
 
-    /// Execute `oper_a` and `oper_b` in the thread-pool and return
-    /// the results. Equivalent to `self.install(|| scope(...))`.
+    /// Creates a scope that executes within this thread-pool.
+    /// Equivalent to `self.install(|| scope(...))`.
+    ///
+    /// See also: [the `scope()` function][scope].
+    ///
+    /// [scope]: fn.scope.html
     #[cfg(feature = "unstable")]
     pub fn scope<'scope, OP, R>(&self, op: OP) -> R
         where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send
@@ -141,8 +145,14 @@ impl ThreadPool {
         self.install(|| scope(op))
     }
 
-    /// Spawns an asynchronous task in this thread-pool. See `spawn()`
-    /// for more details.
+    /// Spawns an asynchronous task in this thread-pool. This task will
+    /// run in the implicit, global scope, which means that it may outlast
+    /// the current stack frame -- therefore, it cannot capture any references
+    /// onto the stack (you will likely need a `move` closure).
+    ///
+    /// See the [`spawn()` method defined on scopes][spawn] for more details.
+    ///
+    /// [spawn]: struct.Scope.html#method.spawn
     #[cfg(feature = "unstable")]
     pub fn spawn<OP>(&self, op: OP)
         where OP: FnOnce() + Send + 'static
