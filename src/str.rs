@@ -15,7 +15,6 @@
 use iter::*;
 use iter::internal::*;
 use split_producer::*;
-use std::borrow::Borrow;
 
 
 /// Test if a byte is the start of a UTF-8 character.
@@ -43,10 +42,14 @@ fn find_char_midpoint(chars: &str) -> usize {
 
 
 /// Parallel extensions for strings.
-pub trait ParallelString: Borrow<str> {
+pub trait ParallelString {
+    /// Returns a plain string slice, which is used to implement the rest of
+    /// the parallel methods.
+    fn as_parallel_string(&self) -> &str;
+
     /// Returns a parallel iterator over the characters of a string.
     fn par_chars(&self) -> Chars {
-        Chars { chars: self.borrow() }
+        Chars { chars: self.as_parallel_string() }
     }
 
     /// Returns a parallel iterator over substrings separated by a
@@ -55,7 +58,7 @@ pub trait ParallelString: Borrow<str> {
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
     /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
     fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
-        Split::new(self.borrow(), separator)
+        Split::new(self.as_parallel_string(), separator)
     }
 
     /// Returns a parallel iterator over substrings terminated by a
@@ -66,7 +69,7 @@ pub trait ParallelString: Borrow<str> {
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
     /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
     fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
-        SplitTerminator::new(self.borrow(), terminator)
+        SplitTerminator::new(self.as_parallel_string(), terminator)
     }
 
     /// Returns a parallel iterator over the lines of a string, ending with an
@@ -74,7 +77,7 @@ pub trait ParallelString: Borrow<str> {
     /// The final line ending is optional, and line endings are not included in
     /// the output strings.
     fn par_lines(&self) -> Lines {
-        Lines(self.borrow())
+        Lines(self.as_parallel_string())
     }
 
     /// Returns a parallel iterator over the sub-slices of a string that are
@@ -83,11 +86,16 @@ pub trait ParallelString: Borrow<str> {
     /// As with `str::split_whitespace`, 'whitespace' is defined according to
     /// the terms of the Unicode Derived Core Property `White_Space`.
     fn par_split_whitespace(&self) -> SplitWhitespace {
-        SplitWhitespace(self.borrow())
+        SplitWhitespace(self.as_parallel_string())
     }
 }
 
-impl<T: ?Sized + Borrow<str>> ParallelString for T {}
+impl ParallelString for str {
+    #[inline]
+    fn as_parallel_string(&self) -> &str {
+        self
+    }
+}
 
 
 // /////////////////////////////////////////////////////////////////////////

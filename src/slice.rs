@@ -5,18 +5,21 @@
 use iter::*;
 use iter::internal::*;
 use split_producer::*;
-use std::borrow::{Borrow, BorrowMut};
 use std::cmp;
 
 /// Parallel extensions for slices.
-pub trait ParallelSlice<T: Sync>: Borrow<[T]> {
+pub trait ParallelSlice<T: Sync> {
+    /// Returns a plain slice, which is used to implement the rest of the
+    /// parallel methods.
+    fn as_parallel_slice(&self) -> &[T];
+
     /// Returns a parallel iterator over subslices separated by elements that
     /// match the separator.
     fn par_split<P>(&self, separator: P) -> Split<T, P>
         where P: Fn(&T) -> bool + Sync
     {
         Split {
-            slice: self.borrow(),
+            slice: self.as_parallel_slice(),
             separator: separator,
         }
     }
@@ -26,7 +29,7 @@ pub trait ParallelSlice<T: Sync>: Borrow<[T]> {
     fn par_windows(&self, window_size: usize) -> Windows<T> {
         Windows {
             window_size: window_size,
-            slice: self.borrow(),
+            slice: self.as_parallel_slice(),
         }
     }
 
@@ -35,23 +38,32 @@ pub trait ParallelSlice<T: Sync>: Borrow<[T]> {
     fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
         Chunks {
             chunk_size: chunk_size,
-            slice: self.borrow(),
+            slice: self.as_parallel_slice(),
         }
     }
 }
 
-impl<T: Sync, V: ?Sized + Borrow<[T]>> ParallelSlice<T> for V {}
+impl<T: Sync> ParallelSlice<T> for [T] {
+    #[inline]
+    fn as_parallel_slice(&self) -> &[T] {
+        self
+    }
+}
 
 
 /// Parallel extensions for mutable slices.
-pub trait ParallelSliceMut<T: Send>: BorrowMut<[T]> {
+pub trait ParallelSliceMut<T: Send> {
+    /// Returns a plain mutable slice, which is used to implement the rest of
+    /// the parallel methods.
+    fn as_parallel_slice_mut(&mut self) -> &mut [T];
+
     /// Returns a parallel iterator over mutable subslices separated by
     /// elements that match the separator.
     fn par_split_mut<P>(&mut self, separator: P) -> SplitMut<T, P>
         where P: Fn(&T) -> bool + Sync
     {
         SplitMut {
-            slice: self.borrow_mut(),
+            slice: self.as_parallel_slice_mut(),
             separator: separator,
         }
     }
@@ -61,12 +73,17 @@ pub trait ParallelSliceMut<T: Send>: BorrowMut<[T]> {
     fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
         ChunksMut {
             chunk_size: chunk_size,
-            slice: self.borrow_mut(),
+            slice: self.as_parallel_slice_mut(),
         }
     }
 }
 
-impl<T: Send, V: ?Sized + BorrowMut<[T]>> ParallelSliceMut<T> for V {}
+impl<T: Send> ParallelSliceMut<T> for [T] {
+    #[inline]
+    fn as_parallel_slice_mut(&mut self) -> &mut [T] {
+        self
+    }
+}
 
 
 impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
