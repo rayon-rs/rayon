@@ -97,8 +97,8 @@ pub fn current_num_threads() -> usize {
 #[derive(Default)]
 pub struct Configuration {
     /// The number of threads in the rayon thread pool.
-    /// If zero will use the RAYON_RS_NUM_CPUS environment variable.
-    /// If RAYON_RS_NUM_CPUS is invalid or zero will use the default.
+    /// If zero will use the RAYON_NUM_THREADS environment variable.
+    /// If RAYON_NUM_THREADS is invalid or zero will use the default.
     num_threads: usize,
 
     /// Custom closure, if any, to handle a panic that we cannot propagate
@@ -144,6 +144,13 @@ impl Configuration {
         if self.num_threads > 0 {
             self.num_threads
         } else {
+            match env::var("RAYON_NUM_THREADS").ok().and_then(|s| usize::from_str(&s).ok()) {
+                Some(x) if x > 0 => return x,
+                Some(x) if x == 0 => return num_cpus::get(),
+                _ => {},
+            }
+
+            // Support for deprecated `RAYON_RS_NUM_CPUS`.
             match env::var("RAYON_RS_NUM_CPUS").ok().and_then(|s| usize::from_str(&s).ok()) {
                 Some(x) if x > 0 => x,
                 _ => num_cpus::get(),
@@ -173,7 +180,7 @@ impl Configuration {
     /// If `num_threads` is 0, or you do not call this function, then
     /// the Rayon runtime will select the number of threads
     /// automatically. At present, this is based on the
-    /// `RAYON_RS_NUM_CPUS` environment variable (if set), 
+    /// `RAYON_NUM_THREADS` environment variable (if set), 
     /// or the number of logical CPUs (otherwise). 
     /// In the future, however, the default behavior may
     /// change to dynamically add or remove threads as needed.
@@ -185,6 +192,11 @@ impl Configuration {
     /// may wish to use the [`num_cpus`
     /// crate](https://crates.io/crates/num_cpus) to query the number
     /// of CPUs dynamically.
+    ///
+    /// **Old environment variable:** `RAYON_NUM_THREADS` is a one-to-one
+    /// replacement of the now deprecated `RAYON_RS_NUM_CPUS` environment
+    /// variable. If both variables are specified, `RAYON_NUM_THREADS` will
+    /// be prefered.
     pub fn num_threads(mut self, num_threads: usize) -> Configuration {
         self.num_threads = num_threads;
         self
