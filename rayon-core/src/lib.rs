@@ -234,6 +234,8 @@ impl Configuration {
 
     /// Set a callback to be invoked on thread start.
     ///
+    /// The closure is passed the index of the thread on which it is invoked.
+    /// Note that this same closure may be invoked multiple times in parallel.
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then startup will continue normally.
     pub fn start_handler<H>(mut self, start_handler: H) -> Configuration
@@ -250,6 +252,8 @@ impl Configuration {
 
     /// Set a callback to be invoked on thread exit.
     ///
+    /// The closure is passed the index of the thread on which it is invoked.
+    /// Note that this same closure may be invoked multiple times in parallel.
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then the thread will exit normally.
     pub fn exit_handler<H>(mut self, exit_handler: H) -> Configuration
