@@ -5,7 +5,7 @@ authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 
 [dependencies]
 rayon = { path = "../" }
-cgmath = "0.12"
+cgmath = "0.14"
 docopt = "0.7"
 glium = "0.16"
 rand = "0.3"
