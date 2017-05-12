@@ -1,0 +1,61 @@
+environment:
+  RUST_MIN_STACK: 16777216
+  matrix:
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: 1.12.0
+
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: stable
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: stable
+      FEATURES: unstable
+
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: beta
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: beta
+      FEATURES: unstable
+
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: nightly
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: nightly
+      FEATURES: unstable
+
+
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: 1.12.0
+
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: stable
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: stable
+      FEATURES: unstable
+
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: beta
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: beta
+      FEATURES: unstable
+
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: nightly
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: nightly
+      FEATURES: unstable
+
+install:
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe --default-host %TARGET% --default-toolchain %CHANNEL% -y
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustc -Vv
+  - cargo -V
+
+build: false
+
+test_script:
+  - cargo build --features="%FEATURES%"
+  - if [%CHANNEL%]==[nightly] (
+      cargo test --features="%FEATURES%" -p rayon-core &&
+      cargo test --features="%FEATURES%" -p rayon-demo
+    )
