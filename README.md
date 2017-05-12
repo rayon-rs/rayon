@@ -2,7 +2,9 @@
 
 [![Join the chat at https://gitter.im/rayon-rs/Lobby](https://badges.gitter.im/rayon-rs/Lobby.svg)](https://gitter.im/rayon-rs/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-[![Build Status](https://travis-ci.org/nikomatsakis/rayon.svg?branch=master)](https://travis-ci.org/nikomatsakis/rayon)
+[![Travis Status](https://travis-ci.org/nikomatsakis/rayon.svg?branch=master)](https://travis-ci.org/nikomatsakis/rayon)
+
+[![Appveyor status](https://ci.appveyor.com/api/projects/status/6oft3iwgr6f2o4d4?svg=true)](https://ci.appveyor.com/project/nikomatsakis/rayon)
 
 Rayon is a data-parallelism library for Rust. It is extremely
 lightweight and makes it easy to convert a sequential computation into
