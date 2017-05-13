@@ -1820,3 +1820,14 @@ fn check_interleave_shortest() {
         assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
     }
 }
+
+#[test]
+fn check_repeat_eq() {
+    let v = vec!(4,4,4,4);
+    let mut fours: Vec<_> = repeat(4)
+    .take(4)
+    .zip(v)
+    .collect();
+    assert_eq!(fours.len(), 4);
+    assert_eq!(fours.pop(), Some((4, 4)));
+}

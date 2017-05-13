@@ -81,6 +81,8 @@ mod while_some;
 pub use self::while_some::WhileSome;
 mod extend;
 mod unzip;
+mod repeat;
+pub use self::repeat::{Repeat, repeat};
 
 #[cfg(test)]
 mod test;
