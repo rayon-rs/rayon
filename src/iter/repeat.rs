@@ -1,11 +1,6 @@
-use super::internal::*;
 use super::*;
-use iter::*;
-use iter::internal::*;
-use std;
-use std::iter;
+use super::internal::*;
 use std::usize;
-
 
 pub struct Repeat<T> {
     element: T,
