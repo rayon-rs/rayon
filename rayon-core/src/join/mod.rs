@@ -20,6 +20,13 @@ mod test;
 /// only execute code in parallel when there are idle CPUs to handle
 /// it.
 ///
+/// When `join` is called from outside the thread pool, the calling
+/// thread will block while the closures execute in the pool.  When
+/// `join` is called within the pool, the calling thread still actively
+/// participates in the thread pool.  It will try to execute its own
+/// closures first, but if one is stolen then it will look for other
+/// work while waiting for that result to come back.
+///
 /// ### Warning about blocking I/O
 ///
 /// The assumption is that the closures given to `join()` are
