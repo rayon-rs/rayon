@@ -23,6 +23,7 @@ mod life;
 #[cfg(test)] mod fibonacci;
 #[cfg(test)] mod find;
 #[cfg(test)] mod join_microbench;
+#[cfg(test)] mod str_split;
 
 extern crate rayon; // all
 extern crate docopt; // all
