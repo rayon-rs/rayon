@@ -19,12 +19,14 @@ use split_producer::*;
 
 /// Test if a byte is the start of a UTF-8 character.
 /// (extracted from `str::is_char_boundary`)
+#[inline]
 fn is_char_boundary(b: u8) -> bool {
     // This is bit magic equivalent to: b < 128 || b >= 192
     (b as i8) >= -0x40
 }
 
 /// Find the index of a character boundary near the midpoint.
+#[inline]
 fn find_char_midpoint(chars: &str) -> usize {
     let mid = chars.len() / 2;
 
@@ -125,14 +127,17 @@ use self::private::Pattern;
 impl Pattern for char {
     private_impl!{}
 
+    #[inline]
     fn find_in(&self, chars: &str) -> Option<usize> {
         chars.find(*self)
     }
 
+    #[inline]
     fn rfind_in(&self, chars: &str) -> Option<usize> {
         chars.rfind(*self)
     }
 
+    #[inline]
     fn is_suffix_of(&self, chars: &str) -> bool {
         chars.ends_with(*self)
     }
