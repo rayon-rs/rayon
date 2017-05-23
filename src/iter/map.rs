@@ -29,7 +29,7 @@ pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
 
 impl<I, F, R> ParallelIterator for Map<I, F>
     where I: ParallelIterator,
-          F: Fn(I::Item) -> R + Sync,
+          F: Fn(I::Item) -> R + Sync + Send,
           R: Send
 {
     type Item = F::Output;
@@ -48,7 +48,7 @@ impl<I, F, R> ParallelIterator for Map<I, F>
 
 impl<I, F, R> IndexedParallelIterator for Map<I, F>
     where I: IndexedParallelIterator,
-          F: Fn(I::Item) -> R + Sync,
+          F: Fn(I::Item) -> R + Sync + Send,
           R: Send
 {
     fn drive<C>(self, consumer: C) -> C::Result

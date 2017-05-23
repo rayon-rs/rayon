@@ -4,7 +4,7 @@ use super::*;
 /// This trait abstracts the different ways we can "unzip" one parallel
 /// iterator into two distinct consumers, which we can handle almost
 /// identically apart from how to process the individual items.
-trait UnzipOp<T>: Sync {
+trait UnzipOp<T>: Sync + Send {
     /// The type of item expected by the left consumer.
     type Left: Send;
 
@@ -28,8 +28,8 @@ trait UnzipOp<T>: Sync {
 fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
     where I: ParallelIterator,
           OP: UnzipOp<I::Item>,
-          FromA: Default + ParallelExtend<OP::Left>,
-          FromB: Default + ParallelExtend<OP::Right>
+          FromA: Default + Send + ParallelExtend<OP::Left>,
+          FromB: Default + Send + ParallelExtend<OP::Right>
 {
     let mut a = FromA::default();
     let mut b = FromB::default();
@@ -54,8 +54,8 @@ fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
 /// This is not directly public, but called by `ParallelIterator::unzip`.
 pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
     where I: ParallelIterator<Item = (A, B)>,
-          FromA: Default + ParallelExtend<A>,
-          FromB: Default + ParallelExtend<B>,
+          FromA: Default + Send + ParallelExtend<A>,
+          FromB: Default + Send + ParallelExtend<B>,
           A: Send,
           B: Send
 {
@@ -106,9 +106,9 @@ impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
 /// This is not directly public, but called by `ParallelIterator::partition`.
 pub fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
     where I: ParallelIterator,
-          A: Default + ParallelExtend<I::Item>,
-          B: Default + ParallelExtend<I::Item>,
-          P: Fn(&I::Item) -> bool + Sync
+          A: Default + Send + ParallelExtend<I::Item>,
+          B: Default + Send + ParallelExtend<I::Item>,
+          P: Fn(&I::Item) -> bool + Sync + Send
 {
     execute(pi, Partition { predicate: predicate })
 }
@@ -119,7 +119,7 @@ struct Partition<P> {
 }
 
 impl<P, T> UnzipOp<T> for Partition<P>
-    where P: Fn(&T) -> bool + Sync,
+    where P: Fn(&T) -> bool + Sync + Send,
           T: Send
 {
     type Left = T;
@@ -144,9 +144,9 @@ impl<P, T> UnzipOp<T> for Partition<P>
 /// This is not directly public, but called by `ParallelIterator::partition_map`.
 pub fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
     where I: ParallelIterator,
-          A: Default + ParallelExtend<L>,
-          B: Default + ParallelExtend<R>,
-          P: Fn(I::Item) -> Either<L, R> + Sync,
+          A: Default + Send + ParallelExtend<L>,
+          B: Default + Send + ParallelExtend<R>,
+          P: Fn(I::Item) -> Either<L, R> + Sync + Send,
           L: Send,
           R: Send
 {
@@ -159,7 +159,7 @@ struct PartitionMap<P> {
 }
 
 impl<P, L, R, T> UnzipOp<T> for PartitionMap<P>
-    where P: Fn(T) -> Either<L, R> + Sync,
+    where P: Fn(T) -> Either<L, R> + Sync + Send,
           L: Send,
           R: Send
 {
@@ -188,7 +188,7 @@ struct UnzipA<'b, I, OP, FromB: 'b> {
 impl<'b, I, OP, FromB> ParallelIterator for UnzipA<'b, I, OP, FromB>
     where I: ParallelIterator,
           OP: UnzipOp<I::Item>,
-          FromB: Default + ParallelExtend<OP::Right>
+          FromB: Default + Send + ParallelExtend<OP::Right>
 {
     type Item = OP::Left;
 

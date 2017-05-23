@@ -25,7 +25,7 @@ pub fn new<I, P>(base: I, filter_op: P) -> FilterMap<I, P>
 
 impl<I, P, R> ParallelIterator for FilterMap<I, P>
     where I: ParallelIterator,
-          P: Fn(I::Item) -> Option<R> + Sync,
+          P: Fn(I::Item) -> Option<R> + Sync + Send,
           R: Send
 {
     type Item = R;

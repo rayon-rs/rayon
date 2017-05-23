@@ -24,7 +24,7 @@ pub struct Split<D, S> {
 
 impl<D, S> ParallelIterator for Split<D, S>
     where D: Send,
-          S: Fn(D) -> (D, Option<D>) + Sync
+          S: Fn(D) -> (D, Option<D>) + Sync + Send
 {
     type Item = D;
 

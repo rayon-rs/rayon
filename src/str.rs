@@ -7,7 +7,7 @@
 //! Note: [`ParallelString::par_split()`] and [`par_split_terminator()`]
 //! reference a `Pattern` trait which is not visible outside this crate.
 //! This trait is intentionally kept private, for use only by Rayon itself.
-//! It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
+//! It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
 //!
 //! [`ParallelString::par_split()`]: trait.ParallelString.html#method.par_split
 //! [`par_split_terminator()`]: trait.ParallelString.html#method.par_split_terminator
@@ -58,7 +58,7 @@ pub trait ParallelString {
     /// given character or predicate, similar to `str::split`.
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
-    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
+    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
     fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
         Split::new(self.as_parallel_string(), separator)
     }
@@ -69,7 +69,7 @@ pub trait ParallelString {
     /// substring after a trailing terminator.
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
-    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync`.
+    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
     fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
         SplitTerminator::new(self.as_parallel_string(), terminator)
     }
@@ -113,7 +113,7 @@ mod private {
     /// `std::str::pattern::{Pattern, Searcher}`.
     ///
     /// Implementing this trait is not permitted outside of `rayon`.
-    pub trait Pattern: Sized + Sync {
+    pub trait Pattern: Sized + Sync + Send {
         private_decl!{}
         fn find_in(&self, &str) -> Option<usize>;
         fn rfind_in(&self, &str) -> Option<usize>;
@@ -153,7 +153,7 @@ impl Pattern for char {
     }
 }
 
-impl<FN: Sync + Fn(char) -> bool> Pattern for FN {
+impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
     private_impl!{}
 
     fn find_in(&self, chars: &str) -> Option<usize> {

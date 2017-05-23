@@ -16,7 +16,7 @@ pub trait ParallelSlice<T: Sync> {
     /// Returns a parallel iterator over subslices separated by elements that
     /// match the separator.
     fn par_split<P>(&self, separator: P) -> Split<T, P>
-        where P: Fn(&T) -> bool + Sync
+        where P: Fn(&T) -> bool + Sync + Send
     {
         Split {
             slice: self.as_parallel_slice(),
@@ -60,7 +60,7 @@ pub trait ParallelSliceMut<T: Send> {
     /// Returns a parallel iterator over mutable subslices separated by
     /// elements that match the separator.
     fn par_split_mut<P>(&mut self, separator: P) -> SplitMut<T, P>
-        where P: Fn(&T) -> bool + Sync
+        where P: Fn(&T) -> bool + Sync + Send
     {
         SplitMut {
             slice: self.as_parallel_slice_mut(),
@@ -451,7 +451,7 @@ pub struct Split<'data, T: 'data, P> {
 }
 
 impl<'data, T, P> ParallelIterator for Split<'data, T, P>
-    where P: Fn(&T) -> bool + Sync,
+    where P: Fn(&T) -> bool + Sync + Send,
           T: Sync
 {
     type Item = &'data [T];
@@ -509,7 +509,7 @@ pub struct SplitMut<'data, T: 'data, P> {
 }
 
 impl<'data, T, P> ParallelIterator for SplitMut<'data, T, P>
-    where P: Fn(&T) -> bool + Sync,
+    where P: Fn(&T) -> bool + Sync + Send,
           T: Send
 {
     type Item = &'data mut [T];

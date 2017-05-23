@@ -30,7 +30,7 @@ pub fn new<I, T, F>(base: I, item: T, map_op: F) -> MapWith<I, T, F>
 impl<I, T, F, R> ParallelIterator for MapWith<I, T, F>
     where I: ParallelIterator,
           T: Send + Clone,
-          F: Fn(&mut T, I::Item) -> R + Sync,
+          F: Fn(&mut T, I::Item) -> R + Sync + Send,
           R: Send
 {
     type Item = R;
@@ -50,7 +50,7 @@ impl<I, T, F, R> ParallelIterator for MapWith<I, T, F>
 impl<I, T, F, R> IndexedParallelIterator for MapWith<I, T, F>
     where I: IndexedParallelIterator,
           T: Send + Clone,
-          F: Fn(&mut T, I::Item) -> R + Sync,
+          F: Fn(&mut T, I::Item) -> R + Sync + Send,
           R: Send
 {
     fn drive<C>(self, consumer: C) -> C::Result
