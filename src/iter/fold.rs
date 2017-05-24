@@ -3,8 +3,8 @@ use super::*;
 
 pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
     where I: ParallelIterator,
-          F: Fn(U, I::Item) -> U + Sync,
-          ID: Fn() -> U + Sync,
+          F: Fn(U, I::Item) -> U + Sync + Send,
+          ID: Fn() -> U + Sync + Send,
           U: Send
 {
     Fold {
@@ -27,8 +27,8 @@ pub struct Fold<I, ID, F> {
 
 impl<U, I, ID, F> ParallelIterator for Fold<I, ID, F>
     where I: ParallelIterator,
-          F: Fn(U, I::Item) -> U + Sync,
-          ID: Fn() -> U + Sync,
+          F: Fn(U, I::Item) -> U + Sync + Send,
+          ID: Fn() -> U + Sync + Send,
           U: Send
 {
     type Item = U;
@@ -151,7 +151,7 @@ pub struct FoldWith<I, U, F> {
 
 impl<U, I, F> ParallelIterator for FoldWith<I, U, F>
     where I: ParallelIterator,
-          F: Fn(U, I::Item) -> U + Sync,
+          F: Fn(U, I::Item) -> U + Sync + Send,
           U: Send + Clone
 {
     type Item = U;

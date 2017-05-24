@@ -25,7 +25,7 @@ pub fn new<I, F>(base: I, map_op: F) -> FlatMap<I, F>
 
 impl<I, F, PI> ParallelIterator for FlatMap<I, F>
     where I: ParallelIterator,
-          F: Fn(I::Item) -> PI + Sync,
+          F: Fn(I::Item) -> PI + Sync + Send,
           PI: IntoParallelIterator
 {
     type Item = PI::Item;

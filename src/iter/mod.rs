@@ -125,12 +125,12 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
 }
 
 /// The `ParallelIterator` interface.
-pub trait ParallelIterator: Sized {
+pub trait ParallelIterator: Sized + Send {
     type Item: Send;
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     fn for_each<OP>(self, op: OP)
-        where OP: Fn(Self::Item) + Sync
+        where OP: Fn(Self::Item) + Sync + Send
     {
         for_each::for_each(self, &op)
     }
@@ -143,7 +143,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
     fn map<F, R>(self, map_op: F) -> Map<Self, F>
-        where F: Fn(Self::Item) -> R + Sync,
+        where F: Fn(Self::Item) -> R + Sync + Send,
               R: Send
     {
         map::new(self, map_op)
@@ -156,7 +156,7 @@ pub trait ParallelIterator: Sized {
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
     fn map_with<F, T, R>(self, init: T, map_op: F) -> MapWith<Self, T, F>
-        where F: Fn(&mut T, Self::Item) -> R + Sync,
+        where F: Fn(&mut T, Self::Item) -> R + Sync + Send,
               T: Send + Clone,
               R: Send
     {
@@ -176,7 +176,7 @@ pub trait ParallelIterator: Sized {
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
     fn inspect<OP>(self, inspect_op: OP) -> Inspect<Self, OP>
-        where OP: Fn(&Self::Item) + Sync
+        where OP: Fn(&Self::Item) + Sync + Send
     {
         inspect::new(self, inspect_op)
     }
@@ -184,7 +184,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
     fn filter<P>(self, filter_op: P) -> Filter<Self, P>
-        where P: Fn(&Self::Item) -> bool + Sync
+        where P: Fn(&Self::Item) -> bool + Sync + Send
     {
         filter::new(self, filter_op)
     }
@@ -192,7 +192,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
     /// producing a new iterator with only the items from `Some` results.
     fn filter_map<P, R>(self, filter_op: P) -> FilterMap<Self, P>
-        where P: Fn(Self::Item) -> Option<R> + Sync,
+        where P: Fn(Self::Item) -> Option<R> + Sync + Send,
               R: Send
     {
         filter_map::new(self, filter_op)
@@ -201,7 +201,7 @@ pub trait ParallelIterator: Sized {
     /// Applies `map_op` to each item of this iterator to get nested iterators,
     /// producing a new iterator that flattens these back into one.
     fn flat_map<F, PI>(self, map_op: F) -> FlatMap<Self, F>
-        where F: Fn(Self::Item) -> PI + Sync,
+        where F: Fn(Self::Item) -> PI + Sync + Send,
               PI: IntoParallelIterator
     {
         flat_map::new(self, map_op)
@@ -238,8 +238,8 @@ pub trait ParallelIterator: Sized {
     ///
     /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
-        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync,
-              ID: Fn() -> Self::Item + Sync
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
+              ID: Fn() -> Self::Item + Sync + Send
     {
         reduce::reduce(self, identity, op)
     }
@@ -259,7 +259,7 @@ pub trait ParallelIterator: Sized {
     ///
     /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
-        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync
+        where OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send
     {
         self.fold(|| None, |opt_a, b| match opt_a {
                 Some(a) => Some(op(a, b)),
@@ -400,8 +400,8 @@ pub trait ParallelIterator: Sized {
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
-        where F: Fn(T, Self::Item) -> T + Sync,
-              ID: Fn() -> T + Sync,
+        where F: Fn(T, Self::Item) -> T + Sync + Send,
+              ID: Fn() -> T + Sync + Send,
               T: Send
     {
         fold::fold(self, identity, fold_op)
@@ -414,7 +414,7 @@ pub trait ParallelIterator: Sized {
     /// it doesn't require the `init` type to be `Sync`, nor any other form
     /// of added synchronization.
     fn fold_with<F, T>(self, init: T, fold_op: F) -> FoldWith<Self, T, F>
-        where F: Fn(T, Self::Item) -> T + Sync,
+        where F: Fn(T, Self::Item) -> T + Sync + Send,
               T: Send + Clone
     {
         fold::fold_with(self, init, fold_op)
@@ -479,7 +479,7 @@ pub trait ParallelIterator: Sized {
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
     fn min_by<F>(self, f: F) -> Option<Self::Item>
-        where F: Sync + Fn(&Self::Item, &Self::Item) -> Ordering
+        where F: Sync + Send + Fn(&Self::Item, &Self::Item) -> Ordering
     {
         self.reduce_with(|a, b| match f(&a, &b) {
                              Ordering::Greater => b,
@@ -496,7 +496,7 @@ pub trait ParallelIterator: Sized {
     /// the results are not deterministic.
     fn min_by_key<K, F>(self, f: F) -> Option<Self::Item>
         where K: Ord + Send,
-              F: Sync + Fn(&Self::Item) -> K
+              F: Sync + Send + Fn(&Self::Item) -> K
     {
         self.map(|x| (f(&x), x))
             .min_by(|a, b| (a.0).cmp(&b.0))
@@ -526,7 +526,7 @@ pub trait ParallelIterator: Sized {
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
     fn max_by<F>(self, f: F) -> Option<Self::Item>
-        where F: Sync + Fn(&Self::Item, &Self::Item) -> Ordering
+        where F: Sync + Send + Fn(&Self::Item, &Self::Item) -> Ordering
     {
         self.reduce_with(|a, b| match f(&a, &b) {
                              Ordering::Greater => a,
@@ -543,7 +543,7 @@ pub trait ParallelIterator: Sized {
     /// the results are not deterministic.
     fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
         where K: Ord + Send,
-              F: Sync + Fn(&Self::Item) -> K
+              F: Sync + Send + Fn(&Self::Item) -> K
     {
         self.map(|x| (f(&x), x))
             .max_by(|a, b| (a.0).cmp(&b.0))
@@ -569,7 +569,7 @@ pub trait ParallelIterator: Sized {
     ///
     /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
     fn find_any<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync
+        where P: Fn(&Self::Item) -> bool + Sync + Send
     {
         find::find(self, predicate)
     }
@@ -586,7 +586,7 @@ pub trait ParallelIterator: Sized {
     /// just want the first match that discovered anywhere in the iterator,
     /// `find_any` is a better choice.
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync
+        where P: Fn(&Self::Item) -> bool + Sync + Send
     {
         find_first_last::find_first(self, predicate)
     }
@@ -602,7 +602,7 @@ pub trait ParallelIterator: Sized {
     /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
     /// order doesn't actually matter to you, `find_any` is a better choice.
     fn find_last<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync
+        where P: Fn(&Self::Item) -> bool + Sync + Send
     {
         find_first_last::find_last(self, predicate)
     }
@@ -611,7 +611,7 @@ pub trait ParallelIterator: Sized {
     #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, \\
     `find_first`, or `find_last`")]
     fn find<P>(self, predicate: P) -> Option<Self::Item>
-        where P: Fn(&Self::Item) -> bool + Sync
+        where P: Fn(&Self::Item) -> bool + Sync + Send
     {
         self.find_any(predicate)
     }
@@ -622,7 +622,7 @@ pub trait ParallelIterator: Sized {
     /// of the items.  Proving that there's no match, returning false,
     /// does require visiting every item.
     fn any<P>(self, predicate: P) -> bool
-        where P: Fn(Self::Item) -> bool + Sync
+        where P: Fn(Self::Item) -> bool + Sync + Send
     {
         self.map(predicate).find_any(|&p| p).is_some()
     }
@@ -631,7 +631,7 @@ pub trait ParallelIterator: Sized {
     /// predicate, and if so returns true.  If a counter-example is found,
     /// we'll attempt to stop processing more items, then return false.
     fn all<P>(self, predicate: P) -> bool
-        where P: Fn(Self::Item) -> bool + Sync
+        where P: Fn(Self::Item) -> bool + Sync + Send
     {
         self.map(predicate).find_any(|&p| !p).is_none()
     }
@@ -667,8 +667,8 @@ pub trait ParallelIterator: Sized {
     /// vectors' backing stores rather than allocating fresh vectors.
     fn unzip<A, B, FromA, FromB>(self) -> (FromA, FromB)
         where Self: ParallelIterator<Item = (A, B)>,
-              FromA: Default + ParallelExtend<A>,
-              FromB: Default + ParallelExtend<B>,
+              FromA: Default + Send + ParallelExtend<A>,
+              FromB: Default + Send + ParallelExtend<B>,
               A: Send,
               B: Send
     {
@@ -684,9 +684,9 @@ pub trait ParallelIterator: Sized {
     /// but may require new type annotations when converting sequential code
     /// that used type inferrence assuming the two were the same.
     fn partition<A, B, P>(self, predicate: P) -> (A, B)
-        where A: Default + ParallelExtend<Self::Item>,
-              B: Default + ParallelExtend<Self::Item>,
-              P: Fn(&Self::Item) -> bool + Sync
+        where A: Default + Send + ParallelExtend<Self::Item>,
+              B: Default + Send + ParallelExtend<Self::Item>,
+              P: Fn(&Self::Item) -> bool + Sync + Send
     {
         unzip::partition(self, predicate)
     }
@@ -695,9 +695,9 @@ pub trait ParallelIterator: Sized {
     /// arbitrary `ParallelExtend` containers.  `Either::Left` items go into
     /// the first container, and `Either::Right` items go into the second.
     fn partition_map<A, B, P, L, R>(self, predicate: P) -> (A, B)
-        where A: Default + ParallelExtend<L>,
-              B: Default + ParallelExtend<R>,
-              P: Fn(Self::Item) -> Either<L, R> + Sync,
+        where A: Default + Send + ParallelExtend<L>,
+              B: Default + Send + ParallelExtend<R>,
+              P: Fn(Self::Item) -> Either<L, R> + Sync + Send,
               L: Send,
               R: Send
     {
@@ -897,7 +897,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// necessarily find the **first** match, and once a match is
     /// found we'll attempt to stop processing any more.
     fn position_any<P>(self, predicate: P) -> Option<usize>
-        where P: Fn(Self::Item) -> bool + Sync
+        where P: Fn(Self::Item) -> bool + Sync + Send
     {
         self.map(predicate)
             .enumerate()
@@ -918,7 +918,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// just want the first match that discovered anywhere in the iterator,
     /// `position_any` is a better choice.
     fn position_first<P>(self, predicate: P) -> Option<usize>
-        where P: Fn(Self::Item) -> bool + Sync
+        where P: Fn(Self::Item) -> bool + Sync + Send
     {
         self.map(predicate)
             .enumerate()
@@ -939,7 +939,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// order doesn't actually matter to you, `position_any` is a better
     /// choice.
     fn position_last<P>(self, predicate: P) -> Option<usize>
-        where P: Fn(Self::Item) -> bool + Sync
+        where P: Fn(Self::Item) -> bool + Sync + Send
     {
         self.map(predicate)
             .enumerate()
@@ -951,7 +951,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     #[deprecated(note = "parallel `position` does not search in order -- use `position_any`, \\
     `position_first`, or `position_last`")]
     fn position<P>(self, predicate: P) -> Option<usize>
-        where P: Fn(Self::Item) -> bool + Sync
+        where P: Fn(Self::Item) -> bool + Sync + Send
     {
         self.position_any(predicate)
     }

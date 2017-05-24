@@ -30,7 +30,7 @@ pub fn new<I, F>(base: I, inspect_op: F) -> Inspect<I, F>
 
 impl<I, F> ParallelIterator for Inspect<I, F>
     where I: ParallelIterator,
-          F: Fn(&I::Item) + Sync
+          F: Fn(&I::Item) + Sync + Send
 {
     type Item = I::Item;
 
@@ -48,7 +48,7 @@ impl<I, F> ParallelIterator for Inspect<I, F>
 
 impl<I, F> IndexedParallelIterator for Inspect<I, F>
     where I: IndexedParallelIterator,
-          F: Fn(&I::Item) + Sync
+          F: Fn(&I::Item) + Sync + Send
 {
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>

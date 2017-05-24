@@ -2,6 +2,7 @@ use super::internal::*;
 use super::*;
 use std::cmp;
 use std::iter;
+use rayon_core::join;
 
 /// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
 /// This struct is created by the [`chain()`] method on [`ParallelIterator`]
@@ -32,22 +33,23 @@ impl<A, B> ParallelIterator for Chain<A, B>
 {
     type Item = A::Item;
 
-    fn drive_unindexed<C>(mut self, consumer: C) -> C::Result
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
+        let Chain { mut a, b } = self;
+
         // If we returned a value from our own `opt_len`, then the collect consumer in particular
         // will balk at being treated like an actual `UnindexedConsumer`.  But when we do know the
         // length, we can use `Consumer::split_at` instead, and this is still harmless for other
         // truly-unindexed consumers too.
-        let (left, right, reducer) = if let Some(len) = self.a.opt_len() {
+        let (left, right, reducer) = if let Some(len) = a.opt_len() {
             consumer.split_at(len)
         } else {
             let reducer = consumer.to_reducer();
             (consumer.split_off_left(), consumer, reducer)
         };
 
-        let a = self.a.drive_unindexed(left);
-        let b = self.b.drive_unindexed(right);
+        let (a, b) = join(|| a.drive_unindexed(left), || b.drive_unindexed(right));
         reducer.reduce(a, b)
     }
 
@@ -63,12 +65,12 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator<Item = A::Item>
 {
-    fn drive<C>(mut self, consumer: C) -> C::Result
+    fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
-        let (left, right, reducer) = consumer.split_at(self.a.len());
-        let a = self.a.drive(left);
-        let b = self.b.drive(right);
+        let Chain { mut a, b } = self;
+        let (left, right, reducer) = consumer.split_at(a.len());
+        let (a, b) = join(|| a.drive(left), || b.drive(right));
         reducer.reduce(a, b)
     }
 
