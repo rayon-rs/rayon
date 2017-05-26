@@ -1,8 +1,12 @@
 //! Debug Logging
 //!
-//! To use in a debug build, set the env var `RAYON_RS_LOG=1`.  In a
+//! To use in a debug build, set the env var `RAYON_LOG=1`.  In a
 //! release build, logs are compiled out. You will have to change
 //! `DUMP_LOGS` to be `true`.
+//!
+//! **Old environment variable:** `RAYON_LOG` is a one-to-one
+//! replacement of the now deprecated `RAYON_RS_LOG` environment
+//! variable, which is still supported for backwards compatibility.
 
 use std::env;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
@@ -44,7 +48,7 @@ pub enum Event {
 pub const DUMP_LOGS: bool = cfg!(debug_assertions);
 
 lazy_static! {
-    pub static ref LOG_ENV: bool = env::var("RAYON_RS_LOG").is_ok();
+    pub static ref LOG_ENV: bool = env::var("RAYON_LOG").is_ok() || env::var("RAYON_RS_LOG").is_ok();
 }
 
 macro_rules! log {
