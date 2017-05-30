@@ -70,6 +70,7 @@ impl Sleep {
             thread::yield_now();
             yields + 1
         } else if yields == ROUNDS_UNTIL_SLEEPY {
+            thread::yield_now();
             if self.get_sleepy(worker_index) {
                 yields + 1
             } else {
