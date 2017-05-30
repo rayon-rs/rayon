@@ -2,13 +2,13 @@ extern crate futures;
 extern crate rayon;
 
 use futures::future::lazy;
-use rayon::scope;
+use rayon::prelude::*;
 
 fn a() {
     let data = &mut [format!("Hello, ")];
 
     let mut future = None;
-    scope(|s| {
+    rayon::scope(|s| {
         let data = &mut *data;
         future = Some(s.spawn_future(lazy(move || Ok::<_, ()>(&mut data[0]))));
     });
@@ -21,7 +21,7 @@ fn b() {
     let data = &mut [format!("Hello, ")];
 
     let mut future = None;
-    scope(|s| {
+    rayon::scope(|s| {
         future = Some(s.spawn_future(lazy(move || Ok::<_, ()>(&mut data[0]))));
     });
 
@@ -32,7 +32,7 @@ fn b() {
 fn c() {
     let mut future = None;
     let data = &mut [format!("Hello, ")];
-    scope(|s| {
+    rayon::scope(|s| {
         future = Some(s.spawn_future(lazy(move || Ok::<_, ()>(&mut data[0]))));
     });
 } //~ ERROR borrowed value does not live long enough
