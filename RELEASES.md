@@ -1,3 +1,9 @@
+# Release rayon 0.7.1 / rayon-core 1.0.2
+
+This release is a targeted performance fix for #343, an issue where
+rayon threads could sometimes enter into a spin loop where they would
+be unable to make progress until they are pre-empted.
+
 # Release rayon 0.7 / rayon-core 1.0
 
 This release marks the first step towards Rayon 1.0. **For best
