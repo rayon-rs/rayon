@@ -166,9 +166,16 @@ impl<R: Runtime> FixedLenScheduler<R> {
 }
 
 impl FixedLenScheduler<RayonRuntime> {
-    #[inline]
-    pub fn rayon(min_len: usize, max_len: usize) -> Self {
-        FixedLenScheduler { min_len, max_len, runtime: RayonRuntime }
+    pub fn with_min(min_len: usize) -> Self {
+        Self::new(min_len, usize::MAX, RayonRuntime)
+    }
+
+    pub fn with_max(max_len: usize) -> Self {
+        Self::new(1, max_len, RayonRuntime)
+    }
+
+    pub fn with_min_max(min_len: usize, max_len: usize) -> Self {
+        Self::new(min_len, max_len, RayonRuntime)
     }
 }
 
@@ -239,13 +246,6 @@ pub trait Producer: Send + Sized {
     type IntoIter: Iterator<Item = Self::Item> + DoubleEndedIterator + ExactSizeIterator;
 
     fn into_iter(self) -> Self::IntoIter;
-
-    fn min_len(&self) -> usize {
-        1
-    }
-    fn max_len(&self) -> usize {
-        usize::MAX
-    }
 
     /// Split into two producers; one produces items `0..index`, the
     /// other `index..N`. Index must be less than or equal to `N`.

@@ -1451,8 +1451,7 @@ fn check_lengths() {
         let max_check = cmp::max(max, min_check.saturating_add(min_check - 1));
 
         assert!(range.into_par_iter()
-                    .with_min_len(min)
-                    .with_max_len(max)
+                    .with_min_max_len(min, max)
                     .fold(|| 0, |count, _| count + 1)
                     .all(|c| c >= min_check && c <= max_check),
                 "check_lengths failed {:?} -> {:?} ",

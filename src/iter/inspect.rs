@@ -113,14 +113,6 @@ impl<'f, P, F> Producer for InspectProducer<'f, P, F>
         self.base.into_iter().inspect(self.inspect_op)
     }
 
-    fn min_len(&self) -> usize {
-        self.base.min_len()
-    }
-
-    fn max_len(&self) -> usize {
-        self.base.max_len()
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (InspectProducer {

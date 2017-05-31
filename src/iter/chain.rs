@@ -179,14 +179,6 @@ impl<A, B> Producer for ChainProducer<A, B>
         ChainSeq::new(self.a.into_iter(), self.b.into_iter())
     }
 
-    fn min_len(&self) -> usize {
-        cmp::max(self.a.min_len(), self.b.min_len())
-    }
-
-    fn max_len(&self) -> usize {
-        cmp::min(self.a.max_len(), self.b.max_len())
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         if index <= self.a_len {
             let a_rem = self.a_len - index;

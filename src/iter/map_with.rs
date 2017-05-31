@@ -127,13 +127,6 @@ impl<'f, P, U, F, R> Producer for MapWithProducer<'f, P, U, F>
         }
     }
 
-    fn min_len(&self) -> usize {
-        self.base.min_len()
-    }
-    fn max_len(&self) -> usize {
-        self.base.max_len()
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
         (MapWithProducer {

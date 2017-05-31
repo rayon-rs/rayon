@@ -1002,8 +1002,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Sets the minimum length of iterators desired to process in each
     /// thread.  Rayon will not split any smaller than this length, but
     /// of course an iterator could already be smaller to begin with.
-    fn with_min_len(self, min: usize) -> MinLen<Self> {
-        len::new_min_len(self, min)
+    fn with_min_len(self, min: usize)
+                    -> InScheduler<Self, internal::FixedLenScheduler<internal::RayonRuntime>>
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+    {
+        self.in_scheduler(FixedLenScheduler::with_min(min))
     }
 
     /// Sets the maximum length of iterators desired to process in each
@@ -1011,8 +1014,21 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// unless that would put it below the length from `with_min_len()`.
     /// For example, given min=10 and max=15, a length of 16 will not be
     /// split any further.
-    fn with_max_len(self, max: usize) -> MaxLen<Self> {
-        len::new_max_len(self, max)
+    fn with_max_len(self, max: usize)
+                    -> InScheduler<Self, internal::FixedLenScheduler<internal::RayonRuntime>>
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+    {
+        self.in_scheduler(FixedLenScheduler::with_max(max))
+    }
+
+    /// Sets both the minimum and maximum length of iterators desired
+    /// to process in each thread. See `with_min_len()` and
+    /// `with_max_len()` for details.
+    fn with_min_max_len(self, min: usize, max: usize)
+                        -> InScheduler<Self, internal::FixedLenScheduler<internal::RayonRuntime>>
+        where Self: ParallelIterator<Scheduler = DefaultScheduler>,
+    {
+        self.in_scheduler(FixedLenScheduler::with_min_max(min, max))
     }
 
     /// Produces an exact count of how many items this iterator will

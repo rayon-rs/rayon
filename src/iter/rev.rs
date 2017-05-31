@@ -91,13 +91,6 @@ impl<P> Producer for RevProducer<P>
         self.base.into_iter().rev()
     }
 
-    fn min_len(&self) -> usize {
-        self.base.min_len()
-    }
-    fn max_len(&self) -> usize {
-        self.base.max_len()
-    }
-
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(self.len - index);
         (RevProducer {
