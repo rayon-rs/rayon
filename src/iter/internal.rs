@@ -60,27 +60,6 @@ pub trait Scheduler: Copy + Clone + Send + Sync {
               C: UnindexedConsumer<P::Item>;
 }
 
-pub trait Runtime: Copy + Clone + Send + Sync {
-    type Enter: RuntimeEnter;
-
-    /// Enter the "parallel section"; `op()` should be invoked with
-    /// the `SchedulerEnter` value `E`, which is the main workhouse of
-    /// the scheduler.
-    fn enter<F, R>(self, op: F) -> R
-        where F: FnOnce(Self::Enter) -> R + Send;
-}
-
-/// The "workhorse" of a custom runtime. This value contains various
-/// methods that can be invoked by the parallel iterators to create
-/// parallel tasks.
-pub trait RuntimeEnter: Sized {
-    fn join<A, B, RA, RB>(self, oper_a: A, oper_b: B) -> (RA, RB)
-        where A: FnOnce(Self) -> RA + Send,
-              B: FnOnce(Self) -> RB + Send,
-              RA: Send,
-              RB: Send;
-}
-
 #[derive(Copy, Clone)]
 pub struct DefaultScheduler;
 
@@ -93,7 +72,7 @@ impl Scheduler for DefaultScheduler {
         where P: Producer,
               C: Consumer<P::Item>,
     {
-        AdaptiveScheduler::rayon().execute_indexed(len, producer, consumer)
+        AdaptiveScheduler::new().execute_indexed(len, producer, consumer)
     }
 
     fn execute_unindexed<P, C>(self,
@@ -103,30 +82,23 @@ impl Scheduler for DefaultScheduler {
         where P: UnindexedProducer,
               C: UnindexedConsumer<P::Item>,
     {
-        AdaptiveScheduler::rayon().execute_unindexed(producer, consumer)
+        AdaptiveScheduler::new().execute_unindexed(producer, consumer)
     }
 }
 
 #[derive(Copy, Clone)]
-pub struct AdaptiveScheduler<R: Runtime> {
-    runtime: R
+pub struct AdaptiveScheduler {
+    dummy: ()
 }
 
-impl<R: Runtime> AdaptiveScheduler<R> {
+impl AdaptiveScheduler {
     #[inline]
-    pub fn new(runtime: R) -> Self {
-        AdaptiveScheduler { runtime }
+    pub fn new() -> Self {
+        AdaptiveScheduler { dummy: () }
     }
 }
 
-impl AdaptiveScheduler<RayonRuntime> {
-    #[inline]
-    pub fn rayon() -> Self {
-        AdaptiveScheduler { runtime: RayonRuntime }
-    }
-}
-
-impl<R: Runtime> Scheduler for AdaptiveScheduler<R> {
+impl Scheduler for AdaptiveScheduler {
     fn execute_indexed<P, C>(self,
                              len: usize,
                              producer: P,
@@ -135,7 +107,7 @@ impl<R: Runtime> Scheduler for AdaptiveScheduler<R> {
         where P: Producer,
               C: Consumer<P::Item>,
     {
-        bridge_producer_consumer(len, 1, usize::MAX, producer, consumer, self.runtime)
+        bridge_producer_consumer(len, 1, usize::MAX, producer, consumer)
     }
 
     fn execute_unindexed<P, C>(self,
@@ -145,41 +117,31 @@ impl<R: Runtime> Scheduler for AdaptiveScheduler<R> {
         where P: UnindexedProducer,
               C: UnindexedConsumer<P::Item>,
     {
-        bridge_unindexed(producer, consumer, self.runtime)
+        bridge_unindexed(producer, consumer)
     }
 }
 
 #[derive(Copy, Clone)]
-pub struct FixedLenScheduler<R: Runtime> {
+pub struct FixedLenScheduler {
     min_len: usize,
     max_len: usize,
-    runtime: R,
 }
 
-impl<R: Runtime> FixedLenScheduler<R> {
-    #[inline]
-    pub fn new(min_len: usize,
-               max_len: usize,
-               runtime: R) -> Self {
-        FixedLenScheduler { min_len, max_len, runtime }
+impl FixedLenScheduler {
+    pub fn new(min_len: usize, max_len: usize) -> Self {
+        Self::new(min_len, max_len)
     }
-}
 
-impl FixedLenScheduler<RayonRuntime> {
     pub fn with_min(min_len: usize) -> Self {
-        Self::new(min_len, usize::MAX, RayonRuntime)
+        Self::new(min_len, usize::MAX)
     }
 
     pub fn with_max(max_len: usize) -> Self {
-        Self::new(1, max_len, RayonRuntime)
-    }
-
-    pub fn with_min_max(min_len: usize, max_len: usize) -> Self {
-        Self::new(min_len, max_len, RayonRuntime)
+        Self::new(1, max_len)
     }
 }
 
-impl<R: Runtime> Scheduler for FixedLenScheduler<R> {
+impl Scheduler for FixedLenScheduler {
     fn execute_indexed<P, C>(self,
                              len: usize,
                              producer: P,
@@ -188,7 +150,7 @@ impl<R: Runtime> Scheduler for FixedLenScheduler<R> {
         where P: Producer,
               C: Consumer<P::Item>,
     {
-        bridge_producer_consumer(len, self.min_len, self.max_len, producer, consumer, self.runtime)
+        bridge_producer_consumer(len, self.min_len, self.max_len, producer, consumer)
     }
 
     fn execute_unindexed<P, C>(self,
@@ -198,33 +160,7 @@ impl<R: Runtime> Scheduler for FixedLenScheduler<R> {
         where P: UnindexedProducer,
               C: UnindexedConsumer<P::Item>,
     {
-        bridge_unindexed(producer, consumer, self.runtime)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct RayonRuntime;
-
-impl Runtime for RayonRuntime {
-    type Enter = Self;
-
-    #[inline]
-    fn enter<F, R>(self, op: F) -> R
-        where F: FnOnce(Self) -> R
-    {
-        op(self)
-    }
-}
-
-impl RuntimeEnter for RayonRuntime {
-    #[inline]
-    fn join<A, B, RA, RB>(self, oper_a: A, oper_b: B) -> (RA, RB)
-        where A: FnOnce(Self) -> RA + Send,
-              B: FnOnce(Self) -> RB + Send,
-              RA: Send,
-              RB: Send
-    {
-        join(|| oper_a(RayonRuntime), || oper_b(RayonRuntime))
+        bridge_unindexed(producer, consumer)
     }
 }
 
@@ -444,29 +380,25 @@ impl LengthSplitter {
     }
 }
 
-fn bridge_producer_consumer<P, C, R>(len: usize,
-                                     min: usize,
-                                     max: usize,
-                                     producer: P,
-                                     consumer: C,
-                                     runtime: R)
-                                     -> C::Result
+fn bridge_producer_consumer<P, C>(len: usize,
+                                  min: usize,
+                                  max: usize,
+                                  producer: P,
+                                  consumer: C)
+                                  -> C::Result
     where P: Producer,
           C: Consumer<P::Item>,
-          R: Runtime,
 {
     let splitter = LengthSplitter::new(min, max, len);
-    return runtime.enter(|r| helper(len, splitter, producer, consumer, r));
+    return helper(len, splitter, producer, consumer);
 
-    fn helper<P, C, R>(len: usize,
-                       mut splitter: LengthSplitter,
-                       producer: P,
-                       consumer: C,
-                       runtime: R)
-                       -> C::Result
+    fn helper<P, C>(len: usize,
+                    mut splitter: LengthSplitter,
+                    producer: P,
+                    consumer: C)
+                    -> C::Result
         where P: Producer,
               C: Consumer<P::Item>,
-              R: RuntimeEnter,
     {
         if consumer.full() {
             consumer.into_folder().complete()
@@ -475,9 +407,8 @@ fn bridge_producer_consumer<P, C, R>(len: usize,
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
             let (left_result, right_result) =
-                runtime.join(
-                    |r| helper(mid, splitter, left_producer, left_consumer, r),
-                    |r| helper(len - mid, splitter, right_producer, right_consumer, r));
+                join(|| helper(mid, splitter, left_producer, left_consumer),
+                     || helper(len - mid, splitter, right_producer, right_consumer));
             reducer.reduce(left_result, right_result)
         } else {
             producer.fold_with(consumer.into_folder()).complete()
@@ -485,23 +416,20 @@ fn bridge_producer_consumer<P, C, R>(len: usize,
     }
 }
 
-fn bridge_unindexed<P, C, R>(producer: P, consumer: C, runtime: R) -> C::Result
+fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
     where P: UnindexedProducer,
           C: UnindexedConsumer<P::Item>,
-          R: Runtime,
 {
     let splitter = Splitter::new();
-    runtime.enter(|r| bridge_unindexed_producer_consumer(splitter, producer, consumer, r))
+    bridge_unindexed_producer_consumer(splitter, producer, consumer)
 }
 
-fn bridge_unindexed_producer_consumer<P, C, R>(mut splitter: Splitter,
-                                               producer: P,
-                                               consumer: C,
-                                               runtime: R)
-                                               -> C::Result
+fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
+                                            producer: P,
+                                            consumer: C)
+                                            -> C::Result
     where P: UnindexedProducer,
           C: UnindexedConsumer<P::Item>,
-          R: RuntimeEnter,
 {
     if consumer.full() {
         consumer.into_folder().complete()
@@ -512,9 +440,8 @@ fn bridge_unindexed_producer_consumer<P, C, R>(mut splitter: Splitter,
                     (consumer.to_reducer(), consumer.split_off_left(), consumer);
                 let bridge = bridge_unindexed_producer_consumer;
                 let (left_result, right_result) =
-                    runtime.join(
-                        |r| bridge(splitter, left_producer, left_consumer, r),
-                        |r| bridge(splitter, right_producer, right_consumer, r));
+                    join(|| bridge(splitter, left_producer, left_consumer),
+                         || bridge(splitter, right_producer, right_consumer));
                 reducer.reduce(left_result, right_result)
             }
             (producer, None) => producer.fold_with(consumer.into_folder()).complete(),
