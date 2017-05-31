@@ -65,7 +65,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
         // pushed on top of it in the stack, and we will have to pop
         // those off to get to it.
         while !job_b.latch.probe() {
-            if let Some(job) = worker_thread.pop() {
+            if let Some(job) = worker_thread.take_local_job() {
                 if job == job_b_ref {
                     // Found it! Let's run it.
                     //

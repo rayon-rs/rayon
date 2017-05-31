@@ -116,6 +116,11 @@ pub struct Configuration {
 
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
+
+    /// If false, worker threads will execute spawned jobs in a
+    /// "depth-first" fashion. If true, they will do a "breadth-first"
+    /// fashion. Depth-first is the default.
+    breadth_first: bool,
 }
 
 /// The type for a panic handling closure. Note that this same closure
@@ -239,6 +244,26 @@ impl Configuration {
         self
     }
 
+    /// Configure worker threads to execute spawned jobs in a
+    /// "breadth-first" fashion.  Typically, when a worker thread is
+    /// idle or blocked, it will attempt to execute the job from the
+    /// *top* of its local deque of work (i.e., the job most recently
+    /// spawned).  If this flag is set to true, however, workers will
+    /// prefer to execute in a *breadth-first* fashion -- that is,
+    /// they will search for jobs at the *bottom* of their local
+    /// deque.
+    ///
+    /// At present, workers *always* steal from the bottom of other
+    /// worker's deques, regardless of the setting of this flag.
+    pub fn breadth_first(mut self) -> Self {
+        self.breadth_first = true;
+        self
+    }
+
+    fn get_breadth_first(&self) -> bool {
+        self.breadth_first
+    }
+
     /// Takes the current thread start callback, leaving `None`.
     fn take_start_handler(&mut self) -> Option<Box<StartHandler>> {
         self.start_handler.take()
@@ -308,8 +333,10 @@ pub fn dump_stats() {
 
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size,
-                            ref start_handler, ref exit_handler } = *self;
+        let Configuration { ref num_threads, ref get_thread_name,
+                            ref panic_handler, ref stack_size,
+                            ref start_handler, ref exit_handler,
+                            ref breadth_first } = *self;
 
         // Just print `Some("<closure>")` or `None` to the debug
         // output.
@@ -328,6 +355,7 @@ impl fmt::Debug for Configuration {
          .field("stack_size", &stack_size)
          .field("start_handler", &start_handler)
          .field("exit_handler", &exit_handler)
+         .field("breadth_first", &breadth_first)
          .finish()
     }
 }

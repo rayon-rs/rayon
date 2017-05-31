@@ -284,6 +284,40 @@ impl<'scope> Scope<'scope> {
         }
     }
 
+    /// If `body` would be the next task to execute, then invoke it directly;
+    /// otherwise, spawn normally. This is an optimization that you can use for
+    /// final task that a given thread will spawn into a scope before completing.
+    ///
+    /// The precise behavior depends on whether we are in DFS or BFS
+    /// mode.  If this thread is in depth-first mode, then this is
+    /// equivalent to just invoking `body()` directly. Otherwise, in
+    /// bread-first mode, check if the local deque is empty. If so,
+    /// then there are no higher-priority tasks, so just call `body()`
+    /// directly.  Otherwise, spawn normally.
+    ///
+    /// If you know that your threads are in depth-first mode, you are
+    /// better off just calling `body()` directly than using this
+    /// function.
+    pub fn spawn_tail<BODY>(&self, body: BODY)
+        where BODY: FnOnce(&Scope<'scope>) + 'scope
+    {
+        let worker_thread = WorkerThread::current();
+
+        // we must always be in a worker thread, since the scope is
+        // neither send nor sync, and hence only travels between
+        // threads when we pass the pointer to spawned tasks.
+        debug_assert!(!WorkerThread::current().is_null());
+
+        unsafe {
+            let worker_thread = &*worker_thread;
+            if !worker_thread.breadth_first() || worker_thread.local_deque_is_empty() {
+                body(self)
+            } else {
+                self.spawn(body);
+            }
+        }
+    }
+
     #[cfg(feature = "unstable")]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'scope
