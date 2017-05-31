@@ -14,7 +14,37 @@ use std::error::Error;
 use registry::{Registry, WorkerThread};
 
 mod test;
-
+/// # ThreadPool
+///
+/// The [`ThreadPool`] struct represents a user created [thread-pool]. [`ThreadPool::new()`]
+/// takes a [`Configuration`] struct that you can use to specify the number and/or
+/// names of threads in the pool. You can then execute functions explicitly within
+/// this [`ThreadPool`] using [`ThreadPool::install()`]. By contrast, top level
+/// rayon functions (like `join()`)  will execute implicitly within the current thread-pool.
+/// 
+///
+/// ## Creating a ThreadPool
+///
+/// ```rust
+///    # use rayon_core as rayon;
+///
+///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
+/// ```
+///
+/// [`install()`] executes a closure in one of the `ThreadPool`'s threads. In addition, 
+/// any other rayon operations called inside of `install()` will also execute in the
+/// context of the `ThreadPool`.
+///
+/// When the `ThreadPool` is dropped, that's a signal for the threads it manages to terminate,
+/// they will complete executing any remaining work that you have spawned, and automatically
+/// terminate.
+///
+///
+/// [thread-pool]: https://en.wikipedia.org/wiki/Thread_pool
+/// [`ThreadPool`]: struct.ThreadPool.html
+/// [`ThreadPool::new()`]: struct.ThreadPool.html#method.new
+/// [`Configuration`]: struct.Configuration.html
+/// [`ThreadPool::install()`]: struct.ThreadPool.html#method.install
 pub struct ThreadPool {
     registry: Arc<Registry>,
 }
@@ -61,6 +91,25 @@ impl ThreadPool {
     /// # Panics
     ///
     /// If `op` should panic, that panic will be propagated.
+    ///
+    /// ## Using `install()`
+    ///  
+    /// ```rust
+    ///    # use rayon_core as rayon;
+    ///    fn main() {
+    ///         let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
+    ///         let n = pool.install(|| fib(20)); 
+    ///         println!("{}", n);
+    ///    }
+    ///
+    ///    fn fib(n: usize) -> usize {
+    ///         if n == 0 || n == 1 {
+    ///             return n;
+    ///         }
+    ///         let (a, b) = rayon::join(|| fib(n - 1), || fib(n - 2)); // runs inside of `pool`
+    ///         return a + b;
+    ///     }
+    /// ```
     pub fn install<OP, R>(&self, op: OP) -> R
         where OP: FnOnce() -> R + Send
     {
@@ -150,7 +199,7 @@ impl ThreadPool {
     /// the current stack frame -- therefore, it cannot capture any references
     /// onto the stack (you will likely need a `move` closure).
     ///
-    /// See the [`spawn()` method defined on scopes][spawn] for more details.
+    /// See also: [the `spawn()` function defined on scopes][spawn].
     ///
     /// [spawn]: struct.Scope.html#method.spawn
     #[cfg(feature = "unstable")]
@@ -161,8 +210,37 @@ impl ThreadPool {
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
 
-    /// Spawns an asynchronous future in this thread-pool. See
-    /// `spawn_future()` for more details.
+    /// Spawns an asynchronous future in the thread pool. `spawn_future()` will inject 
+    /// jobs into the threadpool that are not tied to your current stack frame. This means 
+    /// `ThreadPool`'s `spawn` methods are not scoped. As a result, it cannot access data
+    /// owned by the stack.
+    ///
+    /// `spawn_future()` returns a `RayonFuture<F::Item, F::Error>`, allowing you to chain
+    /// multiple jobs togther.
+    ///
+    /// ## Using `spawn_future()`
+    ///
+    /// ```rust
+    ///    # extern crate rayon_core as rayon;
+    ///    extern crate futures;
+    ///    use futures::{future, Future};
+    ///    # fn main() {
+    ///
+    ///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
+    ///
+    ///    let a = pool.spawn_future(future::lazy(move || Ok::<_, ()>(format!("Hello, "))));
+    ///    let b = pool.spawn_future(a.map(|mut data| {
+    ///                                        data.push_str("world");
+    ///                                        data
+    ///                                    }));
+    ///    let result = b.wait().unwrap(); // `Err` is impossible, so use `unwrap()` here
+    ///    println!("{:?}", result); // prints: "Hello, world!"
+    ///    # }
+    /// ```
+    ///
+    /// See also: [the `spawn_future()` function defined on scopes][spawn_future].
+    ///
+    /// [spawn_future]: struct.Scope.html#method.spawn_future
     #[cfg(feature = "unstable")]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'static
