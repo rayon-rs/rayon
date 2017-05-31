@@ -98,10 +98,8 @@ impl ThreadPool {
     ///    # use rayon_core as rayon;
     ///    fn main() {
     ///         let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
-    ///         pool.install(|| {
-    ///                          let n = fib(20);
-    ///                          println!("{}", n);
-    ///                      });
+    ///         let n = pool.install(|| fib(20)); 
+    ///         println!("{}", n);
     ///    }
     ///
     ///    fn fib(n: usize) -> usize {
@@ -201,7 +199,7 @@ impl ThreadPool {
     /// the current stack frame -- therefore, it cannot capture any references
     /// onto the stack (you will likely need a `move` closure).
     ///
-    /// See the [`spawn()` method defined on scopes][spawn] for more details.
+    /// See also: [the `spawn()` function defined on scopes][spawn].
     ///
     /// [spawn]: struct.Scope.html#method.spawn
     #[cfg(feature = "unstable")]
@@ -225,28 +223,22 @@ impl ThreadPool {
     /// ```rust
     ///    # extern crate rayon_core as rayon;
     ///    extern crate futures;
-    ///    
     ///    use futures::{future, Future};
-    ///    use std::sync::{Arc, Mutex};
     ///    # fn main() {
-    ///    let data = Arc::new(Mutex::new(String::from("Hello,")));
+    ///
     ///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
     ///
-    ///    let a = pool.spawn_future(future::lazy({
-    ///                                               let data = data.clone();
-    ///                                               move || Ok::<_, ()>(data)
-    ///                                           }));
-    ///    let b = pool.spawn_future(a.map(|data| {
-    ///                                               let mut v = data.lock().unwrap();
-    ///                                               v.push_str(" world!");
-    ///                                           }));
-    ///    let () = b.wait().unwrap();
-    ///    println!("{:?}", &data.lock().unwrap()[..]);
-    ///    // prints: "Hello, world!"
+    ///    let a = pool.spawn_future(future::lazy(move || Ok::<_, ()>(format!("Hello, "))));
+    ///    let b = pool.spawn_future(a.map(|mut data| {
+    ///                                        data.push_str("world");
+    ///                                        data
+    ///                                    }));
+    ///    let result = b.wait().unwrap(); // `Err` is impossible, so use `unwrap()` here
+    ///    println!("{:?}", result); // prints: "Hello, world!"
     ///    # }
     /// ```
     ///
-    /// See the [`spawn_future()` method defined on scopes][spawn_future] for more details.
+    /// See also: [the `spawn_future()` function defined on scopes][spawn_future].
     ///
     /// [spawn_future]: struct.Scope.html#method.spawn_future
     #[cfg(feature = "unstable")]
