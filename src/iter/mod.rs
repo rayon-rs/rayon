@@ -1020,7 +1020,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
 /// By implementing `FromParallelIterator` for a type, you define how it will be
 /// created from an iterator.
 ///
-/// `FromParallelIterator` is used through [`ParallelIterator`]'s [`collect()`] method.
+/// `FromParallelIterator`'s `from_par_iter()` is rarely called explicitly,
+/// and is instead used through [`ParallelIterator`]'s [`collect()`] method.
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`collect()`]: trait.ParallelIterator.html#method.collect
