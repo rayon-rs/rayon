@@ -253,7 +253,7 @@ pub struct Scope<'scope> {
 pub fn scope<'scope, OP, R>(op: OP) -> R
     where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send,
 {
-    in_worker(|owner_thread| {
+    in_worker(|owner_thread, _| {
         unsafe {
             let scope: Scope<'scope> = Scope {
                 owner_thread_index: owner_thread.index(),

@@ -64,7 +64,7 @@ pub mod internal;
 pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
-pub use join::join;
+pub use join::{join, join_notify};
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
 

@@ -63,10 +63,11 @@ impl JobRef {
 
 /// A job that will be owned by a stack slot. This means that when it
 /// executes it need not free any heap data, the cleanup occurs when
-/// the stack frame is later popped.
+/// the stack frame is later popped.  The function parameter indicates
+/// `true` if the job was stolen -- executed on a different thread.
 pub struct StackJob<L, F, R>
     where L: Latch + Sync,
-          F: FnOnce() -> R + Send,
+          F: FnOnce(bool) -> R + Send,
           R: Send
 {
     pub latch: L,
@@ -76,7 +77,7 @@ pub struct StackJob<L, F, R>
 
 impl<L, F, R> StackJob<L, F, R>
     where L: Latch + Sync,
-          F: FnOnce() -> R + Send,
+          F: FnOnce(bool) -> R + Send,
           R: Send
 {
     pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
@@ -91,8 +92,8 @@ impl<L, F, R> StackJob<L, F, R>
         JobRef::new(self)
     }
 
-    pub unsafe fn run_inline(self) -> R {
-        self.func.into_inner().unwrap()()
+    pub unsafe fn run_inline(self, stolen: bool) -> R {
+        self.func.into_inner().unwrap()(stolen)
     }
 
     pub unsafe fn into_result(self) -> R {
@@ -102,14 +103,14 @@ impl<L, F, R> StackJob<L, F, R>
 
 impl<L, F, R> Job for StackJob<L, F, R>
     where L: Latch + Sync,
-          F: FnOnce() -> R + Send,
+          F: FnOnce(bool) -> R + Send,
           R: Send
 {
     unsafe fn execute(this: *const Self) {
         let this = &*this;
         let abort = unwind::AbortIfPanic;
         let func = (*this.func.get()).take().unwrap();
-        (*this.result.get()) = match unwind::halt_unwinding(|| func()) {
+        (*this.result.get()) = match unwind::halt_unwinding(|| func(true)) {
             Ok(x) => JobResult::Ok(x),
             Err(x) => JobResult::Panic(x),
         };
