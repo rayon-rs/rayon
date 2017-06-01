@@ -1824,10 +1824,7 @@ fn check_interleave_shortest() {
 #[test]
 fn check_repeat_eq() {
     let v = vec!(4,4,4,4);
-    let mut fours: Vec<_> = repeat(4)
-    .take(4)
-    .zip(v)
-    .collect();
+    let mut fours: Vec<_> = v.into_par_iter().zip(repeat(4)).collect();
     assert_eq!(fours.len(), 4);
     assert_eq!(fours.pop(), Some((4, 4)));
 }
