@@ -13,7 +13,7 @@ struct SequentialScheduler {
 
 impl<'a> Scheduler for &'a SequentialScheduler {
     fn execute_indexed<P, C>(self,
-                             len: usize,
+                             _len: usize,
                              producer: P,
                              consumer: C)
                              -> C::Result

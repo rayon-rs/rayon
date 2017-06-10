@@ -1,6 +1,5 @@
 use super::internal::*;
 use super::*;
-use std::cmp;
 
 /// `MinLen` is an iterator that imposes a minimum length on iterator splits.
 /// This struct is created by the [`min_len()`] method on [`IndexedParallelIterator`]
@@ -10,18 +9,6 @@ use std::cmp;
 pub struct MinLen<I: IndexedParallelIterator> {
     base: I,
     min: usize,
-}
-
-/// Create a new `MinLen` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
-    where I: IndexedParallelIterator
-{
-    MinLen {
-        base: base,
-        min: min,
-    }
 }
 
 impl<I> ParallelIterator for MinLen<I>
@@ -124,18 +111,6 @@ impl<P> Producer for MinLenProducer<P>
 pub struct MaxLen<I: IndexedParallelIterator> {
     base: I,
     max: usize,
-}
-
-/// Create a new `MaxLen` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
-    where I: IndexedParallelIterator
-{
-    MaxLen {
-        base: base,
-        max: max,
-    }
 }
 
 impl<I> ParallelIterator for MaxLen<I>

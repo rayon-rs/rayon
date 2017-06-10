@@ -216,7 +216,7 @@ pub fn check_indices_after_enumerate_split() {
     struct WithProducer;
     impl<'a> ProducerCallback<(usize, &'a i32)> for WithProducer {
         type Output = ();
-        fn callback<P, S>(self, producer: P, scheduler: S)
+        fn callback<P, S>(self, producer: P, _scheduler: S)
             where P: Producer<Item = (usize, &'a i32)>, S: Scheduler,
         {
             let (a, b) = producer.split_at(512);
@@ -342,7 +342,7 @@ pub fn check_drops() {
     struct Partial;
     impl<'a> ProducerCallback<DropCounter<'a>> for Partial {
         type Output = ();
-        fn callback<P, S>(self, producer: P, scheduler: S)
+        fn callback<P, S>(self, producer: P, _scheduler: S)
             where P: Producer<Item = DropCounter<'a>>, S: Scheduler,
         {
             let (a, _) = producer.split_at(5);

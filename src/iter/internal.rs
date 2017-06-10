@@ -88,13 +88,13 @@ impl Scheduler for DefaultScheduler {
 
 #[derive(Copy, Clone)]
 pub struct AdaptiveScheduler {
-    dummy: ()
+    _dummy: ()
 }
 
 impl AdaptiveScheduler {
     #[inline]
     pub fn new() -> Self {
-        AdaptiveScheduler { dummy: () }
+        AdaptiveScheduler { _dummy: () }
     }
 }
 

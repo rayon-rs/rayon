@@ -1,8 +1,6 @@
 use super::internal::*;
 use super::*;
 
-use std::iter;
-
 mod test;
 
 /// `InScheduler` is a parallel iterator that switches to use the
@@ -78,14 +76,14 @@ impl<I, S> IndexedParallelIterator for InScheduler<I, S>
 // wacky. Also, this perhaps needs to be exported.
 #[derive(Copy, Clone)]
 pub struct CustomScheduler {
-    dummy: () // intentionally imposible to construct
+    _dummy: () // intentionally imposible to construct
 }
 
 impl Scheduler for CustomScheduler {
     fn execute_indexed<P, C>(self,
-                             len: usize,
-                             producer: P,
-                             consumer: C)
+                             _len: usize,
+                             _producer: P,
+                             _consumer: C)
                              -> C::Result
         where P: Producer,
               C: Consumer<P::Item>,
@@ -94,8 +92,8 @@ impl Scheduler for CustomScheduler {
     }
 
     fn execute_unindexed<P, C>(self,
-                               producer: P,
-                               consumer: C)
+                               _producer: P,
+                               _consumer: C)
                                -> C::Result
         where P: UnindexedProducer,
               C: UnindexedConsumer<P::Item>,
