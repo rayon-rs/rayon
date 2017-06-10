@@ -129,7 +129,7 @@ pub struct FixedLenScheduler {
 
 impl FixedLenScheduler {
     pub fn new(min_len: usize, max_len: usize) -> Self {
-        FixedLenScheduler { min_len, max_len }
+        FixedLenScheduler { min_len: min_len, max_len: max_len }
     }
 
     pub fn with_min(min_len: usize) -> Self {
