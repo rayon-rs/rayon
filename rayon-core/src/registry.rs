@@ -353,9 +353,6 @@ pub struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Worker<JobRef>,
 
-    /// a "stealer" half of our local deque; used in BFS mode
-    stealer: Stealer<JobRef>,
-
     index: usize,
 
     /// are these workers configured to steal breadth-first or not?
@@ -431,7 +428,7 @@ impl WorkerThread {
         if !self.breadth_first {
             self.worker.pop()
         } else {
-            self.stealer.steal()
+            self.worker.steal()
         }
     }
 
@@ -537,7 +534,6 @@ unsafe fn main_loop(worker: Worker<JobRef>,
                     breadth_first: bool) {
     let worker_thread = WorkerThread {
         worker: worker,
-        stealer: registry.thread_infos[index].stealer.clone(),
         breadth_first: breadth_first,
         index: index,
         rng: UnsafeCell::new(rand::weak_rng()),
