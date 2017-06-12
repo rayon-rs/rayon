@@ -247,17 +247,26 @@ impl Configuration {
         self
     }
 
-    /// Configure worker threads to execute spawned jobs in a
-    /// "breadth-first" fashion.  Typically, when a worker thread is
+    /// Suggest to worker threads that they execute spawned jobs in a
+    /// "breadth-first" fashion. Typically, when a worker thread is
     /// idle or blocked, it will attempt to execute the job from the
     /// *top* of its local deque of work (i.e., the job most recently
-    /// spawned).  If this flag is set to true, however, workers will
+    /// spawned). If this flag is set to true, however, workers will
     /// prefer to execute in a *breadth-first* fashion -- that is,
     /// they will search for jobs at the *bottom* of their local
-    /// deque.
+    /// deque. (At present, workers *always* steal from the bottom of
+    /// other worker's deques, regardless of the setting of this
+    /// flag.)
     ///
-    /// At present, workers *always* steal from the bottom of other
-    /// worker's deques, regardless of the setting of this flag.
+    /// If you think of the tasks as a tree, where a parent task
+    /// spawns its children in the tree, then this flag loosely
+    /// corresponds to doing a breadth-first traversal of the tree,
+    /// whereas the default would be to do a depth-first traversal.
+    ///
+    /// **Note that this is an "execution hint".** Rayon's task
+    /// execution is highly dynamic and the precise order in which
+    /// independent tasks are executed is not intended to be
+    /// guaranteed.
     pub fn breadth_first(mut self) -> Self {
         self.breadth_first = true;
         self
