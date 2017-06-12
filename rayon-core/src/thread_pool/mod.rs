@@ -131,6 +131,7 @@ impl ThreadPool {
     /// `num_threads()` method for details][snt]).
     ///
     /// [snt]: struct.Configuration.html#method.num_threads
+    #[inline]
     pub fn current_num_threads(&self) -> usize {
         self.registry.num_threads()
     }
@@ -155,6 +156,7 @@ impl ThreadPool {
     /// restarted.
     ///
     /// [snt]: struct.Configuration.html#method.num_threads
+    #[inline]
     pub fn current_thread_index(&self) -> Option<usize> {
         unsafe {
             let curr = WorkerThread::current();
@@ -164,6 +166,41 @@ impl ThreadPool {
                 None
             } else {
                 Some((*curr).index())
+            }
+        }
+    }
+
+    /// Returns true if the current worker thread currently has "local
+    /// tasks" pending. This can be useful as part of a heuristic for
+    /// deciding whether to spawn a new task or execute code on the
+    /// current thread, particularly in breadth-first
+    /// schedulers. However, keep in mind that this is an inherently
+    /// racy check, as other worker threads may be actively "stealing"
+    /// tasks from our local deque.
+    ///
+    /// **Background:** Rayon's uses a [work-stealing] scheduler. The
+    /// key idea is that each thread has its own [deque] of
+    /// tasks. Whenever a new task is spawned -- whether through
+    /// `join()`, `Scope::spawn()`, or some other means -- that new
+    /// task is pushed onto the thread's *local* deque. Worker threads
+    /// have a preference for executing their own tasks; if however
+    /// they run out of tasks, they will go try to "steal" tasks from
+    /// other threads. This function therefore has an inherent race
+    /// with other active worker threads, which may be removing items
+    /// from the local deque.
+    ///
+    /// [work-stealing]: https://en.wikipedia.org/wiki/Work_stealing
+    /// [deque]: https://en.wikipedia.org/wiki/Double-ended_queue
+    #[inline]
+    pub fn current_thread_has_pending_tasks(&self) -> Option<bool> {
+        unsafe {
+            let curr = WorkerThread::current();
+            if curr.is_null() {
+                None
+            } else if (*curr).registry().id() != self.registry.id() {
+                None
+            } else {
+                Some(!(*curr).local_deque_is_empty())
             }
         }
     }
