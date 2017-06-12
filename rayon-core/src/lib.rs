@@ -63,6 +63,8 @@ mod unwind;
 mod util;
 
 pub use thread_pool::ThreadPool;
+pub use thread_pool::current_thread_index;
+pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::join;
 pub use scope::{scope, Scope};
 #[cfg(feature = "unstable")]
@@ -73,9 +75,10 @@ pub use spawn::spawn_future;
 pub use future::RayonFuture;
 
 /// Returns the number of threads in the current registry. If this
-/// code is executing within the Rayon thread-pool, then this will be
-/// the number of threads for the current thread-pool. Otherwise, it
-/// will be the number of threads for the global thread-pool.
+/// code is executing within a Rayon thread-pool, then this will be
+/// the number of threads for the thread-pool of the current
+/// thread. Otherwise, it will be the number of threads for the global
+/// thread-pool.
 ///
 /// This can be useful when trying to judge how many times to split
 /// parallel work (the parallel iterator traits use this value

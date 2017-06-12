@@ -293,3 +293,55 @@ impl Drop for ThreadPool {
     }
 }
 
+/// If called from a Rayon worker thread, returns the index of that
+/// thread within its current pool; if not called from a Rayon thread,
+/// returns `None`.
+///
+/// The index for a given thread will not change over the thread's
+/// lifetime. However, multiple threads may share the same index if
+/// they are in distinct thread-pools.
+///
+/// See also: [the `ThreadPool::current_thread_index()` method].
+///
+/// [m]: struct.ThreadPool.html#method.current_thread_index
+///
+/// ### Future compatibility note
+///
+/// Currently, every thread-pool (including the global
+/// thread-pool) has a fixed number of threads, but this may
+/// change in future Rayon versions (see [the `num_threads()` method
+/// for details][snt]). In that case, the index for a
+/// thread would not change during its lifetime, but thread
+/// indices may wind up being reused if threads are terminated and
+/// restarted.
+///
+/// [snt]: struct.Configuration.html#method.num_threads
+#[inline]
+pub fn current_thread_index() -> Option<usize> {
+    unsafe {
+        let curr = WorkerThread::current();
+        if curr.is_null() {
+            None
+        } else {
+            Some((*curr).index())
+        }
+    }
+}
+
+/// If called from a Rayon worker thread, indicates whether that
+/// thread's local deque still has pending tasks. Otherwise, returns
+/// `None`. For more information, see [the
+/// `ThreadPool::current_thread_has_pending_tasks()` method][m].
+///
+/// [m]: struct.ThreadPool.html#method.current_thread_has_pending_tasks
+#[inline]
+pub fn current_thread_has_pending_tasks() -> Option<bool> {
+    unsafe {
+        let curr = WorkerThread::current();
+        if curr.is_null() {
+            None
+        } else {
+            Some(!(*curr).local_deque_is_empty())
+        }
+    }
+}

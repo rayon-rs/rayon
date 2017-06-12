@@ -414,11 +414,6 @@ impl WorkerThread {
         self.worker.len() == 0
     }
 
-    #[inline]
-    pub fn breadth_first(&self) -> bool {
-        self.breadth_first
-    }
-
     /// Attempts to obtain a "local" job -- typically this means
     /// popping from the top of the stack, though if we are configured
     /// for breadth-first execution, it would mean dequeuing from the
