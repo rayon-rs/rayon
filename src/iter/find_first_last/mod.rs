@@ -29,7 +29,8 @@ enum MatchPosition {
     Rightmost,
 }
 
-// Returns true if pos1 is a better match than pos2 according to MatchPosition
+/// Returns true if pos1 is a better match than pos2 according to MatchPosition
+#[inline]
 fn better_position(pos1: usize, pos2: usize, mp: MatchPosition) -> bool {
     match mp {
         MatchPosition::Leftmost => pos1 < pos2,
