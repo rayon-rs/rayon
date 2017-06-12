@@ -336,13 +336,6 @@ pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
     Ok(())
 }
 
-/// This is a debugging API not really intended for end users. It will
-/// dump some performance statistics out using `println`.
-#[cfg(feature = "unstable")]
-pub fn dump_stats() {
-    dump_stats!();
-}
-
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Configuration { ref num_threads, ref get_thread_name,
