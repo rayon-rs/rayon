@@ -13,7 +13,7 @@ members = ["rayon-demo", "rayon-core"]
 exclude = ["ci"]
 
 [dependencies]
-rayon-core = { version = "1.0", path = "rayon-core" }
+rayon-core = { version = "1.1", path = "rayon-core" }
 
 [dev-dependencies]
 compiletest_rs = "0.2.1"
