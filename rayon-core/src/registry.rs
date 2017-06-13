@@ -112,6 +112,7 @@ impl<'a> Drop for Terminator<'a> {
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
         let n_threads = configuration.get_num_threads();
+        let breadth_first = configuration.get_breadth_first();
 
         let (inj_worker, inj_stealer) = deque::new();
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
@@ -141,7 +142,7 @@ impl Registry {
             if let Some(stack_size) = configuration.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            try!(b.spawn(move || unsafe { main_loop(worker, registry, index) }));
+            try!(b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) }));
         }
 
         // Returning normally now, without termination.
@@ -349,8 +350,13 @@ impl ThreadInfo {
 /// WorkerThread identifiers
 
 pub struct WorkerThread {
+    /// the "worker" half of our local deque
     worker: Worker<JobRef>,
+
     index: usize,
+
+    /// are these workers configured to steal breadth-first or not?
+    breadth_first: bool,
 
     /// A weak random number generator.
     rng: UnsafeCell<rand::XorShiftRng>,
@@ -403,11 +409,22 @@ impl WorkerThread {
         self.registry.sleep.tickle(self.index);
     }
 
-    /// Pop `job` from top of stack, returning `false` if it has been
-    /// stolen.
     #[inline]
-    pub unsafe fn pop(&self) -> Option<JobRef> {
-        self.worker.pop()
+    pub fn local_deque_is_empty(&self) -> bool {
+        self.worker.len() == 0
+    }
+
+    /// Attempts to obtain a "local" job -- typically this means
+    /// popping from the top of the stack, though if we are configured
+    /// for breadth-first execution, it would mean dequeuing from the
+    /// bottom.
+    #[inline]
+    pub unsafe fn take_local_job(&self) -> Option<JobRef> {
+        if !self.breadth_first {
+            self.worker.pop()
+        } else {
+            self.worker.steal()
+        }
     }
 
     /// Wait until the latch is set. Try to keep busy by popping and
@@ -436,7 +453,7 @@ impl WorkerThread {
             // deques, and finally to injected jobs from the
             // outside. The idea is to finish what we started before
             // we take on something new.
-            if let Some(job) = self.pop()
+            if let Some(job) = self.take_local_job()
                                    .or_else(|| self.steal())
                                    .or_else(|| self.registry.pop_injected_job(self.index)) {
                 yields = self.registry.sleep.work_found(self.index, yields);
@@ -506,9 +523,13 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
+unsafe fn main_loop(worker: Worker<JobRef>,
+                    registry: Arc<Registry>,
+                    index: usize,
+                    breadth_first: bool) {
     let worker_thread = WorkerThread {
         worker: worker,
+        breadth_first: breadth_first,
         index: index,
         rng: UnsafeCell::new(rand::weak_rng()),
         registry: registry.clone(),
@@ -538,7 +559,7 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
     worker_thread.wait_until(&registry.terminate_latch);
 
     // Should not be any work left in our queue.
-    debug_assert!(worker_thread.pop().is_none());
+    debug_assert!(worker_thread.take_local_job().is_none());
 
     // let registry know we are done
     registry.thread_infos[index].stopped.set();

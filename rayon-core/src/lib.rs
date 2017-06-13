@@ -63,6 +63,8 @@ mod unwind;
 mod util;
 
 pub use thread_pool::ThreadPool;
+pub use thread_pool::current_thread_index;
+pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::join;
 pub use scope::{scope, Scope};
 #[cfg(feature = "unstable")]
@@ -73,9 +75,10 @@ pub use spawn::spawn_future;
 pub use future::RayonFuture;
 
 /// Returns the number of threads in the current registry. If this
-/// code is executing within the Rayon thread-pool, then this will be
-/// the number of threads for the current thread-pool. Otherwise, it
-/// will be the number of threads for the global thread-pool.
+/// code is executing within a Rayon thread-pool, then this will be
+/// the number of threads for the thread-pool of the current
+/// thread. Otherwise, it will be the number of threads for the global
+/// thread-pool.
 ///
 /// This can be useful when trying to judge how many times to split
 /// parallel work (the parallel iterator traits use this value
@@ -116,6 +119,11 @@ pub struct Configuration {
 
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
+
+    /// If false, worker threads will execute spawned jobs in a
+    /// "depth-first" fashion. If true, they will do a "breadth-first"
+    /// fashion. Depth-first is the default.
+    breadth_first: bool,
 }
 
 /// The type for a panic handling closure. Note that this same closure
@@ -239,6 +247,35 @@ impl Configuration {
         self
     }
 
+    /// Suggest to worker threads that they execute spawned jobs in a
+    /// "breadth-first" fashion. Typically, when a worker thread is
+    /// idle or blocked, it will attempt to execute the job from the
+    /// *top* of its local deque of work (i.e., the job most recently
+    /// spawned). If this flag is set to true, however, workers will
+    /// prefer to execute in a *breadth-first* fashion -- that is,
+    /// they will search for jobs at the *bottom* of their local
+    /// deque. (At present, workers *always* steal from the bottom of
+    /// other worker's deques, regardless of the setting of this
+    /// flag.)
+    ///
+    /// If you think of the tasks as a tree, where a parent task
+    /// spawns its children in the tree, then this flag loosely
+    /// corresponds to doing a breadth-first traversal of the tree,
+    /// whereas the default would be to do a depth-first traversal.
+    ///
+    /// **Note that this is an "execution hint".** Rayon's task
+    /// execution is highly dynamic and the precise order in which
+    /// independent tasks are executed is not intended to be
+    /// guaranteed.
+    pub fn breadth_first(mut self) -> Self {
+        self.breadth_first = true;
+        self
+    }
+
+    fn get_breadth_first(&self) -> bool {
+        self.breadth_first
+    }
+
     /// Takes the current thread start callback, leaving `None`.
     fn take_start_handler(&mut self) -> Option<Box<StartHandler>> {
         self.start_handler.take()
@@ -299,17 +336,12 @@ pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
     Ok(())
 }
 
-/// This is a debugging API not really intended for end users. It will
-/// dump some performance statistics out using `println`.
-#[cfg(feature = "unstable")]
-pub fn dump_stats() {
-    dump_stats!();
-}
-
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Configuration { ref num_threads, ref get_thread_name, ref panic_handler, ref stack_size,
-                            ref start_handler, ref exit_handler } = *self;
+        let Configuration { ref num_threads, ref get_thread_name,
+                            ref panic_handler, ref stack_size,
+                            ref start_handler, ref exit_handler,
+                            ref breadth_first } = *self;
 
         // Just print `Some("<closure>")` or `None` to the debug
         // output.
@@ -328,6 +360,7 @@ impl fmt::Debug for Configuration {
          .field("stack_size", &stack_size)
          .field("start_handler", &start_handler)
          .field("exit_handler", &exit_handler)
+         .field("breadth_first", &breadth_first)
          .finish()
     }
 }
