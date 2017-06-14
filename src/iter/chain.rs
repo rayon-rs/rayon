@@ -9,6 +9,7 @@ use rayon_core::join;
 ///
 /// [`chain()`]: trait.ParallelIterator.html#method.chain
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>
@@ -209,7 +210,7 @@ impl<A, B> Producer for ChainProducer<A, B>
 /// ////////////////////////////////////////////////////////////////////////
 /// Wrapper for Chain to implement ExactSizeIterator
 
-pub struct ChainSeq<A, B> {
+struct ChainSeq<A, B> {
     chain: iter::Chain<A, B>,
 }
 

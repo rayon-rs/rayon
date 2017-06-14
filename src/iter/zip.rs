@@ -3,6 +3,7 @@ use super::*;
 use std::cmp;
 use std::iter;
 
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
     b: B,

@@ -6,6 +6,7 @@ use super::*;
 ///
 /// [`filter_map()`]: trait.ParallelIterator.html#method.filter_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct FilterMap<I: ParallelIterator, P> {
     base: I,
     filter_op: P,
