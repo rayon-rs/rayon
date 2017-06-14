@@ -9,6 +9,7 @@ use std::usize;
 ///
 /// [`enumerate()`]: trait.ParallelIterator.html#method.enumerate
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Enumerate<I: IndexedParallelIterator> {
     base: I,
 }

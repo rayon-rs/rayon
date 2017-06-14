@@ -8,6 +8,7 @@ use std::cmp::min;
 ///
 /// [`skip()`]: trait.ParallelIterator.html#method.skip
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Skip<I> {
     base: I,
     n: usize,

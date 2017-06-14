@@ -2,6 +2,7 @@ use super::internal::*;
 use super::*;
 use std::iter;
 
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Rev<I: IndexedParallelIterator> {
     base: I,
 }

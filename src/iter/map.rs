@@ -10,6 +10,7 @@ use std::iter;
 ///
 /// [`map()`]: trait.ParallelIterator.html#method.map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Map<I: ParallelIterator, F> {
     base: I,
     map_op: F,

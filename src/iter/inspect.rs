@@ -11,6 +11,7 @@ use std::iter;
 ///
 /// [`inspect()`]: trait.ParallelIterator.html#method.inspect
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Inspect<I: ParallelIterator, F> {
     base: I,
     inspect_op: F,
