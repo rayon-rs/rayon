@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
+#![cfg_attr(test, feature(i128_type))]
 
 // If you're not compiling the unstable code, it often happens that
 // there is stuff that is considered "dead code" and so forth. So
