@@ -7,7 +7,6 @@ use log::Event::*;
 use job::StackJob;
 use join;
 use {scope, Scope};
-#[cfg(rayon_unstable)]
 use spawn;
 use std::sync::Arc;
 use std::error::Error;
@@ -208,7 +207,6 @@ impl ThreadPool {
     /// Execute `oper_a` and `oper_b` in the thread-pool and return
     /// the results. Equivalent to `self.install(|| join(oper_a,
     /// oper_b))`.
-    #[cfg(rayon_unstable)]
     pub fn join<A, B, RA, RB>(&self, oper_a: A, oper_b: B) -> (RA, RB)
         where A: FnOnce() -> RA + Send,
               B: FnOnce() -> RB + Send,
@@ -224,7 +222,6 @@ impl ThreadPool {
     /// See also: [the `scope()` function][scope].
     ///
     /// [scope]: fn.scope.html
-    #[cfg(rayon_unstable)]
     pub fn scope<'scope, OP, R>(&self, op: OP) -> R
         where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send
     {
@@ -239,7 +236,6 @@ impl ThreadPool {
     /// See also: [the `spawn()` function defined on scopes][spawn].
     ///
     /// [spawn]: struct.Scope.html#method.spawn
-    #[cfg(rayon_unstable)]
     pub fn spawn<OP>(&self, op: OP)
         where OP: FnOnce() + Send + 'static
     {

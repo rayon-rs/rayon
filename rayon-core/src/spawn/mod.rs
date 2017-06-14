@@ -1,3 +1,4 @@
+#[cfg(rayon_unstable)]
 use future::{self, Future, RayonFuture};
 #[allow(unused_imports)]
 use latch::{Latch, SpinLatch};
@@ -108,6 +109,7 @@ pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
 ///
 /// If this future should panic, that panic will be propagated when
 /// `poll()` is invoked on the return value.
+#[cfg(rayon_unstable)]
 pub fn spawn_future<F>(future: F) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'static
 {
@@ -118,6 +120,7 @@ pub fn spawn_future<F>(future: F) -> RayonFuture<F::Item, F::Error>
 /// Internal helper function.
 ///
 /// Unsafe because caller must guarantee that `registry` has not yet terminated.
+#[cfg(rayon_unstable)]
 pub unsafe fn spawn_future_in<F>(future: F, registry: Arc<Registry>) -> RayonFuture<F::Item, F::Error>
     where F: Future + Send + 'static
 {
@@ -126,10 +129,12 @@ pub unsafe fn spawn_future_in<F>(future: F, registry: Arc<Registry>) -> RayonFut
     future::new_rayon_future(future, scope)
 }
 
+#[cfg(rayon_unstable)]
 struct StaticFutureScope {
     registry: Arc<Registry>
 }
 
+#[cfg(rayon_unstable)]
 impl StaticFutureScope {
     /// Caller asserts that the registry has not yet terminated.
     unsafe fn new(registry: Arc<Registry>) -> Self {
@@ -149,6 +154,7 @@ impl StaticFutureScope {
 /// (b) the lifetime `'static` will not end until a completion
 ///     method is called. This is true because `'static` doesn't
 ///     end until the end of the program.
+#[cfg(rayon_unstable)]
 unsafe impl future::FutureScope<'static> for StaticFutureScope {
     fn registry(&self) -> Arc<Registry> {
         self.registry.clone()

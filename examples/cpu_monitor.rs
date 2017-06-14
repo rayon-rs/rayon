@@ -77,16 +77,9 @@ fn task_stall_root(args: &Args) {
     rayon::join(|| task(args), || wait_for_user());
 }
 
-#[cfg(rayon_unstable)]
 fn task_stall_scope(args: &Args) {
     rayon::scope(|scope| {
                      scope.spawn(move |_| task(args));
                      scope.spawn(move |_| wait_for_user());
                  });
-}
-
-#[cfg(not(rayon_unstable))]
-fn task_stall_scope(_args: &Args) {
-    println!("try `RUSTFLAGS='--cfg rayon_unstable' cargo run`");
-    process::exit(1);
 }

@@ -55,7 +55,6 @@ mod registry;
 mod future;
 mod scope;
 mod sleep;
-#[cfg(rayon_unstable)]
 mod spawn;
 mod test;
 mod thread_pool;
@@ -67,7 +66,6 @@ pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::join;
 pub use scope::{scope, Scope};
-#[cfg(rayon_unstable)]
 pub use spawn::spawn;
 #[cfg(rayon_unstable)]
 pub use spawn::spawn_future;
