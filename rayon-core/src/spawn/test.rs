@@ -1,3 +1,4 @@
+#[cfg(rayon_unstable)]
 use futures::{lazy, Future};
 
 use scope;
@@ -6,7 +7,9 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 
 use {Configuration, ThreadPool};
-use super::{spawn, spawn_future};
+use super::spawn;
+#[cfg(rayon_unstable)]
+use super::spawn_future;
 
 #[test]
 fn spawn_then_join_in_worker() {
@@ -50,6 +53,7 @@ fn panic_fwd() {
 }
 
 #[test]
+#[cfg(rayon_unstable)]
 fn async_future_map() {
     let data = Arc::new(Mutex::new(format!("Hello, ")));
 
@@ -70,6 +74,7 @@ fn async_future_map() {
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
+#[cfg(rayon_unstable)]
 fn async_future_panic_prop() {
     let future = spawn_future(lazy(move || Ok::<(), ()>(argh())));
     let _ = future.rayon_wait(); // should panic, not return a value
@@ -82,6 +87,7 @@ fn async_future_panic_prop() {
 }
 
 #[test]
+#[cfg(rayon_unstable)]
 fn async_future_scope_interact() {
     let future = spawn_future(lazy(move || Ok::<usize, ()>(22)));
 
