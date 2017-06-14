@@ -38,7 +38,7 @@ use std::fmt;
 extern crate coco;
 #[macro_use]
 extern crate lazy_static;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 extern crate futures;
 extern crate libc;
 extern crate num_cpus;
@@ -51,11 +51,11 @@ mod latch;
 mod join;
 mod job;
 mod registry;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 mod future;
 mod scope;
 mod sleep;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 mod spawn;
 mod test;
 mod thread_pool;
@@ -67,11 +67,11 @@ pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::join;
 pub use scope::{scope, Scope};
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 pub use spawn::spawn;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 pub use spawn::spawn_future;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 pub use future::RayonFuture;
 
 /// Returns the number of threads in the current registry. If this

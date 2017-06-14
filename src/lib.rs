@@ -39,9 +39,9 @@ pub use rayon_core::initialize;
 pub use rayon_core::ThreadPool;
 pub use rayon_core::join;
 pub use rayon_core::{scope, Scope};
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 pub use rayon_core::spawn;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 pub use rayon_core::spawn_future;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 pub use rayon_core::RayonFuture;

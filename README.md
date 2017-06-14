@@ -40,7 +40,7 @@ as:
 
 ```rust
 [dependencies]
-rayon = XXX # <-- insert latest version of Rayon from crates.io here
+rayon = 0.8.0
 ```
 
 and then add the following to to your `lib.rs`:
@@ -51,7 +51,7 @@ extern crate rayon;
 
 To use the Parallel Iterator APIs, a number of traits have to be in
 scope. The easiest way to bring those things into scope is to use the
-[Rayon prelude](https://docs.rs/rayon/0.8.0/rayon/prelude/index.html).
+[Rayon prelude](https://docs.rs/rayon/*/rayon/prelude/index.html).
 In each module where you would like to use the parallel iterator APIs,
 just add:
 
@@ -426,10 +426,19 @@ interjected into our execution!
 
 Rayon follows semver versioning. However, we also have APIs that are
 still in the process of development and which may break from release
-to release -- those APIs are not subject to semver. They are
-accessible with the "unstable" cargo feature. Please do give them a
-try -- but if you are using them, be aware that you (and all of your
-dependencies!) will have to stay current with Rayon.
+to release -- those APIs are not subject to semver. To use them,
+you have to set the cfg flag `rayon_unstable`. The easiest way to do this
+is to use the `RUSTFLAGS` environment variable:
+
+```
+RUSTFLAGS='--cfg rayon_unstable' cargo build
+```
+
+Note that this must not only be done for your crate, but for any crate
+that depends on your crate. This infectious nature is intentional, as
+it serves as a reminder that you are outside of the normal semver
+guarantees. **If you see unstable APIs that you would like to use,
+please request stabilization on the correspond tracking issue!**
 
 Rayon itself is internally split into two crates. The `rayon` crate is
 intended to be the main, user-facing crate, and hence all the

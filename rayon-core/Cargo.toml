@@ -16,11 +16,8 @@ num_cpus = "1.2"
 coco = "0.1.1"
 libc = "0.2.16"
 lazy_static = "0.2.2"
-futures = { version = "0.1.7", optional = true }
+
+# only if #[cfg(rayon_unstable)], will be removed eventually
+futures = "0.1.7"
 
 [dev-dependencies]
-
-[features]
-# Unstable APIs that have not yet
-# proven their utility.
-unstable = ["futures"]
