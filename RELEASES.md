@@ -1,3 +1,27 @@
+# Release rayon 0.8.1 / rayon-core 1.2.0
+
+- The following core APIs are being stabilized:
+  - `rayon::spawn()` -- spawns a task into the Rayon threadpool; as it
+    is contained in the global scope (rather than a user-created
+    scope), the task cannot capture anything from the current stack
+    frame.
+  - `ThreadPool::join()`, `ThreadPool::spawn()`, `ThreadPool::scope()`
+    -- convenience APIs for launching new work within a thread-pool. 
+- The various iterator adapters are now tagged with `#[must_use]`
+- Parallel iterators now offer a `for_each_with` adapter, similar to
+  `map_with`.
+- We are adopting a new approach to handling the remaining unstable
+  APIs (which primarily pertain to futures integration). As awlays,
+  unstable APIs are intended for experimentation, but do not come with
+  any promise of compatibility (in other words, we might change them
+  in arbitrary ways in any release). Previously, we designated such
+  APIs using a Cargo feature "unstable". Now, we are using a regular
+  `#[cfg]` flag. This means that to see the unstable APIs, you must do
+  `RUSTFLAGS='--cfg rayon_unstable' cargo build`. This is
+  intentionally inconvenient; in particular, if you are a library,
+  then your clients must also modify their environment, signaling
+  their agreement to instability.
+
 # Release rayon 0.8.0 / rayon-core 1.1.0
 
 ## Rayon 0.8.0
