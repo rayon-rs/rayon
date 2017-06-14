@@ -135,6 +135,19 @@ pub trait ParallelIterator: Sized + Send {
         for_each::for_each(self, &op)
     }
 
+    /// Executes `OP` on the given `init` value with each item produced by
+    /// the iterator, in parallel.
+    ///
+    /// The `init` value will be cloned only as needed to be paired with
+    /// the group of items in each rayon job.  It does not require the type
+    /// to be `Sync`.
+    fn for_each_with<OP, T>(self, init: T, op: OP)
+        where OP: Fn(&mut T, Self::Item) + Sync + Send,
+              T: Send + Clone
+    {
+        self.map_with(init, op).for_each(|()| ())
+    }
+
     /// Counts the number of items in this parallel iterator.
     fn count(self) -> usize {
         self.map(|_| 1).sum()
