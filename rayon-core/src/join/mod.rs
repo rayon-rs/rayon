@@ -23,7 +23,7 @@ mod test;
 /// ### Warning about blocking I/O
 ///
 /// The assumption is that the closures given to `join()` are
-/// CPU-bound tasks that to do not perform I/O or other blocking
+/// CPU-bound tasks that do not perform I/O or other blocking
 /// operations. If you do perform I/O, and that I/O should block
 /// (e.g., waiting for a network request), the overall performance may
 /// be poor.  Moreover, if you cause one closure to be blocked waiting
