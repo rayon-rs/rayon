@@ -1,4 +1,4 @@
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 use future::{self, Future, RayonFuture};
 use latch::{Latch, CountLatch};
 use log::Event::*;
@@ -284,7 +284,7 @@ impl<'scope> Scope<'scope> {
         }
     }
 
-    #[cfg(feature = "unstable")]
+    #[cfg(rayon_unstable)]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'scope
     {

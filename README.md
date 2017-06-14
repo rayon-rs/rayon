@@ -32,6 +32,33 @@ integers, please see the [notes on atomicity](#atomicity).
 
 Rayon currently requires `rustc 1.12.0` or greater.
 
+### Using Rayon
+
+[Rayon is available on crates.io](https://crates.io/crates/rayon). The
+recommended way to use it is to add a line into your Cargo.toml such
+as:
+
+```rust
+[dependencies]
+rayon = 0.8.0
+```
+
+and then add the following to to your `lib.rs`:
+
+```rust
+extern crate rayon;
+```
+
+To use the Parallel Iterator APIs, a number of traits have to be in
+scope. The easiest way to bring those things into scope is to use the
+[Rayon prelude](https://docs.rs/rayon/*/rayon/prelude/index.html).
+In each module where you would like to use the parallel iterator APIs,
+just add:
+
+```rust
+use rayon::prelude::*;
+```
+
 ### Contribution
 
 Rayon is an open source project! If you'd like to contribute to Rayon, check out [the list of "help wanted" issues](https://github.com/nikomatsakis/rayon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22). These are all (or should be) issues that are suitable for getting started, and they generally include a detailed set of instructions for what to do. Please ask questions if anything is unclear! Also, check out the [Guide to Development](https://github.com/nikomatsakis/rayon/wiki/Guide-to-Development) page on the wiki. Note that all code submitted in PRs to Rayon is assumed to [be licensed under Rayon's dual MIT/Apache2 licensing](https://github.com/nikomatsakis/rayon/blob/master/README.md#license).
@@ -394,6 +421,34 @@ fn search(path: &Path, cost_so_far: usize, best_cost: &Arc<AtomicUsize>) {
 
 Now in this case, we really WANT to see results from other threads
 interjected into our execution!
+
+## Semver policy, the rayon-core crate, and unstable features
+
+Rayon follows semver versioning. However, we also have APIs that are
+still in the process of development and which may break from release
+to release -- those APIs are not subject to semver. To use them,
+you have to set the cfg flag `rayon_unstable`. The easiest way to do this
+is to use the `RUSTFLAGS` environment variable:
+
+```
+RUSTFLAGS='--cfg rayon_unstable' cargo build
+```
+
+Note that this must not only be done for your crate, but for any crate
+that depends on your crate. This infectious nature is intentional, as
+it serves as a reminder that you are outside of the normal semver
+guarantees. **If you see unstable APIs that you would like to use,
+please request stabilization on the correspond tracking issue!**
+
+Rayon itself is internally split into two crates. The `rayon` crate is
+intended to be the main, user-facing crate, and hence all the
+documentation refers to `rayon`. This crate is still evolving and
+regularly goes through (minor) breaking changes. The `rayon-core`
+crate contains the global thread-pool and defines the core APIs: we no
+longer permit breaking changes in this crate (except to unstable
+features). The intention is that multiple semver-incompatible versions
+of the rayon crate can peacefully coexist; they will all share one
+global thread-pool through the `rayon-core` crate.
 
 ## License
 

@@ -19,7 +19,7 @@ fn negative_tests_compile_fail() {
 }
 
 #[test]
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 fn negative_tests_compile_fail_unstable() {
     run_compiletest("compile-fail", "tests/compile-fail-unstable");
 }
@@ -30,7 +30,7 @@ fn negative_tests_run_fail() {
 }
 
 #[test]
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 fn negative_tests_run_fail_unstable() {
     run_compiletest("run-fail", "tests/run-fail-unstable");
 }
@@ -41,7 +41,7 @@ fn positive_test_run_pass() {
 }
 
 #[test]
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 fn positive_test_run_pass_unstable() {
     run_compiletest("run-pass", "tests/run-pass-unstable");
 }

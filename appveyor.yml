@@ -8,19 +8,19 @@ environment:
       CHANNEL: stable
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: stable
-      FEATURES: unstable
+      RUSTFLAGS: --cfg rayon_unstable
 
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: beta
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: beta
-      FEATURES: unstable
+      RUSTFLAGS: --cfg rayon_unstable
 
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: nightly
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: nightly
-      FEATURES: unstable
+      RUSTFLAGS: --cfg rayon_unstable
 
 
     - TARGET: x86_64-pc-windows-msvc
@@ -30,19 +30,19 @@ environment:
       CHANNEL: stable
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: stable
-      FEATURES: unstable
+      RUSTFLAGS: --cfg rayon_unstable
 
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: beta
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: beta
-      FEATURES: unstable
+      RUSTFLAGS: --cfg rayon_unstable
 
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: nightly
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: nightly
-      FEATURES: unstable
+      RUSTFLAGS: --cfg rayon_unstable
 
 install:
   - curl -sSf -o rustup-init.exe https://win.rustup.rs
@@ -54,8 +54,8 @@ install:
 build: false
 
 test_script:
-  - cargo build --features="%FEATURES%"
+  - cargo build
   - if [%CHANNEL%]==[nightly] (
-      cargo test --features="%FEATURES%" -p rayon-core &&
-      cargo test --features="%FEATURES%" -p rayon-demo
+      cargo test -p rayon-core &&
+      cargo test -p rayon-demo
     )

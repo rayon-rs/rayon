@@ -18,6 +18,3 @@ regex = "0.2"
 
 [dev-dependencies]
 num = "0.1.30"
-
-[features]
-unstable = ["rayon/unstable"]

@@ -1,5 +1,5 @@
 use Configuration;
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 use future::{Future, RayonFuture};
 use latch::LockLatch;
 #[allow(unused_imports)]
@@ -7,7 +7,7 @@ use log::Event::*;
 use job::StackJob;
 use join;
 use {scope, Scope};
-#[cfg(feature = "unstable")]
+#[cfg(rayon_unstable)]
 use spawn;
 use std::sync::Arc;
 use std::error::Error;
@@ -68,7 +68,7 @@ impl ThreadPool {
     /// `rayon::initialize()` function][f] to do so.
     ///
     /// [f]: fn.initialize.html
-    #[cfg(feature = "unstable")]
+    #[cfg(rayon_unstable)]
     pub fn global() -> &'static Arc<ThreadPool> {
         lazy_static! {
             static ref DEFAULT_THREAD_POOL: Arc<ThreadPool> =
@@ -208,7 +208,7 @@ impl ThreadPool {
     /// Execute `oper_a` and `oper_b` in the thread-pool and return
     /// the results. Equivalent to `self.install(|| join(oper_a,
     /// oper_b))`.
-    #[cfg(feature = "unstable")]
+    #[cfg(rayon_unstable)]
     pub fn join<A, B, RA, RB>(&self, oper_a: A, oper_b: B) -> (RA, RB)
         where A: FnOnce() -> RA + Send,
               B: FnOnce() -> RB + Send,
@@ -224,7 +224,7 @@ impl ThreadPool {
     /// See also: [the `scope()` function][scope].
     ///
     /// [scope]: fn.scope.html
-    #[cfg(feature = "unstable")]
+    #[cfg(rayon_unstable)]
     pub fn scope<'scope, OP, R>(&self, op: OP) -> R
         where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send
     {
@@ -239,7 +239,7 @@ impl ThreadPool {
     /// See also: [the `spawn()` function defined on scopes][spawn].
     ///
     /// [spawn]: struct.Scope.html#method.spawn
-    #[cfg(feature = "unstable")]
+    #[cfg(rayon_unstable)]
     pub fn spawn<OP>(&self, op: OP)
         where OP: FnOnce() + Send + 'static
     {
@@ -278,7 +278,7 @@ impl ThreadPool {
     /// See also: [the `spawn_future()` function defined on scopes][spawn_future].
     ///
     /// [spawn_future]: struct.Scope.html#method.spawn_future
-    #[cfg(feature = "unstable")]
+    #[cfg(rayon_unstable)]
     pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
         where F: Future + Send + 'static
     {

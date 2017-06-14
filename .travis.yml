@@ -15,24 +15,24 @@ env:
 matrix:
   include:
   - rust: stable
-    env: FEATURES=unstable
+    env: RUSTFLAGS='--cfg rayon_unstable'
     os: linux
   - rust: stable
-    env: FEATURES=unstable
+    env: RUSTFLAGS='--cfg rayon_unstable'
     os: osx
   - rust: nightly
-    env: FEATURES=unstable
+    env: RUSTFLAGS='--cfg rayon_unstable'
     os: linux
   - rust: nightly
-    env: FEATURES=unstable
+    env: RUSTFLAGS='--cfg rayon_unstable'
     os: osx
 
 script:
-  - cargo build --features="$FEATURES"
+  - cargo build
   - |
     if [ $TRAVIS_RUST_VERSION == nightly ]; then
-      cargo test --features="$FEATURES" &&
-      cargo test --features="$FEATURES" -p rayon-core &&
-      cargo test --features="$FEATURES" -p rayon-demo &&
+      cargo test &&
+      cargo test -p rayon-core &&
+      cargo test -p rayon-demo &&
       ./ci/highlander.sh
     fi
