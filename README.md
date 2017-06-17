@@ -40,7 +40,7 @@ as:
 
 ```rust
 [dependencies]
-rayon = 0.8.1
+rayon = "0.8.1"
 ```
 
 and then add the following to to your `lib.rs`:
