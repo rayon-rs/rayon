@@ -24,6 +24,7 @@ mod life;
 #[cfg(test)] mod find;
 #[cfg(test)] mod join_microbench;
 #[cfg(test)] mod str_split;
+#[cfg(test)] mod sort;
 
 extern crate rayon; // all
 extern crate docopt; // all
