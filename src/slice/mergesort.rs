@@ -1,3 +1,9 @@
+//! Parallel merge sort.
+//!
+//! This implementation is copied verbatim from `std::slice::sort` and then parallelized.
+//! The only difference from the original is that the sequential `mergesort` returns
+//! `MergesortResult` and leaves descending arrays intact.
+
 use rayon_core;
 use slice::*;
 use std::mem::size_of;
@@ -370,6 +376,11 @@ where
     // The original order of the slice was neither non-descending nor descending.
     MergesortResult::Sorted
 }
+
+////////////////////////////////////////////////////////////////////////////
+// Everything above this line is copied from `std::slice::sort` (with very minor tweaks).
+// Everything below this line is parallelization.
+////////////////////////////////////////////////////////////////////////////
 
 /// Splits two sorted slices so that they can be merged in parallel.
 ///

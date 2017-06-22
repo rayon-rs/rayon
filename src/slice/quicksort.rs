@@ -1,3 +1,9 @@
+//! Parallel quicksort.
+//!
+//! This implementation is copied verbatim from `std::slice::sort_unstable` and then parallelized.
+//! The only difference from the original is that calls to `recurse` are executed in parallel using
+//! `rayon_core::join`.
+
 use rayon_core;
 use std::cmp;
 use std::mem;
