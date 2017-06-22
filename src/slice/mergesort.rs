@@ -1,4 +1,3 @@
-use iter::*;
 use rayon_core;
 use slice::*;
 use std::mem::size_of;
@@ -450,7 +449,7 @@ where
         left_end: left.as_mut_ptr().offset(left_len as isize),
         right_start: right.as_mut_ptr(),
         right_end: right.as_mut_ptr().offset(right_len as isize),
-        dest,
+        dest: dest,
     };
 
     if left_len == 0 || right_len == 0 || left_len + right_len < MAX_SEQUENTIAL {
