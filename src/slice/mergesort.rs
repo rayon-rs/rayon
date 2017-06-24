@@ -442,7 +442,10 @@ where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,
 {
-    // Slices whose lengths sum up to this value are merged sequentially.
+    // Slices whose lengths sum up to this value are merged sequentially. This number is slightly
+    // larger than `CHUNK_LENGTH`, and the reason is that merging is faster than merge sorting, so
+    // merging needs a bit coarser granularity in order to hide the overhead of Rayon's task
+    // scheduling.
     const MAX_SEQUENTIAL: usize = 5000;
 
     let left_len = left.len();
@@ -616,9 +619,11 @@ where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,
 {
-    // Slices of up to this length get sorted using insertion sort.
+    // Slices of up to this length get sorted using insertion sort in order to avoid the cost of
+    // buffer allocation.
     const MAX_INSERTION: usize = 20;
-    // The length of initial chunks.
+    // The length of initial chunks. This number is as small as possible but so that the overhead
+    // of Rayon's task scheduling is still negligible.
     const CHUNK_LENGTH: usize = 2000;
 
     // Sorting has no meaningful behavior on zero-sized types.

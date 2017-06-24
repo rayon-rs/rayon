@@ -85,9 +85,13 @@ pub trait ParallelSliceMut<T: Send> {
         }
     }
 
-    /// Sorts the slice.
+    /// Sorts the slice in parallel.
     ///
     /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
+    ///
+    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// sorting and it doesn't allocate auxilliary memory.
+    /// See [`par_sort_unstable`](#method.par_sort_unstable).
     ///
     /// # Current implementation
     ///
@@ -98,6 +102,11 @@ pub trait ParallelSliceMut<T: Send> {
     ///
     /// Also, it allocates temporary storage the same size as `self`, but for very short slices a
     /// non-allocating insertion sort is used instead.
+    ///
+    /// In order to sort the slice in parallel, the slice is first divided into smaller chunks and
+    /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
+    /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
+    /// parallel subdivision of chunks and parallel merge operation.
     fn par_sort(&mut self)
     where
         T: Ord,
@@ -105,9 +114,13 @@ pub trait ParallelSliceMut<T: Send> {
         par_mergesort(self.as_parallel_slice_mut(), |a, b| a.lt(b));
     }
 
-    /// Sorts the slice with a comparator function.
+    /// Sorts the slice in parallel with a comparator function.
     ///
     /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
+    ///
+    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// sorting and it doesn't allocate auxilliary memory.
+    /// See [`par_sort_unstable_by`](#method.par_sort_unstable_by).
     ///
     /// # Current implementation
     ///
@@ -118,16 +131,25 @@ pub trait ParallelSliceMut<T: Send> {
     ///
     /// Also, it allocates temporary storage the same size as `self`, but for very short slices a
     /// non-allocating insertion sort is used instead.
+    ///
+    /// In order to sort the slice in parallel, the slice is first divided into smaller chunks and
+    /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
+    /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
+    /// parallel subdivision of chunks and parallel merge operation.
     fn par_sort_by<F>(&mut self, compare: F)
     where
-        F: Sync + Fn(&T, &T) -> Ordering,
+        F: Fn(&T, &T) -> Ordering + Sync,
     {
         par_mergesort(self.as_parallel_slice_mut(), |a, b| compare(a, b) == Ordering::Less);
     }
 
-    /// Sorts the slice with a key extraction function.
+    /// Sorts the slice in parallel with a key extraction function.
     ///
     /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
+    ///
+    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// sorting and it doesn't allocate auxilliary memory.
+    /// See [`par_sort_unstable_by_key`](#method.par_sort_unstable_by_key).
     ///
     /// # Current implementation
     ///
@@ -138,15 +160,20 @@ pub trait ParallelSliceMut<T: Send> {
     ///
     /// Also, it allocates temporary storage the same size as `self`, but for very short slices a
     /// non-allocating insertion sort is used instead.
+    ///
+    /// In order to sort the slice in parallel, the slice is first divided into smaller chunks and
+    /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
+    /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
+    /// parallel subdivision of chunks and parallel merge operation.
     fn par_sort_by_key<B, F>(&mut self, f: F)
     where
         B: Ord,
-        F: Sync + Fn(&T) -> B,
+        F: Fn(&T) -> B + Sync,
     {
         par_mergesort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
     }
 
-    /// Sorts the slice, but may not preserve the order of equal elements.
+    /// Sorts the slice in parallel, but may not preserve the order of equal elements.
     ///
     /// This sort is unstable (i.e. may reorder equal elements), in-place (i.e. does not allocate),
     /// and `O(n log n)` worst-case.
@@ -160,6 +187,10 @@ pub trait ParallelSliceMut<T: Send> {
     ///
     /// It is generally faster than stable sorting, except in a few special cases, e.g. when the
     /// slice consists of several concatenated sorted sequences.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel.
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
     fn par_sort_unstable(&mut self)
@@ -169,8 +200,8 @@ pub trait ParallelSliceMut<T: Send> {
         par_quicksort(self.as_parallel_slice_mut(), |a, b| a.lt(b));
     }
 
-    /// Sorts the slice with a comparator function, but may not preserve the order of equal
-    /// elements.
+    /// Sorts the slice in parallel with a comparator function, but may not preserve the order of
+    /// equal elements.
     ///
     /// This sort is unstable (i.e. may reorder equal elements), in-place (i.e. does not allocate),
     /// and `O(n log n)` worst-case.
@@ -184,17 +215,21 @@ pub trait ParallelSliceMut<T: Send> {
     ///
     /// It is generally faster than stable sorting, except in a few special cases, e.g. when the
     /// slice consists of several concatenated sorted sequences.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel.
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
     fn par_sort_unstable_by<F>(&mut self, compare: F)
     where
-        F: Sync + Fn(&T, &T) -> Ordering,
+        F: Fn(&T, &T) -> Ordering + Sync,
     {
         par_quicksort(self.as_parallel_slice_mut(), |a, b| compare(a, b) == Ordering::Less);
     }
 
-    /// Sorts the slice with a key extraction function, but may not preserve the order of equal
-    /// elements.
+    /// Sorts the slice in parallel with a key extraction function, but may not preserve the order
+    /// of equal elements.
     ///
     /// This sort is unstable (i.e. may reorder equal elements), in-place (i.e. does not allocate),
     /// and `O(n log n)` worst-case.
@@ -208,12 +243,16 @@ pub trait ParallelSliceMut<T: Send> {
     ///
     /// It is generally faster than stable sorting, except in a few special cases, e.g. when the
     /// slice consists of several concatenated sorted sequences.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel.
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
     fn par_sort_unstable_by_key<B, F>(&mut self, f: F)
     where
         B: Ord,
-        F: Sync + Fn(&T) -> B,
+        F: Fn(&T) -> B + Sync,
     {
         par_quicksort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
     }
