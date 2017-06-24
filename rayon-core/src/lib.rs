@@ -64,7 +64,7 @@ pub mod internal;
 pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
-pub use join::{join, join_notify};
+pub use join::{join, join_context};
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
 
@@ -364,5 +364,36 @@ impl fmt::Debug for Configuration {
          .field("exit_handler", &exit_handler)
          .field("breadth_first", &breadth_first)
          .finish()
+    }
+}
+
+/// Provides the calling context to a closure called by `join_context`.
+#[derive(Debug)]
+pub struct FnContext {
+    migrated: bool
+}
+
+impl Default for FnContext {
+    #[inline]
+    fn default() -> Self {
+        FnContext {
+            migrated: false
+        }
+    }
+}
+
+impl FnContext {
+    #[inline]
+    fn new(migrated: bool) -> Self {
+        FnContext { migrated: migrated }
+    }
+}
+
+impl FnContext {
+    /// Returns `true` if the closure was called from a different thread
+    /// than it was provided from.
+    #[inline]
+    pub fn migrated(&self) -> bool {
+        self.migrated
     }
 }

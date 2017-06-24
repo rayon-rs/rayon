@@ -3,7 +3,9 @@
 //! parallel iterators should not need to interact with them directly.
 //! See `README.md` for a high-level overview.
 
-use rayon_core::join_notify;
+use join_context;
+use FnContext;
+
 use super::IndexedParallelIterator;
 
 use std::cmp;
@@ -247,10 +249,10 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
           C: Consumer<P::Item>
 {
     let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
-    return helper(len, false, splitter, producer, consumer);
+    return helper(len, FnContext::default(), splitter, producer, consumer);
 
     fn helper<P, C>(len: usize,
-                    stolen: bool,
+                    context: FnContext,
                     mut splitter: LengthSplitter,
                     producer: P,
                     consumer: C)
@@ -260,15 +262,15 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
     {
         if consumer.full() {
             consumer.into_folder().complete()
-        } else if splitter.try(len, stolen) {
+        } else if splitter.try(len, context.migrated()) {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
             let (left_result, right_result) =
-                join_notify(|stolen| helper(mid, stolen, splitter, left_producer, left_consumer),
-                            |stolen| {
-                                helper(len - mid, stolen, splitter, right_producer, right_consumer)
-                            });
+                join_context(|context| helper(mid, context, splitter, left_producer, left_consumer),
+                             |context| {
+                                 helper(len - mid, context, splitter, right_producer, right_consumer)
+                             });
             reducer.reduce(left_result, right_result)
         } else {
             producer.fold_with(consumer.into_folder()).complete()
@@ -281,10 +283,10 @@ pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
           C: UnindexedConsumer<P::Item>
 {
     let splitter = Splitter::new();
-    bridge_unindexed_producer_consumer(false, splitter, producer, consumer)
+    bridge_unindexed_producer_consumer(FnContext::default(), splitter, producer, consumer)
 }
 
-fn bridge_unindexed_producer_consumer<P, C>(stolen: bool,
+fn bridge_unindexed_producer_consumer<P, C>(context: FnContext,
                                             mut splitter: Splitter,
                                             producer: P,
                                             consumer: C)
@@ -294,15 +296,15 @@ fn bridge_unindexed_producer_consumer<P, C>(stolen: bool,
 {
     if consumer.full() {
         consumer.into_folder().complete()
-    } else if splitter.try(stolen) {
+    } else if splitter.try(context.migrated()) {
         match producer.split() {
             (left_producer, Some(right_producer)) => {
                 let (reducer, left_consumer, right_consumer) =
                     (consumer.to_reducer(), consumer.split_off_left(), consumer);
                 let bridge = bridge_unindexed_producer_consumer;
                 let (left_result, right_result) =
-                    join_notify(|stolen| bridge(stolen, splitter, left_producer, left_consumer),
-                                |stolen| bridge(stolen, splitter, right_producer, right_consumer));
+                    join_context(|context| bridge(context, splitter, left_producer, left_consumer),
+                                 |context| bridge(context, splitter, right_producer, right_consumer));
                 reducer.reduce(left_result, right_result)
             }
             (producer, None) => producer.fold_with(consumer.into_folder()).complete(),
