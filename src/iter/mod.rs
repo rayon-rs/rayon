@@ -9,7 +9,7 @@
 //! the code itself, the `internal` module and `README.md` file are a
 //! good place to start.
 
-use either::Either;
+pub use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
 use std::ops::Fn;
