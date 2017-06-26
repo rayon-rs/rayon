@@ -86,13 +86,18 @@ macro_rules! sort_expensive {
             b.iter(|| {
                 let count = AtomicUsize::new(0);
                 let mut v = v.clone();
+
                 v.$f(|a: &u64, b: &u64| {
+                    // This is an intentionally expensive comparison function: we have atomic
+                    // operations, landing pads due to a potential panic, a modulo operation, and
+                    // trigonometric functions.
                     count.fetch_add(1, SeqCst);
                     if count.load(SeqCst) % 1_000_000_000 == 0 {
                         panic!("should not happen");
                     }
                     (*a as f64).cos().partial_cmp(&(*b as f64).cos()).unwrap()
                 });
+
                 black_box(count);
             });
             b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;

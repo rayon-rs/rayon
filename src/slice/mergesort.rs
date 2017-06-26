@@ -530,7 +530,7 @@ where
 /// Recursively merges pre-sorted chunks inside `v`.
 ///
 /// Chunks of `v` are stored in `chunks` as intervals (inclusive left and exclusive right bound).
-/// Argument `buf` is an auxilliary buffer that will be used during the procedure.
+/// Argument `buf` is an auxiliary buffer that will be used during the procedure.
 /// If `into_buf` is true, the result will be stored into `buf`, otherwise it will be in `v`.
 ///
 /// # Safety

@@ -90,7 +90,7 @@ pub trait ParallelSliceMut<T: Send> {
     /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
     ///
     /// When applicable, unstable sorting is preferred because it is generally faster than stable
-    /// sorting and it doesn't allocate auxilliary memory.
+    /// sorting and it doesn't allocate auxiliary memory.
     /// See [`par_sort_unstable`](#method.par_sort_unstable).
     ///
     /// # Current implementation
@@ -119,7 +119,7 @@ pub trait ParallelSliceMut<T: Send> {
     /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
     ///
     /// When applicable, unstable sorting is preferred because it is generally faster than stable
-    /// sorting and it doesn't allocate auxilliary memory.
+    /// sorting and it doesn't allocate auxiliary memory.
     /// See [`par_sort_unstable_by`](#method.par_sort_unstable_by).
     ///
     /// # Current implementation
@@ -148,7 +148,7 @@ pub trait ParallelSliceMut<T: Send> {
     /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
     ///
     /// When applicable, unstable sorting is preferred because it is generally faster than stable
-    /// sorting and it doesn't allocate auxilliary memory.
+    /// sorting and it doesn't allocate auxiliary memory.
     /// See [`par_sort_unstable_by_key`](#method.par_sort_unstable_by_key).
     ///
     /// # Current implementation

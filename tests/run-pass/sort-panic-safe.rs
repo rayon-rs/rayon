@@ -60,7 +60,7 @@ macro_rules! test {
     ($input:ident, $func:ident) => {
         let len = $input.len();
 
-        // Work out the total number of version required to sort
+        // Work out the total number of comparisons required to sort
         // this array...
         let count = AtomicUsize::new(0);
         $input.to_owned().$func(|a, b| {
