@@ -1,7 +1,6 @@
-use either::Either::{self, Left, Right};
-
 use iter::*;
 use iter::internal::*;
+use iter::Either::{Left, Right};
 
 /// `Either<L, R>` is a parallel iterator if both `L` and `R` are parallel iterators.
 impl<L, R> ParallelIterator for Either<L, R>
