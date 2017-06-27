@@ -2,10 +2,18 @@
 //! (`[T]`). You will rarely need to interact with it directly unless
 //! you have need to name one of those types.
 
+mod mergesort;
+mod quicksort;
+
+mod test;
+
 use iter::*;
 use iter::internal::*;
+use self::mergesort::par_mergesort;
+use self::quicksort::par_quicksort;
 use split_producer::*;
 use std::cmp;
+use std::cmp::Ordering;
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
@@ -75,6 +83,178 @@ pub trait ParallelSliceMut<T: Send> {
             chunk_size: chunk_size,
             slice: self.as_parallel_slice_mut(),
         }
+    }
+
+    /// Sorts the slice in parallel.
+    ///
+    /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
+    ///
+    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// sorting and it doesn't allocate auxiliary memory.
+    /// See [`par_sort_unstable`](#method.par_sort_unstable).
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is an adaptive merge sort inspired by
+    /// [timsort](https://en.wikipedia.org/wiki/Timsort).
+    /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
+    /// two or more sorted sequences concatenated one after another.
+    ///
+    /// Also, it allocates temporary storage the same size as `self`, but for very short slices a
+    /// non-allocating insertion sort is used instead.
+    ///
+    /// In order to sort the slice in parallel, the slice is first divided into smaller chunks and
+    /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
+    /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
+    /// parallel subdivision of chunks and parallel merge operation.
+    fn par_sort(&mut self)
+    where
+        T: Ord,
+    {
+        par_mergesort(self.as_parallel_slice_mut(), |a, b| a.lt(b));
+    }
+
+    /// Sorts the slice in parallel with a comparator function.
+    ///
+    /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
+    ///
+    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// sorting and it doesn't allocate auxiliary memory.
+    /// See [`par_sort_unstable_by`](#method.par_sort_unstable_by).
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is an adaptive merge sort inspired by
+    /// [timsort](https://en.wikipedia.org/wiki/Timsort).
+    /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
+    /// two or more sorted sequences concatenated one after another.
+    ///
+    /// Also, it allocates temporary storage the same size as `self`, but for very short slices a
+    /// non-allocating insertion sort is used instead.
+    ///
+    /// In order to sort the slice in parallel, the slice is first divided into smaller chunks and
+    /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
+    /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
+    /// parallel subdivision of chunks and parallel merge operation.
+    fn par_sort_by<F>(&mut self, compare: F)
+    where
+        F: Fn(&T, &T) -> Ordering + Sync,
+    {
+        par_mergesort(self.as_parallel_slice_mut(), |a, b| compare(a, b) == Ordering::Less);
+    }
+
+    /// Sorts the slice in parallel with a key extraction function.
+    ///
+    /// This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case.
+    ///
+    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// sorting and it doesn't allocate auxiliary memory.
+    /// See [`par_sort_unstable_by_key`](#method.par_sort_unstable_by_key).
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is an adaptive merge sort inspired by
+    /// [timsort](https://en.wikipedia.org/wiki/Timsort).
+    /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
+    /// two or more sorted sequences concatenated one after another.
+    ///
+    /// Also, it allocates temporary storage the same size as `self`, but for very short slices a
+    /// non-allocating insertion sort is used instead.
+    ///
+    /// In order to sort the slice in parallel, the slice is first divided into smaller chunks and
+    /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
+    /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
+    /// parallel subdivision of chunks and parallel merge operation.
+    fn par_sort_by_key<B, F>(&mut self, f: F)
+    where
+        B: Ord,
+        F: Fn(&T) -> B + Sync,
+    {
+        par_mergesort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
+    }
+
+    /// Sorts the slice in parallel, but may not preserve the order of equal elements.
+    ///
+    /// This sort is unstable (i.e. may reorder equal elements), in-place (i.e. does not allocate),
+    /// and `O(n log n)` worst-case.
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is based on Orson Peters' [pattern-defeating quicksort][pdqsort],
+    /// which is a quicksort variant designed to be very fast on certain kinds of patterns,
+    /// sometimes achieving linear time. It is randomized but deterministic, and falls back to
+    /// heapsort on degenerate inputs.
+    ///
+    /// It is generally faster than stable sorting, except in a few special cases, e.g. when the
+    /// slice consists of several concatenated sorted sequences.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel.
+    ///
+    /// [pdqsort]: https://github.com/orlp/pdqsort
+    fn par_sort_unstable(&mut self)
+    where
+        T: Ord,
+    {
+        par_quicksort(self.as_parallel_slice_mut(), |a, b| a.lt(b));
+    }
+
+    /// Sorts the slice in parallel with a comparator function, but may not preserve the order of
+    /// equal elements.
+    ///
+    /// This sort is unstable (i.e. may reorder equal elements), in-place (i.e. does not allocate),
+    /// and `O(n log n)` worst-case.
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is based on Orson Peters' [pattern-defeating quicksort][pdqsort],
+    /// which is a quicksort variant designed to be very fast on certain kinds of patterns,
+    /// sometimes achieving linear time. It is randomized but deterministic, and falls back to
+    /// heapsort on degenerate inputs.
+    ///
+    /// It is generally faster than stable sorting, except in a few special cases, e.g. when the
+    /// slice consists of several concatenated sorted sequences.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel.
+    ///
+    /// [pdqsort]: https://github.com/orlp/pdqsort
+    fn par_sort_unstable_by<F>(&mut self, compare: F)
+    where
+        F: Fn(&T, &T) -> Ordering + Sync,
+    {
+        par_quicksort(self.as_parallel_slice_mut(), |a, b| compare(a, b) == Ordering::Less);
+    }
+
+    /// Sorts the slice in parallel with a key extraction function, but may not preserve the order
+    /// of equal elements.
+    ///
+    /// This sort is unstable (i.e. may reorder equal elements), in-place (i.e. does not allocate),
+    /// and `O(n log n)` worst-case.
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is based on Orson Peters' [pattern-defeating quicksort][pdqsort],
+    /// which is a quicksort variant designed to be very fast on certain kinds of patterns,
+    /// sometimes achieving linear time. It is randomized but deterministic, and falls back to
+    /// heapsort on degenerate inputs.
+    ///
+    /// It is generally faster than stable sorting, except in a few special cases, e.g. when the
+    /// slice consists of several concatenated sorted sequences.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel.
+    ///
+    /// [pdqsort]: https://github.com/orlp/pdqsort
+    fn par_sort_unstable_by_key<B, F>(&mut self, f: F)
+    where
+        B: Ord,
+        F: Fn(&T) -> B + Sync,
+    {
+        par_quicksort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
     }
 }
 
