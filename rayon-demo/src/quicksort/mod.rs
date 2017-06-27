@@ -27,14 +27,14 @@ use rand::{Rng, SeedableRng, XorShiftRng};
 use rayon;
 use std::time::Instant;
 
-trait Joiner {
+pub trait Joiner {
     fn is_parallel() -> bool;
     fn join<A,R_A,B,R_B>(oper_a: A, oper_b: B) -> (R_A, R_B)
         where A: FnOnce() -> R_A + Send, B: FnOnce() -> R_B + Send,
               R_A: Send, R_B: Send;
 }
 
-struct Parallel;
+pub struct Parallel;
 impl Joiner for Parallel {
     #[inline]
     fn is_parallel() -> bool {
@@ -66,7 +66,7 @@ impl Joiner for Sequential {
     }
 }
 
-fn quick_sort<J:Joiner, T:PartialOrd+Send>(v: &mut [T]) {
+pub fn quick_sort<J:Joiner, T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
         return;
     }

@@ -122,3 +122,43 @@ sort!(par_sort_unstable, par_sort_unstable_random, gen_random, 50_000);
 sort!(par_sort_unstable, par_sort_unstable_big, gen_big_random, 50_000);
 sort_strings!(par_sort_unstable, par_sort_unstable_strings, gen_strings, 50_000);
 sort_expensive!(par_sort_unstable_by, par_sort_unstable_expensive, gen_random, 50_000);
+
+trait MergeSort {
+    fn demo_merge_sort(&mut self);
+}
+
+impl<T: Ord + Send + Copy> MergeSort for [T] {
+    fn demo_merge_sort(&mut self) {
+        super::mergesort::merge_sort(self);
+    }
+}
+
+sort!(demo_merge_sort, demo_merge_sort_ascending, gen_ascending, 50_000);
+sort!(demo_merge_sort, demo_merge_sort_descending, gen_descending, 50_000);
+sort!(demo_merge_sort, demo_merge_sort_mostly_ascending, gen_mostly_ascending, 50_000);
+sort!(demo_merge_sort, demo_merge_sort_mostly_descending, gen_mostly_descending, 50_000);
+sort!(demo_merge_sort, demo_merge_sort_random, gen_random, 50_000);
+sort!(demo_merge_sort, demo_merge_sort_big, gen_big_random, 50_000);
+sort_strings!(demo_merge_sort, demo_merge_sort_strings, gen_strings, 50_000);
+//sort_expensive!(demo_merge_sort_by, demo_merge_sort_expensive, gen_random, 50_000);
+
+trait QuickSort {
+    fn demo_quick_sort(&mut self);
+}
+
+impl<T: PartialOrd + Send> QuickSort for [T] {
+    fn demo_quick_sort(&mut self) {
+        use quicksort::{quick_sort, Parallel};
+        quick_sort::<Parallel, T>(self);
+    }
+}
+
+// ascending/descending sorts need better pivot choices to avoid stack overflow
+//sort!(demo_quick_sort, demo_quick_sort_ascending, gen_ascending, 50_000);
+//sort!(demo_quick_sort, demo_quick_sort_descending, gen_descending, 50_000);
+sort!(demo_quick_sort, demo_quick_sort_mostly_ascending, gen_mostly_ascending, 50_000);
+sort!(demo_quick_sort, demo_quick_sort_mostly_descending, gen_mostly_descending, 50_000);
+sort!(demo_quick_sort, demo_quick_sort_random, gen_random, 50_000);
+sort!(demo_quick_sort, demo_quick_sort_big, gen_big_random, 50_000);
+sort_strings!(demo_quick_sort, demo_quick_sort_strings, gen_strings, 50_000);
+//sort_expensive!(demo_quick_sort_by, demo_quick_sort_expensive, gen_random, 50_000);
