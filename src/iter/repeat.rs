@@ -2,11 +2,25 @@ use super::*;
 use super::internal::*;
 use std::usize;
 
-pub struct Repeat<T> {
+/// Iterator adapter for [the `repeat()` function](fn.split.html).
+pub struct Repeat<T: Clone + Send> {
     element: T,
 }
 
-pub fn repeat<T: Clone>(elt: T) -> Repeat<T> {
+/// Creates a parallel iterator that endlessly repeats `elt` (by
+/// cloning it). Note that this iterator has "infinite" length, so
+/// typically you would want to use `zip` or `take` or some other
+/// means to shorten it.
+///
+/// Example:
+///
+/// ```
+/// use rayon::prelude::*;
+/// use rayon::iter::repeat;
+/// let x: Vec<(i32, i32)> = repeat(22).zip(0..3).collect();
+/// assert_eq!(x, vec![(22, 0), (22, 1), (22, 2)]);
+/// ```
+pub fn repeat<T: Clone + Send>(elt: T) -> Repeat<T> {
     Repeat { element: elt }
 }
 
@@ -45,8 +59,8 @@ impl<T> IndexedParallelIterator for Repeat<T>
 
 /// Producer
 
-struct RepeatProducer<P> {
-    repeat: P,
+struct RepeatProducer<T: Clone + Send> {
+    repeat: T,
 }
 
 impl<T: Clone + Send> Producer for RepeatProducer<T> {
@@ -104,6 +118,9 @@ impl<A: Clone> DoubleEndedIterator for RepeatIter<A> {
 
 impl<T: Clone> ExactSizeIterator for RepeatIter<T> {
     fn len(&self) -> usize {
+        // FIXME this is .. sort of wrong. After all, we produce
+        // *more* than `usize::MAX`, potentially. Is there a better
+        // alternative?
         usize::MAX
     }
 }
