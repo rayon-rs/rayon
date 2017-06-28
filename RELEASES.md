@@ -1,3 +1,13 @@
+# Release rayon 0.8.2
+
+- `ParallelSliceMut` now has six parallel sorting methods with the same
+  variations as the standard library.
+  - `par_sort`, `par_sort_by`, and `par_sort_by_key` perform stable sorts in
+    parallel, using the default order, a custom comparator, or a key extraction
+    function, respectively.
+  - `par_sort_unstable`, `par_sort_unstable_by`, and `par_sort_unstable_by_key`
+    perform unstable sorts with the same comparison options.
+
 # Release rayon 0.8.1 / rayon-core 1.2.0
 
 - The following core APIs are being stabilized:
