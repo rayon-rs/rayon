@@ -7,7 +7,7 @@
     function, respectively.
   - `par_sort_unstable`, `par_sort_unstable_by`, and `par_sort_unstable_by_key`
     perform unstable sorts with the same comparison options.
-  - Thanks to @stejpang!
+  - Thanks to @stjepang!
 
 # Release rayon 0.8.1 / rayon-core 1.2.0
 
