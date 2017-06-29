@@ -15,6 +15,7 @@ fn main() {
     v.par_iter().filter(|_| true);          //~ ERROR must be used
     v.par_iter().filter_map(|x| *x);        //~ ERROR must be used
     v.par_iter().flat_map(|x| *x);          //~ ERROR must be used
+    v.par_iter().flatten();                 //~ ERROR must be used
     v.par_iter().fold(|| 0, |x, _| x);      //~ ERROR must be used
     v.par_iter().fold_with(0, |x, _| x);    //~ ERROR must be used
     v.par_iter().inspect(|_| {});           //~ ERROR must be used

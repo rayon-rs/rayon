@@ -13,8 +13,9 @@ pub struct Flatten<I: ParallelIterator> {
 }
 
 /// Create a new `Flatten` iterator.
-pub fn new<I>(base: I) -> Flatten<I>
-    where I: ParallelIterator
+pub fn new<I, PI>(base: I) -> Flatten<I>
+    where I: ParallelIterator<Item = PI>,
+          PI: IntoParallelIterator + Send
 {
     Flatten {
         base: base,
@@ -23,7 +24,7 @@ pub fn new<I>(base: I) -> Flatten<I>
 
 impl<I, PI> ParallelIterator for Flatten<I>
     where I: ParallelIterator<Item = PI>,
-          PI: IntoParallelIterator + Send + Sync
+          PI: IntoParallelIterator + Send
 {
     type Item = PI::Item;
 

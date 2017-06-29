@@ -217,9 +217,18 @@ pub trait ParallelIterator: Sized + Send {
         flat_map::new(self, map_op)
     }
 
-    /// Reduces a collection of items into one collection. If you have
-    /// a `Vec<Vec<i32>>` it can be used to turn it into a `Vec<i32>`.
+    /// An adaptor that flattens iterable `Item`s into one large iterator
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let x: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4]];
+    /// let y: Vec<i32> = x.into_par_iter().flatten().collect();
+    /// assert_eq!(y, vec![1, 2, 3, 4]);
+    /// ```
     fn flatten(self) -> Flatten<Self>
+        where Self::Item: IntoParallelIterator
     {
         flatten::new(self)
     }
