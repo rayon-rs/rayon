@@ -39,6 +39,8 @@ mod filter_map;
 pub use self::filter_map::FilterMap;
 mod flat_map;
 pub use self::flat_map::FlatMap;
+mod flatten;
+pub use self::flatten::Flatten;
 mod from_par_iter;
 pub mod internal;
 mod for_each;
@@ -213,6 +215,22 @@ pub trait ParallelIterator: Sized + Send {
               PI: IntoParallelIterator
     {
         flat_map::new(self, map_op)
+    }
+
+    /// An adaptor that flattens iterable `Item`s into one large iterator
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let x: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4]];
+    /// let y: Vec<i32> = x.into_par_iter().flatten().collect();
+    /// assert_eq!(y, vec![1, 2, 3, 4]);
+    /// ```
+    fn flatten(self) -> Flatten<Self>
+        where Self::Item: IntoParallelIterator
+    {
+        flatten::new(self)
     }
 
     /// Reduces the items in the iterator into one item using `op`.

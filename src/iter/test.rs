@@ -815,6 +815,29 @@ pub fn check_empty_flat_map_sum() {
 }
 
 #[test]
+pub fn check_flatten_vec() {
+
+    let a: Vec<i32> = (0..1024).collect();
+    let b: Vec<Vec<i32>> = vec![a.clone(), a.clone(), a.clone(), a.clone()];
+    let c: Vec<i32> = b.par_iter().flatten().cloned().collect();
+    let mut d = a.clone();
+    d.extend(&a);
+    d.extend(&a);
+    d.extend(&a);
+
+    assert_eq!(d, c);
+}
+
+#[test]
+pub fn check_flatten_vec_empty() {
+
+    let a: Vec<Vec<i32>> = vec![vec![]];
+    let b: Vec<i32> = a.par_iter().flatten().cloned().collect();
+
+    assert_eq!(vec![] as Vec<i32>, b);
+}
+
+#[test]
 pub fn check_slice_split() {
     let v: Vec<_> = (0..1000).collect();
     for m in 1..100 {
