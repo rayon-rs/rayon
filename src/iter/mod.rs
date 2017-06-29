@@ -809,7 +809,6 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// // we should never get here
     /// assert_eq!(1, zipped.len());
-    ///
     /// ```
     fn zip_eq<Z>(mut self, zip_op: Z) -> Zip<Self, Z::Iter>
         where Z: IntoParallelIterator,
