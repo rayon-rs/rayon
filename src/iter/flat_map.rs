@@ -4,7 +4,7 @@ use super::*;
 /// `FlatMap` maps each element to an iterator, then flattens these iterators together.
 /// This struct is created by the [`flat_map()`] method on [`ParallelIterator`]
 ///
-/// [`flap_map()`]: trait.ParallelIterator.html#method.flat_map
+/// [`flat_map()`]: trait.ParallelIterator.html#method.flat_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct FlatMap<I: ParallelIterator, F> {
