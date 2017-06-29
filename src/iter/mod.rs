@@ -39,6 +39,8 @@ mod filter_map;
 pub use self::filter_map::FilterMap;
 mod flat_map;
 pub use self::flat_map::FlatMap;
+mod flatten;
+pub use self::flatten::Flatten;
 mod from_par_iter;
 pub mod internal;
 mod for_each;
@@ -213,6 +215,13 @@ pub trait ParallelIterator: Sized + Send {
               PI: IntoParallelIterator
     {
         flat_map::new(self, map_op)
+    }
+
+    /// Reduces a collection of items into one collection. If you have
+    /// a `Vec<Vec<i32>>` it can be used to turn it into a `Vec<i32>`.
+    fn flatten(self) -> Flatten<Self>
+    {
+        flatten::new(self)
     }
 
     /// Reduces the items in the iterator into one item using `op`.
