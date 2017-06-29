@@ -107,6 +107,17 @@ pub trait ParallelSliceMut<T: Send> {
     /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
     /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
     /// parallel subdivision of chunks and parallel merge operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [-5, 4, 1, -3, 2];
+    ///
+    /// v.par_sort();
+    /// assert_eq!(v, [-5, -3, 1, 2, 4]);
+    /// ```
     fn par_sort(&mut self)
     where
         T: Ord,
@@ -136,6 +147,20 @@ pub trait ParallelSliceMut<T: Send> {
     /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
     /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
     /// parallel subdivision of chunks and parallel merge operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [5, 4, 1, 3, 2];
+    /// v.par_sort_by(|a, b| a.cmp(b));
+    /// assert_eq!(v, [1, 2, 3, 4, 5]);
+    ///
+    /// // reverse sorting
+    /// v.par_sort_by(|a, b| b.cmp(a));
+    /// assert_eq!(v, [5, 4, 3, 2, 1]);
+    /// ```
     fn par_sort_by<F>(&mut self, compare: F)
     where
         F: Fn(&T, &T) -> Ordering + Sync,
@@ -165,6 +190,17 @@ pub trait ParallelSliceMut<T: Send> {
     /// all chunks are sorted in parallel. Then, adjacent chunks that together form non-descending
     /// or descending runs are concatenated. Finally, the remaining chunks are merged together using
     /// parallel subdivision of chunks and parallel merge operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [-5i32, 4, 1, -3, 2];
+    ///
+    /// v.par_sort_by_key(|k| k.abs());
+    /// assert_eq!(v, [1, 2, -3, 4, -5]);
+    /// ```
     fn par_sort_by_key<B, F>(&mut self, f: F)
     where
         B: Ord,
@@ -193,6 +229,17 @@ pub trait ParallelSliceMut<T: Send> {
     /// parallel.
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [-5, 4, 1, -3, 2];
+    ///
+    /// v.par_sort_unstable();
+    /// assert_eq!(v, [-5, -3, 1, 2, 4]);
+    /// ```
     fn par_sort_unstable(&mut self)
     where
         T: Ord,
@@ -221,6 +268,20 @@ pub trait ParallelSliceMut<T: Send> {
     /// parallel.
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [5, 4, 1, 3, 2];
+    /// v.par_sort_unstable_by(|a, b| a.cmp(b));
+    /// assert_eq!(v, [1, 2, 3, 4, 5]);
+    ///
+    /// // reverse sorting
+    /// v.par_sort_unstable_by(|a, b| b.cmp(a));
+    /// assert_eq!(v, [5, 4, 3, 2, 1]);
+    /// ```
     fn par_sort_unstable_by<F>(&mut self, compare: F)
     where
         F: Fn(&T, &T) -> Ordering + Sync,
@@ -249,6 +310,17 @@ pub trait ParallelSliceMut<T: Send> {
     /// parallel.
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [-5i32, 4, 1, -3, 2];
+    ///
+    /// v.par_sort_unstable_by_key(|k| k.abs());
+    /// assert_eq!(v, [1, 2, -3, 4, -5]);
+    /// ```
     fn par_sort_unstable_by_key<B, F>(&mut self, f: F)
     where
         B: Ord,
