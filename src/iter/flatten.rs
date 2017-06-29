@@ -13,6 +13,8 @@ pub struct Flatten<I: ParallelIterator> {
 }
 
 /// Create a new `Flatten` iterator.
+///
+/// NB: Not part of the public API.
 pub fn new<I, PI>(base: I) -> Flatten<I>
     where I: ParallelIterator<Item = PI>,
           PI: IntoParallelIterator + Send
