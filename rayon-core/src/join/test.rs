@@ -82,8 +82,8 @@ fn panic_b_still_executes() {
 fn join_context_both() {
     // If we're not in a pool, both should be marked stolen as they're injected.
     let (a, b) = join_context(|a| a, |b| b);
-    assert!(a);
-    assert!(b);
+    assert!(a.migrated());
+    assert!(b.migrated());
 }
 
 #[test]
@@ -91,8 +91,8 @@ fn join_context_neither() {
     // If we're already in a 1-thread pool, neither job should be stolen.
     let pool = ThreadPool::new(Configuration::new().num_threads(1)).unwrap();
     let (a, b) = pool.install(|| join_context(|a| a, |b| b));
-    assert!(!a);
-    assert!(!b);
+    assert!(!a.migrated());
+    assert!(!b.migrated());
 }
 
 #[test]
@@ -104,6 +104,6 @@ fn join_context_second() {
     let pool = ThreadPool::new(Configuration::new().num_threads(2)).unwrap();
     let (a, b) = pool.install(|| join_context(|a| { barrier.wait(); a },
                                               |b| { barrier.wait(); b }));
-    assert!(!a);
-    assert!(b);
+    assert!(!a.migrated());
+    assert!(b.migrated());
 }
