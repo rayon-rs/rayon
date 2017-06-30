@@ -17,7 +17,7 @@ pub fn new<A, B>(a: A, b: B) -> ZipEq<A, B>
     where A: IndexedParallelIterator,
           B: IndexedParallelIterator
 {
-    ZipEq { zip: zip::new(a, b) }
+    ZipEq { zip: super::zip::new(a, b) }
 }
 
 impl<A, B> ParallelIterator for ZipEq<A, B>
