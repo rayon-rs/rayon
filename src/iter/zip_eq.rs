@@ -4,6 +4,7 @@ use super::*;
 use std::cmp;
 use std::iter;
 
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     zip: Zip<A, B>
 }
