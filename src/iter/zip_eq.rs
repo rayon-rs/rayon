@@ -4,6 +4,14 @@ use super::*;
 use std::cmp;
 use std::iter;
 
+/// An [`IndexedParallelIterator`] that iterates over two parallel iterators of equal
+/// length simultaneously.
+///
+/// This struct is created by the [`zip_eq`] method on [`IndexedParallelIterator`],
+/// see its documentation for more information.
+///
+/// [`zip_eq`]: trait.IndexedParallelIterator.html#method.zip_eq
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     zip: Zip<A, B>
