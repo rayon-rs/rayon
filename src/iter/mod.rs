@@ -83,6 +83,7 @@ mod extend;
 mod unzip;
 mod repeat;
 pub use self::repeat::{Repeat, repeat};
+pub use self::repeat::{RepeatN, repeatn};
 
 #[cfg(test)]
 mod test;

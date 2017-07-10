@@ -1822,9 +1822,56 @@ fn check_interleave_shortest() {
 }
 
 #[test]
-fn check_repeat_eq() {
+#[ignore] // it's quick enough on optimized 32-bit platforms, but otherwise... ... ...
+#[should_panic(expected = "overflow")]
+#[cfg(debug_assertions)]
+fn check_repeat_unbounded() {
+    // use just one thread, so we don't get infinite adaptive splitting
+    // (forever stealing and re-splitting jobs that will panic on overflow)
+    let pool = ::ThreadPool::new(::Configuration::new().num_threads(1)).unwrap();
+    pool.install(|| {
+        println!("counted {} repeats", repeat(()).count());
+    });
+}
+
+#[test]
+fn check_repeat_find_any() {
+    let even = repeat(4).find_any(|&x| x % 2 == 0);
+    assert_eq!(even, Some(4));
+}
+
+#[test]
+fn check_repeat_take() {
+    let v: Vec<_> = repeat(4).take(4).collect();
+    assert_eq!(v, [4, 4, 4, 4]);
+}
+
+#[test]
+fn check_repeat_zip() {
     let v = vec!(4,4,4,4);
-    let mut fours: Vec<_> = v.into_par_iter().zip(repeat(4)).collect();
+    let mut fours: Vec<_> = repeat(4).zip(v).collect();
     assert_eq!(fours.len(), 4);
-    assert_eq!(fours.pop(), Some((4, 4)));
+    while let Some(item) = fours.pop() {
+        assert_eq!(item, (4, 4));
+    }
+}
+
+#[test]
+fn check_repeatn_zip_left() {
+    let v = vec!(4,4,4,4);
+    let mut fours: Vec<_> = repeatn(4, usize::MAX).zip(v).collect();
+    assert_eq!(fours.len(), 4);
+    while let Some(item) = fours.pop() {
+        assert_eq!(item, (4, 4));
+    }
+}
+
+#[test]
+fn check_repeatn_zip_right() {
+    let v = vec!(4,4,4,4);
+    let mut fours: Vec<_> = v.into_par_iter().zip(repeatn(4, usize::MAX)).collect();
+    assert_eq!(fours.len(), 4);
+    while let Some(item) = fours.pop() {
+        assert_eq!(item, (4, 4));
+    }
 }
