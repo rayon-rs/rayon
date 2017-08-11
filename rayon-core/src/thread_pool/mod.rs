@@ -25,14 +25,13 @@ mod test;
 /// ## Creating a ThreadPool
 ///
 /// ```rust
-///    # use rayon_core as rayon;
-///
-///    let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
+/// # use rayon_core as rayon;
+/// let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
 /// ```
 ///
-/// [`install()`] executes a closure in one of the `ThreadPool`'s threads. In addition, 
-/// any other rayon operations called inside of `install()` will also execute in the
-/// context of the `ThreadPool`.
+/// [`install()`][`ThreadPool::install()`] executes a closure in one of the `ThreadPool`'s
+/// threads. In addition, any other rayon operations called inside of `install()` will also
+/// execute in the context of the `ThreadPool`.
 ///
 /// When the `ThreadPool` is dropped, that's a signal for the threads it manages to terminate,
 /// they will complete executing any remaining work that you have spawned, and automatically
