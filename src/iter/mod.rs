@@ -59,6 +59,8 @@ mod map_with;
 pub use self::map_with::MapWith;
 mod zip;
 pub use self::zip::Zip;
+mod interleave;
+pub use self::interleave::Interleave;
 mod noop;
 mod rev;
 pub use self::rev::Rev;
@@ -807,6 +809,14 @@ pub trait IndexedParallelIterator: ParallelIterator {
               Z::Iter: IndexedParallelIterator
     {
         zip::new(self, zip_op.into_par_iter())
+    }
+
+    /// Interleave elements of this iterator and the other given iterator.
+    fn interleave<I>(self, other: I) -> Interleave<Self, I::Iter>
+        where I: IntoParallelIterator<Item = Self::Item>,
+              I::Iter: IndexedParallelIterator<Item = Self::Item>
+    {
+        interleave::new(self, other.into_par_iter())
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
