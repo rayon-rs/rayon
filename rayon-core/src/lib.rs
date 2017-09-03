@@ -341,15 +341,18 @@ impl fmt::Debug for Configuration {
                             ref start_handler, ref exit_handler,
                             ref breadth_first } = *self;
 
-        // Just print `Some("<closure>")` or `None` to the debug
+        // Just print `Some(<closure>)` or `None` to the debug
         // output.
-        let get_thread_name = get_thread_name.as_ref().map(|_| "<closure>");
-
-        // Just print `Some("<closure>")` or `None` to the debug
-        // output.
-        let panic_handler = panic_handler.as_ref().map(|_| "<closure>");
-        let start_handler = start_handler.as_ref().map(|_| "<closure>");
-        let exit_handler = exit_handler.as_ref().map(|_| "<closure>");
+        struct ClosurePlaceholder;
+        impl fmt::Debug for ClosurePlaceholder {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("<closure>")
+            }
+        }
+        let get_thread_name = get_thread_name.as_ref().map(|_| ClosurePlaceholder);
+        let panic_handler = panic_handler.as_ref().map(|_| ClosurePlaceholder);
+        let start_handler = start_handler.as_ref().map(|_| ClosurePlaceholder);
+        let exit_handler = exit_handler.as_ref().map(|_| ClosurePlaceholder);
 
         f.debug_struct("Configuration")
          .field("num_threads", num_threads)
