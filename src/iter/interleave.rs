@@ -1,7 +1,5 @@
 use super::internal::*;
 use super::*;
-use std::cmp;
-use std::iter;
 use std::usize;
 
 /// `Interleave` is an iterator that interleaves elements of iterators
