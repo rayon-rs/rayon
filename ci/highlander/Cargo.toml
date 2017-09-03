@@ -3,6 +3,7 @@ authors = ["Josh Stone <cuviper@gmail.com>"]
 name = "highlander"
 description = "There Can Be Only One"
 version = "0.0.0"
+publish = false
 
 [dependencies]
 

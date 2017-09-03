@@ -1,7 +1,8 @@
 [package]
 name = "rayon-demo"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
+publish = false
 
 [dependencies]
 rayon = { path = "../" }
