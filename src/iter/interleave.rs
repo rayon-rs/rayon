@@ -3,7 +3,6 @@ use super::*;
 use std::cmp;
 use std::iter;
 use std::usize;
-use rayon_core::join;
 
 /// `Interleave` is an iterator that interleaves elements of iterators
 /// `i` and `j` in one continuous iterator. This struct is created by

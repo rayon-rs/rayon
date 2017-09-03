@@ -1728,7 +1728,6 @@ fn check_interleave_eq() {
     let mut xs: Vec<usize> = (0..10).collect();
     let mut ys: Vec<usize> = (10..20).collect();
 
-    //let b = a.par_iter().map(|&i| i + 1).collect_into(&mut b);
     let mut b = vec![];
     xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut b);
 
@@ -1743,11 +1742,13 @@ fn check_interleave_uneven() {
         ((0..9).collect(), vec![10], vec![0, 10, 1, 2, 3, 4, 5, 6, 7, 8]),
         (vec![10], (0..9).collect(), vec![10, 0, 1, 2, 3, 4, 5, 6, 7, 8]),
         ((0..5).collect(), (5..10).collect(), (0..5).zip((5..10)).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+        (vec![], (0..9).collect(), (0..9).collect()),
+        ((0..9).collect(), vec![], (0..9).collect())
     ];
 
     for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
         let mut res = vec![];
         xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut res);
-        assert_eq!(expected, res);
+        assert_eq!(expected, res, "Case {} failed", i+1);
     }
 }
