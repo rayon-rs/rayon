@@ -459,7 +459,7 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
     fn sum<S>(self) -> S
-        where S: Send + Sum<Self::Item> + Sum
+        where S: Send + Sum<Self::Item> + Sum<S>
     {
         sum::sum(self)
     }
@@ -477,7 +477,7 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
     fn product<P>(self) -> P
-        where P: Send + Product<Self::Item> + Product
+        where P: Send + Product<Self::Item> + Product<P>
     {
         product::product(self)
     }
