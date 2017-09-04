@@ -1022,7 +1022,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// iterators.
     ///
     /// [README]: README.md
-    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
