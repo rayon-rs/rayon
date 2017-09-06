@@ -14,14 +14,14 @@ fn main() {
     let x = Some(NoSend(null()));
 
     x.par_iter()
-        .map(|&x| x) //~ ERROR Send` is not satisfied
-        .count(); //~ ERROR Send` is not satisfied
+        .map(|&x| x) //~ ERROR E0277
+        .count(); //~ ERROR E0599
 
     x.par_iter()
-        .filter_map(|&x| Some(x)) //~ ERROR Send` is not satisfied
-        .count(); //~ ERROR Send` is not satisfied
+        .filter_map(|&x| Some(x)) //~ ERROR E0277
+        .count(); //~ ERROR E0599
 
     x.par_iter()
-        .cloned() //~ ERROR Send` is not satisfied
-        .count(); //~ ERROR Send` is not satisfied
+        .cloned() //~ ERROR E0277
+        .count(); //~ ERROR E0599
 }
