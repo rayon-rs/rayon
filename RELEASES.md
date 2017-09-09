@@ -1,3 +1,7 @@
+# Release rayon 0.8.3
+
+- `?` operator requires rust 1.13 or greater
+
 # Release rayon 0.8.2
 
 - `ParallelSliceMut` now has six parallel sorting methods with the same

@@ -30,7 +30,7 @@ part, adding calls to Rayon should not change how your programs works
 at all, in fact. However, if you operate on mutexes or atomic
 integers, please see the [notes on atomicity](#atomicity).
 
-Rayon currently requires `rustc 1.12.0` or greater.
+Rayon currently requires `rustc 1.13.0` or greater.
 
 ### Using Rayon
 
