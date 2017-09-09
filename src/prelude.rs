@@ -12,6 +12,3 @@ pub use iter::ParallelIterator;
 pub use slice::ParallelSlice;
 pub use slice::ParallelSliceMut;
 pub use str::ParallelString;
-
-#[cfg(rayon_unstable)]
-pub use future::ScopeFutureExt;

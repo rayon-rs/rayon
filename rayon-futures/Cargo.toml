@@ -1,0 +1,15 @@
+[package]
+name = "rayon-futures"
+version = "0.1.0"
+authors = ["Niko Matsakis <niko@alum.mit.edu>",
+           "Josh Stone <cuviper@gmail.com>"]
+description = "Futures integration into Rayon"
+license = "Apache-2.0/MIT"
+repository = "https://github.com/nikomatsakis/rayon"
+documentation = "https://docs.rs/rayon-futures/"
+
+[dependencies]
+rayon-core = { version = "1.2.2", path = "../rayon-core" }
+futures = "0.1.7"
+
+[dev-dependencies]

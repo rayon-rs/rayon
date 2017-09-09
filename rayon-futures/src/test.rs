@@ -4,7 +4,7 @@ use futures::sync::oneshot;
 use futures::task::{self, Unpark};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use ::{scope, ThreadPool, Configuration};
+use rayon_core::{scope, ThreadPool, Configuration};
 use super::ScopeFutureExt;
 
 /// Basic test of using futures to data on the stack frame.

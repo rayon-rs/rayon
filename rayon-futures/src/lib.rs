@@ -2,6 +2,9 @@
 //!
 //! See `README.md` for details.
 
+extern crate futures;
+extern crate rayon_core;
+
 use futures::{Async, Future, Poll};
 use futures::executor;
 use futures::future::CatchUnwind;

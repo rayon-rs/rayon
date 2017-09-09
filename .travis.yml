@@ -36,3 +36,8 @@ script:
       cargo test -p rayon-demo &&
       ./ci/highlander.sh
     fi
+  - |
+    if [ -n "$RUSTFLAGS" ]; then
+      cargo build -p rayon-futures &&
+      cargo test -p rayon-futures
+    fi
