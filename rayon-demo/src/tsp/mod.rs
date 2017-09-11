@@ -102,9 +102,9 @@ fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), 
 }
 
 fn parse_solver(datafile: &Path) -> Result<Graph, Box<Error>> {
-    let mut file = try!(File::open(datafile));
+    let mut file = File::open(datafile)?;
     let mut text = String::new();
-    try!(file.read_to_string(&mut text));
-    let graph = try!(parser::parse_tsp_data(&text));
+    file.read_to_string(&mut text)?;
+    let graph = parser::parse_tsp_data(&text)?;
     Ok(graph)
 }
