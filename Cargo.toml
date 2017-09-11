@@ -8,6 +8,9 @@ description = "Simple work-stealing parallelism for Rust"
 license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
 documentation = "https://docs.rs/rayon/"
+readme = "README.md"
+keywords = ["parallel", "thread", "concurrency", "join", "performance"]
+categories = ["concurrency"]
 
 [workspace]
 members = ["rayon-demo", "rayon-core", "rayon-futures"]
