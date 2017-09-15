@@ -59,3 +59,7 @@ test_script:
       cargo test -p rayon-core &&
       cargo test -p rayon-demo
     )
+  - if not [%RUSTFLAGS%]==[%^RUSTFLAGS%] (
+      cargo build -p rayon-futures &&
+      cargo test -p rayon-futures
+    )
