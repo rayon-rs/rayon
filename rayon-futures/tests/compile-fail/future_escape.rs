@@ -1,8 +1,9 @@
 extern crate futures;
 extern crate rayon;
+extern crate rayon_futures;
 
 use futures::future::lazy;
-use rayon::prelude::*;
+use rayon_futures::ScopeFutureExt;
 
 fn a() {
     let data = &mut [format!("Hello, ")];

@@ -1,11 +1,28 @@
+extern crate compiletest_rs as compiletest;
+
 use futures::{self, Async, Future};
 use futures::future::lazy;
 use futures::sync::oneshot;
 use futures::task::{self, Unpark};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use rayon_core::{scope, ThreadPool, Configuration};
 use super::ScopeFutureExt;
+
+fn run_compiletest(mode: &str, path: &str) {
+    let mut config = compiletest::default_config();
+    config.mode = mode.parse().ok().expect("Invalid mode");
+    config.src_base = PathBuf::from(path);
+    config.target_rustcflags = Some("-L ../target/debug/ -L ../target/debug/deps/".to_owned());
+
+    compiletest::run_tests(&config);
+}
+
+#[test]
+fn negative_tests_compile_fail() {
+    run_compiletest("compile-fail", "tests/compile-fail");
+}
 
 /// Basic test of using futures to data on the stack frame.
 #[test]
