@@ -39,5 +39,7 @@ script:
   - |
     if [ -n "$RUSTFLAGS" ]; then
       cargo build -p rayon-futures &&
-      cargo test -p rayon-futures
+      if [ $TRAVIS_RUST_VERSION == nightly ]; then
+        cargo test -p rayon-futures
+      fi
     fi
