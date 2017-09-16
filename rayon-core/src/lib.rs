@@ -38,8 +38,6 @@ use std::fmt;
 extern crate coco;
 #[macro_use]
 extern crate lazy_static;
-#[cfg(rayon_unstable)]
-extern crate futures;
 extern crate libc;
 extern crate num_cpus;
 extern crate rand;
@@ -51,8 +49,6 @@ mod latch;
 mod join;
 mod job;
 mod registry;
-#[cfg(rayon_unstable)]
-mod future;
 mod scope;
 mod sleep;
 mod spawn;
@@ -61,16 +57,14 @@ mod thread_pool;
 mod unwind;
 mod util;
 
+#[cfg(rayon_unstable)]
+pub mod internal;
 pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::join;
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
-#[cfg(rayon_unstable)]
-pub use spawn::spawn_future;
-#[cfg(rayon_unstable)]
-pub use future::RayonFuture;
 
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be

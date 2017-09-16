@@ -43,7 +43,3 @@ pub use rayon_core::ThreadPool;
 pub use rayon_core::join;
 pub use rayon_core::{scope, Scope};
 pub use rayon_core::spawn;
-#[cfg(rayon_unstable)]
-pub use rayon_core::spawn_future;
-#[cfg(rayon_unstable)]
-pub use rayon_core::RayonFuture;

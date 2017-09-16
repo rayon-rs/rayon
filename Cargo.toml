@@ -9,7 +9,7 @@ repository = "https://github.com/nikomatsakis/rayon"
 documentation = "https://docs.rs/rayon/"
 
 [workspace]
-members = ["rayon-demo", "rayon-core"]
+members = ["rayon-demo", "rayon-core", "rayon-futures"]
 exclude = ["ci"]
 
 [dependencies]

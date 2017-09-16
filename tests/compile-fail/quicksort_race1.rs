@@ -6,7 +6,7 @@ fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     }
 
     let mid = partition(v);
-    let (lo, hi) = v.split_at_mut(mid);
+    let (lo, _hi) = v.split_at_mut(mid);
     rayon::join(|| quick_sort(lo), || quick_sort(lo)); //~ ERROR E0524
 }
 
