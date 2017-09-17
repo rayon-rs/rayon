@@ -9,19 +9,21 @@ extern crate futures;
 extern crate rayon_core;
 
 use futures::{Async, Future, Poll};
-use futures::executor;
 use futures::future::CatchUnwind;
-use futures::task::{self, Spawn, Task, Unpark};
+use futures::task::{self, Spawn, Task};
 use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
 use rayon_core::internal::worker;
 use std::any::Any;
 use std::fmt;
 use std::panic::{self, AssertUnwindSafe};
+use futures::executor::{self, Notify, NotifyHandle, UnsafeNotify};
+use std::marker::PhantomData;
 use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
+use std::ptr;
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
@@ -139,11 +141,10 @@ struct ScopeFutureContents<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
-    unpark: Option<Arc<Unpark>>,
 
     // Pointer to ourselves. We `None` this out when we are finished
     // executing, but it's convenient to keep around normally.
-    this: Option<Arc<ScopeFuture<'scope, F, S>>>,
+    this: Option<ArcScopeFuture<'scope, F, S>>,
 
     // the counter in the scope; since the scope doesn't terminate until
     // counter reaches zero, and we hold a ref in this counter, we are
@@ -155,6 +156,133 @@ struct ScopeFutureContents<'scope, F, S>
 
     canceled: bool,
 }
+
+// Newtype so we can implement Into<UnsafeNotify> even though the contents are not 'static.
+struct ArcScopeFuture<'scope, F, S>(Arc<ScopeFuture<'scope, F, S>>)
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>;
+
+impl<'scope, F, S> Clone for ArcScopeFuture<'scope, F, S>
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
+{
+    fn clone(&self) -> Self {
+        ArcScopeFuture(self.0.clone())
+    }
+}
+
+impl<'scope, F, S> Notify for ArcScopeFuture<'scope, F, S>
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
+{
+    fn notify(&self, id: usize) {
+        self.0.notify(id)
+    }
+
+    fn clone_id(&self, id: usize) -> usize {
+        self.0.clone_id(id)
+    }
+
+    fn drop_id(&self, id: usize) {
+        self.0.drop_id(id)
+    }
+}
+
+// This is adapted from the implementation of Into<UnsafeNotify> for
+// Arc in futures-rs, we need to roll our own to drop the 'static bound.
+// A ScopeFuture that is inside a ArcScopeFuture.
+struct ScopeFutureWrapped<'scope, F: 'scope, S>(PhantomData<(&'scope F, S)>);
+
+unsafe impl<'scope, F, S> Send for ScopeFutureWrapped<'scope, F, S> {}
+unsafe impl<'scope, F, S> Sync for ScopeFutureWrapped<'scope, F, S> {}
+
+impl<'scope, F, S> Notify for ScopeFutureWrapped<'scope, F, S>
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
+{
+    fn notify(&self, id: usize) {
+        unsafe {
+            let me: *const ScopeFutureWrapped<'scope, F, S> = self;
+            ArcScopeFuture::notify(
+                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
+                       *const ArcScopeFuture<'scope, F, S>),
+                id,
+            )
+        }
+    }
+
+    fn clone_id(&self, id: usize) -> usize {
+        unsafe {
+            let me: *const ScopeFutureWrapped<'scope, F, S> = self;
+            ArcScopeFuture::clone_id(
+                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
+                       *const ArcScopeFuture<'scope, F, S>),
+                id,
+            )
+        }
+    }
+
+    fn drop_id(&self, id: usize) {
+        unsafe {
+            let me: *const ScopeFutureWrapped<'scope, F, S> = self;
+            ArcScopeFuture::drop_id(
+                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
+                       *const ArcScopeFuture<'scope, F, S>),
+                id,
+            )
+        }
+    }
+}
+
+unsafe impl<'scope, F, S> UnsafeNotify for ScopeFutureWrapped<'scope, F, S>
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
+{
+    unsafe fn clone_raw(&self) -> NotifyHandle {
+        let me: *const ScopeFutureWrapped<'scope, F, S> = self;
+        let arc = (*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
+                         *const ArcScopeFuture<'scope, F, S>))
+                .clone();
+        NotifyHandle::from(arc)
+    }
+
+    unsafe fn drop_raw(&self) {
+        let mut me: *const ScopeFutureWrapped<'scope, F, S> = self;
+        let me = &mut me as *mut *const ScopeFutureWrapped<'scope, F, S> as
+            *mut ArcScopeFuture<'scope, F, S>;
+        ptr::drop_in_place(me);
+    }
+}
+
+impl<'scope, F, S> From<ArcScopeFuture<'scope, F, S>> for NotifyHandle
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
+{
+    fn from(rc: ArcScopeFuture<'scope, F, S>) -> NotifyHandle {
+        unsafe {
+            let ptr = mem::transmute::<ArcScopeFuture<'scope, F, S>,
+                                       *mut ScopeFutureWrapped<'scope, F, S>>(rc);
+            // Hide any lifetimes in `self`. This is safe because, until
+            // `self` is dropped, the counter is not decremented, and so
+            // the `'scope` lifetimes cannot end.
+            //
+            // Here we assert that hiding the lifetimes in this fashion is
+            // safe: we claim this is true because the lifetimes we are
+            // hiding are part of `F`, and we now that any lifetimes in
+            // `F` outlive `counter`. And we can see from `complete()`
+            // that we drop all values of type `F` before decrementing
+            // `counter`.
+            NotifyHandle::new(mem::transmute(ptr as *mut UnsafeNotify))
+        }
+    }
+}
+
 
 // Assert that the `*const` is safe to transmit between threads:
 unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
@@ -177,7 +305,6 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
             state: AtomicUsize::new(STATE_PARKED),
             contents: Mutex::new(ScopeFutureContents {
                 spawn: None,
-                unpark: None,
                 this: None,
                 scope: Some(scope),
                 waiting_task: None,
@@ -192,37 +319,12 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
         {
             let mut contents = future.contents.try_lock().unwrap();
             contents.spawn = Some(spawn);
-            contents.unpark = Some(Self::make_unpark(&future));
-            contents.this = Some(future.clone());
+            contents.this = Some(ArcScopeFuture(future.clone()));
         }
 
-        future.unpark();
+        future.notify(0);
 
         future
-    }
-
-    fn make_unpark(this: &Arc<Self>) -> Arc<Unpark> {
-        // Hide any lifetimes in `self`. This is safe because, until
-        // `self` is dropped, the counter is not decremented, and so
-        // the `'scope` lifetimes cannot end.
-        //
-        // Unfortunately, as `Unpark` currently requires `'static`, we
-        // have to do an indirection and this ultimately requires a
-        // fresh allocation.
-        //
-        // Here we assert that hiding the lifetimes in this fashion is
-        // safe: we claim this is true because the lifetimes we are
-        // hiding are part of `F`, and we now that any lifetimes in
-        // `F` outlive `counter`. And we can see from `complete()`
-        // that we drop all values of type `F` before decrementing
-        // `counter`.
-        unsafe {
-            return hide_lifetime(this.clone());
-        }
-
-        unsafe fn hide_lifetime<'l>(x: Arc<Unpark + 'l>) -> Arc<Unpark> {
-            mem::transmute(x)
-        }
     }
 
     fn unpark_inherent(&self) {
@@ -248,7 +350,7 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                         unsafe {
                             contents.scope.as_ref()
                                           .expect("scope already dropped")
-                                          .spawn_task(task_ref);
+                                          .spawn_task(task_ref.0);
                         }
                         return;
                     }
@@ -297,7 +399,7 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                             .is_ok()
                     } {
                         // We put ourselves into parked state, no need to
-                        // re-execute.  We'll just wait for the Unpark.
+                        // re-execute.  We'll just wait for the Notify.
                         return true;
                     }
                 }
@@ -321,10 +423,10 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
     }
 }
 
-impl<'scope, F, S> Unpark for ScopeFuture<'scope, F, S>
+impl<'scope, F, S> Notify for ScopeFuture<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
-    fn unpark(&self) {
+    fn notify(&self, _: usize) {
         self.unpark_inherent();
     }
 }
@@ -365,8 +467,8 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
-        let unpark = self.unpark.clone().unwrap();
-        self.spawn.as_mut().unwrap().poll_future(unpark)
+        let notify = self.this.as_ref().unwrap();
+        self.spawn.as_mut().unwrap().poll_future_notify(notify, 0)
     }
 
     fn complete(&mut self, value: Poll<CUItem<F>, CUError<F>>) {
@@ -378,23 +480,22 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         // that state or something!
         mem::drop(self.spawn.take().unwrap());
 
-        self.unpark = None;
         self.result = value;
         let this = self.this.take().unwrap();
         if cfg!(debug_assertions) {
-            let state = this.state.load(Relaxed);
+            let state = this.0.state.load(Relaxed);
             debug_assert!(state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
                           "cannot complete when not executing (state = {})",
                           state);
         }
-        this.state.store(STATE_COMPLETE, Release);
+        this.0.state.store(STATE_COMPLETE, Release);
 
-        // `unpark()` here is arbitrary user-code, so it may well
+        // `notify()` here is arbitrary user-code, so it may well
         // panic. We try to capture that panic and forward it
         // somewhere useful if we can.
         let mut err = None;
         if let Some(waiting_task) = self.waiting_task.take() {
-            match panic::catch_unwind(AssertUnwindSafe(|| waiting_task.unpark())) {
+            match panic::catch_unwind(AssertUnwindSafe(|| waiting_task.notify())) {
                 Ok(()) => { }
                 Err(e) => { err = Some(e); }
             }
@@ -443,7 +544,7 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
             let r = mem::replace(&mut contents.result, Ok(Async::NotReady));
             return r;
         } else {
-            contents.waiting_task = Some(task::park());
+            contents.waiting_task = Some(task::current());
             Ok(Async::NotReady)
         }
     }
@@ -457,18 +558,15 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
         }
 
         // Slow-path. Get the lock and set the canceled flag to
-        // true. Also grab the `unpark` instance (which may be `None`,
-        // if the future completes before we get the lack).
-        let unpark = {
-            let mut contents = self.contents.lock().unwrap();
-            contents.canceled = true;
-            contents.unpark.clone()
-        };
+        // true. Also grab the `this` instance (which may be `None`,
+        // if the future completes before we get the lack). 
+        let mut contents = self.contents.lock().unwrap();
+        contents.canceled = true;
 
-        // If the `unpark` we grabbed was not `None`, then signal it.
+        // If the `this` we grabbed was not `None`, then notify it.
         // This will schedule the future.
-        if let Some(u) = unpark {
-            u.unpark();
+        if let Some(ref u) = contents.this {
+            u.notify(0);
         }
     }
 }

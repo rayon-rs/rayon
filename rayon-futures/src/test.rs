@@ -3,9 +3,10 @@ extern crate compiletest_rs as compiletest;
 use futures::{self, Async, Future};
 use futures::future::lazy;
 use futures::sync::oneshot;
-use futures::task::{self, Unpark};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use futures::task;
+use futures::executor::Notify;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use rayon_core::{scope, ThreadPool, Configuration};
 use super::ScopeFutureExt;
@@ -155,8 +156,7 @@ fn panicy_unpark() {
         // this should get installed as a 'waiting task' on the
         // Rayon future `rf`
         let mut spawn = task::spawn(rf);
-        let unpark = Arc::new(PanicUnpark);
-        match spawn.poll_future(unpark.clone()) {
+        match spawn.poll_future_notify(&PANIC_UNPARK, 0) {
             Ok(Async::NotReady) => {
                 // good, we expect not to be ready yet
             }
@@ -176,13 +176,16 @@ fn panicy_unpark() {
     });
     panic!("scope failed to panic!");
 
+    #[derive(Clone)]
     struct PanicUnpark;
 
-    impl Unpark for PanicUnpark {
-        fn unpark(&self) {
+    impl Notify for PanicUnpark {
+        fn notify(&self, _: usize) {
             panic!("Hello, world!");
         }
     }
+
+    const PANIC_UNPARK : &'static PanicUnpark = &PanicUnpark;
 }
 
 #[test]
@@ -204,7 +207,7 @@ fn double_unpark() {
             } else {
                 unpark1.clone()
             };
-            match spawn.poll_future(u) {
+            match spawn.poll_future_notify(&u, 0) {
                 Ok(Async::NotReady) => {
                     // good, we expect not to be ready yet
                 }
@@ -230,8 +233,8 @@ fn double_unpark() {
         value: AtomicUsize,
     }
 
-    impl Unpark for TrackUnpark {
-        fn unpark(&self) {
+    impl Notify for TrackUnpark {
+        fn notify(&self, _: usize) {
             self.value.fetch_add(1, Ordering::SeqCst);
         }
     }
