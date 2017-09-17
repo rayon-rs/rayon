@@ -25,7 +25,7 @@
 // If you're not compiling the unstable code, it often happens that
 // there is stuff that is considered "dead code" and so forth. So
 // disable warnings in that scenario.
-#![cfg_attr(not(feature = "unstable"), allow(warnings))]
+#![cfg_attr(not(rayon_unstable), allow(warnings))]
 
 #[allow(unused_imports)]
 use log::Event::*;
