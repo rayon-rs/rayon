@@ -68,6 +68,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: callback,
             i_len: i_len,
             j_len: j_len,
+            flag: self.flag,
             j: self.j
         });
 
@@ -75,6 +76,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: CB,
             i_len: usize,
             j_len: usize,
+            flag: bool,
             j: J
         }
 
@@ -91,6 +93,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
                     i_producer: i_producer,
                     i_len: self.i_len,
                     j_len: self.j_len,
+                    flag: self.flag,
                     callback: self.callback
                 })
             }
@@ -100,6 +103,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: CB,
             i_len: usize,
             j_len: usize,
+            flag: bool,
             i_producer: I
         }
 
@@ -112,7 +116,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             fn callback<J>(self, j_producer: J) -> Self::Output
                 where J: Producer<Item = I::Item>
             {
-                let producer = InterleaveProducer::new(self.i_producer, j_producer, self.i_len, self.j_len, false);
+                let producer = InterleaveProducer::new(self.i_producer, j_producer, self.i_len, self.j_len, self.flag);
                 self.callback.callback(producer)
             }
         }

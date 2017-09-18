@@ -1725,8 +1725,8 @@ fn check_either_extend() {
 
 #[test]
 fn check_interleave_eq() {
-    let mut xs: Vec<usize> = (0..10).collect();
-    let mut ys: Vec<usize> = (10..20).collect();
+    let xs: Vec<usize> = (0..10).collect();
+    let ys: Vec<usize> = (10..20).collect();
 
     let mut b = vec![];
     xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut b);
