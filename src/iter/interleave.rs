@@ -1,6 +1,7 @@
 use super::internal::*;
 use super::*;
 use std::usize;
+use std::cmp;
 
 /// `Interleave` is an iterator that interleaves elements of iterators
 /// `i` and `j` in one continuous iterator. This struct is created by
