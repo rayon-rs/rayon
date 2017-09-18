@@ -34,6 +34,7 @@ use log::Event::*;
 use std::any::Any;
 use std::env;
 use std::error::Error;
+use std::marker::PhantomData;
 use std::str::FromStr;
 use std::fmt;
 
@@ -370,14 +371,18 @@ impl fmt::Debug for Configuration {
 /// Provides the calling context to a closure called by `join_context`.
 #[derive(Debug)]
 pub struct FnContext {
-    migrated: bool
+    migrated: bool,
+
+    /// disable `Send` and `Sync`, just for a little future-proofing.
+    _marker: PhantomData<*mut ()>,
 }
 
 impl Default for FnContext {
     #[inline]
     fn default() -> Self {
         FnContext {
-            migrated: false
+            migrated: false,
+            _marker: PhantomData,
         }
     }
 }
@@ -385,7 +390,10 @@ impl Default for FnContext {
 impl FnContext {
     #[inline]
     fn new(migrated: bool) -> Self {
-        FnContext { migrated: migrated }
+        FnContext {
+            migrated: migrated,
+            ..FnContext::default()
+        }
     }
 }
 
