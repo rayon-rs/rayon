@@ -151,7 +151,11 @@ impl<I, J> Producer for InterleaveProducer<I, J>
     type IntoIter = InterleaveSeq<I::IntoIter, J::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
-        InterleaveSeq::new(self.i.into_iter(), self.j.into_iter())
+        InterleaveSeq {
+            i: self.i.into_iter(),
+            j: self.j.into_iter(),
+            flag: self.flag,
+        }
     }
 
     fn min_len(&self) -> usize {
@@ -217,15 +221,6 @@ pub struct InterleaveSeq<I, J> {
     i: I,
     j: J,
     flag: bool
-}
-
-impl<I, J> InterleaveSeq<I, J> {
-    fn new(i: I, j: J) -> InterleaveSeq<I, J>
-        where I: DoubleEndedIterator + ExactSizeIterator,
-              J: DoubleEndedIterator<Item = I::Item> + ExactSizeIterator<Item = I::Item>
-    {
-        InterleaveSeq { i: i, j: j, flag: false }
-    }
 }
 
 impl<I, J> Iterator for InterleaveSeq<I, J>
