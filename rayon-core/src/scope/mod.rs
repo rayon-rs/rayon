@@ -2,6 +2,7 @@ use latch::{Latch, CountLatch};
 use log::Event::*;
 use job::HeapJob;
 use std::any::Any;
+use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
@@ -344,5 +345,16 @@ impl<'scope> Scope<'scope> {
         } else {
             log!(ScopeCompleteNoPanic { owner_thread: (*self.owner_thread).index() });
         }
+    }
+}
+
+impl<'scope> fmt::Debug for Scope<'scope> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        use latch::LatchProbe;
+        fmt.debug_struct("Scope")
+            .field("owner_thread", &self.owner_thread)
+            .field("panic", &self.panic)
+            .field("job_completed", &self.job_completed_latch.probe())
+            .finish()
     }
 }

@@ -1,6 +1,7 @@
 //! Future support in Rayon.
 //!
 //! See `README.md` for details.
+#![deny(missing_debug_implementations)]
 
 extern crate futures;
 extern crate rayon_core;

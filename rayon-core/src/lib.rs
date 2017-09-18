@@ -20,6 +20,7 @@
 //! succeed.
 
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
+#![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
 // If you're not compiling the unstable code, it often happens that
@@ -180,8 +181,8 @@ impl Configuration {
     /// If `num_threads` is 0, or you do not call this function, then
     /// the Rayon runtime will select the number of threads
     /// automatically. At present, this is based on the
-    /// `RAYON_NUM_THREADS` environment variable (if set), 
-    /// or the number of logical CPUs (otherwise). 
+    /// `RAYON_NUM_THREADS` environment variable (if set),
+    /// or the number of logical CPUs (otherwise).
     /// In the future, however, the default behavior may
     /// change to dynamically add or remove threads as needed.
     ///
