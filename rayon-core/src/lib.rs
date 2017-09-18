@@ -138,6 +138,11 @@ impl Configuration {
         Configuration::default()
     }
 
+    /// Create a new `ThreadPool` initialized using this configuration.
+    pub fn build(self) -> Result<ThreadPool, Box<Error + 'static>> {
+        ThreadPool::new(self)
+    }
+
     /// Get the number of threads that will be used for the thread
     /// pool. See `num_threads()` for more information.
     fn get_num_threads(&self) -> usize {
@@ -180,8 +185,8 @@ impl Configuration {
     /// If `num_threads` is 0, or you do not call this function, then
     /// the Rayon runtime will select the number of threads
     /// automatically. At present, this is based on the
-    /// `RAYON_NUM_THREADS` environment variable (if set), 
-    /// or the number of logical CPUs (otherwise). 
+    /// `RAYON_NUM_THREADS` environment variable (if set),
+    /// or the number of logical CPUs (otherwise).
     /// In the future, however, the default behavior may
     /// change to dynamically add or remove threads as needed.
     ///
