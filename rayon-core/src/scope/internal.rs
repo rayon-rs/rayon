@@ -14,6 +14,7 @@ impl<'scope> ToScopeHandle<'scope> for Scope<'scope> {
     }
 }
 
+#[derive(Debug)]
 pub struct LocalScopeHandle<'scope> {
     scope: *const Scope<'scope>
 }

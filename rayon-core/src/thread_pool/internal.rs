@@ -2,6 +2,7 @@
 use internal::task::{ScopeHandle, ToScopeHandle, Task};
 use registry::Registry;
 use std::any::Any;
+use std::fmt;
 use std::sync::Arc;
 use super::ThreadPool;
 
@@ -16,6 +17,14 @@ impl ToScopeHandle<'static> for ThreadPool {
 
 pub struct ThreadPoolScopeHandle {
     registry: Arc<Registry>
+}
+
+impl fmt::Debug for ThreadPoolScopeHandle {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ThreadPoolScopeHandle")
+            .field("pool", &self.registry.id())
+            .finish()
+    }
 }
 
 impl ThreadPoolScopeHandle {
