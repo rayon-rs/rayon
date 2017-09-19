@@ -282,14 +282,11 @@ impl<'scope> Scope<'scope> {
             self.job_completed_latch.increment();
             let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
                 .as_job_ref();
-            let worker_thread = WorkerThread::current();
 
-            // the `Scope` is not send or sync, and we only give out
-            // pointers to it from within a worker thread
-            debug_assert!(!worker_thread.is_null());
-
-            let worker_thread = &*worker_thread;
-            worker_thread.push(job_ref);
+            // Since `Scope` implements `Sync`, we can't be sure
+            // that we're still in a thread of this pool, so we
+            // can't just push to the local worker thread.
+            self.registry.inject_or_push(job_ref);
         }
     }
 
