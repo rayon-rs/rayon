@@ -8,6 +8,7 @@ use std::cmp;
 /// [`min_len()`]: trait.IndexedParallelIterator.html#method.min_len
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct MinLen<I: IndexedParallelIterator> {
     base: I,
     min: usize,
@@ -128,6 +129,7 @@ impl<P> Producer for MinLenProducer<P>
 /// [`max_len()`]: trait.IndexedParallelIterator.html#method.max_len
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct MaxLen<I: IndexedParallelIterator> {
     base: I,
     max: usize,

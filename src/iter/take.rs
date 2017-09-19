@@ -8,6 +8,7 @@ use std::cmp::min;
 /// [`take()`]: trait.ParallelIterator.html#method.take
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct Take<I> {
     base: I,
     n: usize,

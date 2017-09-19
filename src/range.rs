@@ -8,6 +8,7 @@ use iter::internal::*;
 use std::ops::Range;
 
 /// Parallel iterator over a range
+#[derive(Debug)]
 pub struct Iter<T> {
     range: Range<T>,
 }

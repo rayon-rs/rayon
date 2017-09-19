@@ -6,6 +6,7 @@
 
 /// If this type is pub but not publicly reachable, third parties
 /// can't name it and can't implement traits using it.
+#[allow(missing_debug_implementations)]
 pub struct PrivateMarker;
 
 macro_rules! private_decl {

@@ -4,6 +4,7 @@ use std::cmp;
 use std::iter;
 
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
     b: B,

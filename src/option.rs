@@ -36,6 +36,7 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut Option<T> {
 
 
 /// Parallel iterator over an option
+#[derive(Debug)]
 pub struct IntoIter<T: Send> {
     opt: Option<T>,
 }
