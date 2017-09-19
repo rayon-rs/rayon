@@ -46,7 +46,7 @@ impl<'scope> Drop for LocalScopeHandle<'scope> {
 unsafe impl<'scope> ScopeHandle<'scope> for LocalScopeHandle<'scope> {
     unsafe fn spawn_task<T: Task + 'scope>(&self, task: Arc<T>) {
         let scope = &*self.scope;
-        (*scope.owner_thread).registry().submit_task(task);
+        scope.registry.submit_task(task);
     }
 
     fn ok(self) {

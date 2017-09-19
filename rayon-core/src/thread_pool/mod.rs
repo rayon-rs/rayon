@@ -109,7 +109,8 @@ impl ThreadPool {
     ///     }
     /// ```
     pub fn install<OP, R>(&self, op: OP) -> R
-        where OP: FnOnce() -> R + Send
+        where OP: FnOnce() -> R + Send,
+              R: Send
     {
         unsafe {
             let job_a = StackJob::new(op, LockLatch::new());
