@@ -235,8 +235,8 @@ pub struct InterleaveSeq<I, J> {
 /// (instead of calling itertools directly), because we also need to
 /// implement `DoubledEndedIterator` and `ExactSizeIterator`.
 impl<I, J> Iterator for InterleaveSeq<I, J>
-    where I: Iterator + ExactSizeIterator,
-          J: Iterator<Item = I::Item> + ExactSizeIterator
+    where I: Iterator,
+          J: Iterator<Item = I::Item>
 {
     type Item = I::Item;
 
@@ -258,7 +258,7 @@ impl<I, J> Iterator for InterleaveSeq<I, J>
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (ih, jh) = (self.i.size_hint(), self.j.size_hint());
-        let min = ih.0.checked_add(jh.0).unwrap_or(usize::MAX);
+        let min = ih.0.saturating_add(jh.0);
         let max = match (ih.1, jh.1) {
             (Some(x), Some(y)) => x.checked_add(y),
             _=> None
