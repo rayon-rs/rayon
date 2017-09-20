@@ -1737,18 +1737,22 @@ fn check_interleave_eq() {
 
 #[test]
 fn check_interleave_uneven() {
-
     let cases: Vec<(Vec<usize>, Vec<usize>, Vec<usize>)> = vec![
         ((0..9).collect(), vec![10], vec![0, 10, 1, 2, 3, 4, 5, 6, 7, 8]),
         (vec![10], (0..9).collect(), vec![10, 0, 1, 2, 3, 4, 5, 6, 7, 8]),
         ((0..5).collect(), (5..10).collect(), (0..5).zip((5..10)).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
         (vec![], (0..9).collect(), (0..9).collect()),
-        ((0..9).collect(), vec![], (0..9).collect())
+        ((0..9).collect(), vec![], (0..9).collect()),
+        ((0..50).collect(), (50..100).collect(), (0..50).zip((50..100)).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
     ];
 
     for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
         let mut res = vec![];
         xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut res);
-        assert_eq!(expected, res, "Case {} failed", i+1);
+        assert_eq!(expected, res, "Case {} failed", i);
+
+        res.truncate(0);
+        xs.par_iter().interleave(&ys).rev().map(|&i| i).collect_into(&mut res);
+        assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
     }
 }

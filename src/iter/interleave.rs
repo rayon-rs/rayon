@@ -16,7 +16,6 @@ pub struct Interleave<I, J>
 {
     i: I,
     j: J,
-    flag: bool,
 }
 
 /// Create a new `Interleave` iterator
@@ -26,7 +25,7 @@ pub fn new<I, J>(i: I, j: J) -> Interleave<I, J>
     where I: IndexedParallelIterator,
           J: IndexedParallelIterator<Item = I::Item>
 {
-    Interleave { i: i, j: j, flag: false }
+    Interleave { i: i, j: j }
 }
 
 impl<I, J> ParallelIterator for Interleave<I, J>
@@ -68,7 +67,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: callback,
             i_len: i_len,
             j_len: j_len,
-            flag: self.flag,
+            flag: false,
             j: self.j
         });
 
@@ -166,17 +165,21 @@ impl<I, J> Producer for InterleaveProducer<I, J>
         cmp::min(self.i.max_len(), self.j.max_len())
     }
 
+    /// We know 0 < index <= self.i_len + self.j_len
+    ///
+    /// Find a, b satisfying:
+    ///
+    ///  (1) 0 < a <= self.i_len
+    ///  (2) 0 < b <= self.j_len
+    ///  (3) a + b == index
+    ///
+    /// For even splits, set a = b = index/2.
+    /// For odd splits, set a = (index/2)+1, b = index/2, if `i`
+    /// should yield the next element, otherwise, if `j` should yield
+    /// the next element, set a = index/2 and b = (index/2)+1
     fn split_at(self, index: usize) -> (Self, Self) {
-        // Switch on state
         let even = index%2 == 0;
         let idx = index >> 1;
-
-        // We know 0 < index <= self.i_len + self.j_len
-        // Find a, b satisfying the following conditions:
-        // (1) 0 < a <= self.i_len
-        // (2) 0 < b <= self.j_len
-        // (3) a + b == index
-        // assert!(index <= self.i_len + self.j_len);
 
         let odd_offset = |flag| if flag { 0 } else { 1 };
 
@@ -216,16 +219,24 @@ impl<I, J> Producer for InterleaveProducer<I, J>
 
 
 /// Wrapper for Interleave to implement DoubleEndedIterator and
-/// ExactSizeIterator
+/// ExactSizeIterator.
 pub struct InterleaveSeq<I, J> {
     i: I,
     j: J,
+
+    /// Flag to control which iterator should provide the next
+    /// element. If `false` then `i` produces the next element, when
+    /// `true` then the next element should be from `j`.
     flag: bool
 }
 
+/// Iterator implementation for InterleaveSeq. This implementation is
+/// taken more or less verbatim from itertools. It is replicated here
+/// (instead of calling itertools directly), because we also need to
+/// implement `DoubledEndedIterator` and `ExactSizeIterator`.
 impl<I, J> Iterator for InterleaveSeq<I, J>
-    where I: Iterator,
-          J: Iterator<Item = I::Item>
+    where I: Iterator + ExactSizeIterator,
+          J: Iterator<Item = I::Item> + ExactSizeIterator
 {
     type Item = I::Item;
 
@@ -267,7 +278,13 @@ impl<I, J> DoubleEndedIterator for InterleaveSeq<I, J>
 {
     #[inline]
     fn next_back(&mut self) -> Option<I::Item> {
-        if self.i.len() <= self.j.len() {
+        if self.i.len() == self.j.len() {
+            if self.flag {
+                self.i.next_back()
+            } else {
+                self.j.next_back()
+            }
+        } else if self.i.len() < self.j.len() {
             self.j.next_back()
         } else {
             self.i.next_back()

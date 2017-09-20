@@ -811,7 +811,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
         zip::new(self, zip_op.into_par_iter())
     }
 
-    /// Interleave elements of this iterator and the other given iterator.
+    /// Interleave elements of this iterator and the other given
+    /// iterator. Alternately yields elements from this iterator and
+    /// the given iterator, until both are exhausted. If one iterator
+    /// is exhausted before the other, the last elements are provided
+    /// from the other.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let (x, y) = (vec![1, 2], vec![3, 4, 5, 6]);
+    /// let r: Vec<i32> = x.into_par_iter().interleave(y).collect();
+    /// assert_eq!(r, vec![1, 3, 2, 4, 5, 6]);
+    /// ```
     fn interleave<I>(self, other: I) -> Interleave<Self, I::Iter>
         where I: IntoParallelIterator<Item = Self::Item>,
               I::Iter: IndexedParallelIterator<Item = Self::Item>
