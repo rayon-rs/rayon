@@ -13,6 +13,7 @@ use futures::task::{self, Spawn, Task, Unpark};
 use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
 use rayon_core::internal::worker;
 use std::any::Any;
+use std::fmt;
 use std::panic::{self, AssertUnwindSafe};
 use std::mem;
 use std::sync::Arc;
@@ -114,6 +115,11 @@ impl<T, E> Drop for RayonFuture<T, E> {
     }
 }
 
+impl<T, E> fmt::Debug for RayonFuture<T, E> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str("RayonFuture(...)")
+    }
+}
 /// ////////////////////////////////////////////////////////////////////////
 
 struct ScopeFuture<'scope, F, S>
