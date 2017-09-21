@@ -2,7 +2,7 @@
 //!
 //! See `README.md` for details.
 
-#![doc(html_root_url = "https://docs.rs/rayon-futures/0")]
+#![doc(html_root_url = "https://docs.rs/rayon-futures/0.1")]
 
 extern crate futures;
 extern crate rayon_core;
