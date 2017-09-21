@@ -19,6 +19,7 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
+#![doc(html_root_url = "https://docs.rs/rayon-core/1.2")]
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
