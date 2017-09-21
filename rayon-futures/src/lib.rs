@@ -117,7 +117,7 @@ impl<T, E> Drop for RayonFuture<T, E> {
 
 impl<T, E> fmt::Debug for RayonFuture<T, E> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str("RayonFuture(...)")
+        fmt.debug_struct("RayonFuture").finish()
     }
 }
 /// ////////////////////////////////////////////////////////////////////////
