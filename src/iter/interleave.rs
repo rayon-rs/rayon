@@ -2,6 +2,7 @@ use super::internal::*;
 use super::*;
 use std::usize;
 use std::cmp;
+use std::iter::Fuse;
 
 /// `Interleave` is an iterator that interleaves elements of iterators
 /// `i` and `j` in one continuous iterator. This struct is created by
@@ -67,7 +68,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: callback,
             i_len: i_len,
             j_len: j_len,
-            flag: false,
+            i_next: false,
             j: self.j
         });
 
@@ -75,7 +76,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: CB,
             i_len: usize,
             j_len: usize,
-            flag: bool,
+            i_next: bool,
             j: J
         }
 
@@ -92,7 +93,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
                     i_producer: i_producer,
                     i_len: self.i_len,
                     j_len: self.j_len,
-                    flag: self.flag,
+                    i_next: self.i_next,
                     callback: self.callback
                 })
             }
@@ -102,7 +103,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             callback: CB,
             i_len: usize,
             j_len: usize,
-            flag: bool,
+            i_next: bool,
             i_producer: I
         }
 
@@ -115,7 +116,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             fn callback<J>(self, j_producer: J) -> Self::Output
                 where J: Producer<Item = I::Item>
             {
-                let producer = InterleaveProducer::new(self.i_producer, j_producer, self.i_len, self.j_len, self.flag);
+                let producer = InterleaveProducer::new(self.i_producer, j_producer, self.i_len, self.j_len, self.i_next);
                 self.callback.callback(producer)
             }
         }
@@ -130,15 +131,15 @@ pub struct InterleaveProducer<I, J>
     j: J,
     i_len: usize,
     j_len: usize,
-    flag: bool,
+    i_next: bool,
 }
 
 impl<I, J> InterleaveProducer<I, J>
     where I: Producer,
           J: Producer<Item = I::Item>
 {
-    fn new(i: I, j: J, i_len: usize, j_len: usize, flag: bool) -> InterleaveProducer<I, J> {
-        InterleaveProducer { i: i, j: j, i_len: i_len, j_len: j_len, flag: flag }
+    fn new(i: I, j: J, i_len: usize, j_len: usize, i_next: bool) -> InterleaveProducer<I, J> {
+        InterleaveProducer { i: i, j: j, i_len: i_len, j_len: j_len, i_next: i_next }
     }
 }
 
@@ -151,9 +152,9 @@ impl<I, J> Producer for InterleaveProducer<I, J>
 
     fn into_iter(self) -> Self::IntoIter {
         InterleaveSeq {
-            i: self.i.into_iter(),
-            j: self.j.into_iter(),
-            flag: self.flag,
+            i: self.i.into_iter().fuse(),
+            j: self.j.into_iter().fuse(),
+            i_next: self.i_next,
         }
     }
 
@@ -184,8 +185,8 @@ impl<I, J> Producer for InterleaveProducer<I, J>
         let odd_offset = |flag| if flag { 0 } else { 1 };
 
         // desired split
-        let (i_idx, j_idx) = (idx + odd_offset(even || self.flag),
-                              idx + odd_offset(even || !self.flag));
+        let (i_idx, j_idx) = (idx + odd_offset(even || self.i_next),
+                              idx + odd_offset(even || !self.i_next));
 
         let (i_split, j_split) = if self.i_len >= i_idx && self.j_len >= j_idx {
             (i_idx, j_idx)
@@ -197,7 +198,7 @@ impl<I, J> Producer for InterleaveProducer<I, J>
             (self.i_len, index - self.i_len)
         };
 
-        let trailing_flag = even == self.flag;
+        let trailing_i_next = even == self.i_next;
         let (i_left, i_right) = self.i.split_at(i_split);
         let (j_left, j_right) = self.j.split_at(j_split);
 
@@ -206,13 +207,13 @@ impl<I, J> Producer for InterleaveProducer<I, J>
             j_left,
             i_split,
             j_split,
-            self.flag
+            self.i_next
         ), InterleaveProducer::new(
             i_right,
             j_right,
             self.i_len - i_split,
             self.j_len - j_split,
-            trailing_flag
+            trailing_i_next
         ))
     }
 }
@@ -220,14 +221,16 @@ impl<I, J> Producer for InterleaveProducer<I, J>
 
 /// Wrapper for Interleave to implement DoubleEndedIterator and
 /// ExactSizeIterator.
+///
+/// This iterator is fused.
 pub struct InterleaveSeq<I, J> {
-    i: I,
-    j: J,
+    i: Fuse<I>,
+    j: Fuse<J>,
 
-    /// Flag to control which iterator should provide the next
-    /// element. If `false` then `i` produces the next element, when
-    /// `true` then the next element should be from `j`.
-    flag: bool
+    /// Flag to control which iterator should provide the next element. When
+    /// `false` then `i` produces the next element, otherwise `j` produces the
+    /// next element.
+    i_next: bool
 }
 
 /// Iterator implementation for InterleaveSeq. This implementation is
@@ -242,8 +245,8 @@ impl<I, J> Iterator for InterleaveSeq<I, J>
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.flag = !self.flag;
-        if self.flag {
+        self.i_next = !self.i_next;
+        if self.i_next {
             match self.i.next() {
                 None => self.j.next(),
                 r => r
@@ -279,7 +282,7 @@ impl<I, J> DoubleEndedIterator for InterleaveSeq<I, J>
     #[inline]
     fn next_back(&mut self) -> Option<I::Item> {
         if self.i.len() == self.j.len() {
-            if self.flag {
+            if self.i_next {
                 self.i.next_back()
             } else {
                 self.j.next_back()
