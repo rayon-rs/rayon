@@ -23,9 +23,13 @@ mod test;
 /// When `join` is called from outside the thread pool, the calling
 /// thread will block while the closures execute in the pool.  When
 /// `join` is called within the pool, the calling thread still actively
-/// participates in the thread pool.  It will try to execute its own
-/// closures first, but if one is stolen then it will look for other
-/// work while waiting for that result to come back.
+/// participates in the thread pool. It will begin by executing closure
+/// A (on the current thread). While it is doing that, it will advertise
+/// closure B as being available for other threads to execute. Once closure A
+/// has completed, the current thread will try to execute closure B;
+/// if however closure B has been stolen, then it will look for other work
+/// while waiting for the thief to fully execute closure B. (This is the
+/// typical work-stealing strategy).
 ///
 /// ### Warning about blocking I/O
 ///
