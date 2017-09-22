@@ -350,11 +350,10 @@ impl<'scope> Scope<'scope> {
 
 impl<'scope> fmt::Debug for Scope<'scope> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        use latch::LatchProbe;
         fmt.debug_struct("Scope")
             .field("owner_thread", &self.owner_thread)
             .field("panic", &self.panic)
-            .field("job_completed", &self.job_completed_latch.probe())
+            .field("job_completed_latch", &self.job_completed_latch)
             .finish()
     }
 }
