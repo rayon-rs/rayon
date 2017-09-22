@@ -42,6 +42,8 @@ impl<T> CasList<T> {
             // which is important for avoiding leaks!
             let cell: *mut Cell<T> = mem::transmute(cell);
             loop {
+                // FIXME -- order of operations wrong?
+                // https://github.com/nikomatsakis/rayon/pull/141#discussion_r106792369
                 let head = self.head.load(Ordering::Relaxed);
                 (*cell).next = head;
                 if self.head.compare_and_swap(head, cell, Ordering::Release) == head {
