@@ -3,8 +3,9 @@
 // Note: these place `impl` bounds at the end, as token gobbling is the only way
 // I know how to consume an arbitrary list of constraints, with `$($args:tt)*`.
 
-/// Create a parallel iterator which simply wraps an inner type and delegates
-/// all methods inward.  The item type is parsed from the inner type.
+/// Create a parallel iterator implementation which simply wraps an inner type
+/// and delegates all methods inward.  The actual struct must already be
+/// declared with an `inner` field.
 ///
 /// The implementation of `IntoParallelIterator` should be added separately.
 ///
@@ -12,65 +13,15 @@
 ///
 /// ```
 /// delegate_iterator!{
-///     #[doc = "Move items from `MyCollection` in parallel"]
-///     MyIntoIter<T, U> => vec::IntoIter<(T, U)>,
+///     MyIntoIter<T, U> => (T, U),
 ///     impl<T: Ord + Send, U: Send>
 /// }
 /// ```
 macro_rules! delegate_iterator {
-    ($( #[ $attr:meta ] )+
-     $iter:ident < $( $i:tt ),* > => $( $inner:ident )::+ < $item:ty > ,
+    ($iter:ty => $item:ty ,
      impl $( $args:tt )*
      ) => {
-        delegate_iterator_item!{
-            $( #[ $attr ] )+
-            $iter < $( $i ),* > => $( $inner )::+ < $item > : $item ,
-            impl $( $args )*
-        }
-    }
-}
-
-/// Create an indexed parallel iterator which simply wraps an inner type and
-/// delegates all methods inward.  The item type is parsed from the inner type.
-macro_rules! delegate_indexed_iterator {
-    ($( #[ $attr:meta ] )+
-     $iter:ident < $( $i:tt ),* > => $( $inner:ident )::+ < $item:ty > ,
-     impl $( $args:tt )*
-     ) => {
-        delegate_indexed_iterator_item!{
-            $( #[ $attr ] )+
-            $iter < $( $i ),* > => $( $inner )::+ < $item > : $item ,
-            impl $( $args )*
-        }
-    }
-}
-
-/// Create a parallel iterator which simply wraps an inner type and delegates
-/// all methods inward.  The item type is explicitly specified.
-///
-/// The implementation of `IntoParallelIterator` should be added separately.
-///
-/// # Example
-///
-/// ```
-/// delegate_iterator_item!{
-///     #[doc = "Iterate items from `MyCollection` in parallel"]
-///     MyIter<'a, T, U> => slice::Iter<'a, (T, U)>: &'a (T, U),
-///     impl<'a, T: Ord + Sync, U: Sync>
-/// }
-/// ```
-macro_rules! delegate_iterator_item {
-    ($( #[ $attr:meta ] )+
-     $iter:ident < $( $i:tt ),* > => $inner:ty : $item:ty,
-     impl $( $args:tt )*
-     ) => {
-        $( #[ $attr ] )+
-        #[derive(Debug)]
-        pub struct $iter $( $args )* {
-            inner: $inner,
-        }
-
-        impl $( $args )* ParallelIterator for $iter < $( $i ),* > {
+        impl $( $args )* ParallelIterator for $iter {
             type Item = $item;
 
             fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -86,20 +37,19 @@ macro_rules! delegate_iterator_item {
     }
 }
 
-/// Create an indexed parallel iterator which simply wraps an inner type and
-/// delegates all methods inward.  The item type is explicitly specified.
-macro_rules! delegate_indexed_iterator_item {
-    ($( #[ $attr:meta ] )+
-     $iter:ident < $( $i:tt ),* > => $inner:ty : $item:ty,
+/// Create an indexed parallel iterator implementation which simply wraps an
+/// inner type and delegates all methods inward.  The actual struct must already
+/// be declared with an `inner` field.
+macro_rules! delegate_indexed_iterator {
+    ($iter:ty => $item:ty ,
      impl $( $args:tt )*
      ) => {
-        delegate_iterator_item!{
-            $( #[ $attr ] )+
-            $iter < $( $i ),* > => $inner : $item ,
+        delegate_iterator!{
+            $iter => $item ,
             impl $( $args )*
         }
 
-        impl $( $args )* IndexedParallelIterator for $iter < $( $i ),* > {
+        impl $( $args )* IndexedParallelIterator for $iter {
             fn drive<C>(self, consumer: C) -> C::Result
                 where C: Consumer<Self::Item>
             {

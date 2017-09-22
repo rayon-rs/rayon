@@ -9,9 +9,27 @@ use iter::internal::*;
 
 use vec;
 
+/// Parallel iterator over a B-Tree set
+#[derive(Debug)]
+pub struct IntoIter<T: Ord + Send> {
+    inner: vec::IntoIter<T>,
+}
+
 into_par_vec!{
     BTreeSet<T> => IntoIter<T>,
     impl<T: Ord + Send>
+}
+
+delegate_iterator!{
+    IntoIter<T> => T,
+    impl<T: Ord + Send>
+}
+
+
+/// Parallel iterator over an immutable reference to a B-Tree set
+#[derive(Debug)]
+pub struct Iter<'a, T: Ord + Sync + 'a> {
+    inner: vec::IntoIter<&'a T>,
 }
 
 into_par_vec!{
@@ -19,18 +37,10 @@ into_par_vec!{
     impl<'a, T: Ord + Sync>
 }
 
-// `BTreeSet` doesn't have a mutable `Iterator`
-
-
 delegate_iterator!{
-    #[doc = "Parallel iterator over a B-Tree set"]
-    IntoIter<T> => vec::IntoIter<T>,
-    impl<T: Ord + Send>
-}
-
-
-delegate_iterator!{
-    #[doc = "Parallel iterator over an immutable reference to a B-Tree set"]
-    Iter<'a, T> => vec::IntoIter<&'a T>,
+    Iter<'a, T> => &'a T,
     impl<'a, T: Ord + Sync + 'a>
 }
+
+
+// `BTreeSet` doesn't have a mutable `Iterator`

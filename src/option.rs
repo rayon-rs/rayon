@@ -7,6 +7,13 @@ use iter::internal::*;
 use std;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+
+/// Parallel iterator over an option
+#[derive(Debug)]
+pub struct IntoIter<T: Send> {
+    opt: Option<T>,
+}
+
 impl<T: Send> IntoParallelIterator for Option<T> {
     type Item = T;
     type Iter = IntoIter<T>;
@@ -14,31 +21,6 @@ impl<T: Send> IntoParallelIterator for Option<T> {
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { opt: self }
     }
-}
-
-impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {
-    type Item = &'a T;
-    type Iter = Iter<'a, T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        Iter { inner: self.as_ref().into_par_iter() }
-    }
-}
-
-impl<'a, T: Send> IntoParallelIterator for &'a mut Option<T> {
-    type Item = &'a mut T;
-    type Iter = IterMut<'a, T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        IterMut { inner: self.as_mut().into_par_iter() }
-    }
-}
-
-
-/// Parallel iterator over an option
-#[derive(Debug)]
-pub struct IntoIter<T: Send> {
-    opt: Option<T>,
 }
 
 impl<T: Send> ParallelIterator for IntoIter<T> {
@@ -77,16 +59,44 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
 }
 
 
+/// Parallel iterator over an immutable reference to an option
+#[derive(Debug)]
+pub struct Iter<'a, T: Sync + 'a> {
+    inner: IntoIter<&'a T>,
+}
+
+impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {
+    type Item = &'a T;
+    type Iter = Iter<'a, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        Iter { inner: self.as_ref().into_par_iter() }
+    }
+}
+
 delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over an immutable reference to an option"]
-    Iter<'a, T> => IntoIter<&'a T>,
+    Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
 
 
+/// Parallel iterator over a mutable reference to an option
+#[derive(Debug)]
+pub struct IterMut<'a, T: Send + 'a> {
+    inner: IntoIter<&'a mut T>,
+}
+
+impl<'a, T: Send> IntoParallelIterator for &'a mut Option<T> {
+    type Item = &'a mut T;
+    type Iter = IterMut<'a, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        IterMut { inner: self.as_mut().into_par_iter() }
+    }
+}
+
 delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over a mutable reference to an option"]
-    IterMut<'a, T> => IntoIter<&'a mut T>,
+    IterMut<'a, T> => &'a mut T,
     impl<'a, T: Send + 'a>
 }
 

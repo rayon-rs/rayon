@@ -8,6 +8,12 @@ use std::sync::Mutex;
 
 use option;
 
+/// Parallel iterator over a result
+#[derive(Debug)]
+pub struct IntoIter<T: Send> {
+    inner: option::IntoIter<T>,
+}
+
 impl<T: Send, E> IntoParallelIterator for Result<T, E> {
     type Item = T;
     type Iter = IntoIter<T>;
@@ -15,6 +21,18 @@ impl<T: Send, E> IntoParallelIterator for Result<T, E> {
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { inner: self.ok().into_par_iter() }
     }
+}
+
+delegate_indexed_iterator!{
+    IntoIter<T> => T,
+    impl<T: Send>
+}
+
+
+/// Parallel iterator over an immutable reference to a result
+#[derive(Debug)]
+pub struct Iter<'a, T: Sync + 'a> {
+    inner: option::IntoIter<&'a T>,
 }
 
 impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {
@@ -26,6 +44,18 @@ impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {
     }
 }
 
+delegate_indexed_iterator!{
+    Iter<'a, T> => &'a T,
+    impl<'a, T: Sync + 'a>
+}
+
+
+/// Parallel iterator over a mutable reference to a result
+#[derive(Debug)]
+pub struct IterMut<'a, T: Send + 'a> {
+    inner: option::IntoIter<&'a mut T>,
+}
+
 impl<'a, T: Send, E> IntoParallelIterator for &'a mut Result<T, E> {
     type Item = &'a mut T;
     type Iter = IterMut<'a, T>;
@@ -35,24 +65,8 @@ impl<'a, T: Send, E> IntoParallelIterator for &'a mut Result<T, E> {
     }
 }
 
-
 delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over a result"]
-    IntoIter<T> => option::IntoIter<T>,
-    impl<T: Send>
-}
-
-
-delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over an immutable reference to a result"]
-    Iter<'a, T> => option::IntoIter<&'a T>,
-    impl<'a, T: Sync + 'a>
-}
-
-
-delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over a mutable reference to a result"]
-    IterMut<'a, T> => option::IntoIter<&'a mut T>,
+    IterMut<'a, T> => &'a mut T,
     impl<'a, T: Send + 'a>
 }
 
