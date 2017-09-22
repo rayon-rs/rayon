@@ -59,8 +59,11 @@ mod map_with;
 pub use self::map_with::MapWith;
 mod zip;
 pub use self::zip::Zip;
+mod zip_eq;
+pub use self::zip_eq::ZipEq;
 mod interleave;
 pub use self::interleave::Interleave;
+
 mod noop;
 mod rev;
 pub use self::rev::Rev;
@@ -809,6 +812,34 @@ pub trait IndexedParallelIterator: ParallelIterator {
               Z::Iter: IndexedParallelIterator
     {
         zip::new(self, zip_op.into_par_iter())
+    }
+
+    /// The same as `Zip`, but requires that both iterators have the same length.
+    ///
+    /// # Panics
+    /// Will panic if `self` and `zip_op` are not the same length.
+    ///
+    /// ```should_panic
+    /// use rayon::prelude::*;
+    ///
+    /// let one = [1u8];
+    /// let two = [2u8, 2];
+    /// let one_iter = one.par_iter();
+    /// let two_iter = two.par_iter();
+    ///
+    /// // this will panic
+    /// let zipped: Vec<(&u8, &u8)> = one_iter.zip_eq(two_iter).collect();
+    ///
+    /// // we should never get here
+    /// assert_eq!(1, zipped.len());
+    /// ```
+    fn zip_eq<Z>(mut self, zip_op: Z) -> ZipEq<Self, Z::Iter>
+        where Z: IntoParallelIterator,
+              Z::Iter: IndexedParallelIterator
+    {
+        let mut zip_op_iter = zip_op.into_par_iter();
+        assert_eq!(self.len(), zip_op_iter.len());
+        zip_eq::new(self, zip_op_iter)
     }
 
     /// Interleave elements of this iterator and the other given

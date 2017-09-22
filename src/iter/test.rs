@@ -761,6 +761,47 @@ pub fn check_zip_range() {
 }
 
 #[test]
+pub fn check_zip_eq() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter_mut().zip_eq(&b[..]).for_each(|(a, &b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_zip_eq_into_par_iter() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter_mut()
+     .zip_eq(&b) // here we rely on &b iterating over &usize
+     .for_each(|(a, &b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_zip_eq_into_mut_par_iter() {
+    let a: Vec<usize> = (0..1024).rev().collect();
+    let mut b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter().zip_eq(&mut b).for_each(|(&a, b)| *b += a);
+
+    assert!(b.iter().all(|&x| x == b.len() - 1));
+}
+
+#[test]
+pub fn check_zip_eq_range() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+
+    a.par_iter_mut().zip_eq(0usize..1024).for_each(|(a, b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
 pub fn check_sum_filtered_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let par_sum_evens: i32 = a.par_iter().filter(|&x| (x & 1) == 0).sum();
