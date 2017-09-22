@@ -125,7 +125,7 @@ impl<T, E> fmt::Debug for RayonFuture<T, E> {
     }
 }
 /// ////////////////////////////////////////////////////////////////////////
-
+#[derive(Debug)]
 struct ScopeFuture<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
@@ -157,7 +157,15 @@ struct ScopeFutureContents<'scope, F, S>
     canceled: bool,
 }
 
+impl<'scope, F, S> fmt::Debug for ScopeFutureContents<'scope, F, S>
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ScopeFutureContents").finish()
+    }
+}
+
 // Newtype so we can implement Into<UnsafeNotify> even though the contents are not 'static.
+#[derive(Debug)]
 struct ArcScopeFuture<'scope, F, S>(Arc<ScopeFuture<'scope, F, S>>)
 where
     F: Future + Send + 'scope,
@@ -194,6 +202,7 @@ where
 // This is adapted from the implementation of Into<UnsafeNotify> for
 // Arc in futures-rs, we need to roll our own to drop the 'static bound.
 // A ScopeFuture that is inside a ArcScopeFuture.
+#[derive(Debug)]
 struct ScopeFutureWrapped<'scope, F: 'scope, S>(PhantomData<(&'scope F, S)>);
 
 unsafe impl<'scope, F, S> Send for ScopeFutureWrapped<'scope, F, S> {}

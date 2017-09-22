@@ -172,7 +172,7 @@ the thread gets around to it.
 Once the future begins to execute (it itself is a Rayon job), it
 transitions into the *EXECUTING* state. This means that it is busy
 calling `F.poll()`, basically. While it calls `poll()`, it also sets
-up it's `contents.this` field as the current "notify" instance. Hence
+up its `contents.this` field as the current "notify" instance. Hence
 if `F` returns `NotReady`, it will clone the `this` field and hold
 onto it to signal us the future is ready to execute again.
 
@@ -272,5 +272,3 @@ that any references are still valid, or else the user shouldn't be
 able to call `poll()`. (The same is true at the time of cancellation,
 but that's not important, since `cancel()` doesn't do anything of
 interest.)
-
-
