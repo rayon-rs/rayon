@@ -11,7 +11,7 @@ use super::*;
 /// [`interleave_shortest()`]: trait.IndexedParallelIterator.html#method.interleave_shortest
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterleaveShortest<I, J>
     where I: IndexedParallelIterator,
           J: IndexedParallelIterator<Item = I::Item>

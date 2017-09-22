@@ -10,7 +10,7 @@ use iter::internal::*;
 use vec;
 
 /// Parallel iterator over a linked list
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntoIter<T: Send> {
     inner: vec::IntoIter<T>,
 }
@@ -27,7 +27,7 @@ delegate_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a linked list
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: vec::IntoIter<&'a T>,
 }

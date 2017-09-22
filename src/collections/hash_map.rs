@@ -11,7 +11,7 @@ use iter::internal::*;
 use vec;
 
 /// Parallel iterator over a hash map
-#[derive(Debug)]
+#[derive(Debug)] // std doesn't Clone
 pub struct IntoIter<K: Hash + Eq + Send, V: Send> {
     inner: vec::IntoIter<(K, V)>,
 }
@@ -28,7 +28,7 @@ delegate_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a hash map
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, K: Hash + Eq + Sync + 'a, V: Sync + 'a> {
     inner: vec::IntoIter<(&'a K, &'a V)>,
 }

@@ -20,7 +20,7 @@ pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
 /// [`fold()`]: trait.ParallelIterator.html#method.fold
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Fold<I, ID, F> {
     base: I,
     identity: ID,
@@ -146,7 +146,7 @@ pub fn fold_with<U, I, F>(base: I, item: U, fold_op: F) -> FoldWith<I, U, F>
 /// [`fold_with()`]: trait.ParallelIterator.html#method.fold_with
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FoldWith<I, U, F> {
     base: I,
     item: U,

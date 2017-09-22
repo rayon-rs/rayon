@@ -10,7 +10,7 @@ use iter::internal::*;
 use vec;
 
 /// Parallel iterator over a binary heap
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntoIter<T: Ord + Send> {
     inner: vec::IntoIter<T>,
 }
@@ -31,7 +31,7 @@ delegate_indexed_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a binary heap
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, T: Ord + Sync + 'a> {
     inner: vec::IntoIter<&'a T>,
 }

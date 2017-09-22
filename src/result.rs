@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use option;
 
 /// Parallel iterator over a result
-#[derive(Debug)]
+#[derive(Debug)] // std doesn't Clone yet -- rust-lang/rust#45179
 pub struct IntoIter<T: Send> {
     inner: option::IntoIter<T>,
 }
@@ -30,7 +30,7 @@ delegate_indexed_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a result
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: option::IntoIter<&'a T>,
 }

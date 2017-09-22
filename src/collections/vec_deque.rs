@@ -11,7 +11,7 @@ use slice;
 use vec;
 
 /// Parallel iterator over a double-ended queue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntoIter<T: Send> {
     inner: vec::IntoIter<T>,
 }
@@ -28,7 +28,7 @@ delegate_indexed_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a double-ended queue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: Chain<slice::Iter<'a, T>, slice::Iter<'a, T>>,
 }

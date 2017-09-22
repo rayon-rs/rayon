@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 
 /// Parallel iterator over an option
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntoIter<T: Send> {
     opt: Option<T>,
 }
@@ -60,7 +60,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
 
 
 /// Parallel iterator over an immutable reference to an option
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: IntoIter<&'a T>,
 }

@@ -7,7 +7,7 @@ use super::*;
 /// [`flat_map()`]: trait.ParallelIterator.html#method.flat_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlatMap<I: ParallelIterator, F> {
     base: I,
     map_op: F,

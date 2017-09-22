@@ -8,7 +8,7 @@ use super::*;
 /// [`flatten()`]: trait.ParallelIterator.html#method.flatten
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Flatten<I: ParallelIterator> {
     base: I,
 }

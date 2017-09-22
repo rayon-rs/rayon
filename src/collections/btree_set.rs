@@ -10,7 +10,7 @@ use iter::internal::*;
 use vec;
 
 /// Parallel iterator over a B-Tree set
-#[derive(Debug)]
+#[derive(Debug)] // std doesn't Clone
 pub struct IntoIter<T: Ord + Send> {
     inner: vec::IntoIter<T>,
 }
@@ -27,7 +27,7 @@ delegate_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a B-Tree set
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a, T: Ord + Sync + 'a> {
     inner: vec::IntoIter<&'a T>,
 }
