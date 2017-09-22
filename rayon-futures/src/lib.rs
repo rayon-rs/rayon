@@ -3,6 +3,8 @@
 //! See `README.md` for details.
 #![deny(missing_debug_implementations)]
 
+#![doc(html_root_url = "https://docs.rs/rayon-futures/0.1")]
+
 extern crate futures;
 extern crate rayon_core;
 

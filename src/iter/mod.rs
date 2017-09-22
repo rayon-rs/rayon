@@ -59,6 +59,11 @@ mod map_with;
 pub use self::map_with::MapWith;
 mod zip;
 pub use self::zip::Zip;
+mod zip_eq;
+pub use self::zip_eq::ZipEq;
+mod interleave;
+pub use self::interleave::Interleave;
+
 mod noop;
 mod rev;
 pub use self::rev::Rev;
@@ -807,6 +812,55 @@ pub trait IndexedParallelIterator: ParallelIterator {
               Z::Iter: IndexedParallelIterator
     {
         zip::new(self, zip_op.into_par_iter())
+    }
+
+    /// The same as `Zip`, but requires that both iterators have the same length.
+    ///
+    /// # Panics
+    /// Will panic if `self` and `zip_op` are not the same length.
+    ///
+    /// ```should_panic
+    /// use rayon::prelude::*;
+    ///
+    /// let one = [1u8];
+    /// let two = [2u8, 2];
+    /// let one_iter = one.par_iter();
+    /// let two_iter = two.par_iter();
+    ///
+    /// // this will panic
+    /// let zipped: Vec<(&u8, &u8)> = one_iter.zip_eq(two_iter).collect();
+    ///
+    /// // we should never get here
+    /// assert_eq!(1, zipped.len());
+    /// ```
+    fn zip_eq<Z>(mut self, zip_op: Z) -> ZipEq<Self, Z::Iter>
+        where Z: IntoParallelIterator,
+              Z::Iter: IndexedParallelIterator
+    {
+        let mut zip_op_iter = zip_op.into_par_iter();
+        assert_eq!(self.len(), zip_op_iter.len());
+        zip_eq::new(self, zip_op_iter)
+    }
+
+    /// Interleave elements of this iterator and the other given
+    /// iterator. Alternately yields elements from this iterator and
+    /// the given iterator, until both are exhausted. If one iterator
+    /// is exhausted before the other, the last elements are provided
+    /// from the other.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let (x, y) = (vec![1, 2], vec![3, 4, 5, 6]);
+    /// let r: Vec<i32> = x.into_par_iter().interleave(y).collect();
+    /// assert_eq!(r, vec![1, 3, 2, 4, 5, 6]);
+    /// ```
+    fn interleave<I>(self, other: I) -> Interleave<Self, I::Iter>
+        where I: IntoParallelIterator<Item = Self::Item>,
+              I::Iter: IndexedParallelIterator<Item = Self::Item>
+    {
+        interleave::new(self, other.into_par_iter())
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of

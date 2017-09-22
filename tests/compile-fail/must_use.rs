@@ -28,4 +28,5 @@ fn main() {
     v.par_iter().with_max_len(1);           //~ ERROR must be used
     v.par_iter().with_min_len(1);           //~ ERROR must be used
     v.par_iter().zip(&v);                   //~ ERROR must be used
+    v.par_iter().zip_eq(&v);                //~ ERROR must be used
 }

@@ -19,6 +19,7 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
+#![doc(html_root_url = "https://docs.rs/rayon-core/1.2")]
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
@@ -137,6 +138,11 @@ impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
         Configuration::default()
+    }
+
+    /// Create a new `ThreadPool` initialized using this configuration.
+    pub fn build(self) -> Result<ThreadPool, Box<Error + 'static>> {
+        ThreadPool::new(self)
     }
 
     /// Get the number of threads that will be used for the thread

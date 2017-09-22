@@ -761,6 +761,47 @@ pub fn check_zip_range() {
 }
 
 #[test]
+pub fn check_zip_eq() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter_mut().zip_eq(&b[..]).for_each(|(a, &b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_zip_eq_into_par_iter() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+    let b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter_mut()
+     .zip_eq(&b) // here we rely on &b iterating over &usize
+     .for_each(|(a, &b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
+pub fn check_zip_eq_into_mut_par_iter() {
+    let a: Vec<usize> = (0..1024).rev().collect();
+    let mut b: Vec<usize> = (0..1024).collect();
+
+    a.par_iter().zip_eq(&mut b).for_each(|(&a, b)| *b += a);
+
+    assert!(b.iter().all(|&x| x == b.len() - 1));
+}
+
+#[test]
+pub fn check_zip_eq_range() {
+    let mut a: Vec<usize> = (0..1024).rev().collect();
+
+    a.par_iter_mut().zip_eq(0usize..1024).for_each(|(a, b)| *a += b);
+
+    assert!(a.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
 pub fn check_sum_filtered_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let par_sum_evens: i32 = a.par_iter().filter(|&x| (x & 1) == 0).sum();
@@ -1721,4 +1762,38 @@ fn check_either_extend() {
     let mut right: E = Either::Right(HashSet::default());
     right.par_extend(v.clone());
     assert_eq!(right, Either::Right(v.iter().cloned().collect()));
+}
+
+#[test]
+fn check_interleave_eq() {
+    let xs: Vec<usize> = (0..10).collect();
+    let ys: Vec<usize> = (10..20).collect();
+
+    let mut actual = vec![];
+    xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut actual);
+
+    let expected: Vec<usize> = (0..10).zip((10..20)).flat_map(|(i, j)| vec![i, j].into_iter()).collect();
+    assert_eq!(expected, actual);
+}
+
+#[test]
+fn check_interleave_uneven() {
+    let cases: Vec<(Vec<usize>, Vec<usize>, Vec<usize>)> = vec![
+        ((0..9).collect(), vec![10], vec![0, 10, 1, 2, 3, 4, 5, 6, 7, 8]),
+        (vec![10], (0..9).collect(), vec![10, 0, 1, 2, 3, 4, 5, 6, 7, 8]),
+        ((0..5).collect(), (5..10).collect(), (0..5).zip((5..10)).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+        (vec![], (0..9).collect(), (0..9).collect()),
+        ((0..9).collect(), vec![], (0..9).collect()),
+        ((0..50).collect(), (50..100).collect(), (0..50).zip((50..100)).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+    ];
+
+    for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
+        let mut res = vec![];
+        xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut res);
+        assert_eq!(expected, res, "Case {} failed", i);
+
+        res.truncate(0);
+        xs.par_iter().interleave(&ys).rev().map(|&i| i).collect_into(&mut res);
+        assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
+    }
 }
