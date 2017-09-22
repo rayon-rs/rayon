@@ -10,6 +10,7 @@ use rayon_core::join;
 /// [`chain()`]: trait.ParallelIterator.html#method.chain
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct Chain<A, B>
     where A: ParallelIterator,
           B: ParallelIterator<Item = A::Item>

@@ -113,6 +113,7 @@ impl Latch for LockLatch {
 /// necessarily make the latch be considered `set()`; instead, it just
 /// decrements the counter. The latch is only "set" (in the sense that
 /// `probe()` returns true) once the counter reaches zero.
+#[derive(Debug)]
 pub struct CountLatch {
     counter: AtomicUsize,
 }

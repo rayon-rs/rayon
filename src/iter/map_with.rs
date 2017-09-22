@@ -9,6 +9,7 @@ use super::*;
 /// [`map_with()`]: trait.ParallelIterator.html#method.map_with
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct MapWith<I: ParallelIterator, T, F> {
     base: I,
     item: T,

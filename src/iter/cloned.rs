@@ -10,6 +10,7 @@ use std::iter;
 /// [`cloned()`]: trait.ParallelIterator.html#method.cloned
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct Cloned<I: ParallelIterator> {
     base: I,
 }

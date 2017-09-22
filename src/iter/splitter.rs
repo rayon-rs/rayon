@@ -17,6 +17,7 @@ pub fn split<D, S>(data: D, splitter: S) -> Split<D, S>
 /// This struct is created by the [`split()`] function.
 ///
 /// [`split()`]: fn.split.html
+#[derive(Debug)]
 pub struct Split<D, S> {
     data: D,
     splitter: S,

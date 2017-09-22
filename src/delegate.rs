@@ -65,6 +65,7 @@ macro_rules! delegate_iterator_item {
      impl $( $args:tt )*
      ) => {
         $( #[ $attr ] )+
+        #[derive(Debug)]
         pub struct $iter $( $args )* {
             inner: $inner,
         }

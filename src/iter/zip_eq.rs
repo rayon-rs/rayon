@@ -13,6 +13,7 @@ use std::iter;
 /// [`zip_eq`]: trait.IndexedParallelIterator.html#method.zip_eq
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     zip: Zip<A, B>
 }

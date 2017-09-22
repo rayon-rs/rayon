@@ -21,6 +21,7 @@
 
 #![doc(html_root_url = "https://docs.rs/rayon-core/1.2")]
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
+#![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
 // If you're not compiling the unstable code, it often happens that

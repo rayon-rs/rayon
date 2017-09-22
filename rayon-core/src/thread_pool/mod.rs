@@ -8,6 +8,7 @@ use {scope, Scope};
 use spawn;
 use std::sync::Arc;
 use std::error::Error;
+use std::fmt;
 use registry::{Registry, WorkerThread};
 
 mod internal;
@@ -19,7 +20,7 @@ mod test;
 /// names of threads in the pool. You can then execute functions explicitly within
 /// this [`ThreadPool`] using [`ThreadPool::install()`]. By contrast, top level
 /// rayon functions (like `join()`)  will execute implicitly within the current thread-pool.
-/// 
+///
 ///
 /// ## Creating a ThreadPool
 ///
@@ -90,12 +91,12 @@ impl ThreadPool {
     /// If `op` should panic, that panic will be propagated.
     ///
     /// ## Using `install()`
-    ///  
+    ///
     /// ```rust
     ///    # use rayon_core as rayon;
     ///    fn main() {
     ///         let pool = rayon::ThreadPool::new(rayon::Configuration::new().num_threads(8)).unwrap();
-    ///         let n = pool.install(|| fib(20)); 
+    ///         let n = pool.install(|| fib(20));
     ///         println!("{}", n);
     ///    }
     ///
@@ -245,6 +246,15 @@ impl ThreadPool {
 impl Drop for ThreadPool {
     fn drop(&mut self) {
         self.registry.terminate();
+    }
+}
+
+impl fmt::Debug for ThreadPool {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ThreadPool")
+            .field("num_threads", &self.current_num_threads())
+            .field("id", &self.registry.id())
+            .finish()
     }
 }
 

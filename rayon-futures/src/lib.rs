@@ -1,6 +1,7 @@
 //! Future support in Rayon.
 //!
 //! See `README.md` for details.
+#![deny(missing_debug_implementations)]
 
 #![doc(html_root_url = "https://docs.rs/rayon-futures/0.1")]
 
@@ -14,6 +15,7 @@ use futures::task::{self, Spawn, Task, Unpark};
 use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
 use rayon_core::internal::worker;
 use std::any::Any;
+use std::fmt;
 use std::panic::{self, AssertUnwindSafe};
 use std::mem;
 use std::sync::Arc;
@@ -115,6 +117,11 @@ impl<T, E> Drop for RayonFuture<T, E> {
     }
 }
 
+impl<T, E> fmt::Debug for RayonFuture<T, E> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("RayonFuture").finish()
+    }
+}
 /// ////////////////////////////////////////////////////////////////////////
 
 struct ScopeFuture<'scope, F, S>

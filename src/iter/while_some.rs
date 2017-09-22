@@ -10,6 +10,7 @@ use super::*;
 /// [`while_some()`]: trait.ParallelIterator.html#method.while_some
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug)]
 pub struct WhileSome<I: ParallelIterator> {
     base: I,
 }

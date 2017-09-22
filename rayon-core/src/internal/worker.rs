@@ -1,3 +1,4 @@
+use std::fmt;
 use latch::LatchProbe;
 use registry;
 
@@ -30,6 +31,15 @@ impl<'w> WorkerThread<'w> {
         }
 
         self.thread.wait_until(&DummyLatch { f: &f });
+    }
+}
+
+impl<'w> fmt::Debug for WorkerThread<'w> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("WorkerThread")
+            .field("pool", &self.thread.registry().id())
+            .field("index", &self.thread.index())
+            .finish()
     }
 }
 
