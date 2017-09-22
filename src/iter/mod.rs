@@ -61,6 +61,9 @@ mod zip;
 pub use self::zip::Zip;
 mod zip_eq;
 pub use self::zip_eq::ZipEq;
+mod interleave;
+pub use self::interleave::Interleave;
+
 mod noop;
 mod rev;
 pub use self::rev::Rev;
@@ -461,7 +464,7 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
     fn sum<S>(self) -> S
-        where S: Send + Sum<Self::Item> + Sum
+        where S: Send + Sum<Self::Item> + Sum<S>
     {
         sum::sum(self)
     }
@@ -479,7 +482,7 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
     fn product<P>(self) -> P
-        where P: Send + Product<Self::Item> + Product
+        where P: Send + Product<Self::Item> + Product<P>
     {
         product::product(self)
     }
@@ -839,6 +842,27 @@ pub trait IndexedParallelIterator: ParallelIterator {
         zip_eq::new(self, zip_op_iter)
     }
 
+    /// Interleave elements of this iterator and the other given
+    /// iterator. Alternately yields elements from this iterator and
+    /// the given iterator, until both are exhausted. If one iterator
+    /// is exhausted before the other, the last elements are provided
+    /// from the other.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let (x, y) = (vec![1, 2], vec![3, 4, 5, 6]);
+    /// let r: Vec<i32> = x.into_par_iter().interleave(y).collect();
+    /// assert_eq!(r, vec![1, 3, 2, 4, 5, 6]);
+    /// ```
+    fn interleave<I>(self, other: I) -> Interleave<Self, I::Iter>
+        where I: IntoParallelIterator<Item = Self::Item>,
+              I::Iter: IndexedParallelIterator<Item = Self::Item>
+    {
+        interleave::new(self, other.into_par_iter())
+    }
+
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
     fn cmp<I>(mut self, other: I) -> Ordering
@@ -1052,7 +1076,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// iterators.
     ///
     /// [README]: README.md
-    fn drive<'c, C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.

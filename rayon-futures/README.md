@@ -1,5 +1,9 @@
 # Future integration into Rayon
 
+**NOTE:** `rayon-futures` currently requires unstable features of
+`rayon-core`, which may only be enabled with `rustc --cfg`,
+e.g. by setting `RUSTFLAGS=-cfg rayon_unstable` in the environment.
+
 ## How futures work
 
 Let's start with a brief coverage of how futures work. Our example will

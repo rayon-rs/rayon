@@ -1,5 +1,3 @@
-#[cfg(rayon_unstable)]
-use future::{self, Future, RayonFuture};
 use latch::{Latch, CountLatch};
 use log::Event::*;
 use job::HeapJob;
@@ -7,14 +5,17 @@ use std::any::Any;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
-use registry::{in_worker, Registry, WorkerThread};
+use registry::{in_worker, WorkerThread};
 use unwind;
 
 #[cfg(test)]
 mod test;
+mod internal;
 
+///Represents a fork-join scope which can be used to spawn any number of tasks. See [`scope()`] for more information.
+///
+///[`scope()`]: fn.scope.html
 pub struct Scope<'scope> {
     /// thread where `scope()` was executed (note that individual jobs
     /// may be executing on different worker threads, though they
@@ -281,55 +282,6 @@ impl<'scope> Scope<'scope> {
 
             let worker_thread = &*worker_thread;
             worker_thread.push(job_ref);
-        }
-    }
-
-    #[cfg(rayon_unstable)]
-    pub fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'scope
-    {
-        // We assert that the scope is allocated in a stable location
-        // (an enclosing stack frame, to be exact) which will remain
-        // valid until the scope ends.
-        let future_scope = unsafe { ScopeFutureScope::new(self) };
-
-        return future::new_rayon_future(future, future_scope);
-
-        struct ScopeFutureScope<'scope> {
-            scope: *const Scope<'scope>
-        }
-
-        impl<'scope> ScopeFutureScope<'scope> {
-            /// Caller guarantees that `*scope` will remain valid
-            /// until the scope completes. Since we acquire a ref,
-            /// that means it will remain valid until we release it.
-            unsafe fn new(scope: &Scope<'scope>) -> Self {
-                scope.job_completed_latch.increment();
-                ScopeFutureScope { scope: scope }
-            }
-        }
-
-        /// We assert that the `Self` type remains valid until a
-        /// method is called, and that `'scope` will not end until
-        /// that point.
-        unsafe impl<'scope> future::FutureScope<'scope> for ScopeFutureScope<'scope> {
-            fn registry(&self) -> Arc<Registry> {
-                unsafe {
-                    (*(*self.scope).owner_thread).registry().clone()
-                }
-            }
-
-            fn future_completed(self) {
-                unsafe {
-                    (*self.scope).job_completed_ok();
-                }
-            }
-
-            fn future_panicked(self, err: Box<Any + Send>) {
-                unsafe {
-                    (*self.scope).job_panicked(err);
-                }
-            }
         }
     }
 

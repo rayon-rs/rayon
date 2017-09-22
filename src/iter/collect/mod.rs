@@ -94,7 +94,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     }
 
     /// Update the final vector length.
-    fn complete(mut self) {
+    fn complete(self) {
         unsafe {
             // Here, we assert that `v` is fully initialized. This is
             // checked by the following assert, which counts how many

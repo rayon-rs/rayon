@@ -8,7 +8,7 @@ publish = false
 rayon = { path = "../" }
 cgmath = "0.14"
 docopt = "0.7"
-glium = "0.16"
+glium = "0.17"
 rand = "0.3"
 rustc-serialize = "0.3"
 time = "0.1"

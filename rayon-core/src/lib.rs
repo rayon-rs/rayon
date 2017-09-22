@@ -19,13 +19,14 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
+#![doc(html_root_url = "https://docs.rs/rayon-core/1.2")]
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
 // If you're not compiling the unstable code, it often happens that
 // there is stuff that is considered "dead code" and so forth. So
 // disable warnings in that scenario.
-#![cfg_attr(not(feature = "unstable"), allow(warnings))]
+#![cfg_attr(not(rayon_unstable), allow(warnings))]
 
 #[allow(unused_imports)]
 use log::Event::*;
@@ -38,8 +39,6 @@ use std::fmt;
 extern crate coco;
 #[macro_use]
 extern crate lazy_static;
-#[cfg(rayon_unstable)]
-extern crate futures;
 extern crate libc;
 extern crate num_cpus;
 extern crate rand;
@@ -51,8 +50,6 @@ mod latch;
 mod join;
 mod job;
 mod registry;
-#[cfg(rayon_unstable)]
-mod future;
 mod scope;
 mod sleep;
 mod spawn;
@@ -61,16 +58,14 @@ mod thread_pool;
 mod unwind;
 mod util;
 
+#[cfg(rayon_unstable)]
+pub mod internal;
 pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::join;
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
-#[cfg(rayon_unstable)]
-pub use spawn::spawn_future;
-#[cfg(rayon_unstable)]
-pub use future::RayonFuture;
 
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be
@@ -144,6 +139,11 @@ impl Configuration {
         Configuration::default()
     }
 
+    /// Create a new `ThreadPool` initialized using this configuration.
+    pub fn build(self) -> Result<ThreadPool, Box<Error + 'static>> {
+        ThreadPool::new(self)
+    }
+
     /// Get the number of threads that will be used for the thread
     /// pool. See `num_threads()` for more information.
     fn get_num_threads(&self) -> usize {
@@ -186,8 +186,8 @@ impl Configuration {
     /// If `num_threads` is 0, or you do not call this function, then
     /// the Rayon runtime will select the number of threads
     /// automatically. At present, this is based on the
-    /// `RAYON_NUM_THREADS` environment variable (if set), 
-    /// or the number of logical CPUs (otherwise). 
+    /// `RAYON_NUM_THREADS` environment variable (if set),
+    /// or the number of logical CPUs (otherwise).
     /// In the future, however, the default behavior may
     /// change to dynamically add or remove threads as needed.
     ///

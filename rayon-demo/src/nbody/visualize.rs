@@ -1,8 +1,9 @@
 use cgmath::{self, Angle, Vector3, Matrix4, EuclideanSpace, Point3, Rad};
-use glium::{DisplayBuild, Program, Surface};
+use glium::{Display, Program, Surface};
 use glium::{IndexBuffer, VertexBuffer};
 use glium::{DrawParameters, Depth, DepthTest};
-use glium::glutin::{ElementState, Event, WindowBuilder};
+use glium::glutin::{EventsLoop, WindowBuilder, ContextBuilder};
+use glium::glutin::{ElementState, Event, WindowEvent};
 use glium::glutin::VirtualKeyCode as Key;
 use glium::index::PrimitiveType;
 use rand::{self, Rng, SeedableRng, XorShiftRng};
@@ -70,12 +71,13 @@ struct Instance {
 implement_vertex!(Instance, color, world_position);
 
 pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
-    let display = WindowBuilder::new()
+    let mut events_loop = EventsLoop::new();
+    let window = WindowBuilder::new()
         .with_dimensions(800, 600)
-        .with_title("nbody demo".to_string())
-        .with_depth_buffer(24)
-        .build_glium()
-        .unwrap();
+        .with_title("nbody demo".to_string());
+    let context = ContextBuilder::new()
+        .with_depth_buffer(24);
+    let display = Display::new(window, context, &events_loop).unwrap();
 
     let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rand::thread_rng());
 
@@ -174,21 +176,28 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                     &params).unwrap();
         target.finish().unwrap();
 
-        for event in display.poll_events() {
-            match event {
-                Event::Closed => break 'main,
-                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::Escape)) => break 'main,
-                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::P)) => {
-                    mode = ExecutionMode::Par;
+        let mut done = false;
+        events_loop.poll_events(|event| {
+            if let Event::WindowEvent { event, .. } = event {
+                match event {
+                    WindowEvent::Closed => done = true,
+                    WindowEvent::KeyboardInput { input, .. }  => {
+                        if let ElementState::Pressed = input.state {
+                            match input.virtual_keycode {
+                                Some(Key::Escape) => done = true,
+                                Some(Key::P) => mode = ExecutionMode::Par,
+                                Some(Key::R) => mode = ExecutionMode::ParReduce,
+                                Some(Key::S) => mode = ExecutionMode::Seq,
+                                _ => ()
+                            }
+                        }
+                    },
+                    _ => ()
                 }
-                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::S)) => {
-                    mode = ExecutionMode::Seq;
-                }
-                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::R)) => {
-                    mode = ExecutionMode::ParReduce;
-                }
-                _ => ()
             }
+        });
+        if done {
+            break 'main;
         }
     }
 }

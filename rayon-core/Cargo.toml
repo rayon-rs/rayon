@@ -1,6 +1,6 @@
 [package]
 name = "rayon-core"
-version = "1.2.1"
+version = "1.2.2" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
@@ -16,8 +16,5 @@ num_cpus = "1.2"
 coco = "0.1.1"
 libc = "0.2.16"
 lazy_static = "0.2.2"
-
-# only if #[cfg(rayon_unstable)], will be removed eventually
-futures = "0.1.7"
 
 [dev-dependencies]

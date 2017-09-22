@@ -1,3 +1,4 @@
+#![doc(html_root_url = "https://docs.rs/rayon/0.8.2")]
 #![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![cfg_attr(test, feature(conservative_impl_trait))]
 #![cfg_attr(test, feature(i128_type))]
@@ -5,7 +6,7 @@
 // If you're not compiling the unstable code, it often happens that
 // there is stuff that is considered "dead code" and so forth. So
 // disable warnings in that scenario.
-#![cfg_attr(not(feature = "unstable"), allow(warnings))]
+#![cfg_attr(not(rayon_unstable), allow(warnings))]
 
 extern crate rayon_core;
 extern crate either;
@@ -43,7 +44,3 @@ pub use rayon_core::ThreadPool;
 pub use rayon_core::join;
 pub use rayon_core::{scope, Scope};
 pub use rayon_core::spawn;
-#[cfg(rayon_unstable)]
-pub use rayon_core::spawn_future;
-#[cfg(rayon_unstable)]
-pub use rayon_core::RayonFuture;

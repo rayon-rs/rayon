@@ -1,35 +1,61 @@
-//! Future support in Rayon. This module *primary* consists of
-//! internal APIs that are exposed through `Scope::spawn_future` and
-//! `::spawn_future`.  However, the type `RayonFuture` is a public
-//! type exposed to all users.
+//! Future support in Rayon.
 //!
 //! See `README.md` for details.
 
-use latch::{LatchProbe};
-#[allow(warnings)]
-use log::Event::*;
-use futures::{Async, Poll};
+#![doc(html_root_url = "https://docs.rs/rayon-futures/0.1")]
+
+extern crate futures;
+extern crate rayon_core;
+
+use futures::{Async, Future, Poll};
 use futures::executor;
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task, Unpark};
-use job::{Job, JobRef};
-use registry::{Registry, WorkerThread};
+use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
+use rayon_core::internal::worker;
 use std::any::Any;
-use std::panic::AssertUnwindSafe;
+use std::panic::{self, AssertUnwindSafe};
 use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
 use std::sync::Mutex;
-use unwind;
-
-pub use futures::Future;
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
 const STATE_EXECUTING: usize = 2;
 const STATE_EXECUTING_UNPARKED: usize = 3;
 const STATE_COMPLETE: usize = 4;
+
+pub trait ScopeFutureExt<'scope> {
+    fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
+        where F: Future + Send + 'scope;
+}
+
+impl<'scope, T> ScopeFutureExt<'scope> for T
+    where T: ToScopeHandle<'scope>
+{
+    fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
+        where F: Future + Send + 'scope
+    {
+        let inner = ScopeFuture::spawn(future, self.to_scope_handle());
+
+        // We assert that it is safe to hide the type `F` (and, in
+        // particular, the lifetimes in it). This is true because the API
+        // offered by a `RayonFuture` only permits access to the result of
+        // the future (of type `F::Item` or `F::Error`) and those types
+        // *are* exposed in the `RayonFuture<F::Item, F::Error>` type. See
+        // README.md for details.
+        unsafe {
+            return RayonFuture { inner: hide_lifetime(inner) };
+        }
+
+        unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
+                                          -> Arc<ScopeFutureTrait<T, E>> {
+            mem::transmute(x)
+        }
+    }
+}
 
 /// Represents the result of a future that has been spawned in the
 /// Rayon threadpool.
@@ -39,67 +65,27 @@ const STATE_COMPLETE: usize = 4;
 /// Any panics that occur while computing the spawned future will be
 /// propagated when this future is polled.
 pub struct RayonFuture<T, E> {
-    // Warning: Public end-user API!
     inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>,
-}
-
-/// Unsafe because implementor must guarantee:
-///
-/// 1. That the type `Self` remains dynamically valid until one of the
-///    completion methods is called.
-/// 2. That the lifetime `'scope` cannot end until one of those
-///    methods is called.
-///
-/// NB. Although this is public, it is not exposed to outside users.
-pub unsafe trait FutureScope<'scope> {
-    fn registry(&self) -> Arc<Registry>;
-    fn future_panicked(self, err: Box<Any + Send>);
-    fn future_completed(self);
-}
-
-/// Create a `RayonFuture` that will execute `F` and yield its result,
-/// propagating any panics.
-///
-/// NB. Although this is public, it is not exposed to outside users.
-pub fn new_rayon_future<'scope, F, S>(future: F, scope: S) -> RayonFuture<F::Item, F::Error>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
-{
-    let inner = ScopeFuture::spawn(future, scope);
-
-    // We assert that it is safe to hide the type `F` (and, in
-    // particular, the lifetimes in it). This is true because the API
-    // offered by a `RayonFuture` only permits access to the result of
-    // the future (of type `F::Item` or `F::Error`) and those types
-    // *are* exposed in the `RayonFuture<F::Item, F::Error>` type. See
-    // README.md for details.
-    unsafe {
-        return RayonFuture { inner: hide_lifetime(inner) };
-    }
-
-    unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
-                                      -> Arc<ScopeFutureTrait<T, E>> {
-        mem::transmute(x)
-    }
 }
 
 impl<T, E> RayonFuture<T, E> {
     pub fn rayon_wait(mut self) -> Result<T, E> {
-        // NB: End-user API!
-        let worker_thread = WorkerThread::current();
-        if worker_thread.is_null() {
-            self.wait()
-        } else {
-            // Assert that uses of `worker_thread` pointer below are
-            // valid (because we are on the worker-thread).
+        worker::if_in_worker_thread(|worker_thread| {
+            // In Rayon worker thread: spin. Unsafe because we must be
+            // sure that `self.inner.probe()` will trigger some Rayon
+            // event once it becomes true -- and it will, as when the
+            // future moves to the complete state, we will invoke
+            // either `ScopeHandle::panicked()` or `ScopeHandle::ok()`
+            // on our scope handle.
             unsafe {
-                (*worker_thread).wait_until(&*self.inner);
-                debug_assert!(self.inner.probe());
-                self.poll().map(|a_v| match a_v {
-                    Async::Ready(v) => v,
-                    Async::NotReady => panic!("probe() returned true but poll not ready")
-                })
+                worker_thread.wait_until_true(|| self.inner.probe());
             }
-        }
+            self.poll().map(|a_v| match a_v {
+                Async::Ready(v) => v,
+                Async::NotReady => panic!("probe() returned true but poll not ready")
+            })
+        })
+            .unwrap_or_else(|| self.wait())
     }
 }
 
@@ -108,11 +94,9 @@ impl<T, E> Future for RayonFuture<T, E> {
     type Error = E;
 
     fn wait(self) -> Result<T, E> {
-        if WorkerThread::current().is_null() {
-            executor::spawn(self).wait_future()
-        } else {
-            panic!("using  `wait()` in a Rayon thread is unwise; try `rayon_wait()`")
-        }
+        worker::if_in_worker_thread(
+            |_| panic!("using  `wait()` in a Rayon thread is unwise; try `rayon_wait()`"));
+        executor::spawn(self).wait_future()
     }
 
     fn poll(&mut self) -> Poll<T, E> {
@@ -120,7 +104,7 @@ impl<T, E> Future for RayonFuture<T, E> {
             Ok(Async::Ready(Ok(v))) => Ok(Async::Ready(v)),
             Ok(Async::Ready(Err(e))) => Err(e),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => unwind::resume_unwinding(e),
+            Err(e) => panic::resume_unwind(e),
         }
     }
 }
@@ -134,10 +118,9 @@ impl<T, E> Drop for RayonFuture<T, E> {
 /// ////////////////////////////////////////////////////////////////////////
 
 struct ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     state: AtomicUsize,
-    registry: Arc<Registry>,
     contents: Mutex<ScopeFutureContents<'scope, F, S>>,
 }
 
@@ -146,7 +129,7 @@ type CUItem<F> = <CU<F> as Future>::Item;
 type CUError<F> = <CU<F> as Future>::Error;
 
 struct ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
     unpark: Option<Arc<Unpark>>,
@@ -168,14 +151,14 @@ struct ScopeFutureContents<'scope, F, S>
 
 // Assert that the `*const` is safe to transmit between threads:
 unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {}
 unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {}
 
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     fn spawn(future: F, scope: S) -> Arc<Self> {
         // Using `AssertUnwindSafe` is valid here because (a) the data
@@ -185,7 +168,6 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
 
         let future: Arc<Self> = Arc::new(ScopeFuture::<F, S> {
             state: AtomicUsize::new(STATE_PARKED),
-            registry: scope.registry(),
             contents: Mutex::new(ScopeFutureContents {
                 spawn: None,
                 unpark: None,
@@ -210,14 +192,6 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
         future.unpark();
 
         future
-    }
-
-    /// Creates a `JobRef` from this job -- note that this hides all
-    /// lifetimes, so it is up to you to ensure that this JobRef
-    /// doesn't outlive any data that it closes over.
-    unsafe fn into_job_ref(this: Arc<Self>) -> JobRef {
-        let this: *const Self = mem::transmute(this);
-        JobRef::new(this)
     }
 
     fn make_unpark(this: &Arc<Self>) -> Arc<Unpark> {
@@ -257,15 +231,17 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                         // previous execution might have moved us to the
                         // PARKED state but not yet released the lock.
                         let contents = self.contents.lock().unwrap();
+                        let task_ref = contents.this.clone()
+                                                    .expect("this ref already dropped");
 
-                        // Assert that `job_ref` remains valid until
-                        // it is executed.  That's true because
-                        // `job_ref` holds a ref on the `Arc` and
-                        // because, until `job_ref` completes, the
-                        // references in the future are valid.
+                        // We assert that `contents.scope` will be not
+                        // be dropped until the task is executed. This
+                        // is true because we only drop
+                        // `contents.scope` from within `RayonTask::execute()`.
                         unsafe {
-                            let job_ref = Self::into_job_ref(contents.this.clone().unwrap());
-                            self.registry.inject_or_push(job_ref);
+                            contents.scope.as_ref()
+                                          .expect("scope already dropped")
+                                          .spawn_task(task_ref);
                         }
                         return;
                     }
@@ -339,25 +315,21 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> Unpark for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     fn unpark(&self) {
         self.unpark_inherent();
     }
 }
 
-impl<'scope, F, S> Job for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+impl<'scope, F, S> RayonTask for ScopeFuture<'scope, F, S>
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
-    unsafe fn execute(this: *const Self) {
-        let this: Arc<Self> = mem::transmute(this);
-
+    fn execute(this: Arc<Self>) {
         // *generally speaking* there should be no contention for the
         // lock, but it is possible -- we can end execution, get re-enqeueud,
         // and re-executed, before we have time to return from this fn
         let mut contents = this.contents.lock().unwrap();
-
-        log!(FutureExecute { state: this.state.load(Relaxed) });
 
         this.begin_execute_state();
         loop {
@@ -366,17 +338,14 @@ impl<'scope, F, S> Job for ScopeFuture<'scope, F, S>
             } else {
                 match contents.poll() {
                     Ok(Async::Ready(v)) => {
-                        log!(FutureExecuteReady);
                         return contents.complete(Ok(Async::Ready(v)));
                     }
                     Ok(Async::NotReady) => {
-                        log!(FutureExecuteNotReady);
                         if this.end_execute_state() {
                             return;
                         }
                     }
                     Err(err) => {
-                        log!(FutureExecuteErr);
                         return contents.complete(Err(err));
                     }
                 }
@@ -386,7 +355,7 @@ impl<'scope, F, S> Job for ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: FutureScope<'scope>,
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
         let unpark = self.unpark.clone().unwrap();
@@ -394,8 +363,6 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
     }
 
     fn complete(&mut self, value: Poll<CUItem<F>, CUError<F>>) {
-        log!(FutureComplete);
-
         // So, this is subtle. We know that the type `F` may have some
         // data which is only valid until the end of the scope, and we
         // also know that the scope doesn't end until `self.counter`
@@ -420,8 +387,7 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         // somewhere useful if we can.
         let mut err = None;
         if let Some(waiting_task) = self.waiting_task.take() {
-            log!(FutureUnparkWaitingTask);
-            match unwind::halt_unwinding(|| waiting_task.unpark()) {
+            match panic::catch_unwind(AssertUnwindSafe(|| waiting_task.unpark())) {
                 Ok(()) => { }
                 Err(e) => { err = Some(e); }
             }
@@ -432,30 +398,33 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         // to `new_rayon_future()` ensures it for us.
         let scope = self.scope.take().unwrap();
         if let Some(err) = err {
-            scope.future_panicked(err);
+            scope.panicked(err);
         } else {
-            scope.future_completed();
+            scope.ok();
         }
     }
 }
 
-impl<'scope, F, S> LatchProbe for ScopeFuture<'scope, F, S>
-    where F: Future + Send, S: FutureScope<'scope>,
-{
-    fn probe(&self) -> bool {
-        self.state.load(Acquire) == STATE_COMPLETE
-    }
-}
+trait ScopeFutureTrait<T, E>: Send + Sync {
+    /// Returns true when future is in the COMPLETE state.
+    fn probe(&self) -> bool;
 
-/// NB. Although this is public, it is not exposed to outside users.
-pub trait ScopeFutureTrait<T, E>: Send + Sync + LatchProbe {
+    /// Execute the `poll` operation of a future: read the result if
+    /// it is ready, return `Async::NotReady` otherwise.
     fn poll(&self) -> Poll<T, E>;
+
+    /// Indicate that we no longer care about the result of the future.
+    /// Corresponds to `Drop` in the future trait.
     fn cancel(&self);
 }
 
 impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F, S>
-    where F: Future + Send, S: FutureScope<'scope>,
+    where F: Future + Send, S: ScopeHandle<'scope>,
 {
+    fn probe(&self) -> bool {
+        self.state.load(Acquire) == STATE_COMPLETE
+    }
+
     fn poll(&self) -> Poll<CUItem<F>, CUError<F>> {
         // Important: due to transmute hackery, not all the fields are
         // truly known to be valid at this point. In particular, the
@@ -467,7 +436,6 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
             let r = mem::replace(&mut contents.result, Ok(Async::NotReady));
             return r;
         } else {
-            log!(FutureInstallWaitingTask { state: state });
             contents.waiting_task = Some(task::park());
             Ok(Async::NotReady)
         }
