@@ -377,22 +377,12 @@ pub struct FnContext {
     _marker: PhantomData<*mut ()>,
 }
 
-impl Default for FnContext {
-    #[inline]
-    fn default() -> Self {
-        FnContext {
-            migrated: false,
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl FnContext {
     #[inline]
     fn new(migrated: bool) -> Self {
         FnContext {
             migrated: migrated,
-            ..FnContext::default()
+            _marker: PhantomData,
         }
     }
 }

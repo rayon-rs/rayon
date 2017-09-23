@@ -249,10 +249,10 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
           C: Consumer<P::Item>
 {
     let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
-    return helper(len, FnContext::default(), splitter, producer, consumer);
+    return helper(len, false, splitter, producer, consumer);
 
     fn helper<P, C>(len: usize,
-                    context: FnContext,
+                    migrated: bool,
                     mut splitter: LengthSplitter,
                     producer: P,
                     consumer: C)
@@ -262,15 +262,18 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
     {
         if consumer.full() {
             consumer.into_folder().complete()
-        } else if splitter.try(len, context.migrated()) {
+        } else if splitter.try(len, migrated) {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
             let (left_result, right_result) =
-                join_context(|context| helper(mid, context, splitter, left_producer, left_consumer),
-                             |context| {
-                                 helper(len - mid, context, splitter, right_producer, right_consumer)
-                             });
+                join_context(|context| {
+                    helper(mid, context.migrated(), splitter,
+                           left_producer, left_consumer)
+                }, |context| {
+                    helper(len - mid, context.migrated(), splitter,
+                           right_producer, right_consumer)
+                });
             reducer.reduce(left_result, right_result)
         } else {
             producer.fold_with(consumer.into_folder()).complete()
@@ -283,10 +286,10 @@ pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
           C: UnindexedConsumer<P::Item>
 {
     let splitter = Splitter::new();
-    bridge_unindexed_producer_consumer(FnContext::default(), splitter, producer, consumer)
+    bridge_unindexed_producer_consumer(false, splitter, producer, consumer)
 }
 
-fn bridge_unindexed_producer_consumer<P, C>(context: FnContext,
+fn bridge_unindexed_producer_consumer<P, C>(migrated: bool,
                                             mut splitter: Splitter,
                                             producer: P,
                                             consumer: C)
@@ -296,15 +299,18 @@ fn bridge_unindexed_producer_consumer<P, C>(context: FnContext,
 {
     if consumer.full() {
         consumer.into_folder().complete()
-    } else if splitter.try(context.migrated()) {
+    } else if splitter.try(migrated) {
         match producer.split() {
             (left_producer, Some(right_producer)) => {
                 let (reducer, left_consumer, right_consumer) =
                     (consumer.to_reducer(), consumer.split_off_left(), consumer);
                 let bridge = bridge_unindexed_producer_consumer;
                 let (left_result, right_result) =
-                    join_context(|context| bridge(context, splitter, left_producer, left_consumer),
-                                 |context| bridge(context, splitter, right_producer, right_consumer));
+                    join_context(|context| {
+                        bridge(context.migrated(), splitter, left_producer, left_consumer)
+                    }, |context| {
+                        bridge(context.migrated(), splitter, right_producer, right_consumer)
+                    });
                 reducer.reduce(left_result, right_result)
             }
             (producer, None) => producer.fold_with(consumer.into_folder()).complete(),
