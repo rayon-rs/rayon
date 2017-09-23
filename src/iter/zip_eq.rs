@@ -1,8 +1,6 @@
 
 use super::internal::*;
 use super::*;
-use std::cmp;
-use std::iter;
 
 /// An [`IndexedParallelIterator`] that iterates over two parallel iterators of equal
 /// length simultaneously.
