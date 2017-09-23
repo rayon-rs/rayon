@@ -4,6 +4,7 @@ use std::iter;
 use std::usize;
 
 /// Iterator adaptor for [the `repeat()` function](fn.repeat.html).
+#[derive(Debug)]
 pub struct Repeat<T: Clone + Send> {
     element: T,
 }
@@ -86,6 +87,7 @@ impl<T: Clone + Send> UnindexedProducer for RepeatProducer<T> {
 
 
 /// Iterator adaptor for [the `repeatn()` function](fn.repeatn.html).
+#[derive(Debug)]
 pub struct RepeatN<T: Clone + Send> {
     element: T,
     count: usize,
