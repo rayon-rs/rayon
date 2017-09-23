@@ -15,7 +15,7 @@ pub struct Repeat<T: Clone + Send> {
 /// means to shorten it, or consider using
 /// [the `repeatn()` function](fn.repeatn.html) instead.
 ///
-/// Example:
+/// # Examples
 ///
 /// ```
 /// use rayon::prelude::*;
@@ -96,7 +96,7 @@ pub struct RepeatN<T: Clone + Send> {
 /// Creates a parallel iterator that produces `n` repeats of `elt`
 /// (by cloning it).
 ///
-/// Example:
+/// # Examples
 ///
 /// ```
 /// use rayon::prelude::*;
