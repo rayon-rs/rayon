@@ -84,6 +84,32 @@ impl ThreadPool {
     /// thread-local data from the current thread will not be
     /// accessible.
     ///
+    /// # Warning: inter-pool deadlocks
+    ///
+    /// If a thread within a threadpool calls `install()` for some
+    /// other threadpool, that thread will block, unable to participate
+    /// in its own pool until that call is done.  If the other pool were
+    /// to call `install()` back to the first, then they'll both be blocked.
+    ///
+    /// ```rust,ignore
+    ///    # use rayon_core as rayon;
+    ///    let pool1 = rayon::Configuration::new().num_threads(1).build().unwrap();
+    ///    let pool2 = rayon::Configuration::new().num_threads(1).build().unwrap();
+    ///
+    ///    pool1.install(|| {
+    ///        // this will block pool1's thread:
+    ///        pool2.install(|| {
+    ///            // this will block pool2's thread:
+    ///            pool1.install(|| {
+    ///               // there are no threads left to run this!
+    ///               println!("hello?");
+    ///            });
+    ///        });
+    ///    });
+    /// ```
+    ///
+    /// (Note: Any blocking in rayon threads is generally discouraged.)
+    ///
     /// # Panics
     ///
     /// If `op` should panic, that panic will be propagated.
