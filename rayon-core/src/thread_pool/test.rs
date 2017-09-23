@@ -137,3 +137,11 @@ fn panic_thread_name() {
     assert_eq!(5, wait_for_counter(start_count));
     assert_eq!(5, wait_for_counter(exit_count));
 }
+
+#[test]
+fn self_install() {
+    let pool = Configuration::new().num_threads(1).build().unwrap();
+
+    // If the inner `install` blocks, then nothing will actually run it!
+    assert!(pool.install(|| pool.install(|| true)));
+}

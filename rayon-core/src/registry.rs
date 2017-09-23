@@ -326,6 +326,36 @@ impl Registry {
         stolen
     }
 
+    /// If already in a worker-thread of this registry, just execute `op`.
+    /// Otherwise, inject `op` in this thread-pool. Either way, block until `op`
+    /// completes and return its return value. If `op` panics, that panic will
+    /// be propagated as well.
+    pub fn in_worker<OP, R>(&self, op: OP) -> R
+        where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+    {
+        unsafe {
+            let worker_thread = WorkerThread::current();
+            if !worker_thread.is_null() && (*worker_thread).registry().id() == self.id() {
+                // Perfectly valid to give them a `&T`: this is the
+                // current thread, so we know the data structure won't be
+                // invalidated until we return.
+                op(&*worker_thread)
+            } else {
+                self.in_worker_cold(op)
+            }
+        }
+    }
+
+    #[cold]
+    unsafe fn in_worker_cold<OP, R>(&self, op: OP) -> R
+        where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+    {
+        let job = StackJob::new(|| in_worker(op), LockLatch::new());
+        self.inject(&[job.as_job_ref()]);
+        job.latch.wait();
+        job.into_result()
+    }
+
     /// Increment the terminate counter. This increment should be
     /// balanced by a call to `terminate`, which will decrement. This
     /// is used when spawning asynchronous work, which needs to
@@ -644,23 +674,9 @@ pub fn in_worker<OP, R>(op: OP) -> R
             // Perfectly valid to give them a `&T`: this is the
             // current thread, so we know the data structure won't be
             // invalidated until we return.
-            return op(&*owner_thread);
+            op(&*owner_thread)
         } else {
-            return in_worker_cold(op);
+            global_registry().in_worker_cold(op)
         }
     }
 }
-
-#[cold]
-unsafe fn in_worker_cold<OP, R>(op: OP) -> R
-    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
-{
-    // never run from a worker thread; just shifts over into worker threads
-    debug_assert!(WorkerThread::current().is_null());
-    let job = StackJob::new(|| in_worker(op), LockLatch::new());
-    global_registry().inject(&[job.as_job_ref()]);
-    job.latch.wait();
-    job.into_result()
-}
-
-

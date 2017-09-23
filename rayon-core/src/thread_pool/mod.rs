@@ -1,8 +1,6 @@
 use Configuration;
-use latch::LockLatch;
 #[allow(unused_imports)]
 use log::Event::*;
-use job::StackJob;
 use join;
 use {scope, Scope};
 use spawn;
@@ -112,12 +110,7 @@ impl ThreadPool {
         where OP: FnOnce() -> R + Send,
               R: Send
     {
-        unsafe {
-            let job_a = StackJob::new(op, LockLatch::new());
-            self.registry.inject(&[job_a.as_job_ref()]);
-            job_a.latch.wait();
-            job_a.into_result()
-        }
+        self.registry.in_worker(|_| op())
     }
 
     /// Returns the (current) number of threads in the thread pool.
