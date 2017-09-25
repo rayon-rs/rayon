@@ -9,6 +9,9 @@ repository = "https://github.com/nikomatsakis/rayon"
 documentation = "https://docs.rs/rayon/"
 links = "rayon-core"
 build = "build.rs"
+readme = "../README.md"
+keywords = ["parallel", "thread", "concurrency", "join", "performance"]
+categories = ["concurrency"]
 
 [dependencies]
 rand = "0.3"
