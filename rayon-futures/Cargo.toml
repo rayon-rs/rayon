@@ -7,6 +7,9 @@ description = "Futures integration into Rayon"
 license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
 documentation = "https://docs.rs/rayon-futures/"
+readme = "README.md"
+keywords = ["concurrency", "parallelism", "futures"]
+categories = ["concurrency"]
 
 [dependencies]
 rayon-core = { version = "1.2.2", path = "../rayon-core" }
