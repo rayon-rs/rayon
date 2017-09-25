@@ -4,7 +4,7 @@ use std::sync::Arc;
 /// Represents a task that can be scheduled onto the Rayon
 /// thread-pool. Once a task is scheduler, it will execute exactly
 /// once (eventually).
-pub trait Task: Send {
+pub trait Task: Send + Sync {
     fn execute(this: Arc<Self>);
 }
 

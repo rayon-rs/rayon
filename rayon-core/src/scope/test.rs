@@ -69,12 +69,12 @@ fn divide_and_conquer_seq(counter: &AtomicUsize, size: usize) {
     }
 }
 
-struct Tree<T> {
+struct Tree<T: Send> {
     value: T,
     children: Vec<Tree<T>>,
 }
 
-impl<T> Tree<T> {
+impl<T: Send> Tree<T> {
     pub fn iter<'s>(&'s self) -> impl Iterator<Item = &'s T> + 's {
         once(&self.value)
             .chain(self.children.iter().flat_map(|c| c.iter()))
