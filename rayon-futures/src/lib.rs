@@ -9,15 +9,17 @@ extern crate futures;
 extern crate rayon_core;
 
 use futures::{Async, Future, Poll};
-use futures::executor;
+use futures::executor::{self, Notify, NotifyHandle, UnsafeNotify};
 use futures::future::CatchUnwind;
-use futures::task::{self, Spawn, Task, Unpark};
+use futures::task::{self, Spawn, Task};
 use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
 use rayon_core::internal::worker;
 use std::any::Any;
 use std::fmt;
 use std::panic::{self, AssertUnwindSafe};
+use std::marker::PhantomData;
 use std::mem;
+use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
@@ -135,11 +137,14 @@ type CU<F> = CatchUnwind<AssertUnwindSafe<F>>;
 type CUItem<F> = <CU<F> as Future>::Item;
 type CUError<F> = <CU<F> as Future>::Error;
 
+struct ScopeFutureNotify<'scope, F, S> (PhantomData<ScopeFuture<'scope, F, S>>)
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>;
+
 struct ScopeFutureContents<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
-    unpark: Option<Arc<Unpark>>,
+    notify: Option<NotifyHandle>,
 
     // Pointer to ourselves. We `None` this out when we are finished
     // executing, but it's convenient to keep around normally.
@@ -177,7 +182,7 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
             state: AtomicUsize::new(STATE_PARKED),
             contents: Mutex::new(ScopeFutureContents {
                 spawn: None,
-                unpark: None,
+                notify: None,
                 this: None,
                 scope: Some(scope),
                 waiting_task: None,
@@ -192,40 +197,16 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
         {
             let mut contents = future.contents.try_lock().unwrap();
             contents.spawn = Some(spawn);
-            contents.unpark = Some(Self::make_unpark(&future));
+            contents.notify = Some(into_notify_handle(future.clone()));
             contents.this = Some(future.clone());
         }
 
-        future.unpark();
+        future.notify();
 
         future
     }
 
-    fn make_unpark(this: &Arc<Self>) -> Arc<Unpark> {
-        // Hide any lifetimes in `self`. This is safe because, until
-        // `self` is dropped, the counter is not decremented, and so
-        // the `'scope` lifetimes cannot end.
-        //
-        // Unfortunately, as `Unpark` currently requires `'static`, we
-        // have to do an indirection and this ultimately requires a
-        // fresh allocation.
-        //
-        // Here we assert that hiding the lifetimes in this fashion is
-        // safe: we claim this is true because the lifetimes we are
-        // hiding are part of `F`, and we now that any lifetimes in
-        // `F` outlive `counter`. And we can see from `complete()`
-        // that we drop all values of type `F` before decrementing
-        // `counter`.
-        unsafe {
-            return hide_lifetime(this.clone());
-        }
-
-        unsafe fn hide_lifetime<'l>(x: Arc<Unpark + 'l>) -> Arc<Unpark> {
-            mem::transmute(x)
-        }
-    }
-
-    fn unpark_inherent(&self) {
+    fn notify(&self) {
         loop {
             match self.state.load(Relaxed) {
                 STATE_PARKED => {
@@ -321,11 +302,58 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
     }
 }
 
-impl<'scope, F, S> Unpark for ScopeFuture<'scope, F, S>
+/// This is bacially copied from the implementation of Notify for ArcWrapped
+/// in the futures-rs crate.
+impl<'scope, F, S> Notify for ScopeFutureNotify<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
-    fn unpark(&self) {
-        self.unpark_inherent();
+    fn notify(&self, _id: usize) {
+        unsafe {
+            let me: *const Self = self;
+            ScopeFuture::notify(&*(&me as *const *const _ as *const Arc<ScopeFuture<'scope, F, S>>))
+        }
+    }
+}
+
+/// This is bacially copied from the implementation of Notify for ArcWrapped
+/// in the futures-rs crate.
+unsafe impl<'scope, F, S> UnsafeNotify for ScopeFutureNotify<'scope, F, S>
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+{
+    unsafe fn clone_raw(&self) -> NotifyHandle {
+        let me: *const Self = self;
+        let arc = (*(&me as *const *const _ as *const Arc<ScopeFuture<'scope, F, S>>)).clone();
+        into_notify_handle(arc)
+    }
+
+    unsafe fn drop_raw(&self) {
+        let mut me: *const Self = self;
+        let me = &mut me as *mut *const _ as *mut Arc<ScopeFuture<'scope, F, S>>;
+        ptr::drop_in_place(me);
+    }
+}
+
+fn into_notify_handle<'scope, F, S>(this: Arc<ScopeFuture<'scope, F, S>>) -> NotifyHandle
+    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+{
+    unsafe {
+        let ptr: *mut ScopeFutureNotify<'scope, F, S> = mem::transmute(this);
+        return NotifyHandle::new(hide_lifetime(ptr));
+    }
+
+    /// Hide any lifetimes in `this`. This is safe because until `this` is dropped,
+    /// the counter is not decremented, and so the `'scope` lifetime cannot end.
+    ///
+    /// Unfortunately, since `NotifyHandle` requires a pointer with a static lifetime
+    /// we have to hide the lifetimes.
+    ///
+    /// Here we assert that hiding the lifetimes in this fashiion is safe:
+    /// we claim this is true because the lifteimes we are hiding are part of `F`,
+    /// and we know that any lifetimes in `F` outlive `counter`. And we can see
+    /// from `complete()` that we drop all values of type `F` before decrementing
+    /// `counter`.
+    unsafe fn hide_lifetime<'l>(ptr: *mut (UnsafeNotify + 'l)) -> *mut UnsafeNotify {
+        mem::transmute(ptr)
     }
 }
 
@@ -365,8 +393,8 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
     where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
 {
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
-        let unpark = self.unpark.clone().unwrap();
-        self.spawn.as_mut().unwrap().poll_future(unpark)
+        let unpark = self.notify.clone().unwrap();
+        self.spawn.as_mut().unwrap().poll_future_notify(&unpark, 0)
     }
 
     fn complete(&mut self, value: Poll<CUItem<F>, CUError<F>>) {
@@ -378,7 +406,7 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         // that state or something!
         mem::drop(self.spawn.take().unwrap());
 
-        self.unpark = None;
+        self.notify = None;
         self.result = value;
         let this = self.this.take().unwrap();
         if cfg!(debug_assertions) {
@@ -389,12 +417,12 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         }
         this.state.store(STATE_COMPLETE, Release);
 
-        // `unpark()` here is arbitrary user-code, so it may well
+        // `notify()` here is arbitrary user-code, so it may well
         // panic. We try to capture that panic and forward it
         // somewhere useful if we can.
         let mut err = None;
         if let Some(waiting_task) = self.waiting_task.take() {
-            match panic::catch_unwind(AssertUnwindSafe(|| waiting_task.unpark())) {
+            match panic::catch_unwind(AssertUnwindSafe(|| waiting_task.notify())) {
                 Ok(()) => { }
                 Err(e) => { err = Some(e); }
             }
@@ -443,7 +471,7 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
             let r = mem::replace(&mut contents.result, Ok(Async::NotReady));
             return r;
         } else {
-            contents.waiting_task = Some(task::park());
+            contents.waiting_task = Some(task::current());
             Ok(Async::NotReady)
         }
     }
@@ -462,13 +490,13 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
         let unpark = {
             let mut contents = self.contents.lock().unwrap();
             contents.canceled = true;
-            contents.unpark.clone()
+            contents.notify.clone()
         };
 
         // If the `unpark` we grabbed was not `None`, then signal it.
         // This will schedule the future.
         if let Some(u) = unpark {
-            u.unpark();
+            u.notify(0);
         }
     }
 }

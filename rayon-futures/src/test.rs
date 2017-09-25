@@ -3,7 +3,8 @@ extern crate compiletest_rs as compiletest;
 use futures::{self, Async, Future};
 use futures::future::lazy;
 use futures::sync::oneshot;
-use futures::task::{self, Unpark};
+use futures::task;
+use futures::executor::Notify;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -146,17 +147,17 @@ fn future_wait_works_outside_rayon_threads() {
 /// are outside a Rayon worker thread.
 #[test]
 #[should_panic(expected = "Hello, world!")]
-fn panicy_unpark() {
+fn panicy_notify() {
     scope(|s| {
         let (a_tx, a_rx) = oneshot::channel::<u32>();
         let rf = s.spawn_future(a_rx);
 
-        // invoke `poll_future` with a `PanicUnpark` instance;
+        // invoke `poll_future` with a `PanicNotify` instance;
         // this should get installed as a 'waiting task' on the
         // Rayon future `rf`
         let mut spawn = task::spawn(rf);
-        let unpark = Arc::new(PanicUnpark);
-        match spawn.poll_future(unpark.clone()) {
+        let unpark = Arc::new(PanicNotify);
+        match spawn.poll_future_notify(&unpark, 0) {
             Ok(Async::NotReady) => {
                 // good, we expect not to be ready yet
             }
@@ -168,7 +169,7 @@ fn panicy_unpark() {
         a_tx.send(22).unwrap();
 
         // now we wait for `rf` to complete; when it does, it will
-        // also signal the `PanicUnpark` to wake up (that is
+        // also signal the `PanicNotify` to wake up (that is
         // *supposed* to be what triggers us to `poll` again, but
         // we are sidestepping that)
         let v = spawn.into_inner().rayon_wait().unwrap();
@@ -176,19 +177,19 @@ fn panicy_unpark() {
     });
     panic!("scope failed to panic!");
 
-    struct PanicUnpark;
+    struct PanicNotify;
 
-    impl Unpark for PanicUnpark {
-        fn unpark(&self) {
+    impl Notify for PanicNotify {
+        fn notify(&self, _id: usize) {
             panic!("Hello, world!");
         }
     }
 }
 
 #[test]
-fn double_unpark() {
-    let unpark0 = Arc::new(TrackUnpark { value: AtomicUsize::new(0) });
-    let unpark1 = Arc::new(TrackUnpark { value: AtomicUsize::new(0) });
+fn double_notify() {
+    let unpark0 = Arc::new(TrackNotify { value: AtomicUsize::new(0) });
+    let unpark1 = Arc::new(TrackNotify { value: AtomicUsize::new(0) });
     let mut _tag = None;
     scope(|s| {
         let (a_tx, a_rx) = oneshot::channel::<u32>();
@@ -204,7 +205,7 @@ fn double_unpark() {
             } else {
                 unpark1.clone()
             };
-            match spawn.poll_future(u) {
+            match spawn.poll_future_notify(&u, 0) {
                 Ok(Async::NotReady) => {
                     // good, we expect not to be ready yet
                 }
@@ -226,12 +227,12 @@ fn double_unpark() {
     // unpark0 was not the last unpark supplied, so it will never be signalled
     assert_eq!(unpark0.value.load(Ordering::SeqCst), 0);
 
-    struct TrackUnpark {
+    struct TrackNotify {
         value: AtomicUsize,
     }
 
-    impl Unpark for TrackUnpark {
-        fn unpark(&self) {
+    impl Notify for TrackNotify {
+        fn notify(&self, _id: usize) {
             self.value.fetch_add(1, Ordering::SeqCst);
         }
     }
