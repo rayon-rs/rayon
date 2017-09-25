@@ -63,6 +63,8 @@ mod zip_eq;
 pub use self::zip_eq::ZipEq;
 mod interleave;
 pub use self::interleave::Interleave;
+mod interleave_shortest;
+pub use self::interleave_shortest::InterleaveShortest;
 
 mod noop;
 mod rev;
@@ -861,6 +863,24 @@ pub trait IndexedParallelIterator: ParallelIterator {
               I::Iter: IndexedParallelIterator<Item = Self::Item>
     {
         interleave::new(self, other.into_par_iter())
+    }
+
+    /// Interleave elements of this iterator and the other given
+    /// iterator, until one is exhausted.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let (x, y) = (vec![1, 2, 3, 4], vec![5, 6]);
+    /// let r: Vec<i32> = x.into_par_iter().interleave_shortest(y).collect();
+    /// assert_eq!(r, vec![1, 5, 2, 6, 3]);
+    /// ```
+    fn interleave_shortest<I>(self, other: I) -> InterleaveShortest<Self, I::Iter>
+        where I: IntoParallelIterator<Item = Self::Item>,
+              I::Iter: IndexedParallelIterator<Item = Self::Item>
+    {
+        interleave_shortest::new(self, other.into_par_iter())
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of

@@ -58,7 +58,10 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
     }
 
     fn len(&mut self) -> usize {
-        self.i.len() + self.j.len()
+        self.i
+            .len()
+            .checked_add(self.j.len())
+            .expect("overflow")
     }
 
     fn with_producer<CB>(mut self, callback: CB) -> CB::Output
