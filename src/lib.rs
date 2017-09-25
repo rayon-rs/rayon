@@ -18,33 +18,37 @@
 //!
 //! # Parallel Iterators
 //!
-//! Parallel iterators are formed using [`par_iter`] and `par_iter_mut` functions
-//! followed by a computation chain.  Computations on the iterator can take the
+//! Parallel iterators are formed using [`par_iter`], [`par_iter_mut`], and [`into_par_iter`]
+//! functions to iterate by shared reference, mutable reference, or by value respectively.
+//! These iterators are chained with computations that can take the
 //! shape of `map` or `for_each` as an example.  This solves [embarrassingly]
 //! parallel tasks that are completely independent of one another.
 //!
-//! [`par_iter`]: iter/trait.ParallelIterator.html
+//! [`par_iter`]: iter/trait.IntoParallelRefIterator.html
+//! [`par_iter_mut`]: iter/trait.IntoParallelRefMutIterator.html
+//! [`into_par_iter`]: iter/trait.IntoParallelIterator.html#tymethod.into_par_iter
 //! [embarrassingly]: https://en.wikipedia.org/wiki/Embarrassingly_parallel
 //!
 //! # Examples
+//!
+//! Here a string is encrypted using ROT13 leveraging parallelism.  Once all the
+//! threads are complete, they are collected into a string.
 //!
 //! ```
 //! extern crate rayon;
 //! use rayon::prelude::*;
 //! # fn main() {
 //! let mut chars: Vec<char> = "A man, a plan, a canal - Panama!".chars().collect();
-//! let encrypted: String = chars.par_iter().map(|c| {
-//!        match *c {
-//!            'A' ... 'M' | 'a' ... 'm' => ((*c as u8) + 13) as char,
-//!            'N' ... 'Z' | 'n' ... 'z' => ((*c as u8) - 13) as char,
-//!            _ => *c
+//! let encrypted: String = chars.into_par_iter().map(|c| {
+//!        match c {
+//!            'A' ... 'M' | 'a' ... 'm' => ((c as u8) + 13) as char,
+//!            'N' ... 'Z' | 'n' ... 'z' => ((c as u8) - 13) as char,
+//!            _ => c
 //!        }
 //!    }).collect();
+//!    assert_eq!(encrypted, "N zna, n cyna, n pnany - Cnanzn!");
 //! # }
 //! ```
-//!
-//! Here a string is encrypted using ROT13 leveraging parallelism.  Once all the
-//! threads are complete, they are collected into a string.
 //!
 //! # Divide and conquer with `join`
 //!
