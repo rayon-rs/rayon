@@ -162,7 +162,7 @@ pub struct TickleLatch<'a, L: Latch> {
 impl<'a, L: Latch> TickleLatch<'a, L> {
     #[inline]
     pub fn new(latch: L, sleep: &'a Sleep) -> Self {
-        Self {
+        TickleLatch {
             inner: latch,
             sleep: sleep,
         }

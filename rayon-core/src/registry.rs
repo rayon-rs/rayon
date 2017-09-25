@@ -366,7 +366,7 @@ impl Registry {
     {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
-        debug_assert_ne!(current_thread.registry().id(), self.id());
+        debug_assert!(current_thread.registry().id() != self.id());
         let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
         let job = StackJob::new(|| in_worker(op), latch);
         self.inject(&[job.as_job_ref()]);
