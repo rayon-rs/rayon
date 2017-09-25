@@ -7,6 +7,8 @@ description = "Core APIs for Rayon"
 license = "Apache-2.0/MIT"
 repository = "https://github.com/nikomatsakis/rayon"
 documentation = "https://docs.rs/rayon/"
+keywords = ["concurrency", "parallelism", "thread-pool"]
+categories = ["concurrency"]
 links = "rayon-core"
 build = "build.rs"
 
