@@ -227,7 +227,7 @@ This is good, because there *are* still active refs to the
 sources of these: unpark values and the future result.
 
 **NotifyHandle values.** We may have given away `NotifyHandle` values --
-these are trait objects, but they are actually refs to our
+these contain trait objects that are actually refs to our
 `ScopeFuture`. Note that `NotifyHandle: 'static`, so these could be
 floating about for any length of time (we had to transmute away the
 lifetimes to give them out). This is ok because (a) the `Arc` keeps
