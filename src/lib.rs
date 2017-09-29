@@ -24,8 +24,8 @@
 //! shape of `map` or `for_each` as an example.  This solves [embarrassingly]
 //! parallel tasks that are completely independent of one another.
 //!
-//! [`par_iter`]: iter/trait.IntoParallelRefIterator.html
-//! [`par_iter_mut`]: iter/trait.IntoParallelRefMutIterator.html
+//! [`par_iter`]: iter/trait.IntoParallelRefIterator.html#tymethod.par_iter
+//! [`par_iter_mut`]: iter/trait.IntoParallelRefMutIterator.html#tymethod.par_iter_mut
 //! [`into_par_iter`]: iter/trait.IntoParallelIterator.html#tymethod.into_par_iter
 //! [embarrassingly]: https://en.wikipedia.org/wiki/Embarrassingly_parallel
 //!

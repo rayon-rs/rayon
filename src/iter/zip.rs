@@ -3,6 +3,12 @@ use super::*;
 use std::cmp;
 use std::iter;
 
+/// `Zip` is an iterator that zips up `a` and `b` into a single iterator
+/// of pairs. This struct is created by the [`zip()`] method on
+/// [`IndexedParallelIterator`]
+///
+/// [`zip()`]: trait.IndexedParallelIterator.html#method.zip
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug)]
 pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {

@@ -85,6 +85,13 @@ mod unzip;
 #[cfg(test)]
 mod test;
 
+/// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
+/// By implementing `IntoParallelIterator` for a type, you define how it will
+/// transformed into an iterator. This is a parallel version of the standard
+/// library's `std::iter::IntoIterator` trait.
+///
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`into_par_iter()`]: trait.IntoParallelIterator.html#method.into_par_iter
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item = Self::Item>;
     type Item: Send;
@@ -92,6 +99,12 @@ pub trait IntoParallelIterator {
     fn into_par_iter(self) -> Self::Iter;
 }
 
+/// `IntoParallelRefIterator` implements the conversion to a [`ParallelIterator`].
+/// This is a parallel version of the `iter()` method 
+/// defined by various collections.
+///
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`par_iter()`]: trait.IntoParallelRefIterator.html#method.par_iter
 pub trait IntoParallelRefIterator<'data> {
     type Iter: ParallelIterator<Item = Self::Item>;
     type Item: Send + 'data;
@@ -110,6 +123,13 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefIterator<'data> for I
     }
 }
 
+
+/// `IntoParallelRefMutIterator` implements the conversion to a [`ParallelIterator`] providing mutable references to the data.
+///
+/// This is a parallel version of the `iter_mut()` method 
+/// defined by various collections.
+///
+/// [`ParallelIterator`]: trait.ParallelIterator.html
 pub trait IntoParallelRefMutIterator<'data> {
     type Iter: ParallelIterator<Item = Self::Item>;
     type Item: Send + 'data;
