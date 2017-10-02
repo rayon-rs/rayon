@@ -2,12 +2,42 @@
 //! (`Range<T>`); this is the type for values created by a `a..b`
 //! expression. You will rarely need to interact with it directly
 //! unless you have need to name one of the iterator types.
+//! 
+//! ```
+//! use rayon::prelude::*;
+//! 
+//! let r = (0..100u64).into_par_iter()
+//!                    .sum();
+//! 
+//! // compare result with sequential calculation
+//! assert_eq!((0..100).sum::<u64>(), r);
+//! ```
 
 use iter::*;
 use iter::internal::*;
 use std::ops::Range;
 
-/// Parallel iterator over a range
+/// Parallel iterator over a range, implemented for all integer types.
+///
+/// **Note:** The `zip` operation requires `IndexedParallelIterator`
+/// which is not implemented for `u64` or `i64`.
+///
+/// ```
+/// use rayon::prelude::*;
+///
+/// let p = (0..25usize).into_par_iter()
+///                   .zip(0..25usize)
+///                   .filter(|&(x, y)| x % 5 == 0 || y % 5 == 0)
+///                   .map(|(x, y)| x * y)
+///                   .sum::<usize>();
+///
+/// let s = (0..25usize).zip(0..25)
+///                   .filter(|&(x, y)| x % 5 == 0 || y % 5 == 0)
+///                   .map(|(x, y)| x * y)
+///                   .sum();
+///
+/// assert_eq!(p, s);
+/// ```
 #[derive(Debug)]
 pub struct Iter<T> {
     range: Range<T>,
