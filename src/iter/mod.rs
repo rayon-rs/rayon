@@ -88,10 +88,11 @@ mod test;
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
 /// By implementing `IntoParallelIterator` for a type, you define how it will
 /// transformed into an iterator. This is a parallel version of the standard
-/// library's `std::iter::IntoIterator` trait.
+/// library's [`std::iter::IntoIterator`] trait.
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`into_par_iter()`]: trait.IntoParallelIterator.html#method.into_par_iter
+/// [`std::iter::IntoIterator`]: https://doc.rust-lang.org/std/iter/trait.IntoIterator.html
 pub trait IntoParallelIterator {
     type Iter: ParallelIterator<Item = Self::Item>;
     type Item: Send;
