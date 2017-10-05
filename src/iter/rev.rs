@@ -2,6 +2,11 @@ use super::internal::*;
 use super::*;
 use std::iter;
 
+/// `Rev` is an iterator that produces elements in reverse order. This struct
+/// is created by the [`rev()`] method on [`IndexedParallelIterator`]
+///
+/// [`rev()`]: trait.IndexedParallelIterator.html#method.rev
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug)]
 pub struct Rev<I: IndexedParallelIterator> {
