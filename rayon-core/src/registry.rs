@@ -3,7 +3,7 @@ use coco::deque::{self, Worker, Stealer};
 use job::{Job, JobRef, StackJob};
 #[cfg(rayon_unstable)]
 use internal::task::Task;
-use latch::{LatchProbe, Latch, CountLatch, LockLatch};
+use latch::{LatchProbe, Latch, CountLatch, LockLatch, SpinLatch, TickleLatch};
 #[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
@@ -335,13 +335,15 @@ impl Registry {
     {
         unsafe {
             let worker_thread = WorkerThread::current();
-            if !worker_thread.is_null() && (*worker_thread).registry().id() == self.id() {
+            if worker_thread.is_null() {
+                self.in_worker_cold(op)
+            } else if (*worker_thread).registry().id() != self.id() {
+                self.in_worker_cross(&*worker_thread, op)
+            } else {
                 // Perfectly valid to give them a `&T`: this is the
                 // current thread, so we know the data structure won't be
                 // invalidated until we return.
                 op(&*worker_thread)
-            } else {
-                self.in_worker_cold(op)
             }
         }
     }
@@ -350,9 +352,25 @@ impl Registry {
     unsafe fn in_worker_cold<OP, R>(&self, op: OP) -> R
         where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
     {
+        // This thread isn't a member of *any* thread pool, so just block.
+        debug_assert!(WorkerThread::current().is_null());
         let job = StackJob::new(|| in_worker(op), LockLatch::new());
         self.inject(&[job.as_job_ref()]);
         job.latch.wait();
+        job.into_result()
+    }
+
+    #[cold]
+    unsafe fn in_worker_cross<OP, R>(&self, current_thread: &WorkerThread, op: OP) -> R
+        where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+    {
+        // This thread is a member of a different pool, so let it process
+        // other work while waiting for this `op` to complete.
+        debug_assert!(current_thread.registry().id() != self.id());
+        let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
+        let job = StackJob::new(|| in_worker(op), latch);
+        self.inject(&[job.as_job_ref()]);
+        current_thread.wait_until(&job.latch);
         job.into_result()
     }
 
