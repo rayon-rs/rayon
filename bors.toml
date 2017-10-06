@@ -1,0 +1,7 @@
+status = [
+  "continuous-integration/travis-ci/push",
+  "continuous-integration/appveyor/branch",
+]
+
+# Sometimes the queue for Travis CI on OSX gets really backed up...
+timeout_sec = 21600

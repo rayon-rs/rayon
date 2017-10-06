@@ -51,11 +51,15 @@ install:
   - rustc -Vv
   - cargo -V
 
+matrix:
+  fast_finish: true
+
 build: false
 
 test_script:
   - cargo build
   - if [%CHANNEL%]==[nightly] (
+      cargo test -p rayon &&
       cargo test -p rayon-core &&
       cargo test -p rayon-demo
     )
@@ -65,3 +69,9 @@ test_script:
         cargo test -p rayon-futures
       )
     )
+
+branches:
+  only:
+    - master
+    - staging
+    - trying

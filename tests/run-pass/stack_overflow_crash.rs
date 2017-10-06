@@ -25,9 +25,16 @@ fn main() {
                 .arg("8")
                 .status()
                 .unwrap();
+
+            #[cfg(windows)]
+            assert_eq!(status.code(), Some(0xc00000fd /*STATUS_STACK_OVERFLOW*/));
+
+            #[cfg(unix)]
             assert_eq!(status.code(), None);
+
             #[cfg(target_os = "linux")]
-            assert!(status.signal() == Some(11 /*SIGABRT*/) || status.signal() == Some(6 /*SIGSEGV*/));
+            assert!(status.signal() == Some(11 /*SIGABRT*/) ||
+                    status.signal() == Some(6 /*SIGSEGV*/));
         }
 
 
