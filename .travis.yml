@@ -13,6 +13,7 @@ env:
     - RUST_MIN_STACK=16777216
 
 matrix:
+  fast_finish: true
   include:
   - rust: stable
     env: RUSTFLAGS='--cfg rayon_unstable'

@@ -51,6 +51,9 @@ install:
   - rustc -Vv
   - cargo -V
 
+matrix:
+  fast_finish: true
+
 build: false
 
 test_script:
