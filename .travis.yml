@@ -1,11 +1,4 @@
 language: rust
-rust:
-  - 1.12.0
-  - stable
-  - nightly
-os:
-  - linux
-  - osx
 
 # Using 16MB stacks for deep test/debug recursion
 env:
@@ -15,18 +8,57 @@ env:
 matrix:
   fast_finish: true
   include:
-  - rust: stable
-    env: RUSTFLAGS='--cfg rayon_unstable'
-    os: linux
-  - rust: stable
-    env: RUSTFLAGS='--cfg rayon_unstable'
-    os: osx
-  - rust: nightly
-    env: RUSTFLAGS='--cfg rayon_unstable'
-    os: linux
-  - rust: nightly
-    env: RUSTFLAGS='--cfg rayon_unstable'
-    os: osx
+    # NB: To help with CI delays, each `pull_request` is only tested on Linux,
+    # with 1.12 for compatibility and nightly+rayon_unstable for broad test
+    # coverage.  The bors bot counts as a `push` type, which will run it all.
+
+    - rust: 1.12.0
+      os: linux
+      #if: everything!
+
+    - rust: stable
+      os: linux
+      if: NOT type = pull_request
+    - rust: stable
+      os: linux
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: beta
+      os: linux
+      if: NOT type = pull_request
+    - rust: beta
+      os: linux
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: nightly
+      os: linux
+      if: NOT type = pull_request
+    - rust: nightly
+      os: linux
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      #if: everything!
+
+    - rust: 1.12.0
+      os: osx
+      if: NOT type = pull_request
+
+    - rust: stable
+      os: osx
+      if: NOT type = pull_request
+    - rust: stable
+      os: osx
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: nightly
+      os: osx
+      if: NOT type = pull_request
+    - rust: nightly
+      os: osx
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
 
 script:
   - cargo build
