@@ -65,3 +65,9 @@ test_script:
         cargo test -p rayon-futures
       )
     )
+
+branches:
+  only:
+    - master
+    - staging
+    - trying

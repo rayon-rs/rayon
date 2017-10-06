@@ -43,3 +43,9 @@ script:
         cargo test -p rayon-futures
       fi
     fi
+
+branches:
+  only:
+    - master
+    - staging
+    - trying
