@@ -32,7 +32,7 @@ script:
   - cargo build
   - |
     if [ $TRAVIS_RUST_VERSION == nightly ]; then
-      cargo test &&
+      cargo test -p rayon &&
       cargo test -p rayon-core &&
       cargo test -p rayon-demo &&
       ./ci/highlander.sh
