@@ -1,6 +1,5 @@
 use super::internal::*;
 use super::*;
-use std::usize;
 use std::cmp;
 use std::iter::Fuse;
 

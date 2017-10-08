@@ -1,7 +1,5 @@
 use super::internal::*;
 use super::*;
-use std::cmp;
-use std::iter;
 
 /// `InterleaveShortest` is an iterator that works similarly to
 /// `Interleave`, but this version stops returning elements once one
@@ -73,7 +71,7 @@ impl<I, J> IndexedParallelIterator for InterleaveShortest<I, J>
         self.interleave.len()
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         self.interleave.with_producer(callback)
