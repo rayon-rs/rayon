@@ -65,6 +65,8 @@ mod interleave;
 pub use self::interleave::Interleave;
 mod interleave_shortest;
 pub use self::interleave_shortest::InterleaveShortest;
+mod intersperse;
+pub use self::intersperse::Intersperse;
 
 mod noop;
 mod rev;
@@ -773,6 +775,22 @@ pub trait ParallelIterator: Sized + Send {
               R: Send
     {
         unzip::partition_map(self, predicate)
+    }
+
+    /// Intersperses clones of an element between items of this iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let x = vec![1, 2, 3];
+    /// let r: Vec<i32> = x.into_par_iter().intersperse(-1).collect();
+    /// assert_eq!(r, vec![1, -1, 2, -1, 3]);
+    /// ```
+    fn intersperse(self, element: Self::Item) -> Intersperse<Self>
+        where Self::Item: Clone
+    {
+        intersperse::new(self, element)
     }
 
     /// Internal method used to define the behavior of this parallel
