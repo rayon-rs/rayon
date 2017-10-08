@@ -128,8 +128,6 @@ pub mod vec;
 mod par_either;
 mod test;
 
-pub use iter::split;
-
 pub use rayon_core::current_num_threads;
 pub use rayon_core::Configuration;
 pub use rayon_core::initialize;

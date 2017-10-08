@@ -79,12 +79,12 @@ fn fibonacci_join_2_1(b: &mut test::Bencher) {
 
 
 #[bench]
-/// Compute the Fibonacci number recursively, using rayon::split to parallelize.
+/// Compute the Fibonacci number recursively, using rayon::iter::split to parallelize.
 fn fibonacci_split_recursive(b: &mut test::Bencher) {
     fn fib(n: u32) -> u32 {
         use rayon::iter::ParallelIterator;
 
-        rayon::split(n, |n| {
+        rayon::iter::split(n, |n| {
                 if n < 2 {
                     (n, None)
                 } else {
@@ -100,12 +100,12 @@ fn fibonacci_split_recursive(b: &mut test::Bencher) {
 
 
 #[bench]
-/// Compute the Fibonacci number iteratively, using rayon::split to parallelize.
+/// Compute the Fibonacci number iteratively, using rayon::iter::split to parallelize.
 fn fibonacci_split_iterative(b: &mut test::Bencher) {
     fn fib(n: u32) -> u32 {
         use rayon::iter::ParallelIterator;
 
-        rayon::split(n, |n| {
+        rayon::iter::split(n, |n| {
                 if n < 2 {
                     (n, None)
                 } else {
