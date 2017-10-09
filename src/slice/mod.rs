@@ -376,9 +376,15 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
 
 
 /// Parallel iterator over immutable items in a slice
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'data, T: 'data + Sync> {
     slice: &'data [T],
+}
+
+impl<'data, T: Sync> Clone for Iter<'data, T> {
+    fn clone(&self) -> Self {
+        Iter { ..*self }
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
@@ -433,10 +439,16 @@ impl<'data, T: 'data + Sync> Producer for IterProducer<'data, T> {
 
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Chunks<'data, T: 'data + Sync> {
     chunk_size: usize,
     slice: &'data [T],
+}
+
+impl<'data, T: Sync> Clone for Chunks<'data, T> {
+    fn clone(&self) -> Self {
+        Chunks { ..*self }
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
@@ -503,10 +515,16 @@ impl<'data, T: 'data + Sync> Producer for ChunksProducer<'data, T> {
 
 
 /// Parallel iterator over immutable overlapping windows of a slice
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Windows<'data, T: 'data + Sync> {
     window_size: usize,
     slice: &'data [T],
+}
+
+impl<'data, T: Sync> Clone for Windows<'data, T> {
+    fn clone(&self) -> Self {
+        Windows { ..*self }
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
@@ -702,10 +720,16 @@ impl<'data, T: 'data + Send> Producer for ChunksMutProducer<'data, T> {
 
 
 /// Parallel iterator over slices separated by a predicate
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Split<'data, T: 'data, P> {
     slice: &'data [T],
     separator: P,
+}
+
+impl<'data, T, P: Clone> Clone for Split<'data, T, P> {
+    fn clone(&self) -> Self {
+        Split { separator: self.separator.clone(), ..*self }
+    }
 }
 
 impl<'data, T, P> ParallelIterator for Split<'data, T, P>

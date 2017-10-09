@@ -31,9 +31,15 @@ delegate_indexed_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a binary heap
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, T: Ord + Sync + 'a> {
     inner: vec::IntoIter<&'a T>,
+}
+
+impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
 }
 
 into_par_vec!{

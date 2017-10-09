@@ -28,9 +28,15 @@ delegate_indexed_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a double-ended queue
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: Chain<slice::Iter<'a, T>, slice::Iter<'a, T>>,
+}
+
+impl<'a, T: Sync> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
 }
 
 impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {

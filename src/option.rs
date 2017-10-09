@@ -60,9 +60,15 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
 
 
 /// Parallel iterator over an immutable reference to an option
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: IntoIter<&'a T>,
+}
+
+impl<'a, T: Sync> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
 }
 
 impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {

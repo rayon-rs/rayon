@@ -27,9 +27,15 @@ delegate_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a B-Tree map
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, K: Ord + Sync + 'a, V: Sync + 'a> {
     inner: vec::IntoIter<(&'a K, &'a V)>,
+}
+
+impl<'a, K: Ord + Sync, V: Sync> Clone for Iter<'a, K, V> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
 }
 
 into_par_vec!{

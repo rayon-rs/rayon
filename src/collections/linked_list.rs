@@ -27,9 +27,15 @@ delegate_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a linked list
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: vec::IntoIter<&'a T>,
+}
+
+impl<'a, T: Sync> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
 }
 
 into_par_vec!{

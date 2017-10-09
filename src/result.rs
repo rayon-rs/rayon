@@ -30,9 +30,15 @@ delegate_indexed_iterator!{
 
 
 /// Parallel iterator over an immutable reference to a result
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: option::IntoIter<&'a T>,
+}
+
+impl<'a, T: Sync> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
 }
 
 impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {
