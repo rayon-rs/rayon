@@ -110,7 +110,7 @@ impl ThreadPool {
         where OP: FnOnce() -> R + Send,
               R: Send
     {
-        self.registry.in_worker(|_| op())
+        self.registry.in_worker(|_, _| op())
     }
 
     /// Returns the (current) number of threads in the thread pool.

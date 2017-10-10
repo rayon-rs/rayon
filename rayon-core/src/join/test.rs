@@ -77,3 +77,37 @@ fn panic_b_still_executes() {
         Err(_) => assert!(x, "closure b failed to execute"),
     }
 }
+
+#[test]
+fn join_context_both() {
+    // If we're not in a pool, both should be marked stolen as they're injected.
+    let (a_migrated, b_migrated) = join_context(|a| a.migrated(), |b| b.migrated());
+    assert!(a_migrated);
+    assert!(b_migrated);
+}
+
+#[test]
+fn join_context_neither() {
+    // If we're already in a 1-thread pool, neither job should be stolen.
+    let pool = ThreadPool::new(Configuration::new().num_threads(1)).unwrap();
+    let (a_migrated, b_migrated) = pool.install(|| {
+        join_context(|a| a.migrated(), |b| b.migrated())
+    });
+    assert!(!a_migrated);
+    assert!(!b_migrated);
+}
+
+#[test]
+fn join_context_second() {
+    use std::sync::Barrier;
+
+    // If we're already in a 2-thread pool, the second job should be stolen.
+    let barrier = Barrier::new(2);
+    let pool = ThreadPool::new(Configuration::new().num_threads(2)).unwrap();
+    let (a_migrated, b_migrated) = pool.install(|| {
+        join_context(|a| { barrier.wait(); a.migrated() },
+                     |b| { barrier.wait(); b.migrated() })
+    });
+    assert!(!a_migrated);
+    assert!(b_migrated);
+}

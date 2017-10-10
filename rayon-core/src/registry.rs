@@ -329,9 +329,10 @@ impl Registry {
     /// If already in a worker-thread of this registry, just execute `op`.
     /// Otherwise, inject `op` in this thread-pool. Either way, block until `op`
     /// completes and return its return value. If `op` panics, that panic will
-    /// be propagated as well.
+    /// be propagated as well.  The second argument indicates `true` if injection
+    /// was performed, `false` if executed directly.
     pub fn in_worker<OP, R>(&self, op: OP) -> R
-        where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+        where OP: FnOnce(&WorkerThread, bool) -> R + Send, R: Send
     {
         unsafe {
             let worker_thread = WorkerThread::current();
@@ -343,18 +344,22 @@ impl Registry {
                 // Perfectly valid to give them a `&T`: this is the
                 // current thread, so we know the data structure won't be
                 // invalidated until we return.
-                op(&*worker_thread)
+                op(&*worker_thread, false)
             }
         }
     }
 
     #[cold]
     unsafe fn in_worker_cold<OP, R>(&self, op: OP) -> R
-        where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+        where OP: FnOnce(&WorkerThread, bool) -> R + Send, R: Send
     {
         // This thread isn't a member of *any* thread pool, so just block.
         debug_assert!(WorkerThread::current().is_null());
-        let job = StackJob::new(|| in_worker(op), LockLatch::new());
+        let job = StackJob::new(|injected| {
+            let worker_thread = WorkerThread::current();
+            assert!(injected && !worker_thread.is_null());
+            op(&*worker_thread, true)
+        }, LockLatch::new());
         self.inject(&[job.as_job_ref()]);
         job.latch.wait();
         job.into_result()
@@ -362,13 +367,17 @@ impl Registry {
 
     #[cold]
     unsafe fn in_worker_cross<OP, R>(&self, current_thread: &WorkerThread, op: OP) -> R
-        where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+        where OP: FnOnce(&WorkerThread, bool) -> R + Send, R: Send
     {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
         let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
-        let job = StackJob::new(|| in_worker(op), latch);
+        let job = StackJob::new(|injected| {
+            let worker_thread = WorkerThread::current();
+            assert!(injected && !worker_thread.is_null());
+            op(&*worker_thread, true)
+        }, latch);
         self.inject(&[job.as_job_ref()]);
         current_thread.wait_until(&job.latch);
         job.into_result()
@@ -682,9 +691,10 @@ unsafe fn main_loop(worker: Worker<JobRef>,
 /// If already in a worker-thread, just execute `op`.  Otherwise,
 /// execute `op` in the default thread-pool. Either way, block until
 /// `op` completes and return its return value. If `op` panics, that
-/// panic will be propagated as well.
+/// panic will be propagated as well.  The second argument indicates
+/// `true` if injection was performed, `false` if executed directly.
 pub fn in_worker<OP, R>(op: OP) -> R
-    where OP: FnOnce(&WorkerThread) -> R + Send, R: Send
+    where OP: FnOnce(&WorkerThread, bool) -> R + Send, R: Send
 {
     unsafe {
         let owner_thread = WorkerThread::current();
@@ -692,7 +702,7 @@ pub fn in_worker<OP, R>(op: OP) -> R
             // Perfectly valid to give them a `&T`: this is the
             // current thread, so we know the data structure won't be
             // invalidated until we return.
-            op(&*owner_thread)
+            op(&*owner_thread, false)
         } else {
             global_registry().in_worker_cold(op)
         }

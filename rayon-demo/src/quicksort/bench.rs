@@ -31,7 +31,7 @@ fn quick_sort_splitter(b: &mut test::Bencher) {
     use rayon::iter::ParallelIterator;
 
     bench_harness(|vec| {
-        ::rayon::split(vec, |vec| {
+        ::rayon::iter::split(vec, |vec| {
             if vec.len() > 1 {
                 let mid = super::partition(vec);
                 let (left, right) = vec.split_at_mut(mid);

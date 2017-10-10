@@ -34,6 +34,7 @@ use log::Event::*;
 use std::any::Any;
 use std::env;
 use std::error::Error;
+use std::marker::PhantomData;
 use std::str::FromStr;
 use std::fmt;
 
@@ -64,7 +65,7 @@ pub mod internal;
 pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
-pub use join::join;
+pub use join::{join, join_context};
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
 
@@ -364,5 +365,33 @@ impl fmt::Debug for Configuration {
          .field("exit_handler", &exit_handler)
          .field("breadth_first", &breadth_first)
          .finish()
+    }
+}
+
+/// Provides the calling context to a closure called by `join_context`.
+#[derive(Debug)]
+pub struct FnContext {
+    migrated: bool,
+
+    /// disable `Send` and `Sync`, just for a little future-proofing.
+    _marker: PhantomData<*mut ()>,
+}
+
+impl FnContext {
+    #[inline]
+    fn new(migrated: bool) -> Self {
+        FnContext {
+            migrated: migrated,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl FnContext {
+    /// Returns `true` if the closure was called from a different thread
+    /// than it was provided from.
+    #[inline]
+    pub fn migrated(&self) -> bool {
+        self.migrated
     }
 }

@@ -3,7 +3,9 @@
 //! parallel iterators should not need to interact with them directly.
 //! See `README.md` for a high-level overview.
 
-use rayon_core::join;
+use join_context;
+use FnContext;
+
 use super::IndexedParallelIterator;
 
 use std::cmp;
@@ -132,10 +134,6 @@ pub trait UnindexedProducer: Send + Sized {
 /// job is actually stolen into a different thread.
 #[derive(Clone, Copy)]
 struct Splitter {
-    /// The `origin` tracks the ID of the thread that started this job,
-    /// so we can tell when we've been stolen to a new thread.
-    origin: usize,
-
     /// The `splits` tell us approximately how many remaining times we'd
     /// like to split this job.  We always just divide it by two though, so
     /// the effective number of pieces will be `next_power_of_two()`.
@@ -144,31 +142,19 @@ struct Splitter {
 
 impl Splitter {
     #[inline]
-    fn thief_id() -> usize {
-        // The actual `ID` value is irrelevant.  We're just using its TLS
-        // address as a unique thread key, faster than a real thread-id call.
-        thread_local!{ static ID: bool = false }
-        ID.with(|id| id as *const bool as usize)
-    }
-
-    #[inline]
     fn new() -> Splitter {
         Splitter {
-            origin: Splitter::thief_id(),
             splits: ::current_num_threads(),
         }
     }
 
     #[inline]
-    fn try(&mut self) -> bool {
-        let Splitter { origin, splits } = *self;
+    fn try(&mut self, stolen: bool) -> bool {
+        let Splitter { splits } = *self;
 
-        let id = Splitter::thief_id();
-        if origin != id {
-            // This job was stolen!  Set a new origin and reset the number
-            // of desired splits to the thread count, if that's more than
-            // we had remaining anyway.
-            self.origin = id;
+        if stolen {
+            // This job was stolen!  Reset the number of desired splits to the
+            // thread count, if that's more than we had remaining anyway.
             self.splits = cmp::max(::current_num_threads(), self.splits / 2);
             true
         } else if splits > 0 {
@@ -225,9 +211,9 @@ impl LengthSplitter {
     }
 
     #[inline]
-    fn try(&mut self, len: usize) -> bool {
+    fn try(&mut self, len: usize, stolen: bool) -> bool {
         // If splitting wouldn't make us too small, try the inner splitter.
-        len / 2 >= self.min && self.inner.try()
+        len / 2 >= self.min && self.inner.try(stolen)
     }
 }
 
@@ -263,21 +249,31 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
           C: Consumer<P::Item>
 {
     let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
-    return helper(len, splitter, producer, consumer);
+    return helper(len, false, splitter, producer, consumer);
 
-    fn helper<P, C>(len: usize, mut splitter: LengthSplitter, producer: P, consumer: C) -> C::Result
+    fn helper<P, C>(len: usize,
+                    migrated: bool,
+                    mut splitter: LengthSplitter,
+                    producer: P,
+                    consumer: C)
+                    -> C::Result
         where P: Producer,
               C: Consumer<P::Item>
     {
         if consumer.full() {
             consumer.into_folder().complete()
-        } else if splitter.try(len) {
+        } else if splitter.try(len, migrated) {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
             let (left_result, right_result) =
-                join(|| helper(mid, splitter, left_producer, left_consumer),
-                     || helper(len - mid, splitter, right_producer, right_consumer));
+                join_context(|context| {
+                    helper(mid, context.migrated(), splitter,
+                           left_producer, left_consumer)
+                }, |context| {
+                    helper(len - mid, context.migrated(), splitter,
+                           right_producer, right_consumer)
+                });
             reducer.reduce(left_result, right_result)
         } else {
             producer.fold_with(consumer.into_folder()).complete()
@@ -290,10 +286,11 @@ pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
           C: UnindexedConsumer<P::Item>
 {
     let splitter = Splitter::new();
-    bridge_unindexed_producer_consumer(splitter, producer, consumer)
+    bridge_unindexed_producer_consumer(false, splitter, producer, consumer)
 }
 
-fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
+fn bridge_unindexed_producer_consumer<P, C>(migrated: bool,
+                                            mut splitter: Splitter,
                                             producer: P,
                                             consumer: C)
                                             -> C::Result
@@ -302,15 +299,18 @@ fn bridge_unindexed_producer_consumer<P, C>(mut splitter: Splitter,
 {
     if consumer.full() {
         consumer.into_folder().complete()
-    } else if splitter.try() {
+    } else if splitter.try(migrated) {
         match producer.split() {
             (left_producer, Some(right_producer)) => {
                 let (reducer, left_consumer, right_consumer) =
                     (consumer.to_reducer(), consumer.split_off_left(), consumer);
                 let bridge = bridge_unindexed_producer_consumer;
                 let (left_result, right_result) =
-                    join(|| bridge(splitter, left_producer, left_consumer),
-                         || bridge(splitter, right_producer, right_consumer));
+                    join_context(|context| {
+                        bridge(context.migrated(), splitter, left_producer, left_consumer)
+                    }, |context| {
+                        bridge(context.migrated(), splitter, right_producer, right_consumer)
+                    });
                 reducer.reduce(left_result, right_result)
             }
             (producer, None) => producer.fold_with(consumer.into_folder()).complete(),

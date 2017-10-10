@@ -6,6 +6,8 @@ use registry::{self, WorkerThread};
 use std::any::Any;
 use unwind;
 
+use FnContext;
+
 #[cfg(test)]
 mod test;
 
@@ -54,18 +56,35 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
           RA: Send,
           RB: Send
 {
-    registry::in_worker(|worker_thread| unsafe {
+    join_context(|_| oper_a(), |_| oper_b())
+}
+
+/// The `join_context` function is identical to `join`, except the closures
+/// have a parameter that provides context for the way the closure has been
+/// called, especially indicating whether they're executing on a different
+/// thread than where `join_context` was called.  This will occur if the second
+/// job is stolen by a different thread, or if `join_context` was called from
+/// outside the thread pool to begin with.
+pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
+    where A: FnOnce(FnContext) -> RA + Send,
+          B: FnOnce(FnContext) -> RB + Send,
+          RA: Send,
+          RB: Send
+{
+    registry::in_worker(|worker_thread, injected| unsafe {
         log!(Join { worker: worker_thread.index() });
 
         // Create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough.
-        let job_b = StackJob::new(oper_b, SpinLatch::new());
+        let job_b = StackJob::new(|migrated| oper_b(FnContext::new(migrated)),
+                                  SpinLatch::new());
         let job_b_ref = job_b.as_job_ref();
         worker_thread.push(job_b_ref);
 
         // Execute task a; hopefully b gets stolen in the meantime.
-        let result_a = match unwind::halt_unwinding(oper_a) {
+        let status_a = unwind::halt_unwinding(move || oper_a(FnContext::new(injected)));
+        let result_a = match status_a {
             Ok(v) => v,
             Err(err) => join_recover_from_panic(worker_thread, &job_b.latch, err),
         };
@@ -82,7 +101,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                     //
                     // Note that this could panic, but it's ok if we unwind here.
                     log!(PoppedRhs { worker: worker_thread.index() });
-                    let result_b = job_b.run_inline();
+                    let result_b = job_b.run_inline(injected);
                     return (result_a, result_b);
                 } else {
                     log!(PoppedJob { worker: worker_thread.index() });
