@@ -71,17 +71,20 @@ impl<I> IndexedParallelIterator for Intersperse<I>
         }
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
+        let len = self.len();
         return self.base.with_producer(Callback {
                                            callback: callback,
                                            item: self.item,
+                                           len: len,
                                        });
 
         struct Callback<CB, T> {
             callback: CB,
             item: T,
+            len: usize,
         }
 
         impl<T, CB> ProducerCallback<T> for Callback<CB, T>
@@ -93,7 +96,7 @@ impl<I> IndexedParallelIterator for Intersperse<I>
             fn callback<P>(self, base: P) -> CB::Output
                 where P: Producer<Item = T>
             {
-                let producer = IntersperseProducer::new(base, self.item);
+                let producer = IntersperseProducer::new(base, self.item, self.len);
                 self.callback.callback(producer)
             }
         }
@@ -106,19 +109,19 @@ struct IntersperseProducer<P>
 {
     base: P,
     item: P::Item,
+    len: usize,
     clone_first: bool,
-    clone_last: bool,
 }
 
 impl<P> IntersperseProducer<P>
     where P: Producer
 {
-    fn new(base: P, item: P::Item) -> Self {
+    fn new(base: P, item: P::Item, len: usize) -> Self {
         IntersperseProducer {
             base: base,
             item: item,
+            len: len,
             clone_first: false,
-            clone_last: false,
         }
     }
 }
@@ -134,8 +137,11 @@ impl<P> Producer for IntersperseProducer<P>
         IntersperseIter {
             base: self.base.into_iter().fuse(),
             item: self.item,
-            clone_first: self.clone_first,
-            clone_last: self.clone_last,
+            clone_first: self.len > 0 && self.clone_first,
+
+            // If there's more than one item, then even lengths end the opposite
+            // of how they started with respect to interspersed clones.
+            clone_last: self.len > 1 && ((self.len & 1 == 0) ^ self.clone_first),
         }
     }
 
@@ -146,31 +152,33 @@ impl<P> Producer for IntersperseProducer<P>
         self.base.max_len()
     }
 
-    fn split_at(mut self, index: usize) -> (Self, Self) {
-        // We need half of the items from the base producer, and the other half
-        // will be our interspersed item.  If we're not leading with a cloned
-        // item, then we need to round up the base number of items, otherwise
-        // round down.
-        let base_index = (index + !self.clone_first as usize) / 2;
-        let (left, right) = self.base.split_at(base_index);
+    fn split_at(self, index: usize) -> (Self, Self) {
+        debug_assert!(index <= self.len);
 
-        // For even indexes, the right will start the same way as the left.
-        // Otherwise, it flips.
-        let right_clone_first = if index % 2 == 0 {
-            self.clone_first
-        } else {
-            !self.clone_first
+        // The left needs half of the items from the base producer, and the
+        // other half will be our interspersed item.  If we're not leading with
+        // a cloned item, then we need to round up the base number of items,
+        // otherwise round down.
+        let base_index = (index + !self.clone_first as usize) / 2;
+        let (left_base, right_base) = self.base.split_at(base_index);
+
+        let left = IntersperseProducer {
+            base: left_base,
+            item: self.item.clone(),
+            len: index,
+            clone_first: self.clone_first,
         };
 
         let right = IntersperseProducer {
-            base: right,
-            item: self.item.clone(),
-            clone_first: right_clone_first,
-            clone_last: self.clone_last,
+            base: right_base,
+            item: self.item,
+            len: self.len - index,
+
+            // If the index is odd, the right side toggles `clone_first`.
+            clone_first: (index & 1 == 1) ^ self.clone_first,
         };
-        self.base = left;
-        self.clone_last = !right_clone_first;
-        (self, right)
+
+        (left, right)
     }
 }
 
