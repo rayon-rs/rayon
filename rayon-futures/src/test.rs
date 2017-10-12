@@ -11,10 +11,10 @@ use rayon_core::{scope, ThreadPool, Configuration};
 use super::ScopeFutureExt;
 
 fn run_compiletest(mode: &str, path: &str) {
-    let mut config = compiletest::default_config();
+    let mut config = compiletest::Config::default();
     config.mode = mode.parse().ok().expect("Invalid mode");
     config.src_base = PathBuf::from(path);
-    config.target_rustcflags = Some("-L ../target/debug/ -L ../target/debug/deps/".to_owned());
+    config.link_deps();
 
     compiletest::run_tests(&config);
 }

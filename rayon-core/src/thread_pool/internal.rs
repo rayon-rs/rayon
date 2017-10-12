@@ -1,4 +1,5 @@
-#[cfg(rayon_unstable)]
+#![cfg(rayon_unstable)]
+
 use internal::task::{ScopeHandle, ToScopeHandle, Task};
 use registry::Registry;
 use std::any::Any;
@@ -6,7 +7,6 @@ use std::fmt;
 use std::sync::Arc;
 use super::ThreadPool;
 
-#[cfg(rayon_unstable)]
 impl ToScopeHandle<'static> for ThreadPool {
     type ScopeHandle = ThreadPoolScopeHandle;
 
@@ -52,7 +52,6 @@ impl Drop for ThreadPoolScopeHandle {
 /// (b) the lifetime `'static` will not end until a completion
 ///     method is called. This is true because `'static` doesn't
 ///     end until the end of the program.
-#[cfg(rayon_unstable)]
 unsafe impl ScopeHandle<'static> for ThreadPoolScopeHandle {
     unsafe fn spawn_task<T: Task + 'static>(&self, task: Arc<T>) {
         self.registry.submit_task(task);

@@ -1,10 +1,11 @@
 use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
 use coco::deque::{self, Worker, Stealer};
-use job::{Job, JobRef, StackJob};
+use job::{JobRef, StackJob};
+#[cfg(rayon_unstable)]
+use job::Job;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
 use latch::{LatchProbe, Latch, CountLatch, LockLatch, SpinLatch, TickleLatch};
-#[allow(unused_imports)]
 use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
@@ -153,6 +154,7 @@ impl Registry {
         Ok(registry.clone())
     }
 
+    #[cfg(rayon_unstable)]
     pub fn global() -> Arc<Registry> {
         global_registry().clone()
     }
@@ -261,9 +263,8 @@ impl Registry {
 
         /// A little newtype wrapper for `T`, just because I did not
         /// want to implement `Job` for all `T: Task`.
-        #[allow(dead_code)]
         struct TaskJob<T: Task> {
-            data: T
+            _data: T
         }
 
         impl<T: Task> TaskJob<T> {

@@ -16,4 +16,4 @@ rayon-core = { version = "1.2.2", path = "../rayon-core" }
 futures = "0.1.7"
 
 [dev-dependencies]
-compiletest_rs = "0.2.1"
+compiletest_rs = "0.3"

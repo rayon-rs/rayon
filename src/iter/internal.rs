@@ -4,7 +4,6 @@
 //! See `README.md` for a high-level overview.
 
 use join_context;
-use FnContext;
 
 use super::IndexedParallelIterator;
 
