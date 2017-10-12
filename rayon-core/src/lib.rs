@@ -24,13 +24,6 @@
 #![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
-// If you're not compiling the unstable code, it often happens that
-// there is stuff that is considered "dead code" and so forth. So
-// disable warnings in that scenario.
-#![cfg_attr(not(rayon_unstable), allow(warnings))]
-
-#[allow(unused_imports)]
-use log::Event::*;
 use std::any::Any;
 use std::env;
 use std::error::Error;

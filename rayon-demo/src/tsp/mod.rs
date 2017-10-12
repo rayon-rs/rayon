@@ -3,8 +3,6 @@
 //! Based on code developed at ETH by Christoph von Praun, Florian
 //! Schneider, Nicholas Matsakis, and Thomas Gross.
 
-#![allow(dead_code)]
-
 use docopt::Docopt;
 use std::error::Error;
 use std::fs::File;

@@ -1,11 +1,11 @@
-#[cfg(rayon_unstable)]
+#![cfg(rayon_unstable)]
+
 use internal::task::{ScopeHandle, ToScopeHandle, Task};
 use std::any::Any;
 use std::mem;
 use std::sync::Arc;
 use super::Scope;
 
-#[cfg(rayon_unstable)]
 impl<'scope> ToScopeHandle<'scope> for Scope<'scope> {
     type ScopeHandle = LocalScopeHandle<'scope>;
 
@@ -42,7 +42,6 @@ impl<'scope> Drop for LocalScopeHandle<'scope> {
 /// We assert that the `Self` type remains valid until a
 /// method is called, and that `'scope` will not end until
 /// that point.
-#[cfg(rayon_unstable)]
 unsafe impl<'scope> ScopeHandle<'scope> for LocalScopeHandle<'scope> {
     unsafe fn spawn_task<T: Task + 'scope>(&self, task: Arc<T>) {
         let scope = &*self.scope;

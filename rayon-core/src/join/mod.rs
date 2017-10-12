@@ -1,5 +1,4 @@
 use latch::{LatchProbe, SpinLatch};
-#[allow(unused_imports)]
 use log::Event::*;
 use job::StackJob;
 use registry::{self, WorkerThread};

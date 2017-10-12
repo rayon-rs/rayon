@@ -1,6 +1,4 @@
 use Configuration;
-#[allow(unused_imports)]
-use log::Event::*;
 use join;
 use {scope, Scope};
 use spawn;

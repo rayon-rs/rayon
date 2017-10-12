@@ -37,15 +37,6 @@ impl Weight {
     pub fn to_priority(self) -> Priority {
         Priority { priority: usize::MAX - self.weight }
     }
-
-    pub fn average(self, w: Weight) -> Weight {
-        if self < w {
-            let half_diff = (w.weight - self.weight) / 2;
-            Weight::new(self.weight + half_diff)
-        } else {
-            w.average(self)
-        }
-    }
 }
 
 impl Add for Weight {

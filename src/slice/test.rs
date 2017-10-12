@@ -2,7 +2,6 @@
 
 use rand::{thread_rng, Rng};
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::mem;
 use super::ParallelSliceMut;
 
 macro_rules! sort {

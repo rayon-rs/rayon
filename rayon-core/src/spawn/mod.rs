@@ -1,5 +1,3 @@
-#[allow(unused_imports)]
-use latch::{Latch, SpinLatch};
 use job::*;
 use registry::Registry;
 use std::mem;
