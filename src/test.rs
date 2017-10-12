@@ -8,7 +8,7 @@ fn run_compiletest(mode: &str, path: &str) {
     let mut config = compiletest::Config::default();
     config.mode = mode.parse().ok().expect("Invalid mode");
     config.src_base = PathBuf::from(path);
-    config.link_deps();
+    config.target_rustcflags = Some("-L target/debug/ -L target/debug/deps/".to_owned());
 
     compiletest::run_tests(&config);
 }
