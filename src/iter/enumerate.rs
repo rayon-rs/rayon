@@ -95,8 +95,14 @@ impl<P> Producer for EnumerateProducer<P>
         // Enumerate only works for IndexedParallelIterators. Since those
         // have a max length of usize::MAX, their max index is
         // usize::MAX - 1, so the range 0..usize::MAX includes all
-        // possible indices
-        (self.offset..usize::MAX).zip(self.base.into_iter())
+        // possible indices.
+        //
+        // However, we should to use a precise end to the range, otherwise
+        // reversing the iterator may have to walk back a long ways before
+        // `Zip::next_back` can produce anything.
+        let base = self.base.into_iter();
+        let end = self.offset + base.len();
+        (self.offset..end).zip(base)
     }
 
     fn min_len(&self) -> usize {
