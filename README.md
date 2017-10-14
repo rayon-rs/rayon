@@ -198,7 +198,7 @@ However, this safety does have some implications. You will not be able
 to use types which are not thread-safe (i.e., do not implement `Send`)
 from inside a `join` closure. Note that almost all types *are* in fact
 thread-safe in Rust; the only exception is those types that employ
-"inherent mutability" without some form of synchronization, such as
+"interior mutability" without some form of synchronization, such as
 `RefCell` or `Rc`. Here is a list of the most common types in the
 standard library that are not `Send`, along with an alternative that
 you can use instead which *is* `Send` (but which also has higher
