@@ -108,6 +108,11 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
     fn next(&mut self) -> Option<T> {
         self.iter.next().map(|ptr| unsafe { std::ptr::read(ptr) })
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
 }
 
 impl<'data, T: 'data> DoubleEndedIterator for SliceDrain<'data, T> {

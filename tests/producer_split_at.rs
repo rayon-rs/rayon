@@ -75,9 +75,9 @@ impl<T> ProducerCallback<T> for Split {
         let c = c.into_iter();
         let d = d.into_iter();
 
-        assert_eq!(a.len(), self.i);
-        assert_eq!(b.len(), self.j - self.i);
-        assert_eq!(c.len(), self.k - self.j);
+        check_len(&a, self.i);
+        check_len(&b, self.j - self.i);
+        check_len(&c, self.k - self.j);
 
         let chain = a.chain(b).chain(c).chain(d);
         if self.reverse {
@@ -86,6 +86,11 @@ impl<T> ProducerCallback<T> for Split {
             chain.collect()
         }
     }
+}
+
+fn check_len<I: ExactSizeIterator>(iter: &I, len: usize) {
+    assert_eq!(iter.size_hint(), (len, Some(len)));
+    assert_eq!(iter.len(), len);
 }
 
 
