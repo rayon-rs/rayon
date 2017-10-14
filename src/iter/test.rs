@@ -209,6 +209,19 @@ pub fn check_enumerate() {
 }
 
 #[test]
+pub fn check_enumerate_rev() {
+    let a: Vec<usize> = (0..1024).rev().collect();
+
+    let mut b = vec![];
+    a.par_iter()
+        .enumerate()
+        .rev()
+        .map(|(i, &x)| i + x)
+        .collect_into(&mut b);
+    assert!(b.iter().all(|&x| x == a.len() - 1));
+}
+
+#[test]
 pub fn check_indices_after_enumerate_split() {
     let a: Vec<i32> = (0..1024).collect();
     a.par_iter().enumerate().with_producer(WithProducer);
