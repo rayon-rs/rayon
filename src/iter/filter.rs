@@ -1,16 +1,26 @@
 use super::internal::*;
 use super::*;
 
+use std::fmt::{self, Debug};
+
 /// `Filter` takes a predicate `filter_op` and filters out elements that match.
 /// This struct is created by the [`filter()`] method on [`ParallelIterator`]
 ///
 /// [`filter()`]: trait.ParallelIterator.html#method.filter
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Filter<I: ParallelIterator, P> {
     base: I,
     filter_op: P,
+}
+
+impl<I: ParallelIterator + Debug, P> Debug for Filter<I, P> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Filter")
+            .field("base", &self.base)
+            .finish()
+    }
 }
 
 /// Create a new `Filter` iterator.

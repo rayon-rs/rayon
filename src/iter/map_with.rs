@@ -1,6 +1,8 @@
 use super::internal::*;
 use super::*;
 
+use std::fmt::{self, Debug};
+
 
 /// `MapWith` is an iterator that transforms the elements of an underlying iterator.
 ///
@@ -9,11 +11,20 @@ use super::*;
 /// [`map_with()`]: trait.ParallelIterator.html#method.map_with
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MapWith<I: ParallelIterator, T, F> {
     base: I,
     item: T,
     map_op: F,
+}
+
+impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MapWith")
+            .field("base", &self.base)
+            .field("item", &self.item)
+            .finish()
+    }
 }
 
 /// Create a new `MapWith` iterator.

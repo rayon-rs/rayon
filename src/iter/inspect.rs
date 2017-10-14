@@ -1,6 +1,7 @@
 use super::internal::*;
 use super::*;
 
+use std::fmt::{self, Debug};
 use std::iter;
 
 
@@ -12,10 +13,18 @@ use std::iter;
 /// [`inspect()`]: trait.ParallelIterator.html#method.inspect
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Inspect<I: ParallelIterator, F> {
     base: I,
     inspect_op: F,
+}
+
+impl<I: ParallelIterator + Debug, F> Debug for Inspect<I, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Inspect")
+            .field("base", &self.base)
+            .finish()
+    }
 }
 
 /// Create a new `Inspect` iterator.

@@ -1,16 +1,26 @@
 use super::internal::*;
 use super::*;
 
+use std::fmt::{self, Debug};
+
 /// `FlatMap` maps each element to an iterator, then flattens these iterators together.
 /// This struct is created by the [`flat_map()`] method on [`ParallelIterator`]
 ///
 /// [`flat_map()`]: trait.ParallelIterator.html#method.flat_map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FlatMap<I: ParallelIterator, F> {
     base: I,
     map_op: F,
+}
+
+impl<I: ParallelIterator + Debug, F> Debug for FlatMap<I, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FlatMap")
+            .field("base", &self.base)
+            .finish()
+    }
 }
 
 /// Create a new `FlatMap` iterator.
