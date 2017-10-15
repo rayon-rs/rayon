@@ -101,6 +101,9 @@ fn sum_of_squares(input: &[i32]) -> i32 {
 }
 ```
 
+Note that the `sum()` call is not a sequential one. It is, precisely,
+a logarithmic, tree-like reduction known from, for example, OpenMP.
+
 Or, to increment all the integers in a slice, you could write:
 
 ```rust
