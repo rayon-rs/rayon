@@ -76,8 +76,7 @@ fn clone_option() {
 fn clone_result() {
     let result = Ok::<_, ()>(0);
     check(result.par_iter());
-    // rust-lang/rust#45179
-    // check(result.into_par_iter());
+    check(result.into_par_iter());
 }
 
 #[test]
