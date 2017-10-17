@@ -14,6 +14,7 @@ use self::quicksort::par_quicksort;
 use split_producer::*;
 use std::cmp;
 use std::cmp::Ordering;
+use std::fmt::{self, Debug};
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
@@ -381,6 +382,12 @@ pub struct Iter<'data, T: 'data + Sync> {
     slice: &'data [T],
 }
 
+impl<'data, T: Sync> Clone for Iter<'data, T> {
+    fn clone(&self) -> Self {
+        Iter { ..*self }
+    }
+}
+
 impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
     type Item = &'data T;
 
@@ -437,6 +444,12 @@ impl<'data, T: 'data + Sync> Producer for IterProducer<'data, T> {
 pub struct Chunks<'data, T: 'data + Sync> {
     chunk_size: usize,
     slice: &'data [T],
+}
+
+impl<'data, T: Sync> Clone for Chunks<'data, T> {
+    fn clone(&self) -> Self {
+        Chunks { ..*self }
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
@@ -507,6 +520,12 @@ impl<'data, T: 'data + Sync> Producer for ChunksProducer<'data, T> {
 pub struct Windows<'data, T: 'data + Sync> {
     window_size: usize,
     slice: &'data [T],
+}
+
+impl<'data, T: Sync> Clone for Windows<'data, T> {
+    fn clone(&self) -> Self {
+        Windows { ..*self }
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
@@ -702,10 +721,23 @@ impl<'data, T: 'data + Send> Producer for ChunksMutProducer<'data, T> {
 
 
 /// Parallel iterator over slices separated by a predicate
-#[derive(Debug)]
 pub struct Split<'data, T: 'data, P> {
     slice: &'data [T],
     separator: P,
+}
+
+impl<'data, T, P: Clone> Clone for Split<'data, T, P> {
+    fn clone(&self) -> Self {
+        Split { separator: self.separator.clone(), ..*self }
+    }
+}
+
+impl<'data, T: Debug, P> Debug for Split<'data, T, P> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Split")
+            .field("slice", &self.slice)
+            .finish()
+    }
 }
 
 impl<'data, T, P> ParallelIterator for Split<'data, T, P>
@@ -761,10 +793,17 @@ impl<'data, T, P> Fissile<P> for &'data [T]
 
 
 /// Parallel iterator over mutable slices separated by a predicate
-#[derive(Debug)]
 pub struct SplitMut<'data, T: 'data, P> {
     slice: &'data mut [T],
     separator: P,
+}
+
+impl<'data, T: Debug, P> Debug for SplitMut<'data, T, P> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SplitMut")
+            .field("slice", &self.slice)
+            .finish()
+    }
 }
 
 impl<'data, T, P> ParallelIterator for SplitMut<'data, T, P>

@@ -10,7 +10,7 @@ use std::iter;
 /// [`zip()`]: trait.IndexedParallelIterator.html#method.zip
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     a: A,
     b: B,

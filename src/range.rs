@@ -38,7 +38,7 @@ use std::ops::Range;
 ///
 /// assert_eq!(p, s);
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<T> {
     range: Range<T>,
 }

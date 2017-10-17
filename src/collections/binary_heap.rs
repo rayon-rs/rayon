@@ -9,6 +9,12 @@ use iter::internal::*;
 
 use vec;
 
+/// Parallel iterator over a binary heap
+#[derive(Debug, Clone)]
+pub struct IntoIter<T: Ord + Send> {
+    inner: vec::IntoIter<T>,
+}
+
 impl<T: Ord + Send> IntoParallelIterator for BinaryHeap<T> {
     type Item = T;
     type Iter = IntoIter<T>;
@@ -18,23 +24,33 @@ impl<T: Ord + Send> IntoParallelIterator for BinaryHeap<T> {
     }
 }
 
+delegate_indexed_iterator!{
+    IntoIter<T> => T,
+    impl<T: Ord + Send>
+}
+
+
+/// Parallel iterator over an immutable reference to a binary heap
+#[derive(Debug)]
+pub struct Iter<'a, T: Ord + Sync + 'a> {
+    inner: vec::IntoIter<&'a T>,
+}
+
+impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter { inner: self.inner.clone() }
+    }
+}
+
 into_par_vec!{
     &'a BinaryHeap<T> => Iter<'a, T>,
     impl<'a, T: Ord + Sync>
 }
 
-// `BinaryHeap` doesn't have a mutable `Iterator`
-
-
 delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over a binary heap"]
-    IntoIter<T> => vec::IntoIter<T>,
-    impl<T: Ord + Send>
-}
-
-
-delegate_indexed_iterator!{
-    #[doc = "Parallel iterator over an immutable reference to a binary heap"]
-    Iter<'a, T> => vec::IntoIter<&'a T>,
+    Iter<'a, T> => &'a T,
     impl<'a, T: Ord + Sync + 'a>
 }
+
+
+// `BinaryHeap` doesn't have a mutable `Iterator`

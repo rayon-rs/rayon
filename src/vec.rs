@@ -7,7 +7,7 @@ use iter::internal::*;
 use std;
 
 /// Parallel iterator that moves out of a vector.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntoIter<T: Send> {
     vec: Vec<T>,
 }

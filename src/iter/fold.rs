@@ -1,6 +1,8 @@
 use super::internal::*;
 use super::*;
 
+use std::fmt::{self, Debug};
+
 pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
     where I: ParallelIterator,
           F: Fn(U, I::Item) -> U + Sync + Send,
@@ -20,11 +22,19 @@ pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
 /// [`fold()`]: trait.ParallelIterator.html#method.fold
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct Fold<I, ID, F> {
     base: I,
     identity: ID,
     fold_op: F,
+}
+
+impl<I: ParallelIterator + Debug, ID, F> Debug for Fold<I, ID, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Fold")
+            .field("base", &self.base)
+            .finish()
+    }
 }
 
 impl<U, I, ID, F> ParallelIterator for Fold<I, ID, F>
@@ -146,11 +156,20 @@ pub fn fold_with<U, I, F>(base: I, item: U, fold_op: F) -> FoldWith<I, U, F>
 /// [`fold_with()`]: trait.ParallelIterator.html#method.fold_with
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct FoldWith<I, U, F> {
     base: I,
     item: U,
     fold_op: F,
+}
+
+impl<I: ParallelIterator + Debug, U: Debug, F> Debug for FoldWith<I, U, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FoldWith")
+            .field("base", &self.base)
+            .field("item", &self.item)
+            .finish()
+    }
 }
 
 impl<U, I, F> ParallelIterator for FoldWith<I, U, F>

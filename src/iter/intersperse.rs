@@ -10,7 +10,7 @@ use std::iter::Fuse;
 /// [`intersperse()`]: trait.ParallelIterator.html#method.intersperse
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Intersperse<I>
     where I: ParallelIterator,
           I::Item: Clone

@@ -1,6 +1,7 @@
 use super::internal::*;
 use super::*;
 
+use std::fmt::{self, Debug};
 use std::iter;
 
 
@@ -11,10 +12,18 @@ use std::iter;
 /// [`map()`]: trait.ParallelIterator.html#method.map
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct Map<I: ParallelIterator, F> {
     base: I,
     map_op: F,
+}
+
+impl<I: ParallelIterator + Debug, F> Debug for Map<I, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Map")
+            .field("base", &self.base)
+            .finish()
+    }
 }
 
 /// Create a new `Map` iterator.
