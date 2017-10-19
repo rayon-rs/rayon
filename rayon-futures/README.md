@@ -2,7 +2,7 @@
 
 **NOTE:** `rayon-futures` currently requires unstable features of
 `rayon-core`, which may only be enabled with `rustc --cfg`,
-e.g. by setting `RUSTFLAGS=-cfg rayon_unstable` in the environment.
+e.g. by setting `RUSTFLAGS=--cfg rayon_unstable` in the environment.
 
 ## How futures work
 
@@ -91,8 +91,7 @@ some way, usually via an `Arc`):
       +---> /---------------------\
       |     | registry:           | ------> [rayon registry]
       |     | contents: --------\ |
-      |     | | scope         | | ------> [spawning scope]
-      |     | | unpark          | | --+
+      |     | | scope           | | ------> [spawning scope]
       |     | | this            | | --+ (self references)
       |     | | ...             | |   |
       |     | \-----------------/ |   |
@@ -137,11 +136,11 @@ Let's walk through them:
     shown here). This field is always set to `None` before the scope
     counter is decremented. See the section on lifetime safety for more
     details.
-- The `unpark` and `self` fields both store an `Arc` which is actually
-  this same future. Thus the future has a ref count cycle (two of
-  them...) and cannot be freed until this cycle is broken. Both of
-  these fields are actually `Option<Arc<..>>` fields and will be set
-  to `None` once the future is complete, breakin the cycle and
+- The `this` field stores an `Arc` which is actually
+  this same future. Thus the future has a ref count cycle 
+  and cannot be freed until this cycle is broken. That field
+  is actually an `Option<Arc<..>>` and will be set
+  to `None` once the future is complete, breaking the cycle and
   allowing it to be freed when other references are dropped.
 
 ### The future state machine
@@ -173,28 +172,28 @@ the thread gets around to it.
 Once the future begins to execute (it itself is a Rayon job), it
 transitions into the *EXECUTING* state. This means that it is busy
 calling `F.poll()`, basically. While it calls `poll()`, it also sets
-up its `contents.unpark` field as the current "unpark" instance. Hence
-if `F` returns `NotReady`, it will clone this `unpark` field and hold
+up its `contents.this` field as the current "notify" instance. Hence
+if `F` returns `NotReady`, it will clone the `this` field and hold
 onto it to signal us the future is ready to execute again.
 
 For now let's assume that `F` is complete and hence readys either
 `Ok(Ready(_))` or `Err(_)`. In that case, the future can transition to
 `COMPLETE`. At this point, many bits of state that are no longer
-needed (e.g., the future itself, but also the `this` and `unpark`
-fields) are set to `None` and dropped, and the result is stored in the
+needed (e.g., the future itself, but also the `this` field)
+are set to `None` and dropped, and the result is stored in the
 `result` field. (Moreover, we may have to signal other tasks, but that
 is discussed in a future section.)
 
 If `F` returns `Ok(Async::NotReady)`, then we would typically
 transition to the `PARKED` state and await the call to
-`unpark()`. When `unpark()` is called, it would move the future into
+`notify()`. When `notify()` is called, it would move the future into
 the `UNPARK` state and inject it into the registry.
 
 However, due to the vagaries of thread-scheduling, it *can* happen
-that `unpark()` is called before we exit the `EXECUTING` state. For
+that `notify()` is called before we exit the `EXECUTING` state. For
 example, we might invoke `F.poll()`, which send the `Unpark` instance
-to the I/O thread, which detects I/O, and invokes `unpark()`, all
-before `F.poll()` has returned. In that case, the `unpark()` method
+to the I/O thread, which detects I/O, and invokes `notify()`, all
+before `F.poll()` has returned. In that case, the `notify()` method
 will transition the state (atomically, of course) to
 `EXECUTING_UNPARKED`. In that case, instead of transitioning to
 `PARKED` when `F.poll()` returns, the future will simply transition
@@ -227,13 +226,13 @@ This is good, because there *are* still active refs to the
 `ScopeFuture` after we enter the *COMPLETE* state. There are two
 sources of these: unpark values and the future result.
 
-**Unpark values.** We may have given away `Arc<Unpark>` values --
-these are trait objects, but they are actually refs to our
-`ScopeFuture`. Note that `Arc<Unpark>: 'static`, so these could be
+**NotifyHandle values.** We may have given away `NotifyHandle` values --
+these contain trait objects that are actually refs to our
+`ScopeFuture`. Note that `NotifyHandle: 'static`, so these could be
 floating about for any length of time (we had to transmute away the
 lifetimes to give them out). This is ok because (a) the `Arc` keeps
 the `ScopeFuture` alive and (b) the only thing you can do is to call
-`unpark()`, which will promptly return since the state is *COMPLETE*
+`notify()`, which will promptly return since the state is *COMPLETE*
 (and, anyhow, as we saw above, it doesn't have access to any
 references anyhow).
 
@@ -241,7 +240,7 @@ references anyhow).
 `ScopeFuture` is the value that we gave back to the user when we
 spawned the future in the first place. This value is more interesting
 because it can be used to do non-trivial things, unlike the
-`Arc<Unpark>`. If you look carefully at this handle, you will see that
+`NotifyHandle`. If you look carefully at this handle, you will see that
 its type has been designed to hide the type `F`. In fact, it only
 reveals the types `T` and `E` which are the ok/err result types of the
 future `F`.  This is intentonal: suppose that the type `F` includes
@@ -259,8 +258,8 @@ operations available: poll and cancel. Let's look at cancel first,
 since it's simpler. If the state is *COMPLETE*, then `cancel()` is an
 immediate no-op, so we know that it can't be used to access any
 references that may be invalid. In any case, the only thing it does is
-to set a field to true and invoke `unpark()`, and we already examined
-the possible effects of `unpark()` in the previous section.q
+to set a field to true and invoke `notify()`, and we already examined
+the possible effects of `notify()` in the previous section.
 
 So what about `poll()`? This is how the user gets the final result out
 of the future. The important thing that it does is to access (and
@@ -273,5 +272,3 @@ that any references are still valid, or else the user shouldn't be
 able to call `poll()`. (The same is true at the time of cancellation,
 but that's not important, since `cancel()` doesn't do anything of
 interest.)
-
-
