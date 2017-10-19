@@ -173,6 +173,19 @@ pub trait ParallelIterator: Sized + Send {
     type Item: Send;
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let list = vec![0u32, 1, 2, 3, 4];
+    ///
+    /// // Increment every number by one.
+    /// let result = x.into_par_iter().for_each(|mut item: u32| {
+    ///     item + 1
+    /// }).collect();
+    /// assert_eq!(y, vec![1u32, 2, 3, 4, 5]);
+    /// ```
     fn for_each<OP>(self, op: OP)
         where OP: Fn(Self::Item) + Sync + Send
     {
@@ -185,6 +198,20 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
+    ///
+    /// ## Example
+    /// 
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let list = vec![0u32, 1, 2, 3, 4];
+    ///
+    /// // Add a number to every element in the list.
+    /// let mut total = 0;
+    /// let result = list.into_par_iter().for_each_with(total, |add: &mut u32, mut item: u32| {
+    ///     item + add
+    /// });
+    /// assert_eq!(result, vec![5u32, 6, 7, 8, 9]);
+    /// ```
     fn for_each_with<OP, T>(self, init: T, op: OP)
         where OP: Fn(&mut T, Self::Item) + Sync + Send,
               T: Send + Clone
@@ -193,6 +220,14 @@ pub trait ParallelIterator: Sized + Send {
     }
 
     /// Counts the number of items in this parallel iterator.
+    ///
+    /// ## Example
+    /// 
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let list = vec![1, 2, 3, 4, 5];
+    /// assert_eq!(list.count(), 5);
+    /// ```
     fn count(self) -> usize {
         self.map(|_| 1).sum()
     }
@@ -240,6 +275,16 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let list = vec![0u32, 1, 2, 3, 4];;
+    /// // Only have items that are greater than 2 in this list.
+    /// let result = x.into_par_iter().filter(|item| item > 2).collect();
+    /// assert_eq!(y, vec![3u32, 4]);
+    /// ```
     fn filter<P>(self, filter_op: P) -> Filter<Self, P>
         where P: Fn(&Self::Item) -> bool + Sync + Send
     {
@@ -248,6 +293,22 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
     /// producing a new iterator with only the items from `Some` results.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let map = hashmap![
+    ///     1 => "some",
+    ///     3 => "cool",
+    ///     4 => "values",
+    /// ];
+    /// let list = vec![0u32, 1, 2, 3, 4];
+    /// // Only have items that are in the map and get the values
+    /// // associated with the items.
+    /// let result = list.into_par_iter().filter_op(|item| map.get(item)).collect();
+    /// assert_eq!(result, vec!["some", "cool", "values"]);
+    /// ```
     fn filter_map<P, R>(self, filter_op: P) -> FilterMap<Self, P>
         where P: Fn(Self::Item) -> Option<R> + Sync + Send,
               R: Send
@@ -266,7 +327,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens iterable `Item`s into one large iterator
     ///
-    /// Example:
+    /// ## Example
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -288,7 +349,7 @@ pub trait ParallelIterator: Sized + Send {
     /// to produce something that represents the zero for your type
     /// (but consider just calling `sum()` in that case).
     ///
-    /// Example:
+    /// ## Example
     ///
     /// ```
     /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
@@ -505,6 +566,15 @@ pub trait ParallelIterator: Sized + Send {
     /// Basically equivalent to `self.reduce(|| 0, |a, b| a + b)`,
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let list = vec![0u32, 1, 2, 3, 4];
+    /// let sum: u32 = list.into_par_iter().sum();
+    /// assert_eq!(sum, 10);
+    /// ```
     fn sum<S>(self) -> S
         where S: Send + Sum<Self::Item> + Sum<S>
     {
@@ -523,6 +593,13 @@ pub trait ParallelIterator: Sized + Send {
     /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
+    ///
+    /// ```rust
+    /// # use rayon::prelude::*;
+    /// let list = vec![1u32, 2, 3, 4];
+    /// let product: u32 = list.into_par_iter().product();
+    /// assert_eq!(product, 24);
+    /// ```
     fn product<P>(self) -> P
         where P: Send + Product<Self::Item> + Product<P>
     {
