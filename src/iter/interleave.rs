@@ -1,4 +1,4 @@
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 use std::cmp;
 use std::iter::Fuse;

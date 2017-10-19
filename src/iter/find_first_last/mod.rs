@@ -1,6 +1,6 @@
 use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 
 #[cfg(test)]

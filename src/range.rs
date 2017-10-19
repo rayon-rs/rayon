@@ -14,7 +14,7 @@
 //! ```
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 use std::ops::Range;
 
 /// Parallel iterator over a range, implemented for all integer types.

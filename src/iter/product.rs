@@ -1,5 +1,5 @@
 use super::ParallelIterator;
-use super::internal::*;
+use super::plumbing::*;
 
 use std::iter::{self, Product};
 use std::marker::PhantomData;

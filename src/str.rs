@@ -13,7 +13,7 @@
 //! [`par_split_terminator()`]: trait.ParallelString.html#method.par_split_terminator
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 use split_producer::*;
 
 
@@ -107,7 +107,7 @@ impl ParallelString for str {
 /// would be nicer to have its basic existence and implementors public while
 /// keeping all of the methods private.
 mod private {
-    use iter::internal::Folder;
+    use iter::plumbing::Folder;
 
     /// Pattern-matching trait for `ParallelString`, somewhat like a mix of
     /// `std::str::pattern::{Pattern, Searcher}`.

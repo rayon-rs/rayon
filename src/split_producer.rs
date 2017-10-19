@@ -2,7 +2,7 @@
 //!
 //! This module is private, so these items are effectively `pub(super)`
 
-use iter::internal::{UnindexedProducer, Folder};
+use iter::plumbing::{UnindexedProducer, Folder};
 
 /// Common producer for splitting on a predicate.
 pub struct SplitProducer<'p, P: 'p, V> {

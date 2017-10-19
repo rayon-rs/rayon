@@ -1,4 +1,4 @@
-use super::super::internal::*;
+use super::super::plumbing::*;
 use super::super::noop::*;
 use std::ptr;
 use std::slice;

@@ -1,4 +1,4 @@
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 use super::noop::NoopConsumer;
 use std::cmp::min;

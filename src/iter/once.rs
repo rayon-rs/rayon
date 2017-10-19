@@ -1,4 +1,4 @@
-use iter::internal::*;
+use iter::plumbing::*;
 use iter::*;
 
 /// Creates a parallel iterator that produces an element exactly once.

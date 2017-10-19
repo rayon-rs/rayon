@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, BuildHasher};
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 
 use vec;
 

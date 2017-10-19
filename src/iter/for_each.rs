@@ -1,5 +1,5 @@
 use super::ParallelIterator;
-use super::internal::*;
+use super::plumbing::*;
 use super::noop::*;
 
 pub fn for_each<I, F, T>(pi: I, op: &F)

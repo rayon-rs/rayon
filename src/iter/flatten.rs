@@ -1,4 +1,4 @@
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 
 /// `Flatten` turns each element to an iterator, then flattens these iterators

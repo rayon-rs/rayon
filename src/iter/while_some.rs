@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 
 /// `WhileSome` is an iterator that yields the `Some` elements of an iterator,

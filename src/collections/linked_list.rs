@@ -5,7 +5,7 @@
 use std::collections::LinkedList;
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 
 use vec;
 

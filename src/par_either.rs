@@ -1,5 +1,5 @@
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 use iter::Either::{Left, Right};
 
 /// `Either<L, R>` is a parallel iterator if both `L` and `R` are parallel iterators.

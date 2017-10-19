@@ -1,5 +1,5 @@
 use super::ParallelIterator;
-use super::internal::*;
+use super::plumbing::*;
 
 pub fn reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
     where PI: ParallelIterator<Item = T>,
