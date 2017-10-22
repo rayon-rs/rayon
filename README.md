@@ -85,6 +85,16 @@ For more information on demos, try:
 
 **Note:** While Rayon is usable as a library with the stable compiler, running demos or executing tests requires nightly Rust.
 
+### How many threads will Rayon spawn?
+
+By default, Rayon uses the same number of threads as the number of CPUs
+available. Note that on systems with hyperthreading enabled this
+equals to the number of logical cores and not the physical ones.
+
+If you want to alter the number of threads spawned, you can set the
+environmental variable `RAYON_NUM_THREADS` to the desired number of threads
+or use the [`initialize` function](https://docs.rs/rayon/*/rayon/fn.initialize.html) method
+
 ### Parallel Iterators
 
 Rayon supports an experimental API called "parallel iterators". These
