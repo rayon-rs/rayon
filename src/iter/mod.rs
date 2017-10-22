@@ -496,7 +496,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Sums up the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `+` operator is not truly [associative] (as is the
+    /// so if the `+` operator is not truly [associative] \(as is the
     /// case for floating point numbers), then the results are not
     /// fully deterministic.
     ///
@@ -514,7 +514,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Multiplies all the items in the iterator.
     ///
     /// Note that the order in items will be reduced is not specified,
-    /// so if the `*` operator is not truly [associative] (as is the
+    /// so if the `*` operator is not truly [associative] \(as is the
     /// case for floating point numbers), then the results are not
     /// fully deterministic.
     ///
