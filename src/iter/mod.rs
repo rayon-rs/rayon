@@ -71,6 +71,7 @@ pub use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
 use std::ops::Fn;
+use std::ops::Try;
 use self::plumbing::*;
 
 // There is a method to the madness here:
@@ -106,7 +107,10 @@ pub mod plumbing;
 mod for_each;
 mod fold;
 pub use self::fold::{Fold, FoldWith};
+mod try_fold;
+pub use self::try_fold::{TryFold, TryFoldWith};
 mod reduce;
+mod try_reduce;
 mod skip;
 pub use self::skip::Skip;
 mod splitter;
@@ -676,6 +680,15 @@ pub trait ParallelIterator: Sized + Send {
             })
     }
 
+    /// TODO
+    fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
+        where OP: Fn(T, T) -> Self::Item + Sync + Send,
+              ID: Fn() -> T + Sync + Send,
+              Self::Item: Try<Ok = T>
+    {
+        try_reduce::try_reduce(self, identity, op)
+    }
+
     /// Parallel fold is similar to sequential fold except that the
     /// sequence of items may be subdivided before it is
     /// folded. Consider a list of numbers like `22 3 77 89 46`. If
@@ -841,6 +854,24 @@ pub trait ParallelIterator: Sized + Send {
               T: Send + Clone
     {
         fold::fold_with(self, init, fold_op)
+    }
+
+    /// TODO
+    fn try_fold<T, R, ID, F>(self, identity: ID, fold_op: F) -> TryFold<Self, R, ID, F>
+        where F: Fn(T, Self::Item) -> R + Sync + Send,
+              ID: Fn() -> T + Sync + Send,
+              R: Try<Ok = T> + Send
+    {
+        try_fold::try_fold(self, identity, fold_op)
+    }
+
+    /// TODO
+    fn try_fold_with<F, T, R>(self, init: T, fold_op: F) -> TryFoldWith<Self, R, F>
+        where F: Fn(T, Self::Item) -> R + Sync + Send,
+              R: Try<Ok = T> + Send,
+              T: Clone + Send
+    {
+        try_fold::try_fold_with(self, init, fold_op)
     }
 
     /// Sums up the items in the iterator.

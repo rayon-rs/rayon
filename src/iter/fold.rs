@@ -140,7 +140,7 @@ impl<'r, C, ID, F, T> Folder<T> for FoldFolder<'r, C, ID, F>
 
 pub fn fold_with<U, I, F>(base: I, item: U, fold_op: F) -> FoldWith<I, U, F>
     where I: ParallelIterator,
-          F: Fn(U, I::Item) -> U + Sync,
+          F: Fn(U, I::Item) -> U + Sync + Send,
           U: Send + Clone
 {
     FoldWith {

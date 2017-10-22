@@ -1,6 +1,7 @@
 #![doc(html_root_url = "https://docs.rs/rayon/1.0")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
+#![feature(try_trait)]
 
 //! Data-parallelism library that makes it easy to convert sequential
 //! computations into parallel
