@@ -133,6 +133,16 @@ fn clone_adaptors() {
 }
 
 #[test]
+fn clone_empty() {
+    check(rayon::iter::empty::<i32>());
+}
+
+#[test]
+fn clone_once() {
+    check(rayon::iter::once(10));
+}
+
+#[test]
 fn clone_repeat() {
     let x: Option<i32> = None;
     check(rayon::iter::repeat(x).while_some());
