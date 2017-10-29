@@ -173,6 +173,12 @@ pub trait ParallelIterator: Sized + Send {
     type Item: Send;
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
+    /// 
+    /// ```
+    /// use std::sync::mpsc::channel;
+    /// use rayon::prelude::*;
+    /// (0..100).into_par_iter().for_each(|x| println!("{}", x));
+    /// ```
     fn for_each<OP>(self, op: OP)
         where OP: Fn(Self::Item) + Sync + Send
     {
@@ -193,6 +199,12 @@ pub trait ParallelIterator: Sized + Send {
     }
 
     /// Counts the number of items in this parallel iterator.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = (1..100).into_par_iter().filter(|x| x % 2 == 0).count();
+    /// assert_eq!(a, 49);
+    /// ```
     fn count(self) -> usize {
         self.map(|_| 1).sum()
     }
@@ -232,6 +244,16 @@ pub trait ParallelIterator: Sized + Send {
     /// Applies `inspect_op` to a reference to each item of this iterator,
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = (1i32..10).into_par_iter()
+    ///        .inspect(|x| println!("about to filter: {}", x))
+    ///        .filter(|x| x % 2 == 0)
+    ///        .inspect(|x| println!("made it through filter: {}", x))
+    ///        .collect::<Vec<_>>();
+    /// assert_eq!(a,[2_i32,4,6,8]);
+    /// ```  
     fn inspect<OP>(self, inspect_op: OP) -> Inspect<Self, OP>
         where OP: Fn(&Self::Item) + Sync + Send
     {
@@ -240,6 +262,16 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = (1i32..10).into_par_iter()
+    ///        .inspect(|x| println!("about to filter: {}", x))
+    ///        .filter(|x| x % 2 == 0)
+    ///        .inspect(|x| println!("made it through filter: {}", x))
+    ///        .collect::<Vec<_>>();
+    /// assert_eq!(a,[2_i32,4,6,8]);
+    /// ```     
     fn filter<P>(self, filter_op: P) -> Filter<Self, P>
         where P: Fn(&Self::Item) -> bool + Sync + Send
     {
@@ -505,6 +537,13 @@ pub trait ParallelIterator: Sized + Send {
     /// Basically equivalent to `self.reduce(|| 0, |a, b| a + b)`,
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [1, 5, 7];
+    /// let sum: i32 = a.par_iter().sum();
+    /// assert_eq!(sum, 13);
+    /// ```
     fn sum<S>(self) -> S
         where S: Send + Sum<Self::Item> + Sum<S>
     {
@@ -523,6 +562,16 @@ pub trait ParallelIterator: Sized + Send {
     /// Basically equivalent to `self.reduce(|| 1, |a, b| a * b)`,
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// fn factorial(n: u32) -> u32 {
+    ///    (1..n+1).into_par_iter().product()
+    /// }
+    /// assert_eq!(factorial(0), 1);
+    /// assert_eq!(factorial(1), 1);
+    /// assert_eq!(factorial(5), 120);
+    /// ```
     fn product<P>(self) -> P
         where P: Send + Product<Self::Item> + Product<P>
     {
@@ -538,6 +587,14 @@ pub trait ParallelIterator: Sized + Send {
     /// the results are not deterministic.
     ///
     /// Basically equivalent to `self.reduce_with(|a, b| cmp::min(a, b))`.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [45, 74, 32];
+    /// let b:[i32;0] = [];
+    /// assert_eq!(a.par_iter().min(), Some(&32));
+    /// assert_eq!(b.par_iter().min(), None);
+    /// ```
     fn min(self) -> Option<Self::Item>
         where Self::Item: Ord
     {
@@ -551,6 +608,12 @@ pub trait ParallelIterator: Sized + Send {
     /// Note that the order in which the items will be reduced is not
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [-3_i32, 77, 53, 240, -1];
+    /// assert_eq!(a.par_iter().cloned().min_by(|x, y| x.cmp(y)), Some(-3));
+    /// ```
     fn min_by<F>(self, f: F) -> Option<Self::Item>
         where F: Sync + Send + Fn(&Self::Item, &Self::Item) -> Ordering
     {
@@ -567,6 +630,12 @@ pub trait ParallelIterator: Sized + Send {
     /// Note that the order in which the items will be reduced is not
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
+    /// assert_eq!(a.par_iter().cloned().min_by_key(|x| x.abs()), Some(2));
+    /// ```
     fn min_by_key<K, F>(self, f: F) -> Option<Self::Item>
         where K: Ord + Send,
               F: Sync + Send + Fn(&Self::Item) -> K
@@ -585,6 +654,14 @@ pub trait ParallelIterator: Sized + Send {
     /// the results are not deterministic.
     ///
     /// Basically equivalent to `self.reduce_with(|a, b| cmp::max(a, b))`.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [45, 74, 32];
+    /// let b: [i32;0] = [];
+    /// assert_eq!(a.par_iter().max(), Some(&74));
+    /// assert_eq!(b.par_iter().max(), None);
+    /// ```
     fn max(self) -> Option<Self::Item>
         where Self::Item: Ord
     {
@@ -598,6 +675,12 @@ pub trait ParallelIterator: Sized + Send {
     /// Note that the order in which the items will be reduced is not
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [-3_i32, 77, 53, 240, -1];
+    /// assert_eq!(a.par_iter().cloned().max_by(|x, y| x.abs().cmp(&y.abs())), Some(240));
+    /// ```
     fn max_by<F>(self, f: F) -> Option<Self::Item>
         where F: Sync + Send + Fn(&Self::Item, &Self::Item) -> Ordering
     {
@@ -614,6 +697,12 @@ pub trait ParallelIterator: Sized + Send {
     /// Note that the order in which the items will be reduced is not
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
+    /// assert_eq!(a.par_iter().cloned().max_by_key(|x| x.abs()), Some(34));
+    /// ```
     fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
         where K: Ord + Send,
               F: Sync + Send + Fn(&Self::Item) -> K
@@ -641,6 +730,13 @@ pub trait ParallelIterator: Sized + Send {
     /// (just as `find` stops iterating once a match is found).
     ///
     /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [1, 2, 3, 3];
+    /// assert_eq!(a.par_iter().find_any(|&&x| x == 3), Some(&3));
+    /// assert_eq!(a.par_iter().find_any(|&&x| x == 100), None);
+    /// ```
     fn find_any<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync + Send
     {
@@ -657,7 +753,13 @@ pub trait ParallelIterator: Sized + Send {
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
     /// just want the first match that discovered anywhere in the iterator,
-    /// `find_any` is a better choice.
+    /// `find_any` is a better choice. 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [1, 2, 3, 3];
+    /// assert_eq!(a.par_iter().find_first(|&&x| x == 3), Some(&3));
+    /// assert_eq!(a.par_iter().find_first(|&&x| x == 100), None);
+    /// ```/// 
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync + Send
     {
@@ -674,6 +776,13 @@ pub trait ParallelIterator: Sized + Send {
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
     /// order doesn't actually matter to you, `find_any` is a better choice.
+    /// 
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = [1, 2, 3, 3];
+    /// assert_eq!(a.par_iter().find_last(|&&x| x == 3), Some(&3));
+    /// assert_eq!(a.par_iter().find_last(|&&x| x == 100), None);
+    /// ```
     fn find_last<P>(self, predicate: P) -> Option<Self::Item>
         where P: Fn(&Self::Item) -> bool + Sync + Send
     {
