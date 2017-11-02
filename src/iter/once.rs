@@ -1,10 +1,31 @@
 use iter::internal::*;
 use iter::*;
 
+/// Creates a parallel iterator that produces an element exactly once.
+///
+/// This admits no parallelism on its own, but it could be chained to existing
+/// parallel iterators to extend their contents, or otherwise used for any code
+/// that deals with generic parallel iterators.
+///
+/// # Examples
+///
+/// ```
+/// use rayon::prelude::*;
+/// use rayon::iter::once;
+///
+/// let pi = (0..1234).into_par_iter()
+///     .chain(once(-1))
+///     .chain(1234..10_000);
+///
+/// assert_eq!(pi.clone().count(), 10_001);
+/// assert_eq!(pi.clone().filter(|&x| x < 0).count(), 1);
+/// assert_eq!(pi.position_any(|x| x < 0), Some(1234));
+/// ```
 pub fn once<T: Send>(item: T) -> Once<T> {
     Once { item: item }
 }
 
+/// Iterator adaptor for [the `once()` function](fn.once.html).
 #[derive(Clone, Debug)]
 pub struct Once<T: Send> {
     item: T,

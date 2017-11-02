@@ -5,10 +5,28 @@ use std;
 use std::fmt;
 use std::marker::PhantomData;
 
+/// Creates a parallel iterator that produces nothing.
+///
+/// This admits no parallelism on its own, but it could be used for code that
+/// deals with generic parallel iterators.
+///
+/// # Examples
+///
+/// ```
+/// use rayon::prelude::*;
+/// use rayon::iter::empty;
+///
+/// let pi = (0..1234).into_par_iter()
+///     .chain(empty())
+///     .chain(1234..10_000);
+///
+/// assert_eq!(pi.count(), 10_000);
+/// ```
 pub fn empty<T: Send>() -> Empty<T> {
     Empty { marker: PhantomData }
 }
 
+/// Iterator adaptor for [the `empty()` function](fn.empty.html).
 pub struct Empty<T: Send> {
     marker: PhantomData<T>,
 }
