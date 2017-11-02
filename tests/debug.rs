@@ -142,6 +142,16 @@ fn debug_adaptors() {
 }
 
 #[test]
+fn debug_empty() {
+    check(rayon::iter::empty::<i32>());
+}
+
+#[test]
+fn debug_once() {
+    check(rayon::iter::once(10));
+}
+
+#[test]
 fn debug_repeat() {
     let x: Option<i32> = None;
     check(rayon::iter::repeat(x));

@@ -29,7 +29,7 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        bridge(self, consumer)
+        self.drive(consumer)
     }
 
     fn opt_len(&mut self) -> Option<usize> {
@@ -41,7 +41,11 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
-        bridge(self, consumer)
+        let mut folder = consumer.into_folder();
+        if let Some(item) = self.opt {
+            folder = folder.consume(item);
+        }
+        folder.complete()
     }
 
     fn len(&mut self) -> usize {
@@ -121,6 +125,7 @@ impl<T: Send> Producer for OptionProducer<T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
+        debug_assert!(index <= 1);
         let none = OptionProducer { opt: None };
         if index == 0 {
             (none, self)

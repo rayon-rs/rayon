@@ -1888,3 +1888,33 @@ fn check_repeatn_zip_right() {
         assert_eq!(item, (4, 4));
     }
 }
+
+#[test]
+fn check_empty() {
+    // drive_unindexed
+    let mut v: Vec<i32> = empty().filter(|_| unreachable!()).collect();
+    assert!(v.is_empty());
+
+    // drive (indexed)
+    empty().collect_into(&mut v);
+    assert!(v.is_empty());
+
+    // with_producer
+    let v: Vec<(i32, i32)> = empty().zip(1..10).collect();
+    assert!(v.is_empty());
+}
+
+#[test]
+fn check_once() {
+    // drive_unindexed
+    let mut v: Vec<i32> = once(42).filter(|_| true).collect();
+    assert_eq!(v, &[42]);
+
+    // drive (indexed)
+    once(42).collect_into(&mut v);
+    assert_eq!(v, &[42]);
+
+    // with_producer
+    let v: Vec<(i32, i32)> = once(42).zip(1..10).collect();
+    assert_eq!(v, &[(42, 1)]);
+}

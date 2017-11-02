@@ -97,6 +97,18 @@ fn check_len<I: ExactSizeIterator>(iter: &I, len: usize) {
 // **** Base Producers ****
 
 #[test]
+fn empty() {
+    let v = vec![42];
+    check(&v[..0], || rayon::iter::empty());
+}
+
+#[test]
+fn once() {
+    let v = vec![42];
+    check(&v, || rayon::iter::once(42));
+}
+
+#[test]
 fn option() {
     let v = vec![42];
     check(&v, || Some(42));
