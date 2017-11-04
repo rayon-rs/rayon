@@ -222,6 +222,21 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut par_iter = (0..100).into_par_iter().map(|x| x * 2);
+    ///
+    /// let doubles: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(doubles[0], 0);
+    /// assert_eq!(doubles[1], 2);
+    /// assert_eq!(doubles[2], 4);
+    /// assert_eq!(doubles[3], 6);
+    /// ```
     fn map<F, R>(self, map_op: F) -> Map<Self, F>
         where F: Fn(Self::Item) -> R + Sync + Send,
               R: Send
