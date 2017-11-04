@@ -305,14 +305,16 @@ pub trait ParallelIterator: Sized + Send {
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// let a = (1i32..10).into_par_iter()
-    ///        .inspect(|x| println!("about to filter: {}", x))
-    ///        .filter(|x| x % 2 == 0)
-    ///        .inspect(|x| println!("made it through filter: {}", x))
-    ///        .collect::<Vec<_>>();
-    /// assert_eq!(a, [2_i32, 4, 6, 8]);
+    ///
+    /// let mut par_iter = (0..10).into_par_iter().filter(|x| x % 2 == 0);
+    ///
+    /// let even_numbers: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&even_numbers[..], &[0, 2, 4, 6, 8]);
     /// ```
     fn filter<P>(self, filter_op: P) -> Filter<Self, P>
         where P: Fn(&Self::Item) -> bool + Sync + Send
