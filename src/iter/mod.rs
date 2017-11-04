@@ -1073,6 +1073,25 @@ pub trait ParallelIterator: Sized + Send {
     /// Partitions and maps the items of a parallel iterator into a pair of
     /// arbitrary `ParallelExtend` containers.  `Either::Left` items go into
     /// the first container, and `Either::Right` items go into the second.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use rayon::iter::Either;
+    ///
+    /// let (left, right): (Vec<_>, Vec<_>) = (0..8).into_par_iter()
+    ///                                             .partition_map(|x| {
+    ///                                                 if x % 2 == 0 {
+    ///                                                     Either::Left(x * 4)
+    ///                                                 } else {
+    ///                                                     Either::Right(x * 3)
+    ///                                                 }
+    ///                                             });
+    ///
+    /// assert_eq!(left, [0, 8, 16, 24]);
+    /// assert_eq!(right, [3, 9, 15, 21]);
+    /// ```
     fn partition_map<A, B, P, L, R>(self, predicate: P) -> (A, B)
         where A: Default + Send + ParallelExtend<L>,
               B: Default + Send + ParallelExtend<R>,
