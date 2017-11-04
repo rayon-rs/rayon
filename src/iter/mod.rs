@@ -961,6 +961,18 @@ pub trait ParallelIterator: Sized + Send {
     /// Tests that every item in the parallel iterator matches the given
     /// predicate, and if so returns true.  If a counter-example is found,
     /// we'll attempt to stop processing more items, then return false.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [0, 12, 3, 4, 0, 23, 0];
+    ///
+    /// let is_valid = a.par_iter().all(|&x| x > 10);
+    ///
+    /// assert!(!is_valid);
+    /// ```
     fn all<P>(self, predicate: P) -> bool
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
