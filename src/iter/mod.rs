@@ -1020,6 +1020,19 @@ pub trait ParallelIterator: Sized + Send {
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse existing
     /// vectors' backing stores rather than allocating fresh vectors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [(0, 1), (1, 2), (2, 3), (3, 4)];
+    ///
+    /// let (left, right): (Vec<_>, Vec<_>) = a.par_iter().cloned().unzip();
+    ///
+    /// assert_eq!(left, [0, 1, 2, 3]);
+    /// assert_eq!(right, [1, 2, 3, 4]);
+    /// ```
     fn unzip<A, B, FromA, FromB>(self) -> (FromA, FromB)
         where Self: ParallelIterator<Item = (A, B)>,
               FromA: Default + Send + ParallelExtend<A>,
