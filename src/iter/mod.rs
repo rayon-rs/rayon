@@ -1051,6 +1051,17 @@ pub trait ParallelIterator: Sized + Send {
     /// collection types for the left and right items.  This is more flexible,
     /// but may require new type annotations when converting sequential code
     /// that used type inferrence assuming the two were the same.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let (left, right): (Vec<_>, Vec<_>) = (0..8).into_par_iter().partition(|x| x % 2 == 0);
+    ///
+    /// assert_eq!(left, [0, 2, 4, 6]);
+    /// assert_eq!(right, [1, 3, 5, 7]);
+    /// ```
     fn partition<A, B, P>(self, predicate: P) -> (A, B)
         where A: Default + Send + ParallelExtend<Self::Item>,
               B: Default + Send + ParallelExtend<Self::Item>,
