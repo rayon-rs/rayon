@@ -909,10 +909,15 @@ pub trait ParallelIterator: Sized + Send {
     /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
     /// order doesn't actually matter to you, `find_any` is a better choice.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 2, 3, 3];
+    ///
     /// assert_eq!(a.par_iter().find_last(|&&x| x == 3), Some(&3));
+    ///
     /// assert_eq!(a.par_iter().find_last(|&&x| x == 100), None);
     /// ```
     fn find_last<P>(self, predicate: P) -> Option<Self::Item>
