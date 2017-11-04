@@ -881,10 +881,15 @@ pub trait ParallelIterator: Sized + Send {
     /// just want the first match that discovered anywhere in the iterator,
     /// `find_any` is a better choice.
     ///
+    /// # Exmaples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 2, 3, 3];
+    ///
     /// assert_eq!(a.par_iter().find_first(|&&x| x == 3), Some(&3));
+    ///
     /// assert_eq!(a.par_iter().find_first(|&&x| x == 100), None);
     /// ```
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
