@@ -940,6 +940,18 @@ pub trait ParallelIterator: Sized + Send {
     /// a match is found, we'll attempt to stop process the rest
     /// of the items.  Proving that there's no match, returning false,
     /// does require visiting every item.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [0, 12, 3, 4, 0, 23, 0];
+    ///
+    /// let is_valid = a.par_iter().any(|&x| x > 10);
+    ///
+    /// assert!(is_valid);
+    /// ```
     fn any<P>(self, predicate: P) -> bool
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
