@@ -663,11 +663,17 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// Basically equivalent to `self.reduce_with(|a, b| cmp::min(a, b))`.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [45, 74, 32];
-    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(a.par_iter().min(), Some(&32));
+    ///
+    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(b.par_iter().min(), None);
     /// ```
     fn min(self) -> Option<Self::Item>
