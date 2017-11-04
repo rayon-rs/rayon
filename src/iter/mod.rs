@@ -207,10 +207,14 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Counts the number of items in this parallel iterator.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// let a = (1..100).into_par_iter().filter(|x| x % 2 == 0).count();
-    /// assert_eq!(a, 49);
+    ///
+    /// let count = (0..100).into_par_iter().count();
+    ///
+    /// assert_eq!(count, 100);
     /// ```
     fn count(self) -> usize {
         self.map(|_| 1).sum()
