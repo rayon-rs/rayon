@@ -324,6 +324,28 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
     /// producing a new iterator with only the items from `Some` results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut par_iter = (0..100).into_par_iter()
+    ///                             .filter_map(|x| {
+    ///                                 if x % 2 == 0 {
+    ///                                     Some(x * 3)
+    ///                                 } else {
+    ///                                     None
+    ///                                 }
+    ///                             });
+    ///
+    /// let even_numbers: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(even_numbers[0], 0);  // 0 * 3
+    /// assert_eq!(even_numbers[1], 6);  // 2 * 3
+    /// assert_eq!(even_numbers[2], 12); // 4 * 3
+    /// assert_eq!(even_numbers[3], 18); // 6 * 3
+    /// ```
     fn filter_map<P, R>(self, filter_op: P) -> FilterMap<Self, P>
         where P: Fn(Self::Item) -> Option<R> + Sync + Send,
               R: Send
