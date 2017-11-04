@@ -179,9 +179,12 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// (0..100).into_par_iter().for_each(|x| println!("{}", x));
+    ///
+    /// (0..100).into_par_iter().for_each(|x| println!("{:?}", x));
     /// ```
     fn for_each<OP>(self, op: OP)
         where OP: Fn(Self::Item) + Sync + Send
