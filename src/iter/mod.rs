@@ -744,11 +744,17 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// Basically equivalent to `self.reduce_with(|a, b| cmp::max(a, b))`.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [45, 74, 32];
-    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(a.par_iter().max(), Some(&74));
+    ///
+    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(b.par_iter().max(), None);
     /// ```
     fn max(self) -> Option<Self::Item>
