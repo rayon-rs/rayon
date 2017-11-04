@@ -995,6 +995,18 @@ pub trait ParallelIterator: Sized + Send {
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse an existing
     /// vector's backing store rather than allocating a fresh vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let sync_vec: Vec<_> = (0..100).into_iter().collect();
+    ///
+    /// let async_vec: Vec<_> = (0..100).into_par_iter().collect();
+    ///
+    /// assert_eq!(sync_vec, async_vec);
+    /// ```
     fn collect<C>(self) -> C
         where C: FromParallelIterator<Self::Item>
     {
