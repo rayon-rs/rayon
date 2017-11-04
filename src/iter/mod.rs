@@ -797,9 +797,13 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
+    /// # Exmaples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
+    ///
     /// assert_eq!(a.par_iter().max_by_key(|x| x.abs()), Some(&34));
     /// ```
     fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
