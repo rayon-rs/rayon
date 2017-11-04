@@ -604,10 +604,15 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 5, 7];
+    ///
     /// let sum: i32 = a.par_iter().sum();
+    ///
     /// assert_eq!(sum, 13);
     /// ```
     fn sum<S>(self) -> S
