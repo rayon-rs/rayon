@@ -690,9 +690,13 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [-3_i32, 77, 53, 240, -1];
+    ///
     /// assert_eq!(a.par_iter().min_by(|x, y| x.cmp(y)), Some(&-3));
     /// ```
     fn min_by<F>(self, f: F) -> Option<Self::Item>
