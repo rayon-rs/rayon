@@ -852,10 +852,15 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 2, 3, 3];
+    ///
     /// assert_eq!(a.par_iter().find_any(|&&x| x == 3), Some(&3));
+    ///
     /// assert_eq!(a.par_iter().find_any(|&&x| x == 100), None);
     /// ```
     fn find_any<P>(self, predicate: P) -> Option<Self::Item>
