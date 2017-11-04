@@ -634,11 +634,15 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// fn factorial(n: u32) -> u32 {
+    ///
+    /// fn factorial(n: usize) -> usize {
     ///    (1..n+1).into_par_iter().product()
     /// }
+    ///
     /// assert_eq!(factorial(0), 1);
     /// assert_eq!(factorial(1), 1);
     /// assert_eq!(factorial(5), 120);
