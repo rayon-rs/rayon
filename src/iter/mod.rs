@@ -371,6 +371,20 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
     /// producing a new iterator that flattens these back into one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [[1, 2], [3, 4], [5, 6], [7, 8]];
+    ///
+    /// let par_iter = a.par_iter().cloned().flat_map(|a| a.to_vec());
+    ///
+    /// let vec: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&vec[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// ```
     fn flat_map<F, PI>(self, map_op: F) -> FlatMap<Self, F>
         where F: Fn(Self::Item) -> PI + Sync + Send,
               PI: IntoParallelIterator
