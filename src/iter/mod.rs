@@ -287,14 +287,30 @@ pub trait ParallelIterator: Sized + Send {
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// let a = (1i32..10).into_par_iter()
-    ///        .inspect(|x| println!("about to filter: {}", x))
-    ///        .filter(|x| x % 2 == 0)
-    ///        .inspect(|x| println!("made it through filter: {}", x))
-    ///        .collect::<Vec<_>>();
-    /// assert_eq!(a, [2_i32, 4, 6, 8]);
+    ///
+    /// let a = [1, 4, 2, 3];
+    ///
+    /// // this iterator sequence is complex.
+    /// let sum = a.par_iter()
+    ///             .cloned()
+    ///             .filter(|&x| x % 2 == 0)
+    ///             .reduce(|| 0, |sum, i| sum + i);
+    ///
+    /// println!("{}", sum);
+    ///
+    /// // let's add some inspect() calls to investigate what's happening
+    /// let sum = a.par_iter()
+    ///             .cloned()
+    ///             .inspect(|x| println!("about to filter: {}", x))
+    ///             .filter(|&x| x % 2 == 0)
+    ///             .inspect(|x| println!("made it through filter: {}", x))
+    ///             .reduce(|| 0, |sum, i| sum + i);
+    ///
+    /// println!("{}", sum);
     /// ```
     fn inspect<OP>(self, inspect_op: OP) -> Inspect<Self, OP>
         where OP: Fn(&Self::Item) + Sync + Send
