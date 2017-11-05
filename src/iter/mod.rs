@@ -997,6 +997,18 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Creates an iterator over the `Some` items of this iterator, halting
     /// as soon as any `None` is found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [Some(1), Some(2), Some(4), None, Some(6), Some(8)];
+    ///
+    /// let sum: usize = a.par_iter().cloned().while_some().sum::<usize>();
+    ///
+    /// assert_eq!(sum, 7);
+    /// ```
     fn while_some<T>(self) -> WhileSome<Self>
         where Self: ParallelIterator<Item = Option<T>>,
               T: Send
