@@ -1,9 +1,10 @@
 extern crate docopt;
 extern crate rayon;
-extern crate rustc_serialize;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
 
 use docopt::Docopt;
-use std::env;
 use std::io;
 use std::process;
 
@@ -27,7 +28,7 @@ Options:
     -d N, --depth N              Control how hard the dummy task works [default: 27]
 ";
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Args {
     arg_scenario: String,
     flag_depth: usize,
@@ -35,7 +36,7 @@ pub struct Args {
 
 fn main() {
     let args: &Args =
-        &Docopt::new(USAGE).and_then(|d| d.argv(env::args()).decode()).unwrap_or_else(|e| e.exit());
+        &Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
     match &args.arg_scenario[..] {
         "tasks_ended" => tasks_ended(args),

@@ -43,14 +43,14 @@ Ported from the RiverTrail demo found at:
     https://github.com/IntelLabs/RiverTrail/tree/master/examples/nbody-webgl
 ";
 
-#[derive(Copy, Clone, PartialEq, Eq, RustcDecodable)]
+#[derive(Copy, Clone, PartialEq, Eq, Deserialize)]
 pub enum ExecutionMode {
     Par,
     ParReduce,
     Seq,
 }
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     cmd_visualize: bool,
@@ -62,7 +62,7 @@ pub struct Args {
 pub fn main(args: &[String]) {
     let args: Args =
         Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
+            .and_then(|d| d.argv(args).deserialize())
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
