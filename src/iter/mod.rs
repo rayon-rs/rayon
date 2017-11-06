@@ -611,7 +611,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     /// use rayon::prelude::*;
     /// let a = [-3_i32, 77, 53, 240, -1];
-    /// assert_eq!(a.par_iter().cloned().min_by(|x, y| x.cmp(y)), Some(-3));
+    /// assert_eq!(a.par_iter().min_by(|x, y| x.cmp(y)), Some(&-3));
     /// ```
     fn min_by<F>(self, f: F) -> Option<Self::Item>
         where F: Sync + Send + Fn(&Self::Item, &Self::Item) -> Ordering
@@ -633,7 +633,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     /// use rayon::prelude::*;
     /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
-    /// assert_eq!(a.par_iter().cloned().min_by_key(|x| x.abs()), Some(2));
+    /// assert_eq!(a.par_iter().min_by_key(|x| x.abs()), Some(&2));
     /// ```
     fn min_by_key<K, F>(self, f: F) -> Option<Self::Item>
         where K: Ord + Send,
@@ -678,7 +678,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     /// use rayon::prelude::*;
     /// let a = [-3_i32, 77, 53, 240, -1];
-    /// assert_eq!(a.par_iter().cloned().max_by(|x, y| x.abs().cmp(&y.abs())), Some(240));
+    /// assert_eq!(a.par_iter().max_by(|x, y| x.abs().cmp(&y.abs())), Some(&240));
     /// ```
     fn max_by<F>(self, f: F) -> Option<Self::Item>
         where F: Sync + Send + Fn(&Self::Item, &Self::Item) -> Ordering
@@ -700,7 +700,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     /// use rayon::prelude::*;
     /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
-    /// assert_eq!(a.par_iter().cloned().max_by_key(|x| x.abs()), Some(34));
+    /// assert_eq!(a.par_iter().max_by_key(|x| x.abs()), Some(&34));
     /// ```
     fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
         where K: Ord + Send,
