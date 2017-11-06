@@ -28,11 +28,13 @@ mod life;
 
 extern crate rayon; // all
 extern crate docopt; // all
+#[macro_use]
+extern crate serde_derive; // all
+extern crate serde; // all
 extern crate cgmath; // nbody
 #[macro_use]
 extern crate glium; // nbody
 extern crate rand; // nbody
-extern crate rustc_serialize; // nbody
 extern crate time; // nbody, sieve
 extern crate odds; // sieve
 #[cfg(test)]

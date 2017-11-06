@@ -26,6 +26,7 @@ default-features = false
 
 [dev-dependencies]
 compiletest_rs = "0.3"
-docopt = "0.7"
+docopt = "0.8"
 rand = "0.3"
-rustc-serialize = "0.3"
+serde = "1"
+serde_derive = "1"

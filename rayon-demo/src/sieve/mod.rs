@@ -31,7 +31,7 @@ Options:
     -h, --help         Show this message.
 ";
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Args {
     cmd_bench: bool,
 }
@@ -179,7 +179,7 @@ fn measure(f: fn(usize) -> Vec<bool>) -> u64 {
 pub fn main(args: &[String]) {
     let args: Args =
         Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
+            .and_then(|d| d.argv(args).deserialize())
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {

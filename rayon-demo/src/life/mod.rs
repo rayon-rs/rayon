@@ -24,7 +24,7 @@ use rayon::prelude::*;
 #[cfg(test)]
 mod bench;
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     flag_size: usize,
@@ -158,7 +158,7 @@ fn measure(f: fn(Board, usize) -> (), args: &Args) -> u64 {
 pub fn main(args: &[String]) {
     let args: Args =
         Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
+            .and_then(|d| d.argv(args).deserialize())
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {

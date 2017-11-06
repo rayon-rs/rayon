@@ -17,7 +17,7 @@ Options:
     -h, --help         Show this message.
 ";
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     flag_size: usize,
@@ -242,7 +242,7 @@ fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
 pub fn main(args: &[String]) {
     let args: Args =
         Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).decode())
+            .and_then(|d| d.argv(args).deserialize())
             .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
