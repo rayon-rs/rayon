@@ -175,7 +175,6 @@ pub trait ParallelIterator: Sized + Send {
     /// Executes `OP` on each item produced by the iterator, in parallel.
     /// 
     /// ```
-    /// use std::sync::mpsc::channel;
     /// use rayon::prelude::*;
     /// (0..100).into_par_iter().for_each(|x| println!("{}", x));
     /// ```
