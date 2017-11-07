@@ -1,7 +1,6 @@
-//! Internal traits and functions used to implement parallel
-//! iteration. These should be considered highly unstable: users of
-//! parallel iterators should not need to interact with them directly.
-//! See `README.md` for a high-level overview.
+//! Traits and functions used to implement parallel iteration.  These are
+//! low-level details -- users of parallel iterators should not need to
+//! interact with them directly.  See `README.md` for a high-level overview.
 
 use join_context;
 

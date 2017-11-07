@@ -6,14 +6,14 @@
 //!
 //! The submodules of this module mostly just contain implementaton
 //! details of little interest to an end-user. If you'd like to read
-//! the code itself, the `internal` module and `README.md` file are a
+//! the code itself, the `plumbing` module and `README.md` file are a
 //! good place to start.
 
 pub use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
 use std::ops::Fn;
-use self::internal::*;
+use self::plumbing::*;
 
 // There is a method to the madness here:
 //
@@ -42,7 +42,7 @@ pub use self::flat_map::FlatMap;
 mod flatten;
 pub use self::flatten::Flatten;
 mod from_par_iter;
-pub mod internal;
+pub mod plumbing;
 mod for_each;
 mod fold;
 pub use self::fold::{Fold, FoldWith};

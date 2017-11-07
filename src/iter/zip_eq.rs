@@ -1,5 +1,5 @@
 
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 
 /// An [`IndexedParallelIterator`] that iterates over two parallel iterators of equal

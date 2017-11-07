@@ -1,4 +1,4 @@
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 use std::cell::Cell;
 use std::iter::Fuse;

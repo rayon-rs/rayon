@@ -5,7 +5,7 @@
 use std::collections::BinaryHeap;
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 
 use vec;
 

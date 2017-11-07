@@ -3,7 +3,7 @@
 //! unless you have need to name one of the iterator types.
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 use std;
 use std::sync::atomic::{AtomicBool, Ordering};
 

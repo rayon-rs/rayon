@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use super::internal::*;
+use super::plumbing::*;
 use super::*;
 
 pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>

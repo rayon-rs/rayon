@@ -5,7 +5,7 @@
 use std::collections::VecDeque;
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 
 use slice;
 use vec;

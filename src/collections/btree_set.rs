@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 
 use vec;
 

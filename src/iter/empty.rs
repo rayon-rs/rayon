@@ -1,4 +1,4 @@
-use iter::internal::*;
+use iter::plumbing::*;
 use iter::*;
 
 use std;

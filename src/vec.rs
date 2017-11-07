@@ -3,7 +3,7 @@
 //! unless you have need to name one of those types.
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 use std;
 
 /// Parallel iterator that moves out of a vector.

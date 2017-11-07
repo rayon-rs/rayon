@@ -8,7 +8,7 @@ mod quicksort;
 mod test;
 
 use iter::*;
-use iter::internal::*;
+use iter::plumbing::*;
 use self::mergesort::par_mergesort;
 use self::quicksort::par_quicksort;
 use split_producer::*;

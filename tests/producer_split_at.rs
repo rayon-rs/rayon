@@ -3,7 +3,7 @@
 extern crate rayon;
 
 use rayon::prelude::*;
-use rayon::iter::internal::*;
+use rayon::iter::plumbing::*;
 
 /// Stress-test indexes for `Producer::split_at`.
 fn check<F, I>(expected: &[I::Item], mut f: F)

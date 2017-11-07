@@ -1,4 +1,4 @@
-use super::internal::*;
+use super::plumbing::*;
 
 pub struct NoopConsumer;
 

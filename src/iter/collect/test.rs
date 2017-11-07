@@ -5,7 +5,7 @@
 // try to drive the "collect consumer" incorrectly. These should
 // result in panics.
 
-use iter::internal::*;
+use iter::plumbing::*;
 use super::Collect;
 
 /// Promises to produce 2 items, but then produces 3.  Does not do any
