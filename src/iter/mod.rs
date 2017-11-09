@@ -398,8 +398,10 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// let x: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4]];
-    /// let y: Vec<i32> = x.into_par_iter().flatten().collect();
+    ///
+    /// let x: Vec<Vec<_>> = vec![vec![1, 2], vec![3, 4]];
+    /// let y: Vec<_> = x.into_par_iter().flatten().collect();
+    ///
     /// assert_eq!(y, vec![1, 2, 3, 4]);
     /// ```
     fn flatten(self) -> Flatten<Self>
