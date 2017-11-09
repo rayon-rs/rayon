@@ -1,3 +1,76 @@
+# Release rayon 0.9.0 / rayon-core 1.3.0 / rayon-futures 0.1.0
+
+- `Configuration` now has a `build` method.
+- `ParallelIterator` added `flatten` and `intersperse`, both inspired by
+  itertools.
+- `IndexedParallelIterator` added `interleave`, `interleave_shortest`, and
+  `zip_eq`, all inspired by itertools.
+- The new functions `iter::empty` and `once` create parallel iterators of
+  exactly zero or one item, like their `std` counterparts.
+- The new functions `iter::repeat` and `repeatn` create parallel iterators
+  repeating an item indefinitely or `n` times, respectively.
+- The new function `join_context` works like `join`, with an added `FnContext`
+  parameter that indicates whether the job was stolen.
+- `Either` (used by `ParallelIterator::partition_map`) is now re-exported from
+  the `either` crate, instead of defining our own type.
+  - `Either` also now implements `ParallelIterator`, `IndexedParallelIterator`,
+    and `ParallelExtend` when both of its `Left` and `Right` types do.
+- All public types now implement `Debug`.
+- Many of the parallel iterators now implement `Clone` where possible.
+- Much of the documentation has been extended. (but still could use more help!)
+- All rayon crates have improved metadata.
+- Rayon was evaluated in the Libz Blitz, leading to many of these improvements.
+- Rayon pull requests are now guarded by bors-ng.
+
+## Futures
+
+The `spawn_future()` method has been refactored into its own `rayon-futures`
+crate, now through a `ScopeFutureExt` trait for `ThreadPool` and `Scope`.  The
+supporting `rayon-core` APIs are still gated by `--cfg rayon_unstable`.
+
+## Breaking changes
+
+- Two breaking changes have been made to `rayon-core`, but since they're fixing
+  soundness bugs, we are considering these _minor_ changes for semver.
+  - `Scope::spawn` now requires `Send` for the closure.
+  - `ThreadPool::install` now requires `Send` for the return value.
+- The `iter::internal` module has been renamed to `iter::plumbing`, to hopefully
+  indicate that while these are low-level details, they're not really internal
+  or private to rayon.  The contents of that module are needed for third-parties
+  to implement new parallel iterators, and we'll treat them with normal semver
+  stability guarantees.
+- The function `rayon::iter::split` is no longer re-exported as `rayon::split`.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @AndyGauge
+- @ChristopherDavenport
+- @chrisvittal
+- @cuviper
+- @dns2utf8
+- @dtolnay
+- @frewsxcv
+- @gsquire
+- @Hittherhod
+- @jdr023
+- @laumann
+- @leodasvacas
+- @lvillani
+- @MajorBreakfast
+- @mamuleanu
+- @marmistrz
+- @mbrubeck
+- @mgattozzi
+- @nikomatsakis
+- @smt923
+- @stjepang
+- @tmccombs
+- @vishalsodani
+- bors[bot]
+
+
 # Release rayon 0.8.2
 
 - `ParallelSliceMut` now has six parallel sorting methods with the same
