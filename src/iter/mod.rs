@@ -857,17 +857,14 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     /// use rayon::prelude::*;
     ///
-    /// let a = [0, 1, 2, 3, 4];
-    /// let b = [9, 8, 7, 6, 5];
+    /// let a = [0, 1, 2];
+    /// let b = [9, 8, 7];
     ///
     /// let par_iter = a.par_iter().chain(b.par_iter());
     ///
     /// let chained: Vec<_> = par_iter.cloned().collect();
     ///
-    /// assert_eq!(chained[0], 0);
-    /// assert_eq!(chained[1], 1);
-    /// assert_eq!(chained[5], 9);
-    /// assert_eq!(chained[6], 8);
+    /// assert_eq!(&chained[..], &[0, 1, 2, 9, 8, 7]);
     /// ```
     fn chain<C>(self, chain: C) -> Chain<Self, C::Iter>
         where C: IntoParallelIterator<Item = Self::Item>
