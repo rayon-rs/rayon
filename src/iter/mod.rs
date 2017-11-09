@@ -553,12 +553,14 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let s =
     ///     ['a', 'b', 'c', 'd', 'e']
     ///     .par_iter()
     ///     .map(|c: &char| format!("{}", c))
     ///     .reduce(|| String::new(),
     ///             |mut a: String, b: String| { a.push_str(&b); a });
+    ///
     /// assert_eq!(s, "abcde");
     /// ```
     ///
@@ -570,6 +572,7 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let s =
     ///     ['a', 'b', 'c', 'd', 'e']
     ///     .par_iter()
@@ -577,6 +580,7 @@ pub trait ParallelIterator: Sized + Send {
     ///             |mut s: String, c: &char| { s.push(*c); s })
     ///     .reduce(|| String::new(),
     ///             |mut a: String, b: String| { a.push_str(&b); a });
+    ///
     /// assert_eq!(s, "abcde");
     /// ```
     ///
@@ -599,11 +603,13 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// let bytes = 0..22_u8; // series of u8 bytes
+    ///
+    /// let bytes = 0..22_u8;
     /// let sum = bytes.into_par_iter()
     ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
     ///                .sum::<u32>();
-    /// assert_eq!(sum, (0..22).sum()); // compare to sequential
+    ///
+    /// assert_eq!(sum, (0..22).sum());
     /// ```
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
         where F: Fn(T, Self::Item) -> T + Sync + Send,
