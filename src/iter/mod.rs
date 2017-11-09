@@ -1161,8 +1161,10 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let x = vec![1, 2, 3];
-    /// let r: Vec<i32> = x.into_par_iter().intersperse(-1).collect();
+    /// let r: Vec<_> = x.into_par_iter().intersperse(-1).collect();
+    ///
     /// assert_eq!(r, vec![1, -1, 2, -1, 3]);
     /// ```
     fn intersperse(self, element: Self::Item) -> Intersperse<Self>
