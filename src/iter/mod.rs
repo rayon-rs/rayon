@@ -198,6 +198,21 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::mpsc::channel;
+    /// use rayon::prelude::*;
+    ///
+    /// let (sender, receiver) = channel();
+    ///
+    /// (0..5).into_par_iter().for_each_with(sender, |s, x| s.send(x).unwrap());
+    ///
+    /// let res: Vec<_> = receiver.iter().collect();
+    ///
+    /// assert_eq!(&res[..], &[0, 1, 2, 3, 4])
+    /// ```
     fn for_each_with<OP, T>(self, init: T, op: OP)
         where OP: Fn(&mut T, Self::Item) + Sync + Send,
               T: Send + Clone
