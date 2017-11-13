@@ -685,7 +685,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     /// use rayon::prelude::*;
     ///
-    /// fn factorial(n: usize) -> usize {
+    /// fn factorial(n: u32) -> u32 {
     ///    (1..n+1).into_par_iter().product()
     /// }
     ///
