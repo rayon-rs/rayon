@@ -426,21 +426,18 @@ pub trait ParallelIterator: Sized + Send {
     /// to produce something that represents the zero for your type
     /// (but consider just calling `sum()` in that case).
     ///
-    /// # Examples
+    /// Example:
     ///
     /// ```
     /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
     /// // and use reduce to compute one pair `(x0 + ... + xN, y0 + ... + yN)`
     /// // where the first/second elements are summed separately.
-    ///
     /// use rayon::prelude::*;
-    ///
     /// let sums = [(0, 1), (5, 6), (16, 2), (8, 9)]
-    ///            .par_iter()
-    ///            .cloned()
-    ///            .reduce(|| (0, 0),
+    ///            .par_iter()        // iterating over &(i32, i32)
+    ///            .cloned()          // iterating over (i32, i32)
+    ///            .reduce(|| (0, 0), // the "identity" is 0 in both columns
     ///                    |a, b| (a.0 + b.0, a.1 + b.1));
-    ///
     /// assert_eq!(sums, (0 + 5 + 16 + 8, 1 + 6 + 2 + 9));
     /// ```
     ///
