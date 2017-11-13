@@ -96,8 +96,13 @@ impl<'a, C, T, E> FromParallelIterator<Result<T, E>> for Result<C, E>
             .map(|item| match item {
                      Ok(item) => Some(item),
                      Err(error) => {
-                         if let Ok(mut guard) = saved_error.lock() {
-                             *guard = Some(error);
+                         // We don't need a blocking `lock()`, as anybody
+                         // else holding the lock will also be writing
+                         // `Some(error)`, and then ours is irrelevant.
+                         if let Ok(mut guard) = saved_error.try_lock() {
+                             if guard.is_none() {
+                                 *guard = Some(error);
+                             }
                          }
                          None
                      }
