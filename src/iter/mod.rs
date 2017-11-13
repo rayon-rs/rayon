@@ -209,7 +209,9 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// (0..5).into_par_iter().for_each_with(sender, |s, x| s.send(x).unwrap());
     ///
-    /// let res: Vec<_> = receiver.iter().collect();
+    /// let mut res: Vec<_> = receiver.iter().collect();
+    ///
+    /// res.sort();
     ///
     /// assert_eq!(&res[..], &[0, 1, 2, 3, 4])
     /// ```
