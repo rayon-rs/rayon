@@ -614,7 +614,7 @@ pub trait ParallelIterator: Sized + Send {
     ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
     ///                .sum::<u32>();
     ///
-    /// assert_eq!(sum, (0..22).sum());
+    /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
         where F: Fn(T, Self::Item) -> T + Sync + Send,
