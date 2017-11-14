@@ -1029,12 +1029,20 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
     ///
-    /// let a = [Some(1), Some(2), Some(4), None, Some(6), Some(8)];
+    /// let counter = AtomicUsize::new(0);
+    /// let value = (0_i32..2048)
+    ///     .into_par_iter()
+    ///     .map(|x| {
+    ///              counter.fetch_add(1, Ordering::SeqCst);
+    ///              if x < 1024 { Some(x) } else { None }
+    ///          })
+    ///     .while_some()
+    ///     .max();
     ///
-    /// let sum: usize = a.par_iter().cloned().while_some().sum::<usize>();
-    ///
-    /// assert_eq!(sum, 7);
+    /// assert!(value < Some(1024));
+    /// assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
     /// ```
     fn while_some<T>(self) -> WhileSome<Self>
         where Self: ParallelIterator<Item = Option<T>>,
