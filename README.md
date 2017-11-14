@@ -61,7 +61,7 @@ use rayon::prelude::*;
 
 ### Contribution
 
-Rayon is an open source project! If you'd like to contribute to Rayon, check out [the list of "help wanted" issues](https://github.com/nikomatsakis/rayon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22). These are all (or should be) issues that are suitable for getting started, and they generally include a detailed set of instructions for what to do. Please ask questions if anything is unclear! Also, check out the [Guide to Development](https://github.com/nikomatsakis/rayon/wiki/Guide-to-Development) page on the wiki. Note that all code submitted in PRs to Rayon is assumed to [be licensed under Rayon's dual MIT/Apache2 licensing](https://github.com/nikomatsakis/rayon/blob/master/README.md#license).
+Rayon is an open source project! If you'd like to contribute to Rayon, check out [the list of "help wanted" issues](https://github.com/rayon-rs/rayon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22). These are all (or should be) issues that are suitable for getting started, and they generally include a detailed set of instructions for what to do. Please ask questions if anything is unclear! Also, check out the [Guide to Development](https://github.com/rayon-rs/rayon/wiki/Guide-to-Development) page on the wiki. Note that all code submitted in PRs to Rayon is assumed to [be licensed under Rayon's dual MIT/Apache2 licensing](https://github.com/rayon-rs/rayon/blob/master/README.md#license).
 
 ### Quick demo
 
@@ -130,7 +130,7 @@ computation and then executing it. See the
 more details. (Sorry, proper documentation is still somewhat lacking.)
 
 [regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
-[pt]: https://github.com/nikomatsakis/rayon/blob/master/src/iter/mod.rs
+[pt]: https://github.com/rayon-rs/rayon/blob/master/src/iter/mod.rs
 
 ### Using join for recursive, divide-and-conquer problems
 
@@ -182,7 +182,7 @@ handle this for you. When using join, you have to code it yourself.
 For an example, see the [quicksort demo][], which includes sequential
 fallback after a certain size.
 
-[quicksort demo]: https://github.com/nikomatsakis/rayon/blob/master/rayon-demo/src/quicksort/mod.rs
+[quicksort demo]: https://github.com/rayon-rs/rayon/blob/master/rayon-demo/src/quicksort/mod.rs
 
 ### Safety
 

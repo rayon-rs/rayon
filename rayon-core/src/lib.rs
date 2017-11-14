@@ -1,5 +1,5 @@
 //!
-//! [Under construction](https://github.com/nikomatsakis/rayon/issues/231)
+//! [Under construction](https://github.com/rayon-rs/rayon/issues/231)
 //!
 //! ## Restricting multiple versions
 //!
