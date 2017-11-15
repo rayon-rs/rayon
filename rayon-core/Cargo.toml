@@ -16,7 +16,7 @@ categories = ["concurrency"]
 [dependencies]
 rand = "0.3"
 num_cpus = "1.2"
-coco = "0.1.1"
+coco = "0.3.2"
 libc = "0.2.16"
 lazy_static = "0.2.2"
 
