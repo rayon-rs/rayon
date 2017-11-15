@@ -179,9 +179,12 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// (0..100).into_par_iter().for_each(|x| println!("{}", x));
+    ///
+    /// (0..100).into_par_iter().for_each(|x| println!("{:?}", x));
     /// ```
     fn for_each<OP>(self, op: OP)
         where OP: Fn(Self::Item) + Sync + Send
@@ -195,6 +198,23 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::mpsc::channel;
+    /// use rayon::prelude::*;
+    ///
+    /// let (sender, receiver) = channel();
+    ///
+    /// (0..5).into_par_iter().for_each_with(sender, |s, x| s.send(x).unwrap());
+    ///
+    /// let mut res: Vec<_> = receiver.iter().collect();
+    ///
+    /// res.sort();
+    ///
+    /// assert_eq!(&res[..], &[0, 1, 2, 3, 4])
+    /// ```
     fn for_each_with<OP, T>(self, init: T, op: OP)
         where OP: Fn(&mut T, Self::Item) + Sync + Send,
               T: Send + Clone
@@ -204,10 +224,14 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Counts the number of items in this parallel iterator.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// let a = (1..100).into_par_iter().filter(|x| x % 2 == 0).count();
-    /// assert_eq!(a, 49);
+    ///
+    /// let count = (0..100).into_par_iter().count();
+    ///
+    /// assert_eq!(count, 100);
     /// ```
     fn count(self) -> usize {
         self.map(|_| 1).sum()
@@ -215,6 +239,18 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `map_op` to each item of this iterator, producing a new
     /// iterator with the results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut par_iter = (0..5).into_par_iter().map(|x| x * 2);
+    ///
+    /// let doubles: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&doubles[..], &[0, 2, 4, 6, 8]);
+    /// ```
     fn map<F, R>(self, map_op: F) -> Map<Self, F>
         where F: Fn(Self::Item) -> R + Sync + Send,
               R: Send
@@ -238,6 +274,22 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Creates an iterator which clones all of its elements.  This may be
     /// useful when you have an iterator over `&T`, but you need `T`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [1, 2, 3];
+    ///
+    /// let v_cloned: Vec<_> = a.par_iter().cloned().collect();
+    ///
+    /// // cloned is the same as .map(|&x| x), for integers
+    /// let v_map: Vec<_> = a.par_iter().map(|&x| x).collect();
+    ///
+    /// assert_eq!(v_cloned, vec![1, 2, 3]);
+    /// assert_eq!(v_map, vec![1, 2, 3]);
+    /// ```
     fn cloned<'a, T>(self) -> Cloned<Self>
         where T: 'a + Clone + Send,
               Self: ParallelIterator<Item = &'a T>
@@ -249,14 +301,30 @@ pub trait ParallelIterator: Sized + Send {
     /// producing a new iterator passing through the original items.  This is
     /// often useful for debugging to see what's happening in iterator stages.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// let a = (1i32..10).into_par_iter()
-    ///        .inspect(|x| println!("about to filter: {}", x))
-    ///        .filter(|x| x % 2 == 0)
-    ///        .inspect(|x| println!("made it through filter: {}", x))
-    ///        .collect::<Vec<_>>();
-    /// assert_eq!(a, [2_i32, 4, 6, 8]);
+    ///
+    /// let a = [1, 4, 2, 3];
+    ///
+    /// // this iterator sequence is complex.
+    /// let sum = a.par_iter()
+    ///             .cloned()
+    ///             .filter(|&x| x % 2 == 0)
+    ///             .reduce(|| 0, |sum, i| sum + i);
+    ///
+    /// println!("{}", sum);
+    ///
+    /// // let's add some inspect() calls to investigate what's happening
+    /// let sum = a.par_iter()
+    ///             .cloned()
+    ///             .inspect(|x| println!("about to filter: {}", x))
+    ///             .filter(|&x| x % 2 == 0)
+    ///             .inspect(|x| println!("made it through filter: {}", x))
+    ///             .reduce(|| 0, |sum, i| sum + i);
+    ///
+    /// println!("{}", sum);
     /// ```
     fn inspect<OP>(self, inspect_op: OP) -> Inspect<Self, OP>
         where OP: Fn(&Self::Item) + Sync + Send
@@ -267,14 +335,16 @@ pub trait ParallelIterator: Sized + Send {
     /// Applies `filter_op` to each item of this iterator, producing a new
     /// iterator with only the items that gave `true` results.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
-    /// let a = (1i32..10).into_par_iter()
-    ///        .inspect(|x| println!("about to filter: {}", x))
-    ///        .filter(|x| x % 2 == 0)
-    ///        .inspect(|x| println!("made it through filter: {}", x))
-    ///        .collect::<Vec<_>>();
-    /// assert_eq!(a, [2_i32, 4, 6, 8]);
+    ///
+    /// let mut par_iter = (0..10).into_par_iter().filter(|x| x % 2 == 0);
+    ///
+    /// let even_numbers: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&even_numbers[..], &[0, 2, 4, 6, 8]);
     /// ```
     fn filter<P>(self, filter_op: P) -> Filter<Self, P>
         where P: Fn(&Self::Item) -> bool + Sync + Send
@@ -284,6 +354,22 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
     /// producing a new iterator with only the items from `Some` results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut par_iter = (0..10).into_par_iter()
+    ///                         .filter_map(|x| {
+    ///                             if x % 2 == 0 { Some(x * 3) }
+    ///                             else { None }
+    ///                         });
+    ///
+    /// let even_numbers: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&even_numbers[..], &[0, 6, 12, 18, 24]);
+    /// ```
     fn filter_map<P, R>(self, filter_op: P) -> FilterMap<Self, P>
         where P: Fn(Self::Item) -> Option<R> + Sync + Send,
               R: Send
@@ -293,6 +379,20 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
     /// producing a new iterator that flattens these back into one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [[1, 2], [3, 4], [5, 6], [7, 8]];
+    ///
+    /// let par_iter = a.par_iter().cloned().flat_map(|a| a.to_vec());
+    ///
+    /// let vec: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&vec[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// ```
     fn flat_map<F, PI>(self, map_op: F) -> FlatMap<Self, F>
         where F: Fn(Self::Item) -> PI + Sync + Send,
               PI: IntoParallelIterator
@@ -306,8 +406,10 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// let x: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4]];
-    /// let y: Vec<i32> = x.into_par_iter().flatten().collect();
+    ///
+    /// let x: Vec<Vec<_>> = vec![vec![1, 2], vec![3, 4]];
+    /// let y: Vec<_> = x.into_par_iter().flatten().collect();
+    ///
     /// assert_eq!(y, vec![1, 2, 3, 4]);
     /// ```
     fn flatten(self) -> Flatten<Self>
@@ -456,12 +558,14 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let s =
     ///     ['a', 'b', 'c', 'd', 'e']
     ///     .par_iter()
     ///     .map(|c: &char| format!("{}", c))
     ///     .reduce(|| String::new(),
     ///             |mut a: String, b: String| { a.push_str(&b); a });
+    ///
     /// assert_eq!(s, "abcde");
     /// ```
     ///
@@ -473,6 +577,7 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let s =
     ///     ['a', 'b', 'c', 'd', 'e']
     ///     .par_iter()
@@ -480,6 +585,7 @@ pub trait ParallelIterator: Sized + Send {
     ///             |mut s: String, c: &char| { s.push(*c); s })
     ///     .reduce(|| String::new(),
     ///             |mut a: String, b: String| { a.push_str(&b); a });
+    ///
     /// assert_eq!(s, "abcde");
     /// ```
     ///
@@ -502,10 +608,12 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// let bytes = 0..22_u8; // series of u8 bytes
+    ///
+    /// let bytes = 0..22_u8;
     /// let sum = bytes.into_par_iter()
     ///                .fold(|| 0_u32, |a: u32, b: u8| a + (b as u32))
     ///                .sum::<u32>();
+    ///
     /// assert_eq!(sum, (0..22).sum()); // compare to sequential
     /// ```
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
@@ -542,10 +650,15 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `0` and the `+` operation may vary
     /// depending on the type of value being produced.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 5, 7];
+    ///
     /// let sum: i32 = a.par_iter().sum();
+    ///
     /// assert_eq!(sum, 13);
     /// ```
     fn sum<S>(self) -> S
@@ -567,11 +680,15 @@ pub trait ParallelIterator: Sized + Send {
     /// except that the type of `1` and the `*` operation may vary
     /// depending on the type of value being produced.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// fn factorial(n: u32) -> u32 {
     ///    (1..n+1).into_par_iter().product()
     /// }
+    ///
     /// assert_eq!(factorial(0), 1);
     /// assert_eq!(factorial(1), 1);
     /// assert_eq!(factorial(5), 120);
@@ -592,11 +709,17 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// Basically equivalent to `self.reduce_with(|a, b| cmp::min(a, b))`.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [45, 74, 32];
-    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(a.par_iter().min(), Some(&32));
+    ///
+    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(b.par_iter().min(), None);
     /// ```
     fn min(self) -> Option<Self::Item>
@@ -613,9 +736,13 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [-3_i32, 77, 53, 240, -1];
+    ///
     /// assert_eq!(a.par_iter().min_by(|x, y| x.cmp(y)), Some(&-3));
     /// ```
     fn min_by<F>(self, f: F) -> Option<Self::Item>
@@ -635,9 +762,13 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
+    ///
     /// assert_eq!(a.par_iter().min_by_key(|x| x.abs()), Some(&2));
     /// ```
     fn min_by_key<K, F>(self, f: F) -> Option<Self::Item>
@@ -659,11 +790,17 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// Basically equivalent to `self.reduce_with(|a, b| cmp::max(a, b))`.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [45, 74, 32];
-    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(a.par_iter().max(), Some(&74));
+    ///
+    /// let b: [i32; 0] = [];
+    ///
     /// assert_eq!(b.par_iter().max(), None);
     /// ```
     fn max(self) -> Option<Self::Item>
@@ -680,9 +817,13 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the comparison function is not associative, then
     /// the results are not deterministic.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [-3_i32, 77, 53, 240, -1];
+    ///
     /// assert_eq!(a.par_iter().max_by(|x, y| x.abs().cmp(&y.abs())), Some(&240));
     /// ```
     fn max_by<F>(self, f: F) -> Option<Self::Item>
@@ -702,9 +843,13 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
+    /// # Exmaples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [-3_i32, 34, 2, 5, -10, -3, -23];
+    ///
     /// assert_eq!(a.par_iter().max_by_key(|x| x.abs()), Some(&34));
     /// ```
     fn max_by_key<K, F>(self, f: F) -> Option<Self::Item>
@@ -717,6 +862,21 @@ pub trait ParallelIterator: Sized + Send {
     }
 
     /// Takes two iterators and creates a new iterator over both.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [0, 1, 2];
+    /// let b = [9, 8, 7];
+    ///
+    /// let par_iter = a.par_iter().chain(b.par_iter());
+    ///
+    /// let chained: Vec<_> = par_iter.cloned().collect();
+    ///
+    /// assert_eq!(&chained[..], &[0, 1, 2, 9, 8, 7]);
+    /// ```
     fn chain<C>(self, chain: C) -> Chain<Self, C::Iter>
         where C: IntoParallelIterator<Item = Self::Item>
     {
@@ -735,10 +895,15 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 2, 3, 3];
+    ///
     /// assert_eq!(a.par_iter().find_any(|&&x| x == 3), Some(&3));
+    ///
     /// assert_eq!(a.par_iter().find_any(|&&x| x == 100), None);
     /// ```
     fn find_any<P>(self, predicate: P) -> Option<Self::Item>
@@ -759,10 +924,15 @@ pub trait ParallelIterator: Sized + Send {
     /// just want the first match that discovered anywhere in the iterator,
     /// `find_any` is a better choice.
     ///
+    /// # Exmaples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 2, 3, 3];
+    ///
     /// assert_eq!(a.par_iter().find_first(|&&x| x == 3), Some(&3));
+    ///
     /// assert_eq!(a.par_iter().find_first(|&&x| x == 100), None);
     /// ```
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
@@ -782,10 +952,15 @@ pub trait ParallelIterator: Sized + Send {
     /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
     /// order doesn't actually matter to you, `find_any` is a better choice.
     ///
+    /// # Examples
+    ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let a = [1, 2, 3, 3];
+    ///
     /// assert_eq!(a.par_iter().find_last(|&&x| x == 3), Some(&3));
+    ///
     /// assert_eq!(a.par_iter().find_last(|&&x| x == 100), None);
     /// ```
     fn find_last<P>(self, predicate: P) -> Option<Self::Item>
@@ -808,6 +983,18 @@ pub trait ParallelIterator: Sized + Send {
     /// a match is found, we'll attempt to stop process the rest
     /// of the items.  Proving that there's no match, returning false,
     /// does require visiting every item.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [0, 12, 3, 4, 0, 23, 0];
+    ///
+    /// let is_valid = a.par_iter().any(|&x| x > 10);
+    ///
+    /// assert!(is_valid);
+    /// ```
     fn any<P>(self, predicate: P) -> bool
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
@@ -817,6 +1004,18 @@ pub trait ParallelIterator: Sized + Send {
     /// Tests that every item in the parallel iterator matches the given
     /// predicate, and if so returns true.  If a counter-example is found,
     /// we'll attempt to stop processing more items, then return false.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [0, 12, 3, 4, 0, 23, 0];
+    ///
+    /// let is_valid = a.par_iter().all(|&x| x > 10);
+    ///
+    /// assert!(!is_valid);
+    /// ```
     fn all<P>(self, predicate: P) -> bool
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
@@ -825,6 +1024,26 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Creates an iterator over the `Some` items of this iterator, halting
     /// as soon as any `None` is found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    ///
+    /// let counter = AtomicUsize::new(0);
+    /// let value = (0_i32..2048)
+    ///     .into_par_iter()
+    ///     .map(|x| {
+    ///              counter.fetch_add(1, Ordering::SeqCst);
+    ///              if x < 1024 { Some(x) } else { None }
+    ///          })
+    ///     .while_some()
+    ///     .max();
+    ///
+    /// assert!(value < Some(1024));
+    /// assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
+    /// ```
     fn while_some<T>(self) -> WhileSome<Self>
         where Self: ParallelIterator<Item = Option<T>>,
               T: Send
@@ -839,6 +1058,18 @@ pub trait ParallelIterator: Sized + Send {
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse an existing
     /// vector's backing store rather than allocating a fresh vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let sync_vec: Vec<_> = (0..100).into_iter().collect();
+    ///
+    /// let async_vec: Vec<_> = (0..100).into_par_iter().collect();
+    ///
+    /// assert_eq!(sync_vec, async_vec);
+    /// ```
     fn collect<C>(self) -> C
         where C: FromParallelIterator<Self::Item>
     {
@@ -852,6 +1083,19 @@ pub trait ParallelIterator: Sized + Send {
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse existing
     /// vectors' backing stores rather than allocating fresh vectors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [(0, 1), (1, 2), (2, 3), (3, 4)];
+    ///
+    /// let (left, right): (Vec<_>, Vec<_>) = a.par_iter().cloned().unzip();
+    ///
+    /// assert_eq!(left, [0, 1, 2, 3]);
+    /// assert_eq!(right, [1, 2, 3, 4]);
+    /// ```
     fn unzip<A, B, FromA, FromB>(self) -> (FromA, FromB)
         where Self: ParallelIterator<Item = (A, B)>,
               FromA: Default + Send + ParallelExtend<A>,
@@ -870,6 +1114,17 @@ pub trait ParallelIterator: Sized + Send {
     /// collection types for the left and right items.  This is more flexible,
     /// but may require new type annotations when converting sequential code
     /// that used type inferrence assuming the two were the same.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let (left, right): (Vec<_>, Vec<_>) = (0..8).into_par_iter().partition(|x| x % 2 == 0);
+    ///
+    /// assert_eq!(left, [0, 2, 4, 6]);
+    /// assert_eq!(right, [1, 3, 5, 7]);
+    /// ```
     fn partition<A, B, P>(self, predicate: P) -> (A, B)
         where A: Default + Send + ParallelExtend<Self::Item>,
               B: Default + Send + ParallelExtend<Self::Item>,
@@ -881,6 +1136,25 @@ pub trait ParallelIterator: Sized + Send {
     /// Partitions and maps the items of a parallel iterator into a pair of
     /// arbitrary `ParallelExtend` containers.  `Either::Left` items go into
     /// the first container, and `Either::Right` items go into the second.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use rayon::iter::Either;
+    ///
+    /// let (left, right): (Vec<_>, Vec<_>) = (0..8).into_par_iter()
+    ///                                             .partition_map(|x| {
+    ///                                                 if x % 2 == 0 {
+    ///                                                     Either::Left(x * 4)
+    ///                                                 } else {
+    ///                                                     Either::Right(x * 3)
+    ///                                                 }
+    ///                                             });
+    ///
+    /// assert_eq!(left, [0, 8, 16, 24]);
+    /// assert_eq!(right, [3, 9, 15, 21]);
+    /// ```
     fn partition_map<A, B, P, L, R>(self, predicate: P) -> (A, B)
         where A: Default + Send + ParallelExtend<L>,
               B: Default + Send + ParallelExtend<R>,
@@ -897,8 +1171,10 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// ```
     /// use rayon::prelude::*;
+    ///
     /// let x = vec![1, 2, 3];
-    /// let r: Vec<i32> = x.into_par_iter().intersperse(-1).collect();
+    /// let r: Vec<_> = x.into_par_iter().intersperse(-1).collect();
+    ///
     /// assert_eq!(r, vec![1, -1, 2, -1, 3]);
     /// ```
     fn intersperse(self, element: Self::Item) -> Intersperse<Self>
