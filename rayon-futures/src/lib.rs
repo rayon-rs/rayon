@@ -11,8 +11,9 @@ extern crate rayon_core;
 use futures::{Async, Future, Poll};
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task};
+use rayon_core::internal::worker; // May need `RUSTFLAGS='--cfg rayon_unstable'` to compile
+
 use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
-use rayon_core::internal::worker;
 use std::any::Any;
 use std::fmt;
 use std::panic::{self, AssertUnwindSafe};
