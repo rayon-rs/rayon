@@ -1513,6 +1513,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Sets the minimum length of iterators desired to process in each
     /// thread.  Rayon will not split any smaller than this length, but
     /// of course an iterator could already be smaller to begin with.
+    ///
+    /// Producers like `zip` and `interleave` will use greater of the two
+    /// minimums.
+    /// Chained iterators and iterators inside `flat_map` may each use
+    /// their own minimum length.
     fn with_min_len(self, min: usize) -> MinLen<Self> {
         len::new_min_len(self, min)
     }
@@ -1522,6 +1527,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// unless that would put it below the length from `with_min_len()`.
     /// For example, given min=10 and max=15, a length of 16 will not be
     /// split any further.
+    ///
+    /// Producers like `zip` and `interleave` will use lesser of the two
+    /// maximums.
+    /// Chained iterators and iterators inside `flat_map` may each use
+    /// their own maximum length.
     fn with_max_len(self, max: usize) -> MaxLen<Self> {
         len::new_max_len(self, max)
     }
