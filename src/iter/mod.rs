@@ -1527,6 +1527,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// unless that would put it below the length from `with_min_len()`.
     /// For example, given min=10 and max=15, a length of 16 will not be
     /// split any further.
+    ///
+    /// Producers like `zip` and `interleave` will use lesser of the two
+    /// maximums.
+    /// Chained iterators and iterators inside `flat_map` may each use
+    /// their own maximum length.
     fn with_max_len(self, max: usize) -> MaxLen<Self> {
         len::new_max_len(self, max)
     }
