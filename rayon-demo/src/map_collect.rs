@@ -47,8 +47,8 @@ mod util {
         mutex.into_inner().unwrap()
     }
 
-    /// Use a linked list intermediary.
-    pub fn linked_list<K, V, PI>(pi: PI) -> HashMap<K, V>
+    /// Collect a linked list intermediary.
+    pub fn linked_list_collect<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
               V: Send,
               PI: ParallelIterator<Item = (K, V)> + Send
@@ -57,8 +57,8 @@ mod util {
         list.into_iter().collect()
     }
 
-    /// Use a linked list of vectors intermediary.
-    pub fn linked_list_vec<K, V, PI>(pi: PI) -> HashMap<K, V>
+    /// Collect a linked list of vectors intermediary.
+    pub fn linked_list_collect_vec<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
               V: Send,
               PI: ParallelIterator<Item = (K, V)> + Send
@@ -72,8 +72,8 @@ mod util {
                   |mut map, vec| { map.extend(vec); map })
     }
 
-    /// Use a linked list of vectors intermediary, with a size hint.
-    pub fn linked_list_vec_sized<K, V, PI>(pi: PI) -> HashMap<K, V>
+    /// Collect a linked list of vectors intermediary, with a size hint.
+    pub fn linked_list_collect_vec_sized<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
               V: Send,
               PI: ParallelIterator<Item = (K, V)> + Send
@@ -89,7 +89,32 @@ mod util {
                   |mut map, vec| { map.extend(vec); map })
     }
 
-    /// Use a vector of vectors intermediary, with a size hint.
+    /// Map-Reduce a linked list of vectors intermediary, with a size hint.
+    pub fn linked_list_map_reduce_vec_sized<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        let list: LinkedList<Vec<(_, _)>> = pi
+            .fold(|| Vec::new(),
+                  |mut vec, elem| { vec.push(elem); vec })
+            .map(|vec| {
+                let mut list = LinkedList::new();
+                list.push_back(vec);
+                list
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
+                list1.append(&mut list2);
+                list1
+            });
+
+        let len = list.iter().map(Vec::len).sum();
+        list.into_iter()
+            .fold(HashMap::with_capacity(len),
+                  |mut map, vec| { map.extend(vec); map })
+    }
+
+    /// Map-Reduce a vector of vectors intermediary, with a size hint.
     pub fn vec_vec_sized<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
               V: Send,
@@ -176,26 +201,34 @@ macro_rules! make_bench {
         }
 
         #[bench]
-        fn with_linked_list(b: &mut ::test::Bencher) {
+        fn with_linked_list_collect(b: &mut ::test::Bencher) {
             use map_collect::util;
             let mut map = None;
-            b.iter(|| map = Some(util::linked_list($generate())));
+            b.iter(|| map = Some(util::linked_list_collect($generate())));
             $check(&map.unwrap());
         }
 
         #[bench]
-        fn with_linked_list_vec(b: &mut ::test::Bencher) {
+        fn with_linked_list_collect_vec(b: &mut ::test::Bencher) {
             use map_collect::util;
             let mut map = None;
-            b.iter(|| map = Some(util::linked_list_vec($generate())));
+            b.iter(|| map = Some(util::linked_list_collect_vec($generate())));
             $check(&map.unwrap());
         }
 
         #[bench]
-        fn with_linked_list_vec_sized(b: &mut ::test::Bencher) {
+        fn with_linked_list_collect_vec_sized(b: &mut ::test::Bencher) {
             use map_collect::util;
             let mut map = None;
-            b.iter(|| map = Some(util::linked_list_vec_sized($generate())));
+            b.iter(|| map = Some(util::linked_list_collect_vec_sized($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
+        fn with_linked_list_map_reduce_vec_sized(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::linked_list_map_reduce_vec_sized($generate())));
             $check(&map.unwrap());
         }
 
