@@ -138,7 +138,15 @@ impl<T> ParallelExtend<T> for Vec<T>
                         vec.push(elem);
                         vec
                     })
-                    .collect();
+                    .map(|vec| {
+                        let mut list = LinkedList::new();
+                        list.push_back(vec);
+                        list
+                    })
+                    .reduce(LinkedList::new, |mut list1, mut list2| {
+                        list1.append(&mut list2);
+                        list1
+                    });
 
                 self.reserve(list.iter().map(Vec::len).sum());
                 for mut vec in list {
