@@ -89,6 +89,25 @@ mod util {
                   |mut map, vec| { map.extend(vec); map })
     }
 
+    /// Use a vector of vectors intermediary, with a size hint.
+    pub fn vec_vec_sized<K, V, PI>(pi: PI) -> HashMap<K, V>
+        where K: Send + Hash + Eq,
+              V: Send,
+              PI: ParallelIterator<Item = (K, V)> + Send
+    {
+        let vecs: Vec<Vec<(_, _)>> = pi
+            .fold(|| Vec::new(),
+                  |mut vec, elem| { vec.push(elem); vec })
+            .map(|v| vec![v])
+            .reduce(|| Vec::new(),
+                    |mut left, mut right| { left.append(&mut right); left });
+
+        let len = vecs.iter().map(Vec::len).sum();
+        vecs.into_iter()
+            .fold(HashMap::with_capacity(len),
+                  |mut map, vec| { map.extend(vec); map })
+    }
+
     /// Fold into hashmaps and then reduce them together.
     pub fn fold<K, V, PI>(pi: PI) -> HashMap<K, V>
         where K: Send + Hash + Eq,
@@ -177,6 +196,14 @@ macro_rules! make_bench {
             use map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::linked_list_vec_sized($generate())));
+            $check(&map.unwrap());
+        }
+
+        #[bench]
+        fn with_vec_vec_sized(b: &mut ::test::Bencher) {
+            use map_collect::util;
+            let mut map = None;
+            b.iter(|| map = Some(util::vec_vec_sized($generate())));
             $check(&map.unwrap());
         }
 

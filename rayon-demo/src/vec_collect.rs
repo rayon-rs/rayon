@@ -42,6 +42,24 @@ mod util {
                   |mut vec, mut sub| { vec.append(&mut sub); vec })
     }
 
+    /// Use a vector of vectors intermediary, with a size hint.
+    pub fn vec_vec_sized<T, PI>(pi: PI) -> Vec<T>
+        where T: Send,
+              PI: ParallelIterator<Item = T> + Send
+    {
+        let vecs: Vec<Vec<_>> = pi
+            .fold(|| Vec::new(),
+                  |mut vec, elem| { vec.push(elem); vec })
+            .map(|v| vec![v])
+            .reduce(|| Vec::new(),
+                    |mut left, mut right| { left.append(&mut right); left });
+
+        let len = vecs.iter().map(Vec::len).sum();
+        vecs.into_iter()
+            .fold(Vec::with_capacity(len),
+                  |mut vec, mut sub| { vec.append(&mut sub); vec })
+    }
+
     /// Fold into vectors and then reduce them together.
     pub fn fold<T, PI>(pi: PI) -> Vec<T>
         where T: Send,
@@ -81,6 +99,14 @@ macro_rules! make_bench {
             use vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::linked_list_vec_sized($generate())));
+            $check(&vec.unwrap());
+        }
+
+        #[bench]
+        fn with_vec_vec_sized(b: &mut ::test::Bencher) {
+            use vec_collect::util;
+            let mut vec = None;
+            b.iter(|| vec = Some(util::vec_vec_sized($generate())));
             $check(&vec.unwrap());
         }
 
