@@ -12,8 +12,8 @@ mod util {
         pi.collect()
     }
 
-    /// Use a linked list of vectors intermediary.
-    pub fn linked_list_vec<T, PI>(pi: PI) -> Vec<T>
+    /// Collect a linked list of vectors intermediary.
+    pub fn linked_list_collect_vec<T, PI>(pi: PI) -> Vec<T>
         where T: Send,
               PI: ParallelIterator<Item = T> + Send
     {
@@ -26,8 +26,8 @@ mod util {
                   |mut vec, mut sub| { vec.append(&mut sub); vec })
     }
 
-    /// Use a linked list of vectors intermediary, with a size hint.
-    pub fn linked_list_vec_sized<T, PI>(pi: PI) -> Vec<T>
+    /// Collect a linked list of vectors intermediary, with a size hint.
+    pub fn linked_list_collect_vec_sized<T, PI>(pi: PI) -> Vec<T>
         where T: Send,
               PI: ParallelIterator<Item = T> + Send
     {
@@ -38,6 +38,48 @@ mod util {
 
         let len = list.iter().map(Vec::len).sum();
         list.into_iter()
+            .fold(Vec::with_capacity(len),
+                  |mut vec, mut sub| { vec.append(&mut sub); vec })
+    }
+
+    /// Map-Reduce a linked list of vectors intermediary, with a size hint.
+    pub fn linked_list_map_reduce_vec_sized<T, PI>(pi: PI) -> Vec<T>
+        where T: Send,
+              PI: ParallelIterator<Item = T> + Send
+    {
+        let list: LinkedList<Vec<_>> = pi
+            .fold(|| Vec::new(),
+                  |mut vec, elem| { vec.push(elem); vec })
+            .map(|vec| {
+                let mut list = LinkedList::new();
+                list.push_back(vec);
+                list
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
+                list1.append(&mut list2);
+                list1
+            });
+
+        let len = list.iter().map(Vec::len).sum();
+        list.into_iter()
+            .fold(Vec::with_capacity(len),
+                  |mut vec, mut sub| { vec.append(&mut sub); vec })
+    }
+
+    /// Map-Reduce a vector of vectors intermediary, with a size hint.
+    pub fn vec_vec_sized<T, PI>(pi: PI) -> Vec<T>
+        where T: Send,
+              PI: ParallelIterator<Item = T> + Send
+    {
+        let vecs: Vec<Vec<_>> = pi
+            .fold(|| Vec::new(),
+                  |mut vec, elem| { vec.push(elem); vec })
+            .map(|v| vec![v])
+            .reduce(|| Vec::new(),
+                    |mut left, mut right| { left.append(&mut right); left });
+
+        let len = vecs.iter().map(Vec::len).sum();
+        vecs.into_iter()
             .fold(Vec::with_capacity(len),
                   |mut vec, mut sub| { vec.append(&mut sub); vec })
     }
@@ -69,18 +111,34 @@ macro_rules! make_bench {
         }
 
         #[bench]
-        fn with_linked_list_vec(b: &mut ::test::Bencher) {
+        fn with_linked_list_collect_vec(b: &mut ::test::Bencher) {
             use vec_collect::util;
             let mut vec = None;
-            b.iter(|| vec = Some(util::linked_list_vec($generate())));
+            b.iter(|| vec = Some(util::linked_list_collect_vec($generate())));
             $check(&vec.unwrap());
         }
 
         #[bench]
-        fn with_linked_list_vec_sized(b: &mut ::test::Bencher) {
+        fn with_linked_list_collect_vec_sized(b: &mut ::test::Bencher) {
             use vec_collect::util;
             let mut vec = None;
-            b.iter(|| vec = Some(util::linked_list_vec_sized($generate())));
+            b.iter(|| vec = Some(util::linked_list_collect_vec_sized($generate())));
+            $check(&vec.unwrap());
+        }
+
+        #[bench]
+        fn with_linked_list_map_reduce_vec_sized(b: &mut ::test::Bencher) {
+            use vec_collect::util;
+            let mut vec = None;
+            b.iter(|| vec = Some(util::linked_list_map_reduce_vec_sized($generate())));
+            $check(&vec.unwrap());
+        }
+
+        #[bench]
+        fn with_vec_vec_sized(b: &mut ::test::Bencher) {
+            use vec_collect::util;
+            let mut vec = None;
+            b.iter(|| vec = Some(util::vec_vec_sized($generate())));
             $check(&vec.unwrap());
         }
 

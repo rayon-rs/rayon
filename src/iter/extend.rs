@@ -18,7 +18,15 @@ fn extend<C, I, F>(collection: &mut C, par_iter: I, reserve: F)
             vec.push(elem);
             vec
         })
-        .collect();
+        .map(|vec| {
+            let mut list = LinkedList::new();
+            list.push_back(vec);
+            list
+        })
+        .reduce(LinkedList::new, |mut list1, mut list2| {
+            list1.append(&mut list2);
+            list1
+        });
 
     reserve(collection, &list);
     for vec in list {
@@ -212,7 +220,15 @@ impl ParallelExtend<char> for String {
                 string.push(ch);
                 string
             })
-            .collect();
+            .map(|vec| {
+                let mut list = LinkedList::new();
+                list.push_back(vec);
+                list
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
+                list1.append(&mut list2);
+                list1
+            });
 
         self.reserve(list.iter().map(String::len).sum());
         self.extend(list)
