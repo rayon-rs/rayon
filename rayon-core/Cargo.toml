@@ -19,5 +19,23 @@ num_cpus = "1.2"
 coco = "0.3.2"
 libc = "0.2.16"
 lazy_static = "1"
+context = { git = "https://github.com/Zoxc/context-rs.git" }
+ctrlc = "3.0.3"
+scoped-tls = { git = "https://github.com/Zoxc/scoped-tls.git", features=["nightly"] }
+
+[target.'cfg(windows)'.dependencies]
+kernel32-sys = "0.2.2"
+winapi = "0.2.8"
+
+[dependencies.parking_lot]
+version = "0.5"
+features = ["nightly"]
+
+[build-dependencies]
+gcc = "0.3.10"
+
+[features]
+debug = []
+tlv = []
 
 [dev-dependencies]

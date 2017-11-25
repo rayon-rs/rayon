@@ -1,18 +1,19 @@
-use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
+use ::{Configuration, ExitHandler, PanicHandler, StartHandler, MainHandler};
 use coco::deque::{self, Worker, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
 use job::Job;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
-use latch::{LatchProbe, Latch, CountLatch, LockLatch, SpinLatch, TickleLatch};
+use latch::{LatchProbe, Latch, CountLatch, LockLatch}; // , SpinLatch, TickleLatch
 use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
 use std::any::Any;
 use std::error::Error;
-use std::cell::{Cell, UnsafeCell};
-use std::sync::{Arc, Mutex, Once, ONCE_INIT};
+use std::cell::{RefCell, Cell, UnsafeCell};
+use parking_lot::Mutex;
+use std::sync::{self, Arc, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
 use std::fmt;
@@ -20,6 +21,27 @@ use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
+use fiber::{FiberStack, Fiber, ResumeAction, Waitable, TransferInfo};
+#[cfg(feature = "debug")]
+use fiber;
+#[cfg(feature = "debug")]
+use std::collections::HashSet;
+#[cfg(feature = "debug")]
+use fiber::{Ptr, FiberId, FiberAction};
+#[cfg(feature = "debug")]
+use ctrlc;
+#[cfg(feature = "debug")]
+use std::collections::VecDeque;
+#[cfg(feature = "debug")]
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+#[cfg(feature = "debug")]
+use std::sync::Weak;
+#[cfg(windows)]
+use std::os::windows::io::IntoRawHandle;
+#[cfg(windows)]
+use winapi;
+#[cfg(windows)]
+use kernel32;
 
 /// Error if the gloal thread pool is initialized multiple times.
 #[derive(Debug,PartialEq)]
@@ -37,15 +59,29 @@ impl Error for GlobalPoolAlreadyInitialized {
     }
 }
 
+#[cfg(windows)]
+pub struct ThreadHandle(pub winapi::HANDLE);
+#[cfg(windows)]
+unsafe impl Send for ThreadHandle {}
+#[cfg(windows)]
+unsafe impl Sync for ThreadHandle {}
+
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     state: Mutex<RegistryState>,
-    sleep: Sleep,
+    pub sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
+    main_handler: Option<Box<MainHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
+    pub stack_size: usize,
 
+    #[cfg(feature = "debug")]
+    workers: Mutex<HashSet<usize>>,
+    #[cfg(feature = "debug")]
+    pub active_fibers: AtomicUsize,
+    
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
     //
@@ -60,10 +96,38 @@ pub struct Registry {
     //   These are always owned by some other job (e.g., one injected by `ThreadPool::install()`)
     //   and that job will keep the pool alive.
     terminate_latch: CountLatch,
+
+    #[cfg(windows)]
+    pub handles: Mutex<Vec<ThreadHandle>>,
 }
 
 struct RegistryState {
     job_injector: Worker<JobRef>,
+}
+
+scoped_thread_local!(static CURRENT_REGISTRY: Arc<Registry>);
+
+pub fn set_current_registry<F: FnOnce() -> R, R>(registry: &Arc<Registry>, f: F) -> R {
+    CURRENT_REGISTRY.set(registry, f)
+}
+
+/// Starts the worker threads (if that has not already happened). If
+/// initialization has not already occurred, use the default
+/// configuration.
+fn with_current_registry<F: FnOnce(&Arc<Registry>) -> R, R> (f: F) -> R {
+    if CURRENT_REGISTRY.is_set() {
+        CURRENT_REGISTRY.with(f)
+    } else {
+        f(global_registry())
+    }
+}
+
+pub fn get_current_registry() -> Option<Arc<Registry>> {
+    if CURRENT_REGISTRY.is_set() {
+        CURRENT_REGISTRY.with(|r| Some(r.clone()))
+    } else {
+        None
+    }
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -112,31 +176,71 @@ impl<'a> Drop for Terminator<'a> {
     }
 }
 
+#[cfg(windows)]
+impl Drop for Registry {
+    fn drop(&mut self) {
+        for handle in self.handles.get_mut() {
+            unsafe {
+                kernel32::CloseHandle(handle.0);
+            }
+        }
+    }
+}
+
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
         let n_threads = configuration.get_num_threads();
         let breadth_first = configuration.get_breadth_first();
 
+        #[cfg(feature = "debug")]
+        ctrlc::set_handler(move || {
+            use std;
+            ctrlc();
+            fiber::ctrlc();
+            println!("saw ctrl-c");
+            std::process::abort();
+        }).ok();
+
         let (inj_worker, inj_stealer) = deque::new();
+        
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
+        let (tx_ready_tasks, rx_resumed_tasks): (Vec<_>, Vec<_>) = {
+            (0..n_threads).map(|_| sync::mpsc::channel()).unzip()
+        };
 
         let registry = Arc::new(Registry {
-            thread_infos: stealers.into_iter()
-                .map(|s| ThreadInfo::new(s))
+            thread_infos: stealers.into_iter().zip(tx_ready_tasks.into_iter())
+                .map(|(s, r)| ThreadInfo::new(s, r))
                 .collect(),
             state: Mutex::new(RegistryState::new(inj_worker)),
             sleep: Sleep::new(),
+            #[cfg(feature = "debug")]
+            workers: Mutex::new(HashSet::new()),
+            #[cfg(feature = "debug")]
+            active_fibers: AtomicUsize::new(0),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
             panic_handler: configuration.take_panic_handler(),
             start_handler: configuration.take_start_handler(),
+            main_handler: configuration.take_main_handler(),
             exit_handler: configuration.take_exit_handler(),
+            stack_size: configuration.get_stack_size().unwrap_or(1024 * 1024),
+            #[cfg(windows)]
+            handles: Mutex::new(Vec::new()),
         });
+
+        #[cfg(feature = "debug")]
+        REGISTRIES.lock().push(Arc::downgrade(&registry));
 
         // If we return early or panic, make sure to terminate existing threads.
         let t1000 = Terminator(&registry);
 
-        for (index, worker) in workers.into_iter().enumerate() {
+        let iter = workers.into_iter().zip(rx_resumed_tasks.into_iter()).enumerate();
+
+        #[cfg(windows)]
+        let mut handles = Vec::new();
+
+        for (index, (worker, rx_resumed_tasks)) in iter {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
             if let Some(name) = configuration.get_thread_name(index) {
@@ -145,7 +249,16 @@ impl Registry {
             if let Some(stack_size) = configuration.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            try!(b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) }));
+            let _handle = try!(b.spawn(move || unsafe {
+                main_loop(worker, rx_resumed_tasks, registry, index, breadth_first)
+            }));
+            #[cfg(windows)]
+            handles.push(ThreadHandle(_handle.into_raw_handle()));
+        }
+
+        #[cfg(windows)]
+        {
+            *registry.handles.lock() = handles;
         }
 
         // Returning normally now, without termination.
@@ -156,14 +269,18 @@ impl Registry {
 
     #[cfg(rayon_unstable)]
     pub fn global() -> Arc<Registry> {
-        global_registry().clone()
+        with_current_registry(|r| r.clone())
+    }
+
+    pub fn signal(&self) {
+        self.sleep.tickle(usize::MAX);
     }
 
     pub fn current() -> Arc<Registry> {
         unsafe {
             let worker_thread = WorkerThread::current();
             if worker_thread.is_null() {
-                global_registry().clone()
+                with_current_registry(|r| r.clone())
             } else {
                 (*worker_thread).registry.clone()
             }
@@ -177,7 +294,7 @@ impl Registry {
         unsafe {
             let worker_thread = WorkerThread::current();
             if worker_thread.is_null() {
-                global_registry().num_threads()
+                with_current_registry(|r| r.num_threads())
             } else {
                 (*worker_thread).registry.num_threads()
             }
@@ -212,6 +329,11 @@ impl Registry {
         }
     }
 
+    pub fn resume_fiber(&self, worker_index: usize, fiber: Fiber) {
+        let sender = self.thread_infos[worker_index].tx_ready_tasks.lock();
+        sender.send(fiber).unwrap();
+    }
+
     /// Waits for the worker threads to get up and running.  This is
     /// meant to be used for benchmarking purposes, primarily, so that
     /// you can get more consistent numbers by having everything
@@ -224,7 +346,6 @@ impl Registry {
 
     /// Waits for the worker threads to stop. This is used for testing
     /// -- so we can check that termination actually works.
-    #[cfg(test)]
     pub fn wait_until_stopped(&self) {
         for info in &self.thread_infos {
             info.stopped.wait();
@@ -303,7 +424,7 @@ impl Registry {
     pub fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
-            let state = self.state.lock().unwrap();
+            let state = self.state.lock();
 
             // It should not be possible for `state.terminate` to be true
             // here. It is only set to true when the user creates (and
@@ -339,8 +460,8 @@ impl Registry {
             let worker_thread = WorkerThread::current();
             if worker_thread.is_null() {
                 self.in_worker_cold(op)
-            } else if (*worker_thread).registry().id() != self.id() {
-                self.in_worker_cross(&*worker_thread, op)
+            //} else if (*worker_thread).registry().id() != self.id() {
+            //    self.in_worker_cross(&*worker_thread, op)
             } else {
                 // Perfectly valid to give them a `&T`: this is the
                 // current thread, so we know the data structure won't be
@@ -365,7 +486,7 @@ impl Registry {
         job.latch.wait();
         job.into_result()
     }
-
+/*
     #[cold]
     unsafe fn in_worker_cross<OP, R>(&self, current_thread: &WorkerThread, op: OP) -> R
         where OP: FnOnce(&WorkerThread, bool) -> R + Send, R: Send
@@ -383,7 +504,7 @@ impl Registry {
         current_thread.wait_until(&job.latch);
         job.into_result()
     }
-
+*/
     /// Increment the terminate counter. This increment should be
     /// balanced by a call to `terminate`, which will decrement. This
     /// is used when spawning asynchronous work, which needs to
@@ -442,14 +563,18 @@ struct ThreadInfo {
 
     /// the "stealer" half of the worker's deque
     stealer: Stealer<JobRef>,
+
+    /// submit tasks which were waiting on other things, but are now ready to run
+    tx_ready_tasks: Mutex<sync::mpsc::Sender<Fiber>>,
 }
 
 impl ThreadInfo {
-    fn new(stealer: Stealer<JobRef>) -> ThreadInfo {
+    fn new(stealer: Stealer<JobRef>, tx_ready_tasks: sync::mpsc::Sender<Fiber>) -> ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
             stealer: stealer,
+            tx_ready_tasks: Mutex::new(tx_ready_tasks),
         }
     }
 }
@@ -461,7 +586,17 @@ pub struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Worker<JobRef>,
 
+    rx_resumed_tasks: sync::mpsc::Receiver<Fiber>,
+
     index: usize,
+
+    #[cfg(feature = "debug")]
+    stack_low: Ptr,
+    #[cfg(feature = "debug")]
+    stack_high: Ptr,
+
+    #[cfg(feature = "debug")]
+    pub asleep: AtomicBool,
 
     /// are these workers configured to steal breadth-first or not?
     breadth_first: bool,
@@ -469,7 +604,17 @@ pub struct WorkerThread {
     /// A weak random number generator.
     rng: UnsafeCell<rand::XorShiftRng>,
 
-    registry: Arc<Registry>,
+    pub registry: Arc<Registry>,
+
+    main_loop_fiber: Cell<Option<Fiber>>,
+
+    pub stack_cache: RefCell<Vec<FiberStack>>,
+
+    #[cfg(feature = "debug")]
+    pub poisoned_stacks: RefCell<VecDeque<fiber::FiberStack>>,
+
+    #[cfg(feature = "debug")]
+    pub current_fiber: RefCell<(Option<Arc<fiber::FiberInfo>>, Option<Arc<fiber::FiberInfo>>)>,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
@@ -489,6 +634,11 @@ impl WorkerThread {
     #[inline]
     pub fn current() -> *const WorkerThread {
         WORKER_THREAD_STATE.with(|t| t.get())
+    }
+
+    #[cfg(feature = "debug")]
+    pub fn fiber_info(&self) -> Arc<fiber::FiberInfo> {
+        self.current_fiber.borrow().0.clone().unwrap()
     }
 
     /// Sets `self` as the worker thread index for the current thread.
@@ -535,18 +685,23 @@ impl WorkerThread {
         }
     }
 
+    #[inline]
+    pub unsafe fn take_resumed_job(&self) -> Option<Fiber> {
+        self.rx_resumed_tasks.try_recv().ok()
+    }
+
     /// Wait until the latch is set. Try to keep busy by popping and
     /// stealing tasks as necessary.
     #[inline]
-    pub unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
+    pub unsafe fn wait_until<L: Waitable>(&self, latch: &L) {
         log!(WaitUntil { worker: self.index });
-        if !latch.probe() {
+        if !latch.complete(self) {
             self.wait_until_cold(latch);
         }
     }
 
     #[cold]
-    unsafe fn wait_until_cold<L: LatchProbe + ?Sized>(&self, latch: &L) {
+    pub unsafe fn find_work<'a>(&self, action: ResumeAction) -> TransferInfo {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the
@@ -554,21 +709,90 @@ impl WorkerThread {
         // accesses, which would be *very bad*
         let abort_guard = unwind::AbortIfPanic;
 
+        let result;
+
+        // Try to find some work to do. We give preference first
+        // to things in our local deque, then in other workers
+        // deques, and finally to injected jobs from the
+        // outside. The idea is to finish what we started before
+        // we take on something new.
+        if let Some(fiber) = self.take_resumed_job() {
+            fiber_log!("worked {} picked up fiber {} in find_work", self.index(), fiber);
+            result = fiber.resume(self, action);
+        } else if let Some(job) = self.take_local_job()
+                                .or_else(|| self.steal())
+                                .or_else(|| self.registry.pop_injected_job(self.index)) {
+            result = Fiber::spawn(self, job, action);
+        } else {
+            // Nothing to do, enter the main loop
+            let main_fiber = self.main_loop_fiber.replace(None).unwrap();
+            result = main_fiber.resume(self, action);
+        }
+
+        mem::forget(abort_guard);
+
+        result
+    }
+
+    #[cold]
+    unsafe fn wait_until_cold<'l, L: Waitable>(&self, latch: &'l L) {
+        // the code below should swallow all panics and hence never
+        // unwind; but if something does wrong, we want to abort,
+        // because otherwise other code in rayon may assume that the
+        // latch has been signaled, and that can lead to random memory
+        // accesses, which would be *very bad*
+        let abort_guard = unwind::AbortIfPanic;
+
+        let waitable: &'l Waitable = latch;
+        let waitable: *const Waitable = mem::transmute(waitable);
+
+        #[cfg(feature = "debug")]
+        let fiber_info = self.fiber_info();
+        #[cfg(feature = "debug")]
+        {
+            *fiber_info.action.lock() = FiberAction::WaitUntil(Ptr(latch as *const _ as usize));
+        }
+
         let mut yields = 0;
-        while !latch.probe() {
+        while !latch.complete(self) {
+            #[cfg(feature = "debug")]
+            {
+                if let FiberId::Job(..) = fiber_info.id {
+                    use std::intrinsics;
+                    fiber_log!("latch not complete {:x}, type {}", latch as *const _ as usize, intrinsics::type_name::<L>());
+                }
+            }
             // Try to find some work to do. We give preference first
             // to things in our local deque, then in other workers
             // deques, and finally to injected jobs from the
             // outside. The idea is to finish what we started before
             // we take on something new.
-            if let Some(job) = self.take_local_job()
+            if let Some(fiber) = self.take_resumed_job() {
+                yields = self.registry.sleep.work_found(self.index, yields);
+                fiber_log!("worked {} picked up fiber {} in wait_until_cold", self.index(), fiber);
+                fiber.resume(self, ResumeAction::StoreInWaitable(waitable)).handle(self);
+
+                // Subtle: resuming this job will have `set()` some of its
+                // latches.  This may mean that a sleepy (or sleeping) worker
+                // can now make progress. So we have to tickle them to let
+                // them know.
+                // CHECK: Find out when this is needed
+                self.registry.sleep.tickle(self.index);
+                break; // If we resume again, the latch is set
+            } else if let Some(job) = self.take_local_job()
                                    .or_else(|| self.steal())
                                    .or_else(|| self.registry.pop_injected_job(self.index)) {
                 yields = self.registry.sleep.work_found(self.index, yields);
-                self.execute(job);
+                self.execute(job, ResumeAction::StoreInWaitable(waitable));
+                break; // If we resume again, the latch is set
             } else {
-                yields = self.registry.sleep.no_work_found(self.index, yields);
+                yields = self.registry.sleep.no_work_found(self, self.index, yields);
             }
+        }
+
+        #[cfg(feature = "debug")]
+        {
+            *fiber_info.action.lock() = FiberAction::Working;
         }
 
         // If we were sleepy, we are not anymore. We "found work" --
@@ -580,8 +804,8 @@ impl WorkerThread {
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
-    pub unsafe fn execute(&self, job: JobRef) {
-        job.execute();
+    pub unsafe fn execute(&self, job: JobRef, action: ResumeAction) {
+        Fiber::spawn(self, job, action).handle(self);
 
         // Subtle: executing this job will have `set()` some of its
         // latches.  This may mean that a sleepy (or sleeping) worker
@@ -631,17 +855,152 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
+#[cfg(feature = "debug")]
+lazy_static! {
+    pub static ref REGISTRIES: Mutex<Vec<Weak<Registry>>> = {
+        Mutex::new(Vec::new())
+    };
+}
+
+#[cfg(feature = "debug")]
+pub fn is_deadlocked(registry: &Registry) -> bool {
+    if registry.active_fibers.load(Ordering::SeqCst) == 0 {
+        return false;
+    }
+
+    for wt in &*registry.workers.lock() {
+        let worker = unsafe { &*(*wt as *const WorkerThread) };
+        if !worker.asleep.load(Ordering::SeqCst) {
+            return false
+        }
+    }
+
+    return registry.active_fibers.load(Ordering::SeqCst) > 0;
+}
+
+#[cfg(feature = "debug")]
+pub fn deadlock_check(registry: &Registry) {
+    if is_deadlocked(registry) {
+        debug_log!("\n\n ------ RAYON DEADLOCK FOUND ------");
+        loop {
+            ctrlc();
+            fiber::ctrlc();
+            #[cfg(windows)]
+            unsafe { ::kernel32::DebugBreak() };
+            #[cfg(not(windows))]
+            unsafe { asm!("ud2" ::::"volatile") };
+        }
+    }
+}
+
+#[cfg(feature = "debug")]
+pub fn ctrlc() {
+    debug_log!("------ registries ------");
+    for r in &*(REGISTRIES.lock()) {
+        let registry = if let Some(r) = r.upgrade() {
+            r
+        } else {
+            continue;
+        };
+
+        debug_log!("------ registry {:x} ------", &*registry as *const _ as usize);
+        debug_log!("  terminate_latch: {:?}", registry.terminate_latch.probe());
+
+        for wt in &*registry.workers.lock() {
+            print_worker(*wt);
+        }
+
+        debug_log!("------ end registry {:x} ------", &*registry as *const _ as usize);
+    }
+    debug_log!("------ end registries ------");
+}
+
+#[cfg(feature = "debug")]
+pub fn print_worker(wt: usize) {
+    unsafe {
+        let worker = &*(wt as *const WorkerThread);
+        debug_log!("worker {:x} - {}", wt, worker.index());
+        debug_log!("  stack_low: {:?}", worker.stack_low);
+        debug_log!("  stack_high: {:?}", worker.stack_high);
+        debug_log!("  asleep = {:?}", worker.asleep.load(Ordering::SeqCst));
+        debug_log!("  running fiber {:?}", worker.current_fiber.borrow().0);
+        let resumed_job = worker.take_resumed_job();
+        debug_log!("  take_resumed_job {:?}", resumed_job);
+        mem::forget(resumed_job);
+        debug_log!("  take_local_job {:?}", worker.take_local_job());
+        debug_log!("  pop_injected_job {:?}", worker.registry.pop_injected_job(worker.index));
+    }
+}
+
 unsafe fn main_loop(worker: Worker<JobRef>,
+                    rx_resumed_tasks: sync::mpsc::Receiver<Fiber>,
                     registry: Arc<Registry>,
                     index: usize,
                     breadth_first: bool) {
+    #[cfg(windows)]
+    {
+        use std::io;
+        use kernel32;
+
+        if kernel32::ConvertThreadToFiber(0i32 as _) == 0i32 as _ {
+            panic!("unable to convert worker thread to fiber {}", io::Error::last_os_error());
+        }
+    }
+
+    #[cfg(feature = "debug")]
+    use std::sync::Arc;
+/*    use libc;
+
+    let mut attr: libc::pthread_attr_t = mem::zeroed();
+    assert_eq!(libc::pthread_attr_init(&mut attr), 0);
+    assert_eq!(libc::pthread_getattr_np(libc::pthread_self(),
+                                        &mut attr), 0);
+    let mut stackaddr = 0 as *mut _;
+    let mut stacksize = 0;
+    assert_eq!(libc::pthread_attr_getstack(&attr, &mut stackaddr,
+                                            &mut stacksize), 0);
+    assert_eq!(libc::pthread_attr_destroy(&mut attr), 0);
+    let stack_low = stackaddr as usize;
+    let stack_high = stack_low + stacksize;
+*/
+
+    #[cfg(feature = "debug")]
+    let fiber_data = {
+        let mut stack_low = 0;
+        let mut stack_high = 0;
+        #[cfg(windows)] {
+            ::kernel32::GetCurrentThreadStackLimits(&mut stack_low, &mut stack_high)
+        }
+        Arc::new(fiber::FiberInfo::new(FiberId::Worker(index), stack_low as usize, stack_high as usize))
+    };
+    #[cfg(feature = "debug")]
+    let stack_low = *fiber_data.stack_low.lock();
+    #[cfg(feature = "debug")]
+    let stack_high = *fiber_data.stack_high.lock();
     let worker_thread = WorkerThread {
         worker: worker,
+        rx_resumed_tasks,
         breadth_first: breadth_first,
         index: index,
+        #[cfg(feature = "debug")]
+        stack_low,
+        #[cfg(feature = "debug")]
+        stack_high,
+        #[cfg(feature = "debug")]
+        asleep: AtomicBool::new(false),
         rng: UnsafeCell::new(rand::weak_rng()),
         registry: registry.clone(),
+        main_loop_fiber: Cell::new(None),
+        stack_cache: RefCell::new(Vec::new()),
+        #[cfg(feature = "debug")]
+        poisoned_stacks: RefCell::new(VecDeque::new()),
+        #[cfg(feature = "debug")]
+        current_fiber: RefCell::new((Some(fiber_data), None)),
     };
+
+    #[cfg(feature = "debug")]
+    registry.workers.lock().insert(&worker_thread as *const _ as usize);
+
     WorkerThread::set_current(&worker_thread);
 
     // let registry know we are ready to do work
@@ -664,13 +1023,44 @@ unsafe fn main_loop(worker: Worker<JobRef>,
         }
     }
 
-    worker_thread.wait_until(&registry.terminate_latch);
+    struct MainLoopWaiter;
+
+    impl Waitable for MainLoopWaiter {
+        fn complete(&self, worker_thread: &WorkerThread) -> bool {
+            worker_thread.registry.terminate_latch.probe()
+        }
+        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+            worker_thread.main_loop_fiber.set(Some(waiter));
+        }
+    }
+
+    let mut work = || {
+        while !registry.terminate_latch.probe() {
+            worker_thread.wait_until(&MainLoopWaiter);
+        }
+    };
+
+    if let Some(ref handler) = registry.main_handler {
+        let registry = registry.clone();
+        match unwind::halt_unwinding(|| handler(index, &mut work)) {
+            Ok(()) => {
+            }
+            Err(err) => {
+                registry.handle_panic(err);
+            }
+        }
+    } else {
+        work();
+    }
 
     // Should not be any work left in our queue.
     debug_assert!(worker_thread.take_local_job().is_none());
 
     // let registry know we are done
     registry.thread_infos[index].stopped.set();
+
+    #[cfg(feature = "debug")]
+    registry.workers.lock().remove(&(&worker_thread as *const _ as usize));
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
@@ -705,7 +1095,7 @@ pub fn in_worker<OP, R>(op: OP) -> R
             // invalidated until we return.
             op(&*owner_thread, false)
         } else {
-            global_registry().in_worker_cold(op)
+            with_current_registry(|r| r.in_worker_cold(op))
         }
     }
 }

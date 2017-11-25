@@ -132,6 +132,12 @@ impl CountLatch {
         debug_assert!(!self.probe());
         self.counter.fetch_add(1, Ordering::Relaxed);
     }
+
+    #[inline]
+    pub fn decrement(&self) -> bool {
+        debug_assert!(!self.probe());
+        self.counter.fetch_sub(1, Ordering::SeqCst) - 1 == 0
+    }
 }
 
 impl LatchProbe for CountLatch {

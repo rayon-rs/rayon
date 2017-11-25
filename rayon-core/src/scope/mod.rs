@@ -1,4 +1,4 @@
-use latch::{Latch, CountLatch};
+use latch::Latch;
 use log::Event::*;
 use job::HeapJob;
 use std::any::Any;
@@ -10,6 +10,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use registry::{in_worker, WorkerThread, Registry};
 use unwind;
+use fiber::SingleWaiterCountLatch;
+use PoisonedJob;
 
 #[cfg(test)]
 mod test;
@@ -31,8 +33,12 @@ pub struct Scope<'scope> {
     /// propagated to the one who created the scope
     panic: AtomicPtr<Box<Any + Send + 'static>>,
 
+    /// if some job panicked with PoisonedJob, the error is stored here; it will be
+    /// propagated to the one who created the scope unless there is a proper panic
+    poisoned_panic: AtomicPtr<Box<Any + Send + 'static>>,
+
     /// latch to set when the counter drops to zero (and hence this scope is complete)
-    job_completed_latch: CountLatch,
+    job_completed_latch: SingleWaiterCountLatch,
 
     /// You can think of a scope as containing a list of closures to execute,
     /// all of which outlive `'scope`.  They're not actually required to be
@@ -259,7 +265,8 @@ pub fn scope<'scope, OP, R>(op: OP) -> R
                 owner_thread_index: owner_thread.index(),
                 registry: owner_thread.registry().clone(),
                 panic: AtomicPtr::new(ptr::null_mut()),
-                job_completed_latch: CountLatch::new(),
+                poisoned_panic: AtomicPtr::new(ptr::null_mut()),
+                job_completed_latch: SingleWaiterCountLatch::new(),
                 marker: PhantomData,
             };
             let result = scope.execute_job_closure(op);
@@ -318,13 +325,17 @@ impl<'scope> Scope<'scope> {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
-        if self.panic.compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed).is_ok() {
+        let field = if err.is::<PoisonedJob>() {
+            &self.poisoned_panic
+        } else {
+            &self.panic
+        };
+        if field.compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed).is_ok() {
             log!(JobPanickedErrorStored { owner_thread: self.owner_thread_index });
-            mem::forget(err); // ownership now transferred into self.panic
+            mem::forget(err); // ownership now transferred into field
         } else {
             log!(JobPanickedErrorNotStored { owner_thread: self.owner_thread_index });
         }
-
 
         self.job_completed_latch.set();
     }
@@ -341,7 +352,10 @@ impl<'scope> Scope<'scope> {
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed
         // ordering:
-        let panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
+        let mut panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
+        if panic.is_null() {
+            panic = self.poisoned_panic.swap(ptr::null_mut(), Ordering::Relaxed);
+        }
         if !panic.is_null() {
             log!(ScopeCompletePanicked { owner_thread: owner_thread.index() });
             let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);

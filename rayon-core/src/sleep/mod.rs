@@ -6,6 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
+use registry::WorkerThread;
+#[cfg(feature = "debug")]
+use registry::deadlock_check;
 
 pub struct Sleep {
     state: AtomicUsize,
@@ -61,7 +64,7 @@ impl Sleep {
     }
 
     #[inline]
-    pub fn no_work_found(&self, worker_index: usize, yields: usize) -> usize {
+    pub fn no_work_found(&self, worker: &WorkerThread, worker_index: usize, yields: usize) -> usize {
         log!(DidNotFindWork {
             worker: worker_index,
             yields: yields,
@@ -86,7 +89,7 @@ impl Sleep {
             }
         } else {
             debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            self.sleep(worker_index);
+            self.sleep(worker, worker_index);
             0
         }
     }
@@ -98,7 +101,10 @@ impl Sleep {
         //   precede the call to `tickle()`, even though we did not do a write.
         let old_state = self.state.load(Ordering::SeqCst);
         if old_state != AWAKE {
+            fiber_log!("real tickle");
             self.tickle_cold(worker_index);
+        } else {
+            fiber_log!("dummy tickle");
         }
     }
 
@@ -182,7 +188,7 @@ impl Sleep {
         self.worker_is_sleepy(state, worker_index)
     }
 
-    fn sleep(&self, worker_index: usize) {
+    fn sleep(&self, _worker: &WorkerThread, worker_index: usize) {
         loop {
             // Acquire here suffices. If we observe that the current worker is still
             // sleepy, then in fact we know that no writes have occurred, and anyhow
@@ -254,7 +260,16 @@ impl Sleep {
                     // problem for us, we'll just loop around and maybe get
                     // sleepy again.
                     log!(FellAsleep { worker: worker_index });
+                    fiber_log!("worker {} fell asleep", worker_index);
+                    #[cfg(feature = "debug")]
+                    {
+                        _worker.asleep.store(true, Ordering::SeqCst);
+                        deadlock_check(&*_worker.registry);
+                    }
                     let _ = self.tickle.wait(data).unwrap();
+                    fiber_log!("worker {} woke up", worker_index);
+                    #[cfg(feature = "debug")]
+                    _worker.asleep.store(false, Ordering::SeqCst);
                     log!(GotAwoken { worker: worker_index });
                     return;
                 }
