@@ -47,7 +47,7 @@ impl Graph {
         if w.is_max() { None } else { Some(w) }
     }
 
-    pub fn edges<'a>(&'a self, source: Node) -> impl Iterator<Item=Edge> {
+    pub fn edges<'a>(&'a self, source: Node) -> impl Iterator<Item=Edge> + 'a {
         self.all_nodes()
             .filter_map(move |target| {
                 self.edge_weight(source, target)
