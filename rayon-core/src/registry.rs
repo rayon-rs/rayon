@@ -1,5 +1,5 @@
 use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
-use coco::deque::{self, Worker, Stealer};
+use crossbeam_deque::{Deque, Steal, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
 use job::Job;
@@ -63,7 +63,7 @@ pub struct Registry {
 }
 
 struct RegistryState {
-    job_injector: Worker<JobRef>,
+    job_injector: Deque<JobRef>,
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -114,11 +114,17 @@ impl<'a> Drop for Terminator<'a> {
 
 impl Registry {
     pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
+        const MIN_DEQUE_CAPACITY: usize = 1000;
+
         let n_threads = configuration.get_num_threads();
         let breadth_first = configuration.get_breadth_first();
 
-        let (inj_worker, inj_stealer) = deque::new();
-        let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
+        let inj_worker = Deque::with_min_capacity(MIN_DEQUE_CAPACITY);
+        let inj_stealer = inj_worker.stealer();
+        let workers: Vec<_> = (0..n_threads)
+            .map(|_| Deque::with_min_capacity(MIN_DEQUE_CAPACITY))
+            .collect();
+        let stealers: Vec<_> = workers.iter().map(|d| d.stealer()).collect();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter()
@@ -320,7 +326,13 @@ impl Registry {
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
-        let stolen = self.job_uninjector.steal();
+        let stolen = loop {
+            match self.job_uninjector.steal() {
+                Steal::Empty => break None,
+                Steal::Data(d) => break Some(d),
+                Steal::Retry => {},
+            }
+        };
         if stolen.is_some() {
             log!(UninjectedWork { worker: worker_index });
         }
@@ -423,7 +435,7 @@ pub struct RegistryId {
 }
 
 impl RegistryState {
-    pub fn new(job_injector: Worker<JobRef>) -> RegistryState {
+    pub fn new(job_injector: Deque<JobRef>) -> RegistryState {
         RegistryState {
             job_injector: job_injector,
         }
@@ -459,7 +471,7 @@ impl ThreadInfo {
 
 pub struct WorkerThread {
     /// the "worker" half of our local deque
-    worker: Worker<JobRef>,
+    worker: Deque<JobRef>,
 
     index: usize,
 
@@ -531,7 +543,13 @@ impl WorkerThread {
         if !self.breadth_first {
             self.worker.pop()
         } else {
-            self.worker.steal()
+            loop {
+                match self.worker.steal() {
+                    Steal::Empty => break None,
+                    Steal::Data(d) => break Some(d),
+                    Steal::Retry => {},
+                }
+            }
         }
     }
 
@@ -619,7 +637,13 @@ impl WorkerThread {
             .filter(|&i| i != self.index)
             .filter_map(|victim_index| {
                 let victim = &self.registry.thread_infos[victim_index];
-                let stolen = victim.stealer.steal();
+                let stolen = loop {
+                    match victim.stealer.steal() {
+                        Steal::Empty => break None,
+                        Steal::Data(d) => break Some(d),
+                        Steal::Retry => {},
+                    }
+                };
                 if stolen.is_some() {
                     log!(StoleWork { worker: self.index, victim: victim_index });
                 }
@@ -631,7 +655,7 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(worker: Worker<JobRef>,
+unsafe fn main_loop(worker: Deque<JobRef>,
                     registry: Arc<Registry>,
                     index: usize,
                     breadth_first: bool) {
