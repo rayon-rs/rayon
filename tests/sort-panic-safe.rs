@@ -4,7 +4,6 @@ extern crate rayon;
 extern crate rand;
 
 use rand::{thread_rng, Rng};
-use rayon::*;
 use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::{self, Ordering};
@@ -118,7 +117,8 @@ macro_rules! test {
 
 thread_local!(static SILENCE_PANIC: Cell<bool> = Cell::new(false));
 
-fn main() {
+#[test]
+fn sort_panic_safe() {
     let prev = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         if !SILENCE_PANIC.with(|s| s.get()) {
