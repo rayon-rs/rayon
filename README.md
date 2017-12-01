@@ -38,7 +38,7 @@ Rayon currently requires `rustc 1.12.0` or greater.
 recommended way to use it is to add a line into your Cargo.toml such
 as:
 
-```rust
+```toml
 [dependencies]
 rayon = "0.9"
 ```
