@@ -67,6 +67,8 @@ mod interleave_shortest;
 pub use self::interleave_shortest::InterleaveShortest;
 mod intersperse;
 pub use self::intersperse::Intersperse;
+mod update;
+pub use self::update::Update;
 
 mod noop;
 mod rev;
@@ -1181,6 +1183,25 @@ pub trait ParallelIterator: Sized + Send {
         where Self::Item: Clone
     {
         intersperse::new(self, element)
+    }
+
+    /// Mutates each item of this iterator before yielding it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut par_iter = (0..5).into_par_iter().update(|mut x| {*x *= 2;});
+    ///
+    /// let doubles: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&doubles[..], &[0, 2, 4, 6, 8]);
+    /// ```
+    fn update<F>(self, update_op: F) -> Update<Self, F>
+        where F: Fn(&mut Self::Item) + Sync + Send
+    {
+        update::new(self, update_op)
     }
 
     /// Internal method used to define the behavior of this parallel

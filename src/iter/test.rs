@@ -1918,3 +1918,13 @@ fn check_once() {
     let v: Vec<(i32, i32)> = once(42).zip(1..10).collect();
     assert_eq!(v, &[(42, 1)]);
 }
+
+#[test]
+fn check_update() {
+    let mut v: Vec<Vec<_>> = vec![vec![1], vec![3, 2, 1]];
+    v.par_iter_mut()
+        .update(|v| v.push(0))
+        .for_each(|_|());
+
+    assert_eq!(v, vec![vec![1, 0], vec![3, 2, 1, 0]]);
+}
