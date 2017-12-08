@@ -205,6 +205,12 @@ fn inspect() {
 }
 
 #[test]
+fn update() {
+    let v: Vec<_> = (0..10).collect();
+    check(&v, || (0..10).into_par_iter().update(|_| ()));
+}
+
+#[test]
 fn interleave() {
     let v = [0, 10, 1, 11, 2, 12, 3, 4];
     check(&v, || (0..5).into_par_iter().interleave(10..13));

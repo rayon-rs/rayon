@@ -19,6 +19,7 @@ fn main() {
     v.par_iter().fold(|| 0, |x, _| x);      //~ ERROR must be used
     v.par_iter().fold_with(0, |x, _| x);    //~ ERROR must be used
     v.par_iter().inspect(|_| {});           //~ ERROR must be used
+    v.par_iter().update(|_| {});            //~ ERROR must be used
     v.par_iter().interleave(&v);            //~ ERROR must be used
     v.par_iter().interleave_shortest(&v);   //~ ERROR must be used
     v.par_iter().intersperse(&None);        //~ ERROR must be used
