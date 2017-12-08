@@ -117,6 +117,7 @@ fn clone_adaptors() {
     check(v.par_iter().with_max_len(1).fold(|| 0, |x, _| x));
     check(v.par_iter().with_max_len(1).fold_with(0, |x, _| x));
     check(v.par_iter().inspect(|_| ()));
+    check(v.par_iter().update(|_| ()));
     check(v.par_iter().interleave(&v));
     check(v.par_iter().interleave_shortest(&v));
     check(v.par_iter().intersperse(&None));
