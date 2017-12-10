@@ -1,15 +1,28 @@
 //! Some microbenchmarks that stress test a pure `join` path.
 
 use rayon;
-use rayon_core;
+use rayon_core::registry::{self, Registry};
+use rayon_core::latch::Latch;
+use rayon_core::fiber::WaiterLatch;
 use rayon::prelude::*;
 use test::Bencher;
 use std::usize;
 
 #[bench]
+fn unused_latch(b: &mut Bencher) {
+    b.iter(|| {
+        for i in 0..700 {
+            let mut latch = WaiterLatch::new();
+            latch.set();
+            Registry::current().signal();
+        }
+    });
+}
+
+#[bench]
 fn join_overhead(b: &mut Bencher) {
     b.iter(|| {
-        rayon_core::registry::in_worker(|_, _| {
+        registry::in_worker(|_, _| {
             for i in 0..70000 {
                 rayon::join(|| {
                     unsafe { asm!(""::::"volatile") };
@@ -25,7 +38,7 @@ fn join_overhead(b: &mut Bencher) {
 fn install_overhead(b: &mut Bencher) {
     b.iter(|| {
         for i in 0..7000 {
-            rayon_core::registry::in_worker(|_, _| {
+            registry::in_worker(|_, _| {
                 unsafe { asm!(""::::"volatile") };
             });
         }
