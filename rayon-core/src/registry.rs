@@ -13,7 +13,7 @@ use std::any::Any;
 use std::error::Error;
 use std::cell::{RefCell, Cell, UnsafeCell};
 use parking_lot::Mutex;
-use std::sync::{self, Arc, Once, ONCE_INIT};
+use std::sync::{Arc, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
 use std::fmt;
@@ -21,6 +21,7 @@ use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
+use crossbeam_channel;
 use fiber::{FiberStack, Fiber, ResumeAction, Waitable, TransferInfo};
 #[cfg(feature = "debug")]
 use fiber;
@@ -205,7 +206,7 @@ impl Registry {
         
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
         let (tx_ready_tasks, rx_resumed_tasks): (Vec<_>, Vec<_>) = {
-            (0..n_threads).map(|_| sync::mpsc::channel()).unzip()
+            (0..n_threads).map(|_| crossbeam_channel::unbounded()).unzip()
         };
 
         let registry = Arc::new(Registry {
@@ -330,7 +331,7 @@ impl Registry {
     }
 
     pub fn resume_fiber(&self, worker_index: usize, fiber: Fiber) {
-        let sender = self.thread_infos[worker_index].tx_ready_tasks.lock();
+        let sender = &self.thread_infos[worker_index].tx_ready_tasks;
         sender.send(fiber).unwrap();
     }
 
@@ -565,16 +566,16 @@ struct ThreadInfo {
     stealer: Stealer<JobRef>,
 
     /// submit tasks which were waiting on other things, but are now ready to run
-    tx_ready_tasks: Mutex<sync::mpsc::Sender<Fiber>>,
+    tx_ready_tasks: crossbeam_channel::Sender<Fiber>,
 }
 
 impl ThreadInfo {
-    fn new(stealer: Stealer<JobRef>, tx_ready_tasks: sync::mpsc::Sender<Fiber>) -> ThreadInfo {
+    fn new(stealer: Stealer<JobRef>, tx_ready_tasks: crossbeam_channel::Sender<Fiber>) -> ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
             stealer: stealer,
-            tx_ready_tasks: Mutex::new(tx_ready_tasks),
+            tx_ready_tasks,
         }
     }
 }
@@ -586,7 +587,7 @@ pub struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Worker<JobRef>,
 
-    rx_resumed_tasks: sync::mpsc::Receiver<Fiber>,
+    rx_resumed_tasks: crossbeam_channel::Receiver<Fiber>,
 
     index: usize,
 
@@ -933,7 +934,7 @@ pub fn print_worker(wt: usize) {
 }
 
 unsafe fn main_loop(worker: Worker<JobRef>,
-                    rx_resumed_tasks: sync::mpsc::Receiver<Fiber>,
+                    rx_resumed_tasks: crossbeam_channel::Receiver<Fiber>,
                     registry: Arc<Registry>,
                     index: usize,
                     breadth_first: bool) {

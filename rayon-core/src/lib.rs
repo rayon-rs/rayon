@@ -51,6 +51,7 @@ extern crate test as bench;
 extern crate kernel32;
 #[cfg(windows)]
 extern crate winapi;
+extern crate crossbeam_channel;
 
 #[macro_use]
 mod log;

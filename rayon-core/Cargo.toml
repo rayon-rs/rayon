@@ -22,6 +22,7 @@ lazy_static = "1"
 context = { git = "https://github.com/Zoxc/context-rs.git" }
 ctrlc = "3.0.3"
 scoped-tls = { git = "https://github.com/Zoxc/scoped-tls.git", features=["nightly"] }
+crossbeam-channel = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 kernel32-sys = "0.2.2"

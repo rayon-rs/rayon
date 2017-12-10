@@ -482,8 +482,11 @@ pub struct WinFiber(winapi::PVOID);
 
 #[cfg(windows)]
 impl WinFiber {
+    #[cfg(debug)]
     fn top(&self) -> *const () { 0i32 as _ }
+    #[cfg(debug)]
     fn bottom(&self) -> *const () { 0i32 as _ }
+    #[cfg(debug)]
     fn poison(&self) { }
 
     fn new(stack_size: usize) -> Option<Self> {
