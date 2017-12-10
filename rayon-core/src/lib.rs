@@ -45,7 +45,9 @@ extern crate parking_lot;
 extern crate libc;
 extern crate num_cpus;
 extern crate rand;
+#[cfg(feature = "debug")]
 extern crate ctrlc;
+#[cfg(test)]
 extern crate test as bench;
 #[cfg(windows)]
 extern crate kernel32;

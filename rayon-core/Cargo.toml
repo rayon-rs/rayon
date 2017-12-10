@@ -20,9 +20,9 @@ coco = "0.3.2"
 libc = "0.2.16"
 lazy_static = "1"
 context = { git = "https://github.com/Zoxc/context-rs.git" }
-ctrlc = "3.0.3"
 scoped-tls = { git = "https://github.com/Zoxc/scoped-tls.git", features=["nightly"] }
 crossbeam-channel = "0.1"
+ctrlc = { version = "3.0.3", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 kernel32-sys = "0.2.2"
@@ -36,7 +36,7 @@ features = ["nightly"]
 gcc = "0.3.10"
 
 [features]
-debug = []
+debug = ["ctrlc"]
 tlv = []
 
 [dev-dependencies]
