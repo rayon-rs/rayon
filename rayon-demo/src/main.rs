@@ -1,5 +1,6 @@
 #![cfg_attr(test, feature(test))]
 #![feature(conservative_impl_trait)]
+#![feature(asm)]
 
 use std::env;
 use std::io;
@@ -23,9 +24,11 @@ mod life;
 #[cfg(test)] mod fibonacci;
 #[cfg(test)] mod find;
 #[cfg(test)] mod join_microbench;
+#[cfg(test)] mod core_microbench;
 #[cfg(test)] mod str_split;
 #[cfg(test)] mod sort;
 
+extern crate rayon_core; // core_microbench
 extern crate rayon; // all
 extern crate docopt; // all
 #[macro_use]
