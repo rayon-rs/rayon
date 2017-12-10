@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 rayon = { path = "../" }
+rayon-core = { path = "../rayon-core" }
 cgmath = "0.15"
 docopt = "0.8"
 fixedbitset = "0.1.5"

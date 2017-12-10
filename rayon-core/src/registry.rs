@@ -69,9 +69,9 @@ unsafe impl Sync for ThreadHandle {}
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
-    state: Mutex<RegistryState>,
+    job_injector: crossbeam_channel::Sender<JobRef>,
     pub sleep: Sleep,
-    job_uninjector: Stealer<JobRef>,
+    job_uninjector: crossbeam_channel::Receiver<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     main_handler: Option<Box<MainHandler>>,
@@ -100,10 +100,6 @@ pub struct Registry {
 
     #[cfg(windows)]
     pub handles: Mutex<Vec<ThreadHandle>>,
-}
-
-struct RegistryState {
-    job_injector: Worker<JobRef>,
 }
 
 scoped_thread_local!(static CURRENT_REGISTRY: Arc<Registry>);
@@ -202,7 +198,7 @@ impl Registry {
             std::process::abort();
         }).ok();
 
-        let (inj_worker, inj_stealer) = deque::new();
+        let (job_injector, job_uninjector) = crossbeam_channel::unbounded();
         
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
         let (tx_ready_tasks, rx_resumed_tasks): (Vec<_>, Vec<_>) = {
@@ -213,13 +209,13 @@ impl Registry {
             thread_infos: stealers.into_iter().zip(tx_ready_tasks.into_iter())
                 .map(|(s, r)| ThreadInfo::new(s, r))
                 .collect(),
-            state: Mutex::new(RegistryState::new(inj_worker)),
+            job_injector,
+            job_uninjector,
             sleep: Sleep::new(),
             #[cfg(feature = "debug")]
             workers: Mutex::new(HashSet::new()),
             #[cfg(feature = "debug")]
             active_fibers: AtomicUsize::new(0),
-            job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
             panic_handler: configuration.take_panic_handler(),
             start_handler: configuration.take_start_handler(),
@@ -425,8 +421,6 @@ impl Registry {
     pub fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs { count: injected_jobs.len() });
         {
-            let state = self.state.lock();
-
             // It should not be possible for `state.terminate` to be true
             // here. It is only set to true when the user creates (and
             // drops) a `ThreadPool`; and, in that case, they cannot be
@@ -435,14 +429,14 @@ impl Registry {
             assert!(!self.terminate_latch.probe(), "inject() sees state.terminate as true");
 
             for &job_ref in injected_jobs {
-                state.job_injector.push(job_ref);
+                self.job_injector.send(job_ref).unwrap();
             }
         }
         self.sleep.tickle(usize::MAX);
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
-        let stolen = self.job_uninjector.steal();
+        let stolen = self.job_uninjector.try_recv().ok();
         if stolen.is_some() {
             log!(UninjectedWork { worker: worker_index });
         }
@@ -542,14 +536,6 @@ impl Registry {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RegistryId {
     addr: usize
-}
-
-impl RegistryState {
-    pub fn new(job_injector: Worker<JobRef>) -> RegistryState {
-        RegistryState {
-            job_injector: job_injector,
-        }
-    }
 }
 
 struct ThreadInfo {
