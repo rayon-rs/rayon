@@ -21,11 +21,6 @@ mod internal;
 ///
 ///[`scope()`]: fn.scope.html
 pub struct Scope<'scope> {
-    /// thread where `scope()` was executed (note that individual jobs
-    /// may be executing on different worker threads, though they
-    /// should always be within the same pool of threads)
-    owner_thread_index: usize,
-
     /// thread registry where `scope()` was executed.
     registry: Arc<Registry>,
 
@@ -257,23 +252,22 @@ pub struct Scope<'scope> {
 /// returns once all spawned jobs have completed, and any panics are
 /// propagated at that point.
 pub fn scope<'scope, OP, R>(op: OP) -> R
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send,
+    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope
 {
-    in_worker(|owner_thread, _| {
-        unsafe {
-            let scope: Scope<'scope> = Scope {
-                owner_thread_index: owner_thread.index(),
-                registry: owner_thread.registry().clone(),
-                panic: AtomicPtr::new(ptr::null_mut()),
-                poisoned_panic: AtomicPtr::new(ptr::null_mut()),
-                job_completed_latch: SingleWaiterCountLatch::new(),
-                marker: PhantomData,
-            };
-            let result = scope.execute_job_closure(op);
+    unsafe {
+        let scope: Scope<'scope> = Scope {
+            registry: Registry::current(),
+            panic: AtomicPtr::new(ptr::null_mut()),
+            poisoned_panic: AtomicPtr::new(ptr::null_mut()),
+            job_completed_latch: SingleWaiterCountLatch::new(),
+            marker: PhantomData,
+        };
+        let result = scope.execute_job_closure(op);
+        in_worker(|owner_thread, _| {
             scope.steal_till_jobs_complete(owner_thread);
-            result.unwrap() // only None if `op` panicked, and that would have been propagated
-        }
-    })
+        });
+        result.unwrap() // only None if `op` panicked, and that would have been propagated
+    }
 }
 
 impl<'scope> Scope<'scope> {
@@ -331,17 +325,17 @@ impl<'scope> Scope<'scope> {
             &self.panic
         };
         if field.compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed).is_ok() {
-            log!(JobPanickedErrorStored { owner_thread: self.owner_thread_index });
+            log!(JobPanickedErrorStored);
             mem::forget(err); // ownership now transferred into field
         } else {
-            log!(JobPanickedErrorNotStored { owner_thread: self.owner_thread_index });
+            log!(JobPanickedErrorNotStored);
         }
 
         self.job_completed_latch.set();
     }
 
     unsafe fn job_completed_ok(&self) {
-        log!(JobCompletedOk { owner_thread: self.owner_thread_index });
+        log!(JobCompletedOk);
         self.job_completed_latch.set();
     }
 
@@ -357,11 +351,11 @@ impl<'scope> Scope<'scope> {
             panic = self.poisoned_panic.swap(ptr::null_mut(), Ordering::Relaxed);
         }
         if !panic.is_null() {
-            log!(ScopeCompletePanicked { owner_thread: owner_thread.index() });
+            log!(ScopeCompletePanicked);
             let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);
             unwind::resume_unwinding(*value);
         } else {
-            log!(ScopeCompleteNoPanic { owner_thread: owner_thread.index() });
+            log!(ScopeCompleteNoPanic);
         }
     }
 }
@@ -370,7 +364,6 @@ impl<'scope> fmt::Debug for Scope<'scope> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Scope")
             .field("pool_id", &self.registry.id())
-            .field("owner_thread_index", &self.owner_thread_index)
             .field("panic", &self.panic)
             .field("job_completed_latch", &self.job_completed_latch)
             .finish()

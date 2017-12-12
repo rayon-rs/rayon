@@ -29,11 +29,11 @@ pub enum Event {
     PoppedJob { worker: usize },
     PoppedRhs { worker: usize },
     LostJob { worker: usize },
-    JobCompletedOk { owner_thread: usize },
-    JobPanickedErrorStored { owner_thread: usize },
-    JobPanickedErrorNotStored { owner_thread: usize },
-    ScopeCompletePanicked { owner_thread: usize },
-    ScopeCompleteNoPanic { owner_thread: usize },
+    JobCompletedOk,
+    JobPanickedErrorStored,
+    JobPanickedErrorNotStored,
+    ScopeCompletePanicked,
+    ScopeCompleteNoPanic,
 }
 
 pub const DUMP_LOGS: bool = cfg!(debug_assertions);
