@@ -70,7 +70,7 @@ impl Latch for SpinLatch {
 
 /// A Latch starts as false and eventually becomes true. You can block
 /// until it becomes true.
-pub struct LockLatch {
+pub struct LockLatch { // FIXME: Use parking_lot
     m: Mutex<bool>,
     v: Condvar,
 }

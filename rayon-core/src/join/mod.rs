@@ -3,7 +3,7 @@ use log::Event::*;
 use job::StackJob;
 use registry::{self, WorkerThread};
 use unwind;
-use fiber::{Waitable, Fiber, ResumeAction};
+use fiber::{self, Waitable, Fiber, ResumeAction};
 
 use FnContext;
 use fiber::SingleWaiterLatch;
@@ -84,6 +84,8 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
         job_b.latch.start();
         worker_thread.push(job_b_ref);
 
+        let tcx = fiber::tlv::get();
+
         // Execute task a; hopefully b gets stolen in the meantime.
         let status_a = unwind::halt_unwinding(move || oper_a(FnContext::new(injected)));
         let result_a = match status_a {
@@ -144,6 +146,8 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                 break;
             }
         }
+
+        assert_eq!(tcx, fiber::tlv::get());
 
         return (result_a, job_b.into_result());
     })
