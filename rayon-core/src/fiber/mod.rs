@@ -61,6 +61,31 @@ pub mod tlv {
     pub fn get() -> usize {
         TLV.with(|tlv| tlv.get())
     }
+
+    #[test]
+    fn tlv_is_preserved() {
+        use fiber::WaiterLatch;
+        use scope::scope;
+        use registry;
+        use latch::Latch;
+
+        set(999, || {
+            let latch = WaiterLatch::new();
+            let tcx = get();
+            registry::in_worker(|worker, _| {
+                scope(|s| {
+                    for i in 0..100 {
+                        s.spawn(move |_| {  TLV.with(|tlv| tlv.set(i)); });
+                    }
+                    s.spawn(|_| { latch.set(); });
+                    unsafe {
+                        worker.wait_until(&latch);
+                    }
+                });
+            });
+            assert_eq!(tcx, get());
+        });
+    }
 }
 
 #[cfg(windows)]
@@ -648,6 +673,9 @@ impl Fiber {
             *worker_thread.current_fiber.borrow_mut() = new;
         }
 
+        #[cfg(feature = "tlv")]
+        let saved_tlv = tlv::get();
+
         let result = unsafe {
             #[cfg(windows)]
             {
@@ -668,6 +696,10 @@ impl Fiber {
                 }
             }
         };
+
+        #[cfg(feature = "tlv")]
+        tlv::TLV.with(|tlv| tlv.set(saved_tlv));
+
         mem::forget(data);
         result
     }
