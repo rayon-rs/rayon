@@ -12,7 +12,7 @@ use registry::deadlock_check;
 
 pub struct Sleep {
     state: AtomicUsize,
-    data: Mutex<()>,
+    data: Mutex<usize>,
     tickle: Condvar,
 }
 
@@ -23,10 +23,10 @@ const ROUNDS_UNTIL_SLEEPY: usize = 32;
 const ROUNDS_UNTIL_ASLEEP: usize = 64;
 
 impl Sleep {
-    pub fn new() -> Sleep {
+    pub fn new(worker_count: usize) -> Sleep {
         Sleep {
             state: AtomicUsize::new(AWAKE),
-            data: Mutex::new(()),
+            data: Mutex::new(worker_count),
             tickle: Condvar::new(),
         }
     }
@@ -64,12 +64,16 @@ impl Sleep {
     }
 
     #[inline]
-    pub fn no_work_found(&self, worker: &WorkerThread, worker_index: usize, yields: usize) -> usize {
+    pub fn no_work_found(&self,
+                         worker: &WorkerThread,
+                         worker_index: usize,
+                         yields: usize,
+                         can_deadlock: bool) -> (usize, bool) {
         log!(DidNotFindWork {
             worker: worker_index,
             yields: yields,
         });
-        if yields < ROUNDS_UNTIL_SLEEPY {
+        let r = if yields < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
             yields + 1
         } else if yields == ROUNDS_UNTIL_SLEEPY {
@@ -89,9 +93,9 @@ impl Sleep {
             }
         } else {
             debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            self.sleep(worker, worker_index);
-            0
-        }
+            return (0, self.sleep(worker, worker_index, can_deadlock))
+        };
+        (r, false)
     }
 
     pub fn tickle(&self, worker_index: usize) {
@@ -188,7 +192,7 @@ impl Sleep {
         self.worker_is_sleepy(state, worker_index)
     }
 
-    fn sleep(&self, _worker: &WorkerThread, worker_index: usize) {
+    fn sleep(&self, _worker: &WorkerThread, worker_index: usize, can_deadlock: bool) -> bool {
         loop {
             // Acquire here suffices. If we observe that the current worker is still
             // sleepy, then in fact we know that no writes have occurred, and anyhow
@@ -235,7 +239,7 @@ impl Sleep {
                 // reason for the `compare_exchange` to fail is if an
                 // awaken comes, in which case the next cycle around
                 // the loop will just return.
-                let data = self.data.lock().unwrap();
+                let mut worker_count = self.data.lock().unwrap();
 
                 // This must be SeqCst on success because we want to
                 // ensure:
@@ -260,22 +264,35 @@ impl Sleep {
                     // problem for us, we'll just loop around and maybe get
                     // sleepy again.
                     log!(FellAsleep { worker: worker_index });
+
                     fiber_log!("worker {} fell asleep", worker_index);
                     #[cfg(feature = "debug")]
-                    {
-                        _worker.asleep.store(true, Ordering::SeqCst);
-                        deadlock_check(&*_worker.registry);
+                    _worker.asleep.store(true, Ordering::SeqCst);
+
+                    let new_worker_count = *worker_count - 1;
+                    if new_worker_count == 0 { // Deadlock
+                        if can_deadlock {
+                            return true;
+                        } else {
+                            #[cfg(feature = "debug")]
+                            deadlock_check(&*_worker.registry);
+                            panic!("deadlock in rayon");
+                        }
                     }
-                    let _ = self.tickle.wait(data).unwrap();
+                    *worker_count = new_worker_count;
+                    let mut worker_count = self.tickle.wait(worker_count).unwrap();
+                    *worker_count = *worker_count + 1;
+
                     fiber_log!("worker {} woke up", worker_index);
                     #[cfg(feature = "debug")]
                     _worker.asleep.store(false, Ordering::SeqCst);
+
                     log!(GotAwoken { worker: worker_index });
-                    return;
+                    return false;
                 }
             } else {
                 log!(GotInterrupted { worker: worker_index });
-                return;
+                return false;
             }
         }
     }

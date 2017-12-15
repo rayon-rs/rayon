@@ -200,7 +200,15 @@ mod normal {
             self.probe()
         }
 
-        fn await(&self, worker_thread: &WorkerThread, mut waiter: Fiber) {
+        fn can_deadlock(&self) -> bool {
+            false
+        }
+
+        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
+            panic!();
+        }
+
+        fn await(&self, worker_thread: &WorkerThread, mut waiter: Fiber, _tlv: usize) {
             loop {
                 match self.state.load(Ordering::SeqCst) {
                     0 => {
@@ -264,7 +272,15 @@ mod normal {
             self.probe()
         }
 
-        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+        fn can_deadlock(&self) -> bool {
+            false
+        }
+
+        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
+            panic!();
+        }
+
+        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
             let mut data = self.data.lock();
             if data.0 {
                 #[cfg(feature = "debug")]
@@ -345,7 +361,15 @@ impl Waitable for SingleWaiterCountLatch {
         self.probe()
     }
 
-    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+    fn can_deadlock(&self) -> bool {
+        false
+    }
+
+    fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
+        panic!();
+    }
+
+    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
         let mut data = self.data.lock();
         if data.0 > 0 {
             data.1 = Some((worker_thread.index(), waiter));
@@ -407,20 +431,22 @@ impl Drop for Fiber {
 }
 
 pub trait Waitable {
+    fn can_deadlock(&self) -> bool;
+    fn handle_deadlock(&self, worker_thread: &WorkerThread) -> !;
     fn complete(&self, worker_thread: &WorkerThread) -> bool;
-    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber);
+    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, tlv: usize);
 }
 
 pub enum ResumeAction {
-    StoreInWaitable(*const Waitable),
+    StoreInWaitable(*const Waitable, usize),
     FreeStack(FiberStack),
 }
 
 impl ResumeAction {
     fn run(self, worker_thread: &WorkerThread, fiber: Fiber) {
         match self {
-            ResumeAction::StoreInWaitable(waitable) => {
-                unsafe { (*waitable).await(worker_thread, fiber) }
+            ResumeAction::StoreInWaitable(waitable, tlv) => {
+                unsafe { (*waitable).await(worker_thread, fiber, tlv) }
             }
             ResumeAction::FreeStack(stack) => {
                 #[cfg(feature = "debug")]

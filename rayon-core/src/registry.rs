@@ -22,7 +22,7 @@ use std::usize;
 use unwind;
 use util::leak;
 use crossbeam_channel;
-use fiber::{FiberStack, Fiber, ResumeAction, Waitable, TransferInfo};
+use fiber::{tlv, FiberStack, Fiber, ResumeAction, Waitable, TransferInfo};
 #[cfg(feature = "debug")]
 use fiber;
 #[cfg(feature = "debug")]
@@ -211,7 +211,7 @@ impl Registry {
                 .collect(),
             job_injector,
             job_uninjector,
-            sleep: Sleep::new(),
+            sleep: Sleep::new(n_threads),
             #[cfg(feature = "debug")]
             workers: Mutex::new(HashSet::new()),
             #[cfg(feature = "debug")]
@@ -688,7 +688,7 @@ impl WorkerThread {
     }
 
     #[cold]
-    pub unsafe fn find_work<'a>(&self, action: ResumeAction) -> TransferInfo {
+    pub unsafe fn find_work(&self, action: ResumeAction) -> TransferInfo {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the
@@ -757,7 +757,8 @@ impl WorkerThread {
             if let Some(fiber) = self.take_resumed_job() {
                 yields = self.registry.sleep.work_found(self.index, yields);
                 fiber_log!("worked {} picked up fiber {} in wait_until_cold", self.index(), fiber);
-                fiber.resume(self, ResumeAction::StoreInWaitable(waitable)).handle(self);
+                let action = ResumeAction::StoreInWaitable(waitable, tlv::get());
+                fiber.resume(self, action).handle(self);
 
                 // Subtle: resuming this job will have `set()` some of its
                 // latches.  This may mean that a sleepy (or sleeping) worker
@@ -770,10 +771,21 @@ impl WorkerThread {
                                    .or_else(|| self.steal())
                                    .or_else(|| self.registry.pop_injected_job(self.index)) {
                 yields = self.registry.sleep.work_found(self.index, yields);
-                self.execute(job, ResumeAction::StoreInWaitable(waitable));
+                let action = ResumeAction::StoreInWaitable(waitable, tlv::get());
+                self.execute(job, action);
                 break; // If we resume again, the latch is set
             } else {
-                yields = self.registry.sleep.no_work_found(self, self.index, yields);
+                let (new_yields,
+                     deadlock) = self.registry.sleep.no_work_found(self,
+                                                                   self.index,
+                                                                   yields,
+                                                                   latch.can_deadlock());
+                yields = new_yields;
+                if deadlock {
+                    self.registry.sleep.work_found(self.index, yields);
+                    mem::forget(abort_guard);
+                    latch.handle_deadlock(self);
+                }
             }
         }
 
@@ -1016,7 +1028,16 @@ unsafe fn main_loop(worker: Worker<JobRef>,
         fn complete(&self, worker_thread: &WorkerThread) -> bool {
             worker_thread.registry.terminate_latch.probe()
         }
-        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+
+        fn can_deadlock(&self) -> bool {
+            false
+        }
+
+        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
+            panic!();
+        }
+
+        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
             worker_thread.main_loop_fiber.set(Some(waiter));
         }
     }

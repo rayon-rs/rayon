@@ -36,6 +36,7 @@ features = ["nightly"]
 gcc = "0.3.10"
 
 [features]
+default = ["tlv"]
 debug = ["ctrlc"]
 tlv = []
 

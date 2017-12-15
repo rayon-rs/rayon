@@ -3,7 +3,7 @@ use log::Event::*;
 use job::StackJob;
 use registry::{self, WorkerThread};
 use unwind;
-use fiber::{self, Waitable, Fiber, ResumeAction};
+use fiber::{Waitable, Fiber, ResumeAction};
 
 use FnContext;
 use fiber::SingleWaiterLatch;
@@ -84,8 +84,6 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
         job_b.latch.start();
         worker_thread.push(job_b_ref);
 
-        let tcx = fiber::tlv::get();
-
         // Execute task a; hopefully b gets stolen in the meantime.
         let status_a = unwind::halt_unwinding(move || oper_a(FnContext::new(injected)));
         let result_a = match status_a {
@@ -128,13 +126,21 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                             panic!()
                         }
 
-                        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+                        fn can_deadlock(&self) -> bool {
+                            false
+                        }
+
+                        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
+                            panic!();
+                        }
+
+                        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
                             let worker_index = worker_thread.index();
                             worker_thread.registry.resume_fiber(worker_index, waiter);
                         }
                     }
 
-                    worker_thread.execute(job, ResumeAction::StoreInWaitable(&ResumeAgain));
+                    worker_thread.execute(job, ResumeAction::StoreInWaitable(&ResumeAgain, 0));
                 }
             } else {
                 // CHECK: This can steal our job back to this thread
@@ -146,8 +152,6 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                 break;
             }
         }
-
-        assert_eq!(tcx, fiber::tlv::get());
 
         return (result_a, job_b.into_result());
     })
