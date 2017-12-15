@@ -276,7 +276,8 @@ impl Sleep {
                         } else {
                             #[cfg(feature = "debug")]
                             deadlock_check(&*_worker.registry);
-                            panic!("deadlock in rayon");
+                            /*eprintln!("\ndeadlock in rayon");
+                            panic!("deadlock in rayon");*/
                         }
                     }
                     *worker_count = new_worker_count;
