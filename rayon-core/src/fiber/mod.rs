@@ -201,7 +201,7 @@ mod normal {
         }
 
         fn can_deadlock(&self) -> bool {
-            false
+            true
         }
 
         fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
@@ -273,7 +273,7 @@ mod normal {
         }
 
         fn can_deadlock(&self) -> bool {
-            false
+            true
         }
 
         fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
@@ -362,7 +362,7 @@ impl Waitable for SingleWaiterCountLatch {
     }
 
     fn can_deadlock(&self) -> bool {
-        false
+        true
     }
 
     fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {

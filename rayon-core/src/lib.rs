@@ -27,6 +27,7 @@
 
 #![feature(core_intrinsics)]
 #![feature(test)]
+#![feature(never_type)]
 
 use std::any::Any;
 use std::env;
@@ -122,6 +123,9 @@ pub struct Configuration {
     /// The stack size for the created worker threads
     stack_size: Option<usize>,
 
+    /// Closure invoked on deadlock.
+    deadlock_handler: Option<Box<DeadlockHandler>>,
+
     /// Closure invoked on worker thread start.
     start_handler: Option<Box<StartHandler>>,
 
@@ -146,6 +150,8 @@ type PanicHandler = Fn(Box<Any + Send>) + Send + Sync;
 /// The closure is passed the index of the thread on which it is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
 type MainHandler = Fn(usize, &mut FnMut()) + Send + Sync;
+
+type DeadlockHandler = Fn() -> ! + Send + Sync;
 
 /// The type for a closure that gets invoked when a thread starts. The
 /// closure is passed the index of the thread on which it is invoked.
@@ -298,6 +304,19 @@ impl Configuration {
         self.breadth_first
     }
 
+    /// Takes the current deadlock callback, leaving `None`.
+    fn take_deadlock_handler(&mut self) -> Option<Box<DeadlockHandler>> {
+        self.deadlock_handler.take()
+    }
+
+    /// Set a callback to be invoked on current deadlock.
+    pub fn deadlock_handler<H>(mut self, deadlock_handler: H) -> Configuration
+        where H: Fn() -> ! + Send + Sync + 'static
+    {
+        self.deadlock_handler = Some(Box::new(deadlock_handler));
+        self
+    }
+
     /// Takes the current thread main callback, leaving `None`.
     fn take_main_handler(&mut self) -> Option<Box<MainHandler>> {
         self.main_handler.take()
@@ -380,6 +399,7 @@ impl fmt::Debug for Configuration {
         let Configuration { ref num_threads, ref get_thread_name,
                             ref panic_handler, ref stack_size,
                             ref start_handler, ref main_handler, ref exit_handler,
+                            ref deadlock_handler,
                             ref breadth_first } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
@@ -395,6 +415,7 @@ impl fmt::Debug for Configuration {
         let start_handler = start_handler.as_ref().map(|_| ClosurePlaceholder);
         let main_handler = main_handler.as_ref().map(|_| ClosurePlaceholder);
         let exit_handler = exit_handler.as_ref().map(|_| ClosurePlaceholder);
+        let deadlock_handler = deadlock_handler.as_ref().map(|_| ClosurePlaceholder);
 
         f.debug_struct("Configuration")
          .field("num_threads", num_threads)
@@ -404,6 +425,7 @@ impl fmt::Debug for Configuration {
          .field("start_handler", &start_handler)
          .field("main_handler", &main_handler)
          .field("exit_handler", &exit_handler)
+         .field("deadlock_handler", &deadlock_handler)
          .field("breadth_first", &breadth_first)
          .finish()
     }

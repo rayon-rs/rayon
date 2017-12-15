@@ -127,7 +127,7 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                         }
 
                         fn can_deadlock(&self) -> bool {
-                            false
+                            true
                         }
 
                         fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {

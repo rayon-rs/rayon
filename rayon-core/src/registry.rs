@@ -1,4 +1,4 @@
-use ::{Configuration, ExitHandler, PanicHandler, StartHandler, MainHandler};
+use ::{Configuration, ExitHandler, PanicHandler, StartHandler, MainHandler, DeadlockHandler};
 use coco::deque::{self, Worker, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
@@ -76,6 +76,7 @@ pub struct Registry {
     start_handler: Option<Box<StartHandler>>,
     main_handler: Option<Box<MainHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
+    deadlock_handler: Option<Box<DeadlockHandler>>,
     pub stack_size: usize,
 
     #[cfg(feature = "debug")]
@@ -221,6 +222,7 @@ impl Registry {
             start_handler: configuration.take_start_handler(),
             main_handler: configuration.take_main_handler(),
             exit_handler: configuration.take_exit_handler(),
+            deadlock_handler: configuration.take_deadlock_handler(),
             stack_size: configuration.get_stack_size().unwrap_or(1024 * 1024),
             #[cfg(windows)]
             handles: Mutex::new(Vec::new()),
@@ -784,7 +786,7 @@ impl WorkerThread {
                 if deadlock {
                     self.registry.sleep.work_found(self.index, yields);
                     mem::forget(abort_guard);
-                    latch.handle_deadlock(self);
+                    (self.registry.deadlock_handler.as_ref().expect("no deadlock handler"))();
                 }
             }
         }
