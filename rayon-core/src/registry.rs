@@ -276,7 +276,7 @@ impl Registry {
     }
 
     pub fn signal(&self) {
-        self.sleep.tickle(usize::MAX);
+        self.sleep.tickle(usize::MAX, self.num_threads());
     }
 
     pub fn current() -> Arc<Registry> {
@@ -438,7 +438,7 @@ impl Registry {
                 self.job_injector.send(job_ref).unwrap();
             }
         }
-        self.sleep.tickle(usize::MAX);
+        self.signal();
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
@@ -539,7 +539,7 @@ impl Registry {
     /// extant work is completed.
     pub fn terminate(&self) {
         self.terminate_latch.set();
-        self.sleep.tickle(usize::MAX);
+        self.signal();
     }
 }
 
@@ -661,7 +661,7 @@ impl WorkerThread {
     #[inline]
     pub unsafe fn push(&self, job: JobRef) {
         self.worker.push(job);
-        self.registry.sleep.tickle(self.index);
+        self.registry.signal();
     }
 
     #[inline]
@@ -773,7 +773,7 @@ impl WorkerThread {
             // outside. The idea is to finish what we started before
             // we take on something new.
             if let Some(fiber) = self.take_resumed_job() {
-                yields = self.registry.sleep.work_found(self.index, yields);
+                yields = self.registry.sleep.work_found(self, yields);
                 fiber_log!("worked {} picked up fiber {} in wait_until_cold", self.index(), fiber);
                 let action = ResumeAction::StoreInWaitable(waitable, tlv::get());
                 fiber.resume(self, action).handle(self);
@@ -783,23 +783,20 @@ impl WorkerThread {
                 // can now make progress. So we have to tickle them to let
                 // them know.
                 // CHECK: Find out when this is needed
-                self.registry.sleep.tickle(self.index);
+                self.registry.signal();
                 break; // If we resume again, the latch is set
             } else if let Some(job) = self.take_local_job()
                                    .or_else(|| self.steal())
                                    .or_else(|| self.registry.pop_injected_job(self.index)) {
-                yields = self.registry.sleep.work_found(self.index, yields);
+                yields = self.registry.sleep.work_found(self, yields);
                 let action = ResumeAction::StoreInWaitable(waitable, tlv::get());
                 self.execute(job, action);
                 break; // If we resume again, the latch is set
             } else {
-                let (new_yields,
-                     deadlock) = self.registry.sleep.no_work_found(self,
-                                                                   self.index,
-                                                                   yields);
+                let (new_yields, deadlock) = self.registry.sleep.no_work_found(self, yields);
                 yields = new_yields;
                 if deadlock {
-                    self.registry.sleep.work_found(self.index, yields);
+                    self.registry.sleep.work_found(self, yields);
                     (self.registry.deadlock_handler.as_ref().expect("no deadlock handler"))();
                     yields = 0;
                 }
@@ -814,7 +811,7 @@ impl WorkerThread {
         // If we were sleepy, we are not anymore. We "found work" --
         // whatever the surrounding thread was doing before it had to
         // wait.
-        self.registry.sleep.work_found(self.index, yields);
+        self.registry.sleep.work_found(self, yields);
 
         log!(LatchSet { worker: self.index });
         mem::forget(abort_guard); // successful execution, do not abort
@@ -827,7 +824,7 @@ impl WorkerThread {
         // latches.  This may mean that a sleepy (or sleeping) worker
         // can now make progress. So we have to tickle them to let
         // them know.
-        self.registry.sleep.tickle(self.index);
+        self.registry.signal();
     }
 
     /// Try to steal a single job and return it.

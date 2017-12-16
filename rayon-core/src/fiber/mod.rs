@@ -191,7 +191,7 @@ mod normal {
                     _ => panic!(),
                 }
             }
-            Registry::current().sleep.tickle(usize::MAX);
+            Registry::current().signal();
         }
     }
 
@@ -336,7 +336,7 @@ impl Latch for SingleWaiterCountLatch {
                 Registry::current().resume_fiber(worker_index, fiber);
             }
         }
-        Registry::current().sleep.tickle(usize::MAX);
+        Registry::current().signal();
     }
 }
 

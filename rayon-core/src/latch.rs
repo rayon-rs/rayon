@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, Condvar};
-use std::usize;
+//use std::usize;
 
-use sleep::Sleep;
+//use sleep::Sleep;
 
 /// We define various kinds of latches, which are all a primitive signaling
 /// mechanism. A latch starts as false. Eventually someone calls `set()` and
@@ -156,7 +156,7 @@ impl Latch for CountLatch {
     }
 }
 
-
+/*
 /// A tickling latch wraps another latch type, and will also awaken a thread
 /// pool when it is set.  This is useful for jobs injected between thread pools,
 /// so the source pool can continue processing its own work while waiting.
@@ -186,6 +186,7 @@ impl<'a, L: Latch> Latch for TickleLatch<'a, L> {
     #[inline]
     fn set(&self) {
         self.inner.set();
-        self.sleep.tickle(usize::MAX);
+        self.signal();
     }
 }
+*/
