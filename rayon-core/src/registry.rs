@@ -33,8 +33,9 @@ use fiber::{Ptr, FiberId, FiberAction};
 use ctrlc;
 #[cfg(feature = "debug")]
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(feature = "debug")]
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 #[cfg(feature = "debug")]
 use std::sync::Weak;
 #[cfg(windows)]
@@ -83,6 +84,8 @@ pub struct Registry {
     workers: Mutex<HashSet<usize>>,
     #[cfg(feature = "debug")]
     pub active_fibers: AtomicUsize,
+
+    pub external_waiters: AtomicUsize,
     
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -217,6 +220,7 @@ impl Registry {
             workers: Mutex::new(HashSet::new()),
             #[cfg(feature = "debug")]
             active_fibers: AtomicUsize::new(0),
+            external_waiters: AtomicUsize::new(0),
             terminate_latch: CountLatch::new(),
             panic_handler: configuration.take_panic_handler(),
             start_handler: configuration.take_start_handler(),
@@ -476,8 +480,12 @@ impl Registry {
         debug_assert!(WorkerThread::current().is_null());
         let job = StackJob::new(|injected| {
             let worker_thread = WorkerThread::current();
-            assert!(injected && !worker_thread.is_null());
-            op(&*worker_thread, true)
+            debug_assert!(injected && !worker_thread.is_null());
+            let worker_thread = &*worker_thread;
+            worker_thread.registry.external_waiters.fetch_add(1, Ordering::SeqCst);
+            let r = op(worker_thread, true);
+            worker_thread.registry.external_waiters.fetch_sub(1, Ordering::SeqCst);
+            r
         }, LockLatch::new());
         self.inject(&[job.as_job_ref()]);
         job.latch.wait();
@@ -689,6 +697,14 @@ impl WorkerThread {
         }
     }
 
+    #[inline]
+    pub unsafe fn wait_enqueue<'l, L: Waitable>(&self, latch: &'l L) {
+        let waitable: &'l Waitable = latch;
+        let waitable: *const Waitable = mem::transmute(waitable);
+        let action = ResumeAction::StoreInWaitable(waitable, tlv::get());
+        self.find_work(action).handle(self);
+    }
+
     #[cold]
     pub unsafe fn find_work(&self, action: ResumeAction) -> TransferInfo {
         // the code below should swallow all panics and hence never
@@ -780,8 +796,7 @@ impl WorkerThread {
                 let (new_yields,
                      deadlock) = self.registry.sleep.no_work_found(self,
                                                                    self.index,
-                                                                   yields,
-                                                                   latch.can_deadlock());
+                                                                   yields);
                 yields = new_yields;
                 if deadlock {
                     self.registry.sleep.work_found(self.index, yields);
@@ -1029,14 +1044,6 @@ unsafe fn main_loop(worker: Worker<JobRef>,
     impl Waitable for MainLoopWaiter {
         fn complete(&self, worker_thread: &WorkerThread) -> bool {
             worker_thread.registry.terminate_latch.probe()
-        }
-
-        fn can_deadlock(&self) -> bool {
-            false
-        }
-
-        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
-            panic!();
         }
 
         fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {

@@ -200,14 +200,6 @@ mod normal {
             self.probe()
         }
 
-        fn can_deadlock(&self) -> bool {
-            true
-        }
-
-        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
-            panic!();
-        }
-
         fn await(&self, worker_thread: &WorkerThread, mut waiter: Fiber, _tlv: usize) {
             loop {
                 match self.state.load(Ordering::SeqCst) {
@@ -270,14 +262,6 @@ mod normal {
     impl Waitable for WaiterLatch {
         fn complete(&self, _worker_thread: &WorkerThread) -> bool {
             self.probe()
-        }
-
-        fn can_deadlock(&self) -> bool {
-            true
-        }
-
-        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
-            panic!();
         }
 
         fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
@@ -361,14 +345,6 @@ impl Waitable for SingleWaiterCountLatch {
         self.probe()
     }
 
-    fn can_deadlock(&self) -> bool {
-        true
-    }
-
-    fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
-        panic!();
-    }
-
     fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
         let mut data = self.data.lock();
         if data.0 > 0 {
@@ -431,8 +407,6 @@ impl Drop for Fiber {
 }
 
 pub trait Waitable {
-    fn can_deadlock(&self) -> bool;
-    fn handle_deadlock(&self, worker_thread: &WorkerThread) -> !;
     fn complete(&self, worker_thread: &WorkerThread) -> bool;
     fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, tlv: usize);
 }

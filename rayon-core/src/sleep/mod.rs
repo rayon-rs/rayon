@@ -67,8 +67,7 @@ impl Sleep {
     pub fn no_work_found(&self,
                          worker: &WorkerThread,
                          worker_index: usize,
-                         yields: usize,
-                         can_deadlock: bool) -> (usize, bool) {
+                         yields: usize) -> (usize, bool) {
         log!(DidNotFindWork {
             worker: worker_index,
             yields: yields,
@@ -93,7 +92,7 @@ impl Sleep {
             }
         } else {
             debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            return (0, self.sleep(worker, worker_index, can_deadlock))
+            return (0, self.sleep(worker, worker_index))
         };
         (r, false)
     }
@@ -192,7 +191,7 @@ impl Sleep {
         self.worker_is_sleepy(state, worker_index)
     }
 
-    fn sleep(&self, _worker: &WorkerThread, worker_index: usize, can_deadlock: bool) -> bool {
+    fn sleep(&self, worker: &WorkerThread, worker_index: usize) -> bool {
         loop {
             // Acquire here suffices. If we observe that the current worker is still
             // sleepy, then in fact we know that no writes have occurred, and anyhow
@@ -267,17 +266,12 @@ impl Sleep {
 
                     fiber_log!("worker {} fell asleep", worker_index);
                     #[cfg(feature = "debug")]
-                    _worker.asleep.store(true, Ordering::SeqCst);
+                    worker.asleep.store(true, Ordering::SeqCst);
 
                     let new_worker_count = *worker_count - 1;
-                    if new_worker_count == 0 { // Deadlock
-                        if can_deadlock {
+                    if new_worker_count == 0 { // Possible deadlock
+                        if worker.registry.external_waiters.load(Ordering::SeqCst) > 0 {
                             return true;
-                        } else {
-                            #[cfg(feature = "debug")]
-                            deadlock_check(&*_worker.registry);
-                            /*eprintln!("\ndeadlock in rayon");
-                            panic!("deadlock in rayon");*/
                         }
                     }
                     *worker_count = new_worker_count;
@@ -286,7 +280,7 @@ impl Sleep {
 
                     fiber_log!("worker {} woke up", worker_index);
                     #[cfg(feature = "debug")]
-                    _worker.asleep.store(false, Ordering::SeqCst);
+                    worker.asleep.store(false, Ordering::SeqCst);
 
                     log!(GotAwoken { worker: worker_index });
                     return false;

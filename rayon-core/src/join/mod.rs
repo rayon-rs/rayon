@@ -126,14 +126,6 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                             panic!()
                         }
 
-                        fn can_deadlock(&self) -> bool {
-                            true
-                        }
-
-                        fn handle_deadlock(&self, _worker_thread: &WorkerThread) -> ! {
-                            panic!();
-                        }
-
                         fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
                             let worker_index = worker_thread.index();
                             worker_thread.registry.resume_fiber(worker_index, waiter);
