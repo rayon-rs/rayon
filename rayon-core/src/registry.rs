@@ -800,8 +800,8 @@ impl WorkerThread {
                 yields = new_yields;
                 if deadlock {
                     self.registry.sleep.work_found(self.index, yields);
-                    mem::forget(abort_guard);
                     (self.registry.deadlock_handler.as_ref().expect("no deadlock handler"))();
+                    yields = 0;
                 }
             }
         }

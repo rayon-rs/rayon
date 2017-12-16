@@ -151,7 +151,7 @@ type PanicHandler = Fn(Box<Any + Send>) + Send + Sync;
 /// Note that this same closure may be invoked multiple times in parallel.
 type MainHandler = Fn(usize, &mut FnMut()) + Send + Sync;
 
-type DeadlockHandler = Fn() -> ! + Send + Sync;
+type DeadlockHandler = Fn() + Send + Sync;
 
 /// The type for a closure that gets invoked when a thread starts. The
 /// closure is passed the index of the thread on which it is invoked.
@@ -311,7 +311,7 @@ impl Configuration {
 
     /// Set a callback to be invoked on current deadlock.
     pub fn deadlock_handler<H>(mut self, deadlock_handler: H) -> Configuration
-        where H: Fn() -> ! + Send + Sync + 'static
+        where H: Fn() + Send + Sync + 'static
     {
         self.deadlock_handler = Some(Box::new(deadlock_handler));
         self
