@@ -32,10 +32,11 @@ fn b() {
 
 fn c() {
     let mut future = None;
-    let data = &mut [format!("Hello, ")];
+    // borrowed value does not live long enough
+    let data = &mut [format!("Hello, ")]; //~ ERROR E0597
     rayon::scope(|s| {
         future = Some(s.spawn_future(lazy(move || Ok::<_, ()>(&mut data[0]))));
     });
-} //~ ERROR borrowed value does not live long enough
+}
 
 fn main() { }
