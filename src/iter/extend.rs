@@ -1,5 +1,6 @@
 use super::{ParallelExtend, IntoParallelIterator, ParallelIterator};
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::{BuildHasher, Hash};
 use std::collections::LinkedList;
@@ -257,6 +258,15 @@ impl<'a> ParallelExtend<&'a str> for String {
 impl ParallelExtend<String> for String {
     fn par_extend<I>(&mut self, par_iter: I)
         where I: IntoParallelIterator<Item = String>
+    {
+        extend(self, par_iter, |string, list| string.reserve(str_len(list)));
+    }
+}
+
+/// Extend a string with string slices from a parallel iterator.
+impl<'a> ParallelExtend<Cow<'a, str>> for String {
+    fn par_extend<I>(&mut self, par_iter: I)
+        where I: IntoParallelIterator<Item = Cow<'a, str>>
     {
         extend(self, par_iter, |string, list| string.reserve(str_len(list)));
     }
