@@ -1,4 +1,4 @@
-use super::{FromParallelIterator, IntoParallelIterator, ParallelExtend};
+use super::{FromParallelIterator, IntoParallelIterator, ParallelIterator, ParallelExtend};
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -168,5 +168,28 @@ impl<'a, C: ?Sized, T> FromParallelIterator<T> for Cow<'a, C>
         where I: IntoParallelIterator<Item = T>
     {
         Cow::Owned(C::Owned::from_par_iter(par_iter))
+    }
+}
+
+/// Collapses all unit items from a parallel iterator into one.
+///
+/// This is more useful when combined with higher-level abstractions, like
+/// collecting to a `Result<(), E>` where you only care about errors:
+///
+/// ```
+/// use std::io::*;
+/// use rayon::prelude::*;
+///
+/// let data = vec![1, 2, 3, 4, 5];
+/// let res: Result<()> = data.par_iter()
+///     .map(|x| writeln!(stdout(), "{}", x))
+///     .collect();
+/// assert!(res.is_ok());
+/// ```
+impl FromParallelIterator<()> for () {
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = ()>
+    {
+        par_iter.into_par_iter().for_each(|()| {})
     }
 }
