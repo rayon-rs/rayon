@@ -482,8 +482,18 @@ impl Registry {
             debug_assert!(injected && !worker_thread.is_null());
             let worker_thread = &*worker_thread;
             worker_thread.registry.external_waiters.fetch_add(1, Ordering::SeqCst);
+
+            struct OnDrop<F: Fn()>(F);
+
+            impl<F: Fn()> Drop for OnDrop<F> {
+                fn drop(&mut self) {
+                    (self.0)();
+                }
+            }
+            let _on_drop = OnDrop(|| {
+                worker_thread.registry.external_waiters.fetch_sub(1, Ordering::SeqCst);
+            });
             let r = op(worker_thread, true);
-            worker_thread.registry.external_waiters.fetch_sub(1, Ordering::SeqCst);
             r
         }, LockLatch::new());
         self.inject(&[job.as_job_ref()]);
