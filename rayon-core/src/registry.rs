@@ -916,7 +916,9 @@ pub fn debug_print_state() {
 
         debug_log!("------ registry {:x} ------", &*registry as *const _ as usize);
         debug_log!("  terminate_latch: {:?}", registry.terminate_latch.probe());
-
+        debug_log!("  active_fibers: {:?}", registry.active_fibers.load(Ordering::SeqCst));
+        debug_log!("  external_waiters: {:?}", registry.external_waiters.load(Ordering::SeqCst));
+        
         for wt in &*registry.workers.lock() {
             print_worker(*wt);
         }
