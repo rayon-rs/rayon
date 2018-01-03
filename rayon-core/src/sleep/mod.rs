@@ -7,8 +7,6 @@ use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
 use registry::WorkerThread;
-#[cfg(feature = "debug")]
-use registry::deadlock_check;
 
 pub struct Sleep {
     state: AtomicUsize,

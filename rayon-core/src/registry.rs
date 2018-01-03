@@ -196,8 +196,7 @@ impl Registry {
         #[cfg(feature = "debug")]
         ctrlc::set_handler(move || {
             use std;
-            ctrlc();
-            fiber::ctrlc();
+            debug_print_state();
             println!("saw ctrl-c");
             std::process::abort();
         }).ok();
@@ -896,8 +895,7 @@ pub fn deadlock_check(registry: &Registry) {
     if is_deadlocked(registry) {
         debug_log!("\n\n ------ RAYON DEADLOCK FOUND ------");
         loop {
-            ctrlc();
-            fiber::ctrlc();
+            debug_print_state();
             #[cfg(windows)]
             unsafe { ::kernel32::DebugBreak() };
             #[cfg(not(windows))]
@@ -907,7 +905,7 @@ pub fn deadlock_check(registry: &Registry) {
 }
 
 #[cfg(feature = "debug")]
-pub fn ctrlc() {
+pub fn debug_print_state() {
     debug_log!("------ registries ------");
     for r in &*(REGISTRIES.lock()) {
         let registry = if let Some(r) = r.upgrade() {
@@ -926,6 +924,7 @@ pub fn ctrlc() {
         debug_log!("------ end registry {:x} ------", &*registry as *const _ as usize);
     }
     debug_log!("------ end registries ------");
+    fiber::debug_print_state();
 }
 
 #[cfg(feature = "debug")]

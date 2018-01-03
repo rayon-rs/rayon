@@ -107,7 +107,7 @@ impl Waitable for SingleWaiterLatch {
         self.probe()
     }
 
-    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
         let mut data = self.data.lock();
         if data.0 {
             #[cfg(feature = "debug")]
@@ -183,7 +183,7 @@ impl Waitable for WaiterLatch {
         self.probe()
     }
 
-    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber) {
+    fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
         let mut data = self.data.lock();
         if data.0 {
             #[cfg(feature = "debug")]
@@ -218,7 +218,7 @@ lazy_static! {
     };
 }
 
-pub fn ctrlc() {
+pub fn debug_print_state() {
     debug_log!("------ fibers ------");
     for (&id, data) in &*FIBERS.lock() {
         debug_log!("fiber {:?}", id);

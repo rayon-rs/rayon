@@ -27,7 +27,7 @@ use winapi;
 use std::io;
 
 #[cfg(feature = "debug")]
-pub use self::debug::ctrlc;
+pub use self::debug::debug_print_state;
 
 #[cfg(feature = "debug")]
 pub use self::debug::{SingleWaiterLatch, WaiterLatch};
@@ -139,6 +139,7 @@ impl<T> UnsafeOption<T> {
 unsafe impl<T> Send for UnsafeOption<T> {}
 unsafe impl<T> Sync for UnsafeOption<T> {}
 
+#[cfg(not(feature = "debug"))]
 mod normal {
     use super::*;
 
@@ -283,7 +284,6 @@ mod normal {
             }
         }
     }
-
 }
 
 #[derive(Debug)]
