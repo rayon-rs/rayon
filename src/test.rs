@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![cfg(not(all(windows, target_env = "gnu")))]
 
 extern crate compiletest_rs as compiletest;
 

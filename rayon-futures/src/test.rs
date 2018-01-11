@@ -1,9 +1,9 @@
+#[cfg(not(all(windows, target_env = "gnu")))]
 extern crate compiletest_rs as compiletest;
 
 use futures::{self, Async, Future};
 use futures::future::lazy;
 use futures::sync::oneshot;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use futures::task;
 use futures::executor::Notify;
@@ -11,7 +11,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use rayon_core::{scope, ThreadPool, Configuration};
 use super::ScopeFutureExt;
 
+#[cfg(not(all(windows, target_env = "gnu")))]
 fn run_compiletest(mode: &str, path: &str) {
+    use std::path::PathBuf;
+
     let mut config = compiletest::Config::default();
     config.mode = mode.parse().ok().expect("Invalid mode");
     config.src_base = PathBuf::from(path);
@@ -21,6 +24,7 @@ fn run_compiletest(mode: &str, path: &str) {
 }
 
 #[test]
+#[cfg(not(all(windows, target_env = "gnu")))]
 fn negative_tests_compile_fail() {
     run_compiletest("compile-fail", "tests/compile-fail");
 }

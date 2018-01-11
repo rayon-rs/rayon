@@ -15,5 +15,6 @@ categories = ["concurrency"]
 rayon-core = { version = "1.3", path = "../rayon-core" }
 futures = "0.1.16"
 
-[dev-dependencies]
+# mingw linking rustc crates is missing -ldbghelp, rust-lang/rust#47359
+[target.'cfg(not(all(windows, target_env = "gnu")))'.dev-dependencies]
 compiletest_rs = "0.3"
