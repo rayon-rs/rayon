@@ -3,10 +3,10 @@ use super::*;
 use std::cmp::min;
 
 /// `Take` is an iterator that iterates over the first `n` elements.
-/// This struct is created by the [`take()`] method on [`ParallelIterator`]
+/// This struct is created by the [`take()`] method on [`IndexedParallelIterator`]
 ///
-/// [`take()`]: trait.ParallelIterator.html#method.take
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`take()`]: trait.IndexedParallelIterator.html#method.take
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Take<I> {
