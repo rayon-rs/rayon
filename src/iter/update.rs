@@ -142,6 +142,13 @@ impl<'f, P, F> Producer for UpdateProducer<'f, P, F>
              update_op: self.update_op,
          })
     }
+
+    fn fold_with<G>(self, folder: G) -> G
+        where G: Folder<Self::Item>
+    {
+        let folder1 = UpdateFolder { base: folder, update_op: self.update_op, };
+        self.base.fold_with(folder1).base
+    }
 }
 
 
@@ -229,7 +236,7 @@ impl<'f, T, C, F> Folder<T> for UpdateFolder<'f, C, F>
     }
 }
 
-/// Standard Update adaptor, based on `itertools::adaptors::Update` 
+/// Standard Update adaptor, based on `itertools::adaptors::Update`
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 struct UpdateSeq<I, F> {

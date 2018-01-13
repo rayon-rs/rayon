@@ -142,6 +142,13 @@ impl<'f, P, F> Producer for InspectProducer<'f, P, F>
              inspect_op: self.inspect_op,
          })
     }
+
+    fn fold_with<G>(self, folder: G) -> G
+        where G: Folder<Self::Item>
+    {
+        let folder1 = InspectFolder { base: folder, inspect_op: self.inspect_op };
+        self.base.fold_with(folder1).base
+    }
 }
 
 

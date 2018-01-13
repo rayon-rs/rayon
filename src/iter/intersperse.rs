@@ -180,6 +180,17 @@ impl<P> Producer for IntersperseProducer<P>
 
         (left, right)
     }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        let folder1 = IntersperseFolder {
+            base: folder,
+            item: self.item,
+            clone_first: self.clone_first,
+        };
+        self.base.fold_with(folder1).base
+    }
 }
 
 
