@@ -5,10 +5,10 @@ use std::ops::Range;
 use std::usize;
 
 /// `Enumerate` is an iterator that returns the current count along with the element.
-/// This struct is created by the [`enumerate()`] method on [`ParallelIterator`]
+/// This struct is created by the [`enumerate()`] method on [`IndexedParallelIterator`]
 ///
-/// [`enumerate()`]: trait.ParallelIterator.html#method.enumerate
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`enumerate()`]: trait.IndexedParallelIterator.html#method.enumerate
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Enumerate<I: IndexedParallelIterator> {
