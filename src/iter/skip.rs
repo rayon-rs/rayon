@@ -4,10 +4,10 @@ use super::noop::NoopConsumer;
 use std::cmp::min;
 
 /// `Skip` is an iterator that skips over the first `n` elements.
-/// This struct is created by the [`skip()`] method on [`ParallelIterator`]
+/// This struct is created by the [`skip()`] method on [`IndexedParallelIterator`]
 ///
-/// [`skip()`]: trait.ParallelIterator.html#method.skip
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`skip()`]: trait.IndexedParallelIterator.html#method.skip
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Skip<I> {
