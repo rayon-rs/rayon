@@ -268,7 +268,28 @@ impl<'a> ParallelExtend<Cow<'a, str>> for String {
     fn par_extend<I>(&mut self, par_iter: I)
         where I: IntoParallelIterator<Item = Cow<'a, str>>
     {
-        extend(self, par_iter, |string, list| string.reserve(str_len(list)));
+        // This is like `extend`, but `Extend<Cow<'a, str>> for String`
+        // wasn't added until Rust 1.19, so we can't use it directly yet.
+        let list = par_iter
+            .into_par_iter()
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
+        .map(|vec| {
+            let mut list = LinkedList::new();
+            list.push_back(vec);
+            list
+        })
+        .reduce(LinkedList::new, |mut list1, mut list2| {
+            list1.append(&mut list2);
+            list1
+        });
+
+        self.reserve(str_len(&list));
+        for vec in list {
+            self.extend(vec.iter().map(|cow| &**cow));
+        }
     }
 }
 
