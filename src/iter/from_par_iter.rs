@@ -154,6 +154,15 @@ impl FromParallelIterator<String> for String {
     }
 }
 
+/// Collect string slices from a parallel iterator into a string.
+impl<'a> FromParallelIterator<Cow<'a, str>> for String {
+    fn from_par_iter<I>(par_iter: I) -> Self
+        where I: IntoParallelIterator<Item = Cow<'a, str>>
+    {
+        collect_extended(par_iter)
+    }
+}
+
 /// Collect an arbitrary `Cow` collection.
 ///
 /// Note, the standard library only has `FromIterator` for `Cow<'a, str>` and
