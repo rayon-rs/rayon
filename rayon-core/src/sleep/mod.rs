@@ -6,10 +6,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
+use registry::WorkerThread;
 
 pub struct Sleep {
     state: AtomicUsize,
-    data: Mutex<()>,
+    data: Mutex<usize>,
     tickle: Condvar,
 }
 
@@ -20,10 +21,10 @@ const ROUNDS_UNTIL_SLEEPY: usize = 32;
 const ROUNDS_UNTIL_ASLEEP: usize = 64;
 
 impl Sleep {
-    pub fn new() -> Sleep {
+    pub fn new(worker_count: usize) -> Sleep {
         Sleep {
             state: AtomicUsize::new(AWAKE),
-            data: Mutex::new(()),
+            data: Mutex::new(worker_count),
             tickle: Condvar::new(),
         }
     }
@@ -46,64 +47,69 @@ impl Sleep {
     }
 
     #[inline]
-    pub fn work_found(&self, worker_index: usize, yields: usize) -> usize {
+    pub fn work_found(&self, worker: &WorkerThread, yields: usize) -> usize {
         log!(FoundWork {
-            worker: worker_index,
+            worker: worker.index(),
             yields: yields,
         });
         if yields > ROUNDS_UNTIL_SLEEPY {
             // FIXME tickling here is a bit extreme; mostly we want to "release the lock"
             // from us being sleepy, we don't necessarily need to wake others
             // who are sleeping
-            self.tickle(worker_index);
+            worker.registry.signal();
         }
         0
     }
 
     #[inline]
-    pub fn no_work_found(&self, worker_index: usize, yields: usize) -> usize {
+    pub fn no_work_found(&self,
+                         worker: &WorkerThread,
+                         yields: usize) -> (usize, bool) {
         log!(DidNotFindWork {
-            worker: worker_index,
+            worker: worker.index(),
             yields: yields,
         });
-        if yields < ROUNDS_UNTIL_SLEEPY {
+        let r = if yields < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
             yields + 1
         } else if yields == ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
-            if self.get_sleepy(worker_index) {
+            if self.get_sleepy(worker.index()) {
                 yields + 1
             } else {
                 yields
             }
         } else if yields < ROUNDS_UNTIL_ASLEEP {
             thread::yield_now();
-            if self.still_sleepy(worker_index) {
+            if self.still_sleepy(worker.index()) {
                 yields + 1
             } else {
-                log!(GotInterrupted { worker: worker_index });
+                log!(GotInterrupted { worker: worker.index() });
                 0
             }
         } else {
             debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            self.sleep(worker_index);
-            0
-        }
+            return (0, self.sleep(worker))
+        };
+        (r, false)
     }
 
-    pub fn tickle(&self, worker_index: usize) {
+    pub fn tickle(&self, worker_index: usize, worker_count: usize) {
         // As described in README.md, this load must be SeqCst so as to ensure that:
         // - if anyone is sleepy or asleep, we *definitely* see that now (and not eventually);
         // - if anyone after us becomes sleepy or asleep, they see memory events that
         //   precede the call to `tickle()`, even though we did not do a write.
         let old_state = self.state.load(Ordering::SeqCst);
         if old_state != AWAKE {
-            self.tickle_cold(worker_index);
+            fiber_log!("real tickle");
+            self.tickle_cold(worker_index, worker_count);
+        } else {
+            fiber_log!("dummy tickle");
         }
     }
 
     #[cold]
-    fn tickle_cold(&self, worker_index: usize) {
+    fn tickle_cold(&self, worker_index: usize, worker_count: usize) {
         // The `Release` ordering here suffices. The reasoning is that
         // the atomic's own natural ordering ensure that any attempt
         // to become sleepy/asleep either will come before/after this
@@ -120,7 +126,9 @@ impl Sleep {
             old_state: old_state,
         });
         if self.anyone_sleeping(old_state) {
-            let _data = self.data.lock().unwrap();
+            let mut worker_count_guard = self.data.lock().unwrap();
+            *worker_count_guard = worker_count;
+            //eprintln!("[{}] tickling all", worker_index);
             self.tickle.notify_all();
         }
     }
@@ -182,7 +190,7 @@ impl Sleep {
         self.worker_is_sleepy(state, worker_index)
     }
 
-    fn sleep(&self, worker_index: usize) {
+    fn sleep(&self, worker: &WorkerThread) -> bool {
         loop {
             // Acquire here suffices. If we observe that the current worker is still
             // sleepy, then in fact we know that no writes have occurred, and anyhow
@@ -192,7 +200,7 @@ impl Sleep {
             // due to a tickle, and then the Acquire means we also see
             // any events that occured before that.
             let state = self.state.load(Ordering::Acquire);
-            if self.worker_is_sleepy(state, worker_index) {
+            if self.worker_is_sleepy(state, worker.index()) {
                 // It is important that we hold the lock when we do
                 // the CAS. Otherwise, if we were to CAS first, then
                 // the following sequence of events could occur:
@@ -229,7 +237,7 @@ impl Sleep {
                 // reason for the `compare_exchange` to fail is if an
                 // awaken comes, in which case the next cycle around
                 // the loop will just return.
-                let data = self.data.lock().unwrap();
+                let mut worker_count = self.data.lock().unwrap();
 
                 // This must be SeqCst on success because we want to
                 // ensure:
@@ -253,14 +261,38 @@ impl Sleep {
                     // to sleep. Note that if we get a false wakeup it's not a
                     // problem for us, we'll just loop around and maybe get
                     // sleepy again.
-                    log!(FellAsleep { worker: worker_index });
-                    let _ = self.tickle.wait(data).unwrap();
-                    log!(GotAwoken { worker: worker_index });
-                    return;
+                    log!(FellAsleep { worker: worker.index() });
+
+                    fiber_log!("worker {} fell asleep", worker.index());
+                    #[cfg(feature = "debug")]
+                    worker.asleep.store(true, Ordering::SeqCst);
+
+                    //eprintln!("[{}] sleeping thread", worker.index());
+
+                    let new_worker_count = *worker_count - 1;
+                    if new_worker_count == 0 { // Possible deadlock
+                        let w = worker.registry.external_waiters.load(Ordering::SeqCst);
+
+                        //eprintln!("[{}] last awake thread, {} external waiters", worker.index(), w);
+                        if w > 0 {
+                            return true;
+                        }
+                    }
+                    *worker_count = new_worker_count;
+                    let _worker_count = self.tickle.wait(worker_count).unwrap();
+
+                    //eprintln!("[{}] waking up thread", worker.index());
+
+                    fiber_log!("worker {} woke up", worker.index());
+                    #[cfg(feature = "debug")]
+                    worker.asleep.store(false, Ordering::SeqCst);
+
+                    log!(GotAwoken { worker: worker.index() });
+                    return false;
                 }
             } else {
-                log!(GotInterrupted { worker: worker_index });
-                return;
+                log!(GotInterrupted { worker: worker.index() });
+                return false;
             }
         }
     }

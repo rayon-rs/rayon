@@ -26,7 +26,7 @@ fn workers_stop() {
         let thread_pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
         registry = thread_pool.install(|| {
                                            // do some work on these threads
-                                           join_a_lot(22);
+                                           join_a_lot(1);
 
                                            thread_pool.registry.clone()
                                        });

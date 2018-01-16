@@ -1,11 +1,13 @@
-use latch::{LatchProbe, SpinLatch};
+use latch::{LatchProbe};
 use log::Event::*;
 use job::StackJob;
 use registry::{self, WorkerThread};
-use std::any::Any;
 use unwind;
+use fiber::{Waitable, Fiber, ResumeAction};
 
 use FnContext;
+use fiber::SingleWaiterLatch;
+use PoisonedJob;
 
 #[cfg(test)]
 mod test;
@@ -77,15 +79,27 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
         // done here so that the stack frame can keep it all live
         // long enough.
         let job_b = StackJob::new(|migrated| oper_b(FnContext::new(migrated)),
-                                  SpinLatch::new());
+                                  SingleWaiterLatch::new());
         let job_b_ref = job_b.as_job_ref();
+        job_b.latch.start();
         worker_thread.push(job_b_ref);
 
         // Execute task a; hopefully b gets stolen in the meantime.
         let status_a = unwind::halt_unwinding(move || oper_a(FnContext::new(injected)));
         let result_a = match status_a {
             Ok(v) => v,
-            Err(err) => join_recover_from_panic(worker_thread, &job_b.latch, err),
+            Err(err) => {
+                // If job A panics, we still cannot return until we are sure that job
+                // B is complete. This is because it may contain references into the
+                // enclosing stack frame(s).
+                worker_thread.wait_until(&job_b.latch);
+                debug_assert!(job_b.latch.probe());
+                if err.is::<PoisonedJob>() {
+                    // Job A was poisoned, so unwind the panic of Job B if it exists
+                    job_b.into_result();
+                }
+                unwind::resume_unwinding(err)
+            },
         };
 
         // Now that task A has finished, try to pop job B from the
@@ -104,9 +118,24 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                     return (result_a, result_b);
                 } else {
                     log!(PoppedJob { worker: worker_thread.index() });
-                    worker_thread.execute(job);
+
+                    struct ResumeAgain;
+
+                    impl Waitable for ResumeAgain {
+                        fn complete(&self, _worker_thread: &WorkerThread) -> bool {
+                            panic!()
+                        }
+
+                        fn await(&self, worker_thread: &WorkerThread, waiter: Fiber, _tlv: usize) {
+                            let worker_index = worker_thread.index();
+                            worker_thread.registry.resume_fiber(worker_index, waiter);
+                        }
+                    }
+
+                    worker_thread.execute(job, ResumeAction::StoreInWaitable(&ResumeAgain, 0));
                 }
             } else {
+                // CHECK: This can steal our job back to this thread
                 // Local deque is empty. Time to steal from other
                 // threads.
                 log!(LostJob { worker: worker_thread.index() });
@@ -118,17 +147,4 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
 
         return (result_a, job_b.into_result());
     })
-}
-
-/// If job A panics, we still cannot return until we are sure that job
-/// B is complete. This is because it may contain references into the
-/// enclosing stack frame(s).
-#[cold] // cold path
-unsafe fn join_recover_from_panic(worker_thread: &WorkerThread,
-                                  job_b_latch: &SpinLatch,
-                                  err: Box<Any + Send>)
-                                  -> !
-{
-    worker_thread.wait_until(job_b_latch);
-    unwind::resume_unwinding(err)
 }
