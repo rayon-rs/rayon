@@ -30,6 +30,8 @@ mod find;
 mod find_first_last;
 mod chain;
 pub use self::chain::Chain;
+mod chunks;
+pub use self::chunks::Chunks;
 mod collect;
 mod enumerate;
 pub use self::enumerate::Enumerate;
@@ -1350,6 +1352,25 @@ pub trait IndexedParallelIterator: ParallelIterator {
               I::Iter: IndexedParallelIterator<Item = Self::Item>
     {
         interleave_shortest::new(self, other.into_par_iter())
+    }
+
+    /// Split an iterator up into fixed-size chunks.
+    ///
+    /// Returns an iterator that returns `Vec`s of the given number of elements.
+    /// If the number of elements in the iterator is not divisible by `chunk_size`,
+    /// the last chunk may be shorter than `chunk_size`.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    /// let r: Vec<Vec<i32>> = a.into_par_iter().chunks(3).collect();
+    /// assert_eq!(r, vec![vec![1,2,3], vec![4,5,6], vec![7,8,9], vec![10]]);
+    /// ```
+    fn chunks(self, chunk_size: usize) -> Chunks<Self> {
+        assert_ne!(chunk_size, 0, "chunk_size must not be zero");
+        chunks::new(self, chunk_size)
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
