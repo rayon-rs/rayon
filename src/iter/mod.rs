@@ -464,7 +464,7 @@ pub trait ParallelIterator: Sized + Send {
     /// to produce something that represents the zero for your type
     /// (but consider just calling `sum()` in that case).
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
@@ -500,6 +500,18 @@ pub trait ParallelIterator: Sized + Send {
     /// This version of `reduce` is simple but somewhat less
     /// efficient. If possible, it is better to call `reduce()`, which
     /// requires an identity element.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let sums = [(0, 1), (5, 6), (16, 2), (8, 9)]
+    ///            .par_iter()        // iterating over &(i32, i32)
+    ///            .cloned()          // iterating over (i32, i32)
+    ///            .reduce_with(|a, b| (a.0 + b.0, a.1 + b.1))
+    ///            .unwrap();
+    /// assert_eq!(sums, (0 + 5 + 16 + 8, 1 + 6 + 2 + 9));
+    /// ```
     ///
     /// **Note:** unlike a sequential `fold` operation, the order in
     /// which `op` will be applied to reduce the result is not fully
