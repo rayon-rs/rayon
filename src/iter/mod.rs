@@ -440,7 +440,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens iterable `Item`s into one large iterator
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -893,7 +893,7 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
-    /// # Exmaples
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
