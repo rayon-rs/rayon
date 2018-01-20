@@ -1369,7 +1369,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(r, vec![vec![1,2,3], vec![4,5,6], vec![7,8,9], vec![10]]);
     /// ```
     fn chunks(self, chunk_size: usize) -> Chunks<Self> {
-        assert_ne!(chunk_size, 0, "chunk_size must not be zero");
+        assert!(chunk_size != 0, "chunk_size must not be zero");
         chunks::new(self, chunk_size)
     }
 

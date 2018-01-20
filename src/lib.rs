@@ -121,6 +121,7 @@ pub mod str;
 pub mod vec;
 
 mod par_either;
+mod math;
 mod test;
 
 pub use rayon_core::current_num_threads;

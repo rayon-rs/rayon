@@ -1,3 +1,4 @@
+use ::math::div_round_up;
 use super::plumbing::*;
 use super::*;
 
@@ -45,7 +46,7 @@ impl<I> IndexedParallelIterator for Chunks<I>
     }
 
     fn len(&mut self) -> usize {
-        calc_length(self.i.len(), self.size)
+        div_round_up(self.i.len(), self.size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
@@ -111,14 +112,12 @@ impl<P> Producer for ChunkProducer<P>
         })
     }
 
-    // FIXME: should these be adjusted for the chunk_size?
-
     fn min_len(&self) -> usize {
-        self.base.min_len()
+        div_round_up(self.base.min_len(), self.chunk_size)
     }
 
     fn max_len(&self) -> usize {
-        self.base.max_len()
+        self.base.max_len() / self.chunk_size
     }
 }
 
@@ -151,7 +150,7 @@ impl<I> ExactSizeIterator for ChunkSeq<I>
 {
     #[inline]
     fn len(&self) -> usize {
-        calc_length(self.inner.len(), self.chunk_size)
+        div_round_up(self.inner.len(), self.chunk_size)
     }
 }
 
@@ -172,14 +171,3 @@ impl<I> DoubleEndedIterator for ChunkSeq<I>
         Some(chunk)
     }
 }
-
-fn calc_length(num_items: usize, chunk_size: usize) -> usize {
-    if num_items == 0 {
-        0
-    } else {
-        (num_items - 1) / chunk_size + 1
-    }
-}
-
-
-// TODO: unit tests for calc_length
