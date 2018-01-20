@@ -680,6 +680,19 @@ pub trait ParallelIterator: Sized + Send {
     /// This works essentially like `fold(|| init.clone(), fold_op)`, except
     /// it doesn't require the `init` type to be `Sync`, nor any other form
     /// of added synchronization.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let bytes = 0..22_u8;
+    /// let sum = bytes.into_par_iter()
+    ///                .fold_with(0_u32, |a: u32, b: u8| a + (b as u32))
+    ///                .sum::<u32>();
+    ///
+    /// assert_eq!(sum, (0..22).sum()); // compare to sequential
+    /// ```
     fn fold_with<F, T>(self, init: T, fold_op: F) -> FoldWith<Self, T, F>
         where F: Fn(T, Self::Item) -> T + Sync + Send,
               T: Send + Clone
