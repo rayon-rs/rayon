@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use ::math::div_round_up;
 use super::plumbing::*;
 use super::*;
@@ -49,16 +51,19 @@ impl<I> IndexedParallelIterator for Chunks<I>
         div_round_up(self.i.len(), self.size)
     }
 
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
+        let len = self.i.len();
         return self.i.with_producer(Callback {
             size: self.size,
+            len: len,
             callback: callback,
         });
 
         struct Callback<CB> {
             size: usize,
+            len: usize,
             callback: CB,
         }
 
@@ -72,6 +77,7 @@ impl<I> IndexedParallelIterator for Chunks<I>
             {
                 self.callback.callback(ChunkProducer {
                     chunk_size: self.size,
+                    len: self.len,
                     base: base,
                 })
             }
@@ -83,6 +89,7 @@ struct ChunkProducer<P>
     where P: Producer
 {
     chunk_size: usize,
+    len: usize,
     base: P,
 }
 
@@ -90,24 +97,31 @@ impl<P> Producer for ChunkProducer<P>
     where P: Producer
 {
     type Item = Vec<P::Item>;
-    type IntoIter = ChunkSeq<P::IntoIter>;
+    type IntoIter = ChunkSeq<P>;
 
     fn into_iter(self) -> Self::IntoIter {
         ChunkSeq {
             chunk_size: self.chunk_size,
-            inner: self.base.into_iter()
+            len: self.len,
+            inner: if self.len > 0 {
+                Some(self.base)
+            } else {
+                None
+            }
         }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = index * self.chunk_size;
+        let elem_index = min(index * self.chunk_size, self.len);
         let (left, right) = self.base.split_at(elem_index);
         (ChunkProducer {
             chunk_size: self.chunk_size,
+            len: elem_index,
             base: left,
         },
         ChunkProducer {
             chunk_size: self.chunk_size,
+            len: self.len - elem_index,
             base: right,
         })
     }
@@ -121,21 +135,30 @@ impl<P> Producer for ChunkProducer<P>
     }
 }
 
-struct ChunkSeq<I> {
+struct ChunkSeq<P> {
     chunk_size: usize,
-    inner: I,
+    len: usize,
+    inner: Option<P>,
 }
 
-impl<I> Iterator for ChunkSeq<I>
-    where I: Iterator + ExactSizeIterator
+impl<P> Iterator for ChunkSeq<P>
+    where P: Producer
 {
-    type Item = Vec<I::Item>;
+    type Item = Vec<P::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.inner.len() > 0 {
-            Some(self.inner.by_ref().take(self.chunk_size).collect())
-        } else {
-            None
+        match self.inner.take() {
+            Some(producer) => if self.len > self.chunk_size {
+                let (left, right) = producer.split_at(self.chunk_size);
+                self.inner = Some(right);
+                self.len -= self.chunk_size;
+                Some(left.into_iter().collect())
+            } else {
+                debug_assert!(self.len > 0);
+                self.len = 0;
+                Some(producer.into_iter().collect())
+            },
+            _ => None
         }
     }
 
@@ -145,29 +168,35 @@ impl<I> Iterator for ChunkSeq<I>
     }
 }
 
-impl<I> ExactSizeIterator for ChunkSeq<I>
-    where I: Iterator + ExactSizeIterator
+impl<P> ExactSizeIterator for ChunkSeq<P>
+    where P: Producer
 {
     #[inline]
     fn len(&self) -> usize {
-        div_round_up(self.inner.len(), self.chunk_size)
+        div_round_up(self.len, self.chunk_size)
     }
 }
 
-impl<I> DoubleEndedIterator for ChunkSeq<I>
-    where I: Iterator + ExactSizeIterator + DoubleEndedIterator
+impl<P> DoubleEndedIterator for ChunkSeq<P>
+    where P: Producer
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.inner.len() == 0 {
-            return None
+        match self.inner.take() {
+            Some(producer) => if self.len > self.chunk_size {
+                let mut size = self.len % self.chunk_size;
+                if size == 0 {
+                    size = self.chunk_size;
+                }
+                let (left, right) = producer.split_at(self.len - size);
+                self.inner = Some(left);
+                self.len -= size;
+                Some(right.into_iter().collect())
+            } else {
+                debug_assert!(self.len > 0);
+                self.len = 0;
+                Some(producer.into_iter().collect())
+            },
+            _ => None
         }
-        let mut last_size = self.inner.len() % self.chunk_size;
-        if last_size == 0 {
-            last_size = self.chunk_size;
-        }
-        let mut chunk: Vec<_> = self.inner.by_ref().rev().take(last_size).collect();
-        // the elements themselves shouldn't be reversed.
-        chunk.reverse();
-        Some(chunk)
     }
 }
