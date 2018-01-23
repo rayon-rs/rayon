@@ -33,6 +33,11 @@ impl<T> Folder<T> for NoopConsumer {
         self
     }
 
+   fn consume_iter<I>(self, iter: I) -> Self where I: IntoIterator<Item=T> {
+        iter.into_iter().fold((), |_, _| ());
+        self
+   }
+
     fn complete(self) {}
 
     fn full(&self) -> bool {
