@@ -3,6 +3,7 @@
 #![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 #![cfg_attr(test, feature(i128_type))]
+#![deny(missing_docs)]
 
 //! Data-parallelism library that is easy to convert sequential computations into parallel.
 //!
