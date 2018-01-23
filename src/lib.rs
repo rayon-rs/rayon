@@ -1,5 +1,4 @@
 #![doc(html_root_url = "https://docs.rs/rayon/0.9")]
-#![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 #![cfg_attr(test, feature(i128_type))]
