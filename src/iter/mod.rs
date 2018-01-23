@@ -106,9 +106,13 @@ mod test;
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`std::iter::IntoIterator`]: https://doc.rust-lang.org/std/iter/trait.IntoIterator.html
 pub trait IntoParallelIterator {
+    /// The parallel iterator type that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that the parallel iterator will produce.
     type Item: Send;
 
+    /// Converts `self` into a parallel iterator.
     fn into_par_iter(self) -> Self::Iter;
 }
 
@@ -126,9 +130,14 @@ pub trait IntoParallelIterator {
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`IntoParallelIterator`]: trait.IntoParallelIterator.html
 pub trait IntoParallelRefIterator<'data> {
+    /// The type of the parallel iterator that will be returned.
     type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that the parallel iterator will produce.
+    /// This will typically be an `&'data T` reference type.
     type Item: Send + 'data;
 
+    /// Converts `self` into a parallel iterator.
     fn par_iter(&'data self) -> Self::Iter;
 }
 
@@ -158,9 +167,14 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefIterator<'data> for I
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`IntoParallelIterator`]: trait.IntoParallelIterator.html
 pub trait IntoParallelRefMutIterator<'data> {
+    /// The type of iterator that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that will be produced; this is typically an
+    /// `&'data mut T` reference.
     type Item: Send + 'data;
 
+    /// Creates the parallel iterator from `self`.
     fn par_iter_mut(&'data mut self) -> Self::Iter;
 }
 
@@ -177,6 +191,11 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
 
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized + Send {
+    /// The type of item that this parallel iterator produces.
+    /// For example, if you use the [`for_each`] method, this is the type of
+    /// item that your closure will be invoked with.
+    ///
+    /// [`for_each`]: #method.for_each
     type Item: Send;
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
@@ -1595,8 +1614,9 @@ pub trait IndexedParallelIterator: ParallelIterator {
     fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
 }
 
-/// `FromParallelIterator` implements the conversion from a [`ParallelIterator`].
-/// By implementing `FromParallelIterator` for a type, you define how it will be
+/// `FromParallelIterator` implements the creation of a collection
+/// from a [`ParallelIterator`]. By implementing
+/// `FromParallelIterator` for a given type, you define how it will be
 /// created from an iterator.
 ///
 /// `FromParallelIterator` is used through [`ParallelIterator`]'s [`collect()`] method.
@@ -1606,6 +1626,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
 pub trait FromParallelIterator<T>
     where T: Send
 {
+    /// Creates an instance of the collection from the parallel iterator `par_iter`.
+    ///
+    /// If your collection is not naturally parallel, the easiest (and
+    /// fastest) way to do this is often to collect `par_iter` into a
+    /// [`LinkedList`] or other intermediate data structure and then
+    /// sequentially extend your collection. However, a more 'native'
+    /// technique is to use the [`par_iter.fold`] or
+    /// [`par_iter.fold_with`] methods to create the collection.
+    /// Alternatively, if your collection is 'natively' parallel, you
+    /// can use `par_iter.for_each` to process each element in turn.
+    ///
+    /// [`par_iter.fold`]: trait.ParallelIterator.html#method.fold
+    /// [`par_iter.fold_with`]: trait.ParallelIterator.html#method.fold_with
+    /// [`par_iter.for_each`]: trait.ParallelIterator.html#method.for_each
     fn from_par_iter<I>(par_iter: I) -> Self where I: IntoParallelIterator<Item = T>;
 }
 
@@ -1615,5 +1649,7 @@ pub trait FromParallelIterator<T>
 pub trait ParallelExtend<T>
     where T: Send
 {
+    /// Extends an instance of the collection with the elements drawn
+    /// from the parallel iterator `par_iter`.
     fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
 }
