@@ -1,6 +1,9 @@
 //! Traits and functions used to implement parallel iteration.  These are
 //! low-level details -- users of parallel iterators should not need to
-//! interact with them directly.  See `README.md` for a high-level overview.
+//! interact with them directly.  See [the `plumbing` README][r] for a high-level overview.
+//!
+//! [r]: README.md
+
 
 use join_context;
 
@@ -9,27 +12,84 @@ use super::IndexedParallelIterator;
 use std::cmp;
 use std::usize;
 
+/// The `ProducerCallback` trait is a kind of generic closure,
+/// [analogous to `FnOnce`][FnOnce]. See [the corresponding section in
+/// the plumbing README][r] for more details.
+///
+/// [r]: README.md#producer-callback
+/// [FnOnce]: https://doc.rust-lang.org/std/ops/trait.FnOnce.html
 pub trait ProducerCallback<T> {
+    /// The type of value returned by this callback. Analogous to
+    /// [`Output` from the `FnOnce` trait][Output].
+    ///
+    /// [Output]: https://doc.rust-lang.org/std/ops/trait.FnOnce.html#associatedtype.Output
     type Output;
+
+    /// Invokes the callback with the given producer as argument. The
+    /// key point of this trait is that this method is generic over
+    /// `P`, and hence implementors must be defined for any producer.
     fn callback<P>(self, producer: P) -> Self::Output where P: Producer<Item = T>;
 }
 
-/// A producer which will produce a fixed number of items N. This is
-/// not queryable through the API; the consumer is expected to track
-/// it.
+/// A `Producer` is effectively a "splittable `IntoIterator`". That
+/// is, a producer is a value which can be converted into an iterator
+/// at any time: at that point, it simply produces items on demand,
+/// like any iterator. But what makes a `Producer` special is that,
+/// *before* we convert to an iterator, we can also **split** it at a
+/// particular point using the `split_at` method. This will yield up
+/// two producers, one producing the items before that point, and one
+/// producing the items after that point (these two producers can then
+/// independently be split further, or be converted into iterators).
+/// In Rayon, this splitting is used to divide between threads.
+/// See [the `plumbing` README][r] for further details.
+///
+/// Note that each producer will always produce a fixed number of
+/// items N. However, this number N is not queryable through the API;
+/// the consumer is expected to track it.
+///
+/// NB. You might expect `Producer` to extend the `IntoIterator`
+/// trait.  However, [rust-lang/rust#20671][20671] prevents us from
+/// declaring the DoubleEndedIterator and ExactSizeIterator
+/// constraints on a required IntoIterator trait, so we inline
+/// IntoIterator here until that issue is fixed.
+///
+/// [r]: README.md
+/// [20671]: https://github.com/rust-lang/rust/issues/20671
 pub trait Producer: Send + Sized {
-    // Rust issue https://github.com/rust-lang/rust/issues/20671
-    // prevents us from declaring the DoubleEndedIterator and
-    // ExactSizeIterator constraints on a required IntoIterator trait,
-    // so we inline IntoIterator here until that issue is fixed.
+    /// The type of item that will be produced by this producer once
+    /// it is converted into an iterator.
     type Item;
+
+    /// The type of iterator we will become.
     type IntoIter: Iterator<Item = Self::Item> + DoubleEndedIterator + ExactSizeIterator;
 
+    /// Convert `self` into an iterator; at this point, no more parallel splits
+    /// are possible.
     fn into_iter(self) -> Self::IntoIter;
 
+    /// The minimum number of items that we will process
+    /// sequentially. Defaults to 1, which means that we will split
+    /// all the way down to a single item. This can be raised higher
+    /// using the [`with_min_len`] method, which will force us to
+    /// create sequential tasks at a larger granularity. Note that
+    /// Rayon automatically normally attempts to adjust the size of
+    /// parallel splits to reduce overhead, so this should not be
+    /// needed.
+    ///
+    /// [`with_min_len`]: ../trait.IndexedParallelIterator.html#method.with_min_len
     fn min_len(&self) -> usize {
         1
     }
+
+    /// The maximum number of items that we will process
+    /// sequentially. Defaults to MAX, which means that we can choose
+    /// not to split at all. This can be lowered using the
+    /// [`with_max_len`] method, which will force us to create more
+    /// parallel tasks. Note that Rayon automatically normally
+    /// attempts to adjust the size of parallel splits to reduce
+    /// overhead, so this should not be needed.
+    ///
+    /// [`with_max_len`]: ../trait.IndexedParallelIterator.html#method.with_max_len
     fn max_len(&self) -> usize {
         usize::MAX
     }
@@ -49,10 +109,28 @@ pub trait Producer: Send + Sized {
     }
 }
 
-/// A consumer which consumes items that are fed to it.
+/// A consumer is effectively a [generalized "fold" operation][fold],
+/// and in fact each consumer will eventually be converted into a
+/// [`Folder`]. What makes a consumer special is that, like a
+/// [`Producer`], it can be **split** into multiple consumers using
+/// the `split_at` method. When a consumer is split, it produces two
+/// consumers, as well as a **reducer**. The two consumers can be fed
+/// items independently, and when they are done the reducer is used to
+/// combine their two results into one. See [the `plumbing`
+/// README][r] for further details.
+///
+/// [r]: README.md
+/// [fold]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fold
+/// [`Folder`]: trait.Folder.html
+/// [`Producer`]: trait.Producer.html
 pub trait Consumer<Item>: Send + Sized {
+    /// The type of folder that this consumer can be converted into.
     type Folder: Folder<Item, Result = Self::Result>;
+
+    /// The type of reducer that is produced if this consumer is split.
     type Reducer: Reducer<Self::Result>;
+
+    /// The type of result that this consumer will ultimately produce.
     type Result: Send;
 
     /// Divide the consumer into two consumers, one processing items
@@ -70,13 +148,27 @@ pub trait Consumer<Item>: Send + Sized {
     fn full(&self) -> bool;
 }
 
+/// The `Folder` trait encapsulates [the standard fold
+/// operation][fold].  It can be fed many items using the `consume`
+/// method. At the end, once all items have been consumed, it can then
+/// be converted (using `complete`) into a final value.
+///
+/// [fold]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fold
 pub trait Folder<Item>: Sized {
+    /// The type of result that will ultimately be produced by the folder.
     type Result;
 
     /// Consume next item and return new sequential state.
     fn consume(self, item: Item) -> Self;
 
     /// Consume items from the iterator until full, and return new sequential state.
+    ///
+    /// This method is **optional**. The default simply iterates over
+    /// `iter`, invoking `consume` and checking after each iteration
+    /// whether `full` returns false.
+    ///
+    /// The main reason to override it is if you can provide a more
+    /// specialized, efficient implementation.
     fn consume_iter<I>(mut self, iter: I) -> Self
         where I: IntoIterator<Item = Item>
     {
@@ -97,24 +189,49 @@ pub trait Folder<Item>: Sized {
     fn full(&self) -> bool;
 }
 
+/// The reducer is the final step of a `Consumer` -- after a consumer
+/// has been split into two parts, and each of those parts has been
+/// fully processed, we are left with two results. The reducer is then
+/// used to combine those two results into one. See [the `plumbing`
+/// README][r] for further details.
+///
+/// [r]: README.md
 pub trait Reducer<Result> {
     /// Reduce two final results into one; this is executed after a
     /// split.
     fn reduce(self, left: Result, right: Result) -> Result;
 }
 
-/// A stateless consumer can be freely copied.
+/// A stateless consumer can be freely copied. These consumers can be
+/// used like regular consumers, but they also support a
+/// `split_off_left` method that does not take an index to split, but
+/// simply splits at some arbitrary point (`for_each`, for example,
+/// produces an unindexed consumer).
 pub trait UnindexedConsumer<I>: Consumer<I> {
-    // The result of split_off_left should be used for the left side of the
-    // data it consumes, and the remaining consumer for the right side
-    // (this matters for methods like find_first).
+    /// Splits off a "left" consumer and returns it. The `self`
+    /// consumer should then be used to consume the "right" portion of
+    /// the data. (The ordering matters for methods like find_first --
+    /// values produced by the returned value are given precedence
+    /// over values produced by `self`.) Once the left and right
+    /// halves have been fully consumed, you should reduce the results
+    /// with the result of `to_reducer`.
     fn split_off_left(&self) -> Self;
+
+    /// Creates a reducer that can be used to combine the results from
+    /// a split consumer.
     fn to_reducer(&self) -> Self::Reducer;
 }
 
-/// An unindexed producer that doesn't know its exact length.
-/// (or can't represent its known length in a `usize`)
+/// A variant on `Producer` which does not know its exact length or
+/// cannot represent it in a `usize`. These producers act like
+/// ordinary producers except that they cannot be told to split at a
+/// particular point. Instead, you just ask them to split 'somewhere'.
+///
+/// (In principle, `Producer` could extend this trait; however, it
+/// does not because to do so would require producers to carry their
+/// own length with them.)
 pub trait UnindexedProducer: Send + Sized {
+    /// The type of item returned by this producer.
     type Item;
 
     /// Split midway into a new producer if possible, otherwise return `None`.
@@ -215,6 +332,17 @@ impl LengthSplitter {
     }
 }
 
+/// This helper function is used to "connect" a parallel iterator to a
+/// consumer. It will convert the `par_iter` into a producer P and
+/// then pull items from P and feed them to `consumer`, splitting and
+/// creating parallel threads as needed.
+///
+/// This is useful when you are implementing your own parallel
+/// iterators: it is often used as the definition of the
+/// [`drive_unindexed`] or [`drive`] methods.
+///
+/// [`drive_unindexed`]: ../trait.ParallelIterator.html#tymethod.drive_unindexed
+/// [`drive`]: ../trait.IndexedParallelIterator.html#tymethod.drive
 pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
     where I: IndexedParallelIterator,
           C: Consumer<I::Item>
@@ -242,6 +370,16 @@ pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
     }
 }
 
+/// This helper function is used to "connect" a producer and a
+/// consumer.  You may producer to call [`bridge`], which wraps this
+/// function. This function will draw items from `producer` and feed them to `consumer`,
+/// splitting and creating parallel tasks when needed.
+///
+/// This is useful when you are implementing your own parallel
+/// iterators: it is often used as the definition of the
+/// [`drive_unindexed`] or [`drive`] methods.
+///
+/// [`bridge`]: fn.bridge.html
 pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C::Result
     where P: Producer,
           C: Consumer<P::Item>
@@ -279,6 +417,9 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
     }
 }
 
+/// A variant of [`bridge_producer_consumer`] where the producer is an unindexed producer.
+///
+/// [`bridge_producer_consumer`]: fn.bridge_producer_consumer.html
 pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
     where P: UnindexedProducer,
           C: UnindexedConsumer<P::Item>

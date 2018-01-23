@@ -135,6 +135,8 @@ indexed producer, such as a slice or range.  There is also a
 `bridge_unindexed` equivalent for - you guessed it - unindexed producers,
 such as string characters.
 
+<a name="producer-callback">
+
 ## What on earth is `ProducerCallback`?
 
 We saw that when you call a parallel action method like
