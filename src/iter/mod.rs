@@ -275,10 +275,16 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// let (sender, receiver) = channel();
     ///
-    /// let mut par_iter = (0..5).into_par_iter().map_with(sender, |s, x| { s.send(x).unwrap(); x });
-    /// let a: Vec<_> = par_iter.collect();
+    /// let a: Vec<_> = (0..5)
+    ///                 .into_par_iter()            // iterating over i32
+    ///                 .map_with(sender, |s, x| {
+    ///                     s.send(x).unwrap();     // sending i32 values through the channel
+    ///                     x                       // returning i32
+    ///                 })
+    ///                 .collect();                 // collecting the returned values into a vector
     ///
-    /// let mut b: Vec<_> = receiver.iter().collect();
+    /// let mut b: Vec<_> = receiver.iter()         // iterating over the values in the channel
+    ///                             .collect();     // and collecting them
     /// b.sort();
     ///
     /// assert_eq!(a, b);
