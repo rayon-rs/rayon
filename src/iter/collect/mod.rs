@@ -123,7 +123,7 @@ impl<T> ParallelExtend<T> for Vec<T>
         where I: IntoParallelIterator<Item = T>
     {
         // See the vec_collect benchmarks in rayon-demo for different strategies.
-        let mut par_iter = par_iter.into_par_iter();
+        let par_iter = par_iter.into_par_iter();
         match par_iter.opt_len() {
             Some(len) => {
                 // When Rust gets specialization, we can get here for indexed iterators

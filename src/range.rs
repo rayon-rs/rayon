@@ -80,7 +80,7 @@ macro_rules! indexed_range_impl {
                 bridge(self, consumer)
             }
 
-            fn opt_len(&mut self) -> Option<usize> {
+            fn opt_len(&self) -> Option<usize> {
                 Some(self.len())
             }
         }

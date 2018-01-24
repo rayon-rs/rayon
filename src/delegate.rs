@@ -30,7 +30,7 @@ macro_rules! delegate_iterator {
                 self.inner.drive_unindexed(consumer)
             }
 
-            fn opt_len(&mut self) -> Option<usize> {
+            fn opt_len(&self) -> Option<usize> {
                 self.inner.opt_len()
             }
         }

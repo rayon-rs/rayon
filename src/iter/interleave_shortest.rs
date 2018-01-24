@@ -52,7 +52,7 @@ impl<I, J> ParallelIterator for InterleaveShortest<I, J>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }

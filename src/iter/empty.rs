@@ -52,7 +52,7 @@ impl<T: Send> ParallelIterator for Empty<T> {
         self.drive(consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(0)
     }
 }

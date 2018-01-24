@@ -40,7 +40,7 @@ impl<T: Send> ParallelIterator for Once<T> {
         self.drive(consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(1)
     }
 }

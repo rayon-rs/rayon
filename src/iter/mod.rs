@@ -1233,7 +1233,7 @@ pub trait ParallelIterator: Sized + Send {
     /// This method is currently used to optimize `collect` for want
     /// of true Rust specialization; it may be removed when
     /// specialization is stable.
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         None
     }
 }

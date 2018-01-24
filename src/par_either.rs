@@ -18,8 +18,8 @@ impl<L, R> ParallelIterator for Either<L, R>
         }
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
-        self.as_mut().either(L::opt_len, R::opt_len)
+    fn opt_len(&self) -> Option<usize> {
+        self.as_ref().either(L::opt_len, R::opt_len)
     }
 }
 

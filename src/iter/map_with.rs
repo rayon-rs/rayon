@@ -55,7 +55,7 @@ impl<I, T, F, R> ParallelIterator for MapWith<I, T, F>
         self.base.drive_unindexed(consumer1)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         self.base.opt_len()
     }
 }

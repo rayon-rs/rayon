@@ -38,7 +38,7 @@ impl<A, B> ParallelIterator for Chain<A, B>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let Chain { mut a, b } = self;
+        let Chain { a, b } = self;
 
         // If we returned a value from our own `opt_len`, then the collect consumer in particular
         // will balk at being treated like an actual `UnindexedConsumer`.  But when we do know the
@@ -55,7 +55,7 @@ impl<A, B> ParallelIterator for Chain<A, B>
         reducer.reduce(a, b)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         match (self.a.opt_len(), self.b.opt_len()) {
             (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
             _ => None,
