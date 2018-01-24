@@ -54,7 +54,7 @@ impl<A, B> IndexedParallelIterator for ZipEq<A, B>
         bridge(self.zip, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.zip.len()
     }
 

@@ -70,20 +70,20 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
-        let Chain { mut a, b } = self;
+        let Chain { a, b } = self;
         let (left, right, reducer) = consumer.split_at(a.len());
         let (a, b) = join(|| a.drive(left), || b.drive(right));
         reducer.reduce(a, b)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.a
             .len()
             .checked_add(self.b.len())
             .expect("overflow")
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         let a_len = self.a.len();

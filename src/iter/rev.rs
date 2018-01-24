@@ -45,11 +45,11 @@ impl<I> IndexedParallelIterator for Rev<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         let len = self.base.len();

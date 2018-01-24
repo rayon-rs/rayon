@@ -67,7 +67,7 @@ impl<I, F> IndexedParallelIterator for Update<I, F>
         self.base.drive(consumer1)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 

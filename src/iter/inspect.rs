@@ -68,7 +68,7 @@ impl<I, F> IndexedParallelIterator for Inspect<I, F>
         self.base.drive(consumer1)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 

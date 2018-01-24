@@ -47,7 +47,7 @@ impl<I> IndexedParallelIterator for Enumerate<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 

@@ -64,7 +64,7 @@ impl<T: Send> IndexedParallelIterator for Empty<T> {
         consumer.into_folder().complete()
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         0
     }
 

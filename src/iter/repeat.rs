@@ -46,7 +46,7 @@ impl<T> Repeat<T>
         where Z: IntoParallelIterator,
               Z::Iter: IndexedParallelIterator
     {
-        let mut z = zip_op.into_par_iter();
+        let z = zip_op.into_par_iter();
         let n = z.len();
         self.take(n).zip(z)
     }
@@ -139,7 +139,7 @@ impl<T> IndexedParallelIterator for RepeatN<T>
         callback.callback(RepeatNProducer { element: self.element, count: self.count })
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.count
     }
 }

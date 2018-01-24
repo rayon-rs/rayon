@@ -52,7 +52,7 @@ impl<T: Send> IndexedParallelIterator for Once<T> {
         consumer.into_folder().consume(self.item).complete()
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         1
     }
 

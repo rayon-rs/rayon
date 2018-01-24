@@ -49,7 +49,7 @@ impl<I> IndexedParallelIterator for MinLen<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 
@@ -170,7 +170,7 @@ impl<I> IndexedParallelIterator for MaxLen<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 

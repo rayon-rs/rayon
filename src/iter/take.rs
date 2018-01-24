@@ -17,7 +17,7 @@ pub struct Take<I> {
 /// Create a new `Take` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(mut base: I, n: usize) -> Take<I>
+pub fn new<I>(base: I, n: usize) -> Take<I>
     where I: IndexedParallelIterator
 {
     let n = min(base.len(), n);
@@ -43,7 +43,7 @@ impl<I> ParallelIterator for Take<I>
 impl<I> IndexedParallelIterator for Take<I>
     where I: IndexedParallelIterator
 {
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.n
     }
 

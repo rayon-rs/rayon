@@ -56,14 +56,14 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.i
             .len()
             .checked_add(self.j.len())
             .expect("overflow")
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         let (i_len, j_len) = (self.i.len(), self.j.len());

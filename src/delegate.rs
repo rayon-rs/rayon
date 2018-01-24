@@ -56,7 +56,7 @@ macro_rules! delegate_indexed_iterator {
                 self.inner.drive(consumer)
             }
 
-            fn len(&mut self) -> usize {
+            fn len(&self) -> usize {
                 self.inner.len()
             }
 

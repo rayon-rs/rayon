@@ -92,7 +92,7 @@ macro_rules! indexed_range_impl {
                 bridge(self, consumer)
             }
 
-            fn len(&mut self) -> usize {
+            fn len(&self) -> usize {
                 self.range.len()
             }
 

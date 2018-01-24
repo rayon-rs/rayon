@@ -53,7 +53,7 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         cmp::min(self.a.len(), self.b.len())
     }
 

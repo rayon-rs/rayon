@@ -48,7 +48,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
         folder.complete()
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         match self.opt {
             Some(_) => 1,
             None => 0,

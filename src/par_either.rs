@@ -36,8 +36,8 @@ impl<L, R> IndexedParallelIterator for Either<L, R>
         }
     }
 
-    fn len(&mut self) -> usize {
-        self.as_mut().either(L::len, R::len)
+    fn len(&self) -> usize {
+        self.as_ref().either(L::len, R::len)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output

@@ -42,7 +42,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.vec.len()
     }
 
