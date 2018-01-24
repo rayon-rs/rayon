@@ -161,6 +161,6 @@ fn debug_repeat() {
 
 #[test]
 fn debug_splitter() {
-    check(rayon::iter::split((0..10), |x| (x, None)));
+    check(rayon::iter::split(0..10, |x| (x, None)));
 }
 
