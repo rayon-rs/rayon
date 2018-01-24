@@ -1,3 +1,9 @@
+//! Internal, unsafe APIs for creating scoped tasks. Intended for
+//! building abstractions atop the rayon-core thread pool, rathe than
+//! direct use by end users. These APIs are mostly analogous to the
+//! (safe) `scope`/`spawn` APIs, but with some unsafe requirements
+//! that permit greater efficiency.
+
 use std::any::Any;
 use std::sync::Arc;
 
@@ -5,6 +11,7 @@ use std::sync::Arc;
 /// thread-pool. Once a task is scheduler, it will execute exactly
 /// once (eventually).
 pub trait Task: Send + Sync {
+    /// Invoked by the thread-pool when the task is ready to execute.
     fn execute(this: Arc<Self>);
 }
 
@@ -68,7 +75,10 @@ pub unsafe trait ScopeHandle<'scope>: 'scope {
 /// into a "scope handle". See the `ScopeHandle` trait for more
 /// details.
 pub trait ToScopeHandle<'scope> {
+    /// Scope handle type that gets produced.
     type ScopeHandle: ScopeHandle<'scope>;
+
+    /// Convert the receiver into a scope handle.
     fn to_scope_handle(&self) -> Self::ScopeHandle;
 }
 
