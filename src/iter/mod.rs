@@ -1360,7 +1360,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// If the number of elements in the iterator is not divisible by `chunk_size`,
     /// the last chunk may be shorter than `chunk_size`.
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
