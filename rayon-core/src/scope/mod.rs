@@ -273,8 +273,55 @@ impl<'scope> Scope<'scope> {
     /// Spawns a job into the fork-join scope `self`. This job will
     /// execute sometime before the fork-join scope completes.  The
     /// job is specified as a closure, and this closure receives its
-    /// own reference to `self` as argument. This can be used to
-    /// inject new jobs into `self`.
+    /// own reference to the scope `self` as argument. This can be
+    /// used to inject new jobs into `self`.
+    ///
+    /// # Returns
+    ///
+    /// Nothing. The spawned closures cannot pass back values to the
+    /// caller directly, though they can write to local variables on
+    /// the stack (if those variables outlive the scope) or
+    /// communicate through shared channels.
+    ///
+    /// (The intention is to eventualy integrate with Rust futures to
+    /// support spawns of functions that compute a value.)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rayon_core as rayon;
+    /// let mut value_a = None;
+    /// let mut value_b = None;
+    /// let mut value_c = None;
+    /// rayon::scope(|s| {
+    ///     s.spawn(|s1| {
+    ///           // ^ this is the same scope as `s`; this handle `s1`
+    ///           //   is intended for use by the spawned task,
+    ///           //   since scope handles cannot cross thread boundaries.
+    ///
+    ///         value_a = Some(22);
+    ///
+    ///         // the scope `s` will not end until all these tasks are done
+    ///         s1.spawn(|_| {
+    ///             value_b = Some(44);
+    ///         });
+    ///     });
+    ///
+    ///     s.spawn(|_| {
+    ///         value_c = Some(66);
+    ///     });
+    /// });
+    /// assert_eq!(value_a, Some(22));
+    /// assert_eq!(value_b, Some(44));
+    /// assert_eq!(value_c, Some(66));
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// The [`scope` function] has more extensive documentation about
+    /// task spawning.
+    ///
+    /// [`scope` function]: fn.scope.html
     pub fn spawn<BODY>(&self, body: BODY)
         where BODY: FnOnce(&Scope<'scope>) + Send + 'scope
     {
