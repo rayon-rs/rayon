@@ -1,3 +1,8 @@
+//! Contains support for user-managed thread pools, represented by the
+//! the [`ThreadPool`] type (see that struct for details).
+//!
+//! [`ThreadPool`]: struct.ThreadPool.html
+
 use Configuration;
 use join;
 use {scope, Scope};
@@ -9,13 +14,14 @@ use registry::{Registry, WorkerThread};
 
 mod internal;
 mod test;
-/// # ThreadPool
-///
-/// The [`ThreadPool`] struct represents a user created [thread-pool]. [`ThreadPool::new()`]
-/// takes a [`Configuration`] struct that you can use to specify the number and/or
-/// names of threads in the pool. You can then execute functions explicitly within
-/// this [`ThreadPool`] using [`ThreadPool::install()`]. By contrast, top level
-/// rayon functions (like `join()`)  will execute implicitly within the current thread-pool.
+
+/// Represents a user created [thread-pool]. [`ThreadPool::new()`]
+/// takes a [`Configuration`] struct that you can use to specify the
+/// number and/or names of threads in the pool. You can then execute
+/// functions explicitly within this [`ThreadPool`] using
+/// [`ThreadPool::install()`]. By contrast, top level rayon functions
+/// (like `join()`) will execute implicitly within the current
+/// thread-pool.
 ///
 ///
 /// ## Creating a ThreadPool
