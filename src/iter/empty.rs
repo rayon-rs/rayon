@@ -90,4 +90,10 @@ impl<T: Send> Producer for EmptyProducer<T> {
         debug_assert_eq!(index, 0);
         (self, EmptyProducer(PhantomData))
     }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        folder
+    }
 }

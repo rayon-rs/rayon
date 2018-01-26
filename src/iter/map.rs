@@ -143,6 +143,13 @@ impl<'f, P, F, R> Producer for MapProducer<'f, P, F>
              map_op: self.map_op,
          })
     }
+
+    fn fold_with<G>(self, folder: G) -> G
+        where G: Folder<Self::Item>
+    {
+        let folder1 = MapFolder { base: folder, map_op: self.map_op };
+        self.base.fold_with(folder1).base
+    }
 }
 
 

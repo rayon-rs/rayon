@@ -159,6 +159,17 @@ impl<'f, P, U, F, R> Producer for MapWithProducer<'f, P, U, F>
              map_op: self.map_op,
          })
     }
+
+    fn fold_with<G>(self, folder: G) -> G
+        where G: Folder<Self::Item>
+    {
+        let folder1 = MapWithFolder {
+            base: folder,
+            item: self.item,
+            map_op: self.map_op,
+        };
+        self.base.fold_with(folder1).base
+    }
 }
 
 struct MapWithIter<'f, I, U, F: 'f> {

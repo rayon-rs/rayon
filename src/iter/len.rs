@@ -120,6 +120,12 @@ impl<P> Producer for MinLenProducer<P>
              min: self.min,
          })
     }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.base.fold_with(folder)
+    }
 }
 
 
@@ -240,5 +246,11 @@ impl<P> Producer for MaxLenProducer<P>
              base: right,
              max: self.max,
          })
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.base.fold_with(folder)
     }
 }

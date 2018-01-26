@@ -111,6 +111,12 @@ impl<'a, T, P> Producer for ClonedProducer<P>
         let (left, right) = self.base.split_at(index);
         (ClonedProducer { base: left }, ClonedProducer { base: right })
     }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.base.fold_with(ClonedFolder { base: folder }).base
+    }
 }
 
 
