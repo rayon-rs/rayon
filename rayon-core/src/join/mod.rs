@@ -58,7 +58,7 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     join_context(|_| oper_a(), |_| oper_b())
 }
 
-/// Indentical to `join`, except that the closures have a parameter
+/// Identical to `join`, except that the closures have a parameter
 /// that provides context for the way the closure has been called,
 /// especially indicating whether they're executing on a different
 /// thread than where `join_context` was called.  This will occur if
