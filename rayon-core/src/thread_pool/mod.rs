@@ -1,3 +1,8 @@
+//! Contains support for user-managed thread pools, represented by the
+//! the [`ThreadPool`] type (see that struct for details).
+//!
+//! [`ThreadPool`]: struct.ThreadPool.html
+
 use Configuration;
 use join;
 use {scope, Scope};
@@ -9,6 +14,7 @@ use registry::{Registry, WorkerThread};
 
 mod internal;
 mod test;
+
 /// # ThreadPool
 ///
 /// The [`ThreadPool`] struct represents a user created [thread-pool]. [`ThreadPool::new()`]
