@@ -1841,7 +1841,7 @@ fn check_interleave_shortest() {
 fn check_repeat_unbounded() {
     // use just one thread, so we don't get infinite adaptive splitting
     // (forever stealing and re-splitting jobs that will panic on overflow)
-    let pool = ::ThreadPool::new(::Configuration::new().num_threads(1)).unwrap();
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     pool.install(|| {
         println!("counted {} repeats", repeat(()).count());
     });

@@ -27,11 +27,11 @@ use unwind;
 /// # Panic handling
 ///
 /// If this closure should panic, the resulting panic will be
-/// propagated to the panic handler registered in the `Configuration`,
-/// if any.  See [`Configuration::panic_handler()`][ph] for more
+/// propagated to the panic handler registered in the `ThreadPoolBuilder`,
+/// if any.  See [`ThreadPoolBuilder::panic_handler()`][ph] for more
 /// details.
 ///
-/// [ph]: struct.Configuration.html#method.panic_handler
+/// [ph]: struct.ThreadPoolBuilder.html#method.panic_handler
 ///
 /// # Examples
 ///

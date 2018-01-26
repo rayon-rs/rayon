@@ -1,9 +1,8 @@
 //! Tests for the join code.
 
-use Configuration;
+use ThreadPoolBuilder;
 use join::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
-use thread_pool::*;
 use unwind;
 
 fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
@@ -44,7 +43,7 @@ fn sort_in_pool() {
     let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
     let mut data: Vec<_> = (0..12 * 1024).map(|_| rng.next_u32()).collect();
 
-    let pool = ThreadPool::new(Configuration::new()).unwrap();
+    let pool = ThreadPoolBuilder::new().build().unwrap();
     let mut sorted_data = data.clone();
     sorted_data.sort();
     pool.install(|| quick_sort(&mut data));
@@ -89,7 +88,7 @@ fn join_context_both() {
 #[test]
 fn join_context_neither() {
     // If we're already in a 1-thread pool, neither job should be stolen.
-    let pool = ThreadPool::new(Configuration::new().num_threads(1)).unwrap();
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     let (a_migrated, b_migrated) = pool.install(|| {
         join_context(|a| a.migrated(), |b| b.migrated())
     });
@@ -103,7 +102,7 @@ fn join_context_second() {
 
     // If we're already in a 2-thread pool, the second job should be stolen.
     let barrier = Barrier::new(2);
-    let pool = ThreadPool::new(Configuration::new().num_threads(2)).unwrap();
+    let pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
     let (a_migrated, b_migrated) = pool.install(|| {
         join_context(|a| { barrier.wait(); a.migrated() },
                      |b| { barrier.wait(); b.migrated() })

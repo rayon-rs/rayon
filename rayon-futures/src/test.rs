@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use futures::task;
 use futures::executor::Notify;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use rayon_core::{scope, ThreadPool, Configuration};
+use rayon_core::{scope, ThreadPool, ThreadPoolBuilder};
 use super::ScopeFutureExt;
 
 #[cfg(not(all(windows, target_env = "gnu")))]
@@ -37,7 +37,7 @@ fn future_test() {
     // Here we call `wait` on a select future, which will block at
     // least one thread. So we need a second thread to ensure no
     // deadlock.
-    ThreadPool::new(Configuration::new().num_threads(2)).unwrap().install(|| {
+    ThreadPoolBuilder::new().num_threads(2).build().unwrap().install(|| {
         scope(|s| {
             let a = s.spawn_future(futures::future::ok::<_, ()>(&data[0]));
             let b = s.spawn_future(futures::future::ok::<_, ()>(&data[1]));
@@ -110,7 +110,7 @@ fn future_panic_prop() {
 fn future_rayon_wait_1_thread() {
     // run with only 1 worker thread; this would deadlock if we couldn't make progress
     let mut result = None;
-    ThreadPool::new(Configuration::new().num_threads(1)).unwrap().install(|| {
+    ThreadPoolBuilder::new().num_threads(1).build().unwrap().install(|| {
         scope(|s| {
             use std::sync::mpsc::channel;
             let (tx, rx) = channel();

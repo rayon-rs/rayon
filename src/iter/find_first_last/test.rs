@@ -141,8 +141,8 @@ fn find_last_octillion() {
     // It would be nice if `find_last` could prioritize the later splits,
     // basically flipping the `join` args, without needing indexed `rev`.
     // (or could we have an unindexed `rev`?)
-    let config = ::Configuration::new().num_threads(2);
-    let pool = ::ThreadPool::new(config).unwrap();
+    let builder = ::ThreadPoolBuilder::new().num_threads(2);
+    let pool = builder.build().unwrap();
 
     let x = pool.install(|| octillion().find_last(|_| true));
     assert_eq!(x, Some(999999999999999999999999999));
