@@ -32,7 +32,7 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
         self.drive(consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -48,7 +48,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
         folder.complete()
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         match self.opt {
             Some(_) => 1,
             None => 0,

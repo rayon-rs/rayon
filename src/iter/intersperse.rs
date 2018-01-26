@@ -42,7 +42,7 @@ impl<I> ParallelIterator for Intersperse<I>
         self.base.drive_unindexed(consumer1)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         match self.base.opt_len() {
             None => None,
             Some(0) => Some(0),
@@ -62,7 +62,7 @@ impl<I> IndexedParallelIterator for Intersperse<I>
         self.base.drive(consumer1)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         let len = self.base.len();
         if len > 0 {
             len.checked_add(len - 1).expect("overflow")
@@ -71,7 +71,7 @@ impl<I> IndexedParallelIterator for Intersperse<I>
         }
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         let len = self.len();

@@ -212,7 +212,7 @@ impl<'b, I, OP, FromB> ParallelIterator for UnzipA<'b, I, OP, FromB>
         result.expect("unzip consumers didn't execute!")
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         if OP::indexable() {
             self.base.opt_len()
         } else {
@@ -256,7 +256,7 @@ impl<'r, I, OP, CA> ParallelIterator for UnzipB<'r, I, OP, CA>
         result.1
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         if OP::indexable() {
             self.base.opt_len()
         } else {

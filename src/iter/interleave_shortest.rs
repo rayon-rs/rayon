@@ -22,7 +22,7 @@ pub struct InterleaveShortest<I, J>
 /// Create a new `InterleaveShortest` iterator
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, J>(mut i: I, mut j: J) -> InterleaveShortest<I, J>
+pub fn new<I, J>(i: I, j: J) -> InterleaveShortest<I, J>
     where I: IndexedParallelIterator,
           J: IndexedParallelIterator<Item = I::Item>
 {
@@ -52,7 +52,7 @@ impl<I, J> ParallelIterator for InterleaveShortest<I, J>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -67,7 +67,7 @@ impl<I, J> IndexedParallelIterator for InterleaveShortest<I, J>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.interleave.len()
     }
 

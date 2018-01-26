@@ -38,7 +38,7 @@ impl<A, B> ParallelIterator for Chain<A, B>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let Chain { mut a, b } = self;
+        let Chain { a, b } = self;
 
         // If we returned a value from our own `opt_len`, then the collect consumer in particular
         // will balk at being treated like an actual `UnindexedConsumer`.  But when we do know the
@@ -55,7 +55,7 @@ impl<A, B> ParallelIterator for Chain<A, B>
         reducer.reduce(a, b)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         match (self.a.opt_len(), self.b.opt_len()) {
             (Some(a_len), Some(b_len)) => a_len.checked_add(b_len),
             _ => None,
@@ -70,20 +70,20 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
     fn drive<C>(self, consumer: C) -> C::Result
         where C: Consumer<Self::Item>
     {
-        let Chain { mut a, b } = self;
+        let Chain { a, b } = self;
         let (left, right, reducer) = consumer.split_at(a.len());
         let (a, b) = join(|| a.drive(left), || b.drive(right));
         reducer.reduce(a, b)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.a
             .len()
             .checked_add(self.b.len())
             .expect("overflow")
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         let a_len = self.a.len();

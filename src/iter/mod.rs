@@ -1233,7 +1233,7 @@ pub trait ParallelIterator: Sized + Send {
     /// This method is currently used to optimize `collect` for want
     /// of true Rust specialization; it may be removed when
     /// specialization is stable.
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         None
     }
 }
@@ -1304,11 +1304,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// // we should never get here
     /// assert_eq!(1, zipped.len());
     /// ```
-    fn zip_eq<Z>(mut self, zip_op: Z) -> ZipEq<Self, Z::Iter>
+    fn zip_eq<Z>(self, zip_op: Z) -> ZipEq<Self, Z::Iter>
         where Z: IntoParallelIterator,
               Z::Iter: IndexedParallelIterator
     {
-        let mut zip_op_iter = zip_op.into_par_iter();
+        let zip_op_iter = zip_op.into_par_iter();
         assert_eq!(self.len(), zip_op_iter.len());
         zip_eq::new(self, zip_op_iter)
     }
@@ -1354,12 +1354,12 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
-    fn cmp<I>(mut self, other: I) -> Ordering
+    fn cmp<I>(self, other: I) -> Ordering
         where I: IntoParallelIterator<Item = Self::Item>,
               I::Iter: IndexedParallelIterator,
               Self::Item: Ord
     {
-        let mut other = other.into_par_iter();
+        let other = other.into_par_iter();
         let ord_len = self.len().cmp(&other.len());
         self.zip(other)
             .map(|(x, y)| Ord::cmp(&x, &y))
@@ -1369,12 +1369,12 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
-    fn partial_cmp<I>(mut self, other: I) -> Option<Ordering>
+    fn partial_cmp<I>(self, other: I) -> Option<Ordering>
         where I: IntoParallelIterator,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialOrd<I::Item>
     {
-        let mut other = other.into_par_iter();
+        let other = other.into_par_iter();
         let ord_len = self.len().cmp(&other.len());
         self.zip(other)
             .map(|(x, y)| PartialOrd::partial_cmp(&x, &y))
@@ -1384,12 +1384,12 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Determines if the elements of this `ParallelIterator`
     /// are equal to those of another
-    fn eq<I>(mut self, other: I) -> bool
+    fn eq<I>(self, other: I) -> bool
         where I: IntoParallelIterator,
               I::Iter: IndexedParallelIterator,
               Self::Item: PartialEq<I::Item>
     {
-        let mut other = other.into_par_iter();
+        let other = other.into_par_iter();
         self.len() == other.len() && self.zip(other).all(|(x, y)| x.eq(&y))
     }
 
@@ -1559,7 +1559,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Produces an exact count of how many items this iterator will
     /// produce, presuming no panic occurs.
-    fn len(&mut self) -> usize;
+    fn len(&self) -> usize;
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.

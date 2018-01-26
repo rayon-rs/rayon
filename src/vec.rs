@@ -30,7 +30,7 @@ impl<T: Send> ParallelIterator for IntoIter<T> {
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -42,7 +42,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.vec.len()
     }
 

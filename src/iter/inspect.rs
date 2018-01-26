@@ -52,7 +52,7 @@ impl<I, F> ParallelIterator for Inspect<I, F>
         self.base.drive_unindexed(consumer1)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         self.base.opt_len()
     }
 }
@@ -68,7 +68,7 @@ impl<I, F> IndexedParallelIterator for Inspect<I, F>
         self.base.drive(consumer1)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 

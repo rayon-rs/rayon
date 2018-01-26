@@ -38,7 +38,7 @@ impl<A, B> ParallelIterator for Zip<A, B>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -53,7 +53,7 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         cmp::min(self.a.len(), self.b.len())
     }
 
