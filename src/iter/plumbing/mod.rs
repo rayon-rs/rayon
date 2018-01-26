@@ -381,6 +381,8 @@ pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
 /// [`drive_unindexed`] or [`drive`] methods.
 ///
 /// [`bridge`]: fn.bridge.html
+/// [`drive_unindexed`]: ../trait.ParallelIterator.html#tymethod.drive_unindexed
+/// [`drive`]: ../trait.IndexedParallelIterator.html#tymethod.drive
 pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C::Result
     where P: Producer,
           C: Consumer<P::Item>

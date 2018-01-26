@@ -1637,6 +1637,7 @@ pub trait FromParallelIterator<T>
     /// Alternatively, if your collection is 'natively' parallel, you
     /// can use `par_iter.for_each` to process each element in turn.
     ///
+    /// [`LinkedList`]: https://doc.rust-lang.org/std/collections/struct.LinkedList.html
     /// [`par_iter.fold`]: trait.ParallelIterator.html#method.fold
     /// [`par_iter.fold_with`]: trait.ParallelIterator.html#method.fold_with
     /// [`par_iter.for_each`]: trait.ParallelIterator.html#method.for_each
