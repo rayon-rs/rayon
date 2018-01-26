@@ -227,6 +227,13 @@ fn intersperse() {
 }
 
 #[test]
+fn chunks() {
+    let s: Vec<_> = (0..10).collect();
+    let v: Vec<_> = s.chunks(2).map(|c| c.to_vec()).collect();
+    check(&v, || s.par_iter().cloned().chunks(2));
+}
+
+#[test]
 fn map() {
     let v: Vec<_> = (0..10).collect();
     check(&v, || v.par_iter().map(Clone::clone));

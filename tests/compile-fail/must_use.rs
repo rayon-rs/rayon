@@ -23,6 +23,7 @@ fn main() {
     v.par_iter().interleave(&v);            //~ ERROR must be used
     v.par_iter().interleave_shortest(&v);   //~ ERROR must be used
     v.par_iter().intersperse(&None);        //~ ERROR must be used
+    v.par_iter().chunks(2);                 //~ ERROR must be used
     v.par_iter().map(|x| x);                //~ ERROR must be used
     v.par_iter().map_with(0, |_, x| x);     //~ ERROR must be used
     v.par_iter().rev();                     //~ ERROR must be used
