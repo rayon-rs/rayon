@@ -10,8 +10,8 @@ use FnContext;
 #[cfg(test)]
 mod test;
 
-/// The `join` function takes two closures and *potentially* runs them
-/// in parallel. It returns a pair of the results from those closures.
+/// Takes two closures and *potentially* runs them in parallel. It
+/// returns a pair of the results from those closures.
 ///
 /// Conceptually, calling `join()` is similar to spawning two threads,
 /// one executing each of the two closures. However, the
@@ -58,12 +58,13 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     join_context(|_| oper_a(), |_| oper_b())
 }
 
-/// The `join_context` function is identical to `join`, except the closures
-/// have a parameter that provides context for the way the closure has been
-/// called, especially indicating whether they're executing on a different
-/// thread than where `join_context` was called.  This will occur if the second
-/// job is stolen by a different thread, or if `join_context` was called from
-/// outside the thread pool to begin with.
+/// Indentical to `join`, except that the closures have a parameter
+/// that provides context for the way the closure has been called,
+/// especially indicating whether they're executing on a different
+/// thread than where `join_context` was called.  This will occur if
+/// the second job is stolen by a different thread, or if
+/// `join_context` was called from outside the thread pool to begin
+/// with.
 pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
     where A: FnOnce(FnContext) -> RA + Send,
           B: FnOnce(FnContext) -> RB + Send,
