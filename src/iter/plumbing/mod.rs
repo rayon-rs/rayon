@@ -371,9 +371,10 @@ pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
 }
 
 /// This helper function is used to "connect" a producer and a
-/// consumer.  You may producer to call [`bridge`], which wraps this
-/// function. This function will draw items from `producer` and feed them to `consumer`,
-/// splitting and creating parallel tasks when needed.
+/// consumer. You may prefer to call [`bridge`], which wraps this
+/// function. This function will draw items from `producer` and feed
+/// them to `consumer`, splitting and creating parallel tasks when
+/// needed.
 ///
 /// This is useful when you are implementing your own parallel
 /// iterators: it is often used as the definition of the
