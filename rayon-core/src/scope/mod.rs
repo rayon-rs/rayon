@@ -1,3 +1,9 @@
+//! Methods for custom fork-join scopes, created by the [`scope()`]
+//! function. These are a more flexible alternative to [`join()`].
+//!
+//! [`scope()`]: fn.scope.html
+//! [`join()`]: ../join/join.fn.html
+
 use latch::{Latch, CountLatch};
 use log::Event::*;
 use job::HeapJob;
