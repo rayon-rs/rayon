@@ -33,7 +33,7 @@ impl<I> ParallelIterator for Chunks<I>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -47,11 +47,11 @@ impl<I> IndexedParallelIterator for Chunks<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         div_round_up(self.i.len(), self.size)
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
         where CB: ProducerCallback<Self::Item>
     {
         let len = self.i.len();

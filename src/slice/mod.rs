@@ -477,7 +477,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
         bridge(self, consumer)
     }
 
-    fn len(self) -> usize {
+    fn len(&self) -> usize {
         div_round_up(self.slice.len(), self.chunk_size)
     }
 
@@ -682,13 +682,8 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
         bridge(self, consumer)
     }
 
-<<<<<<< HEAD
-    fn len(&mut self) -> usize {
-        div_round_up(self.slice.len(), self.chunk_size)
-=======
     fn len(&self) -> usize {
-        (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
->>>>>>> rayon/master
+        div_round_up(self.slice.len(), self.chunk_size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
