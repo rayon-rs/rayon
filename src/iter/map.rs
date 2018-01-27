@@ -52,7 +52,7 @@ impl<I, F, R> ParallelIterator for Map<I, F>
         self.base.drive_unindexed(consumer1)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         self.base.opt_len()
     }
 }
@@ -69,7 +69,7 @@ impl<I, F, R> IndexedParallelIterator for Map<I, F>
         self.base.drive(consumer1)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 
@@ -142,6 +142,13 @@ impl<'f, P, F, R> Producer for MapProducer<'f, P, F>
              base: right,
              map_op: self.map_op,
          })
+    }
+
+    fn fold_with<G>(self, folder: G) -> G
+        where G: Folder<Self::Item>
+    {
+        let folder1 = MapFolder { base: folder, map_op: self.map_op };
+        self.base.fold_with(folder1).base
     }
 }
 

@@ -215,7 +215,7 @@ impl LengthSplitter {
     }
 }
 
-pub fn bridge<I, C>(mut par_iter: I, consumer: C) -> C::Result
+pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
     where I: IndexedParallelIterator,
           C: Consumer<I::Item>
 {

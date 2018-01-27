@@ -37,7 +37,7 @@ impl<I> ParallelIterator for MinLen<I>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -49,7 +49,7 @@ impl<I> IndexedParallelIterator for MinLen<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 
@@ -120,6 +120,12 @@ impl<P> Producer for MinLenProducer<P>
              min: self.min,
          })
     }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.base.fold_with(folder)
+    }
 }
 
 
@@ -158,7 +164,7 @@ impl<I> ParallelIterator for MaxLen<I>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -170,7 +176,7 @@ impl<I> IndexedParallelIterator for MaxLen<I>
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 
@@ -240,5 +246,11 @@ impl<P> Producer for MaxLenProducer<P>
              base: right,
              max: self.max,
          })
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.base.fold_with(folder)
     }
 }

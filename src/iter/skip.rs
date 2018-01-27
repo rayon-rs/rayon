@@ -18,7 +18,7 @@ pub struct Skip<I> {
 /// Create a new `Skip` iterator.
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(mut base: I, n: usize) -> Skip<I>
+pub fn new<I>(base: I, n: usize) -> Skip<I>
     where I: IndexedParallelIterator
 {
     let n = min(base.len(), n);
@@ -36,7 +36,7 @@ impl<I> ParallelIterator for Skip<I>
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -44,7 +44,7 @@ impl<I> ParallelIterator for Skip<I>
 impl<I> IndexedParallelIterator for Skip<I>
     where I: IndexedParallelIterator
 {
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len() - self.n
     }
 

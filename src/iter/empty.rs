@@ -52,7 +52,7 @@ impl<T: Send> ParallelIterator for Empty<T> {
         self.drive(consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(0)
     }
 }
@@ -64,7 +64,7 @@ impl<T: Send> IndexedParallelIterator for Empty<T> {
         consumer.into_folder().complete()
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         0
     }
 
@@ -89,5 +89,11 @@ impl<T: Send> Producer for EmptyProducer<T> {
     fn split_at(self, index: usize) -> (Self, Self) {
         debug_assert_eq!(index, 0);
         (self, EmptyProducer(PhantomData))
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        folder
     }
 }

@@ -401,7 +401,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -413,7 +413,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Iter<'data, T> {
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.slice.len()
     }
 
@@ -465,7 +465,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -477,7 +477,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(self) -> usize {
         div_round_up(self.slice.len(), self.chunk_size)
     }
 
@@ -541,7 +541,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -553,7 +553,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Windows<'data, T> {
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         assert!(self.window_size >= 1);
         self.slice.len().saturating_sub(self.window_size - 1)
     }
@@ -612,7 +612,7 @@ impl<'data, T: Send + 'data> ParallelIterator for IterMut<'data, T> {
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -624,7 +624,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for IterMut<'data, T> {
         bridge(self, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.slice.len()
     }
 
@@ -670,7 +670,7 @@ impl<'data, T: Send + 'data> ParallelIterator for ChunksMut<'data, T> {
         bridge(self, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
 }
@@ -682,8 +682,13 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
         bridge(self, consumer)
     }
 
+<<<<<<< HEAD
     fn len(&mut self) -> usize {
         div_round_up(self.slice.len(), self.chunk_size)
+=======
+    fn len(&self) -> usize {
+        (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
+>>>>>>> rayon/master
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output

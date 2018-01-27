@@ -51,7 +51,7 @@ impl<I, F> ParallelIterator for Update<I, F>
         self.base.drive_unindexed(consumer1)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         self.base.opt_len()
     }
 }
@@ -67,7 +67,7 @@ impl<I, F> IndexedParallelIterator for Update<I, F>
         self.base.drive(consumer1)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.base.len()
     }
 
@@ -141,6 +141,13 @@ impl<'f, P, F> Producer for UpdateProducer<'f, P, F>
              base: right,
              update_op: self.update_op,
          })
+    }
+
+    fn fold_with<G>(self, folder: G) -> G
+        where G: Folder<Self::Item>
+    {
+        let folder1 = UpdateFolder { base: folder, update_op: self.update_op, };
+        self.base.fold_with(folder1).base
     }
 }
 
@@ -229,7 +236,7 @@ impl<'f, T, C, F> Folder<T> for UpdateFolder<'f, C, F>
     }
 }
 
-/// Standard Update adaptor, based on `itertools::adaptors::Update` 
+/// Standard Update adaptor, based on `itertools::adaptors::Update`
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 struct UpdateSeq<I, F> {

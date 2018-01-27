@@ -39,7 +39,7 @@ impl<A, B> ParallelIterator for ZipEq<A, B>
         bridge(self.zip, consumer)
     }
 
-    fn opt_len(&mut self) -> Option<usize> {
+    fn opt_len(&self) -> Option<usize> {
         Some(self.zip.len())
     }
 }
@@ -54,7 +54,7 @@ impl<A, B> IndexedParallelIterator for ZipEq<A, B>
         bridge(self.zip, consumer)
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.zip.len()
     }
 
