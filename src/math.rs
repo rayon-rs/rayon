@@ -2,6 +2,7 @@
 /// if not evenly divisable.
 #[inline]
 pub fn div_round_up(n: usize, divisor: usize) -> usize {
+    debug_assert!(divisor != 0, "Division by zero!");
     if n == 0 {
         0
     } else {
