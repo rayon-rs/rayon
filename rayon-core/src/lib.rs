@@ -28,6 +28,9 @@
 #![feature(core_intrinsics)]
 #![feature(test)]
 #![feature(never_type)]
+#![feature(repr_align)] 
+#![feature(attr_literals)]
+#![feature(arbitrary_self_types)]
 
 use std::any::Any;
 use std::env;
@@ -61,6 +64,7 @@ mod log;
 
 pub mod latch;
 mod join;
+mod fork;
 mod job;
 pub mod registry;
 mod scope;
@@ -78,6 +82,7 @@ pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::{join, join_context};
+pub use fork::{fork};
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
 

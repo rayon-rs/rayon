@@ -590,7 +590,7 @@ impl ThreadInfo {
 
 pub struct WorkerThread {
     /// the "worker" half of our local deque
-    worker: Worker<JobRef>,
+    pub worker: Worker<JobRef>,
 
     rx_resumed_tasks: crossbeam_channel::Receiver<Fiber>,
 

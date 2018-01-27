@@ -93,6 +93,7 @@ extern {
     fn __rayon_core_get_current_fiber() -> usize;
 }
 
+// FIXME: Ensure uses of this do not leak
 #[derive(Debug)]
 pub struct UnsafeOption<T> {
     #[cfg(debug_assertions)]
@@ -101,7 +102,7 @@ pub struct UnsafeOption<T> {
 }
 
 impl<T> UnsafeOption<T> {
-    fn none() -> Self {
+    pub fn none() -> Self {
         UnsafeOption {
             #[cfg(debug_assertions)]
             there: false,
@@ -111,7 +112,17 @@ impl<T> UnsafeOption<T> {
         }
     }
 
-    fn take(&self) -> T {
+    pub fn some(t: T) -> Self {
+        UnsafeOption {
+            #[cfg(debug_assertions)]
+            there: true,
+            val: unsafe {
+                ManuallyDrop::new(UnsafeCell::new(t))
+            },
+        }
+    }
+
+    pub fn take(&self) -> T {
         unsafe {
             #[cfg(debug_assertions)]
             {
@@ -123,7 +134,7 @@ impl<T> UnsafeOption<T> {
         }
     }
 
-    fn give(&self, t: T) {
+    pub fn give(&self, t: T) {
         unsafe {
             #[cfg(debug_assertions)]
             {
@@ -292,9 +303,9 @@ pub struct SingleWaiterCountLatch {
 }
 
 impl SingleWaiterCountLatch {
-    pub fn new() -> SingleWaiterCountLatch {
+    pub fn with_count(c: usize) -> SingleWaiterCountLatch {
         let r = SingleWaiterCountLatch {
-            data: Arc::new(Mutex::new((1, None))),
+            data: Arc::new(Mutex::new((c, None))),
         };
         let _id = &*r.data as *const _ as usize;
         fiber_log!("starting latch {:x}", _id);
@@ -303,10 +314,24 @@ impl SingleWaiterCountLatch {
         r
     }
 
+    pub fn new() -> SingleWaiterCountLatch {
+        Self::with_count(1)
+    }
+
     pub fn increment(&self) {
         let mut data = self.data.lock();
         debug_assert!(data.0 > 0);
         data.0 += 1;
+    }
+
+    pub fn try_increment(&self) -> bool {
+        let mut data = self.data.lock();
+        if data.0 > 0 {
+            data.0 += 1;
+            true
+        } else {
+            false
+        }
     }
 }
 

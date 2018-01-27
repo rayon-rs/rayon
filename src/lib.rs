@@ -130,4 +130,5 @@ pub use rayon_core::ThreadPool;
 pub use rayon_core::{join, join_context};
 pub use rayon_core::FnContext;
 pub use rayon_core::{scope, Scope};
+pub use rayon_core::fork;
 pub use rayon_core::spawn;
