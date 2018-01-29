@@ -120,36 +120,27 @@ impl Slice {
     fn steal_half(&self) -> Option<Slice> {
         loop {
             let data = self.data.load(Ordering::SeqCst);
-            let (start, mut len) = Slice::decode(data);
-            len = match len {
+            let (start, len) = Slice::decode(data);
+            let new_len = match len {
                 0 => return None,
+                _ => 1,
                 1 => 1,
-                _ => len / 2,
+                _ => len / 16,
             };
+            let other_len = len - new_len;
             let result = self.data.compare_exchange_weak(data,
-                                                         Slice::encode(start, len),
+                                                         Slice::encode(start, other_len),
                                                          Ordering::SeqCst,
                                                          Ordering::SeqCst);
             if result.is_ok() {
-                return Some(Slice { data: AtomicUsize::new(data) });
+                return Some(Slice { data: AtomicUsize::new(Slice::encode(start + other_len, new_len) ) });
             }
         }
     }
 
     #[inline]
     fn replace(&self, new: Slice) {
-        let new_data = new.data.into_inner();
-        loop {
-            let data = self.data.load(Ordering::SeqCst);
-            assert!(Slice::decode(data).1 == 0);
-            let result = self.data.compare_exchange_weak(data,
-                                                         new_data,
-                                                         Ordering::SeqCst,
-                                                         Ordering::SeqCst);
-            if result.is_ok() {
-                return;
-            }
-        }
+        self.data.store(new.data.into_inner(), Ordering::SeqCst);
     }
 }
 
@@ -182,15 +173,19 @@ impl<F: Fn(usize) + Send> ForkData<F> {
         }
 
         for (i, slice) in self.slices.iter().enumerate() {
+            if let Some(s) = slice.0.take() {
+                return Some(s);
+            }
+            /*
             if i == worker_idx {
                 continue;
             }
 
-            if let Some(s) = slice.0.take() {
-                /*let (r, s) = s.take_one();
-                self.slices[worker_idx].0.replace(s);*/
-                return Some(s);
-            }
+            if let Some(s) = slice.0.steal_half() {
+                let (e, s) = s.take_one();
+                self.slices[worker_idx].0.replace(s);
+                return Some(e);
+            }*/
         }
 
         None
