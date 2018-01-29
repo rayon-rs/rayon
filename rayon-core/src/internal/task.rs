@@ -1,5 +1,5 @@
 //! Internal, unsafe APIs for creating scoped tasks. Intended for
-//! building abstractions atop the rayon-core thread pool, rathe than
+//! building abstractions atop the rayon-core thread pool, rather than
 //! direct use by end users. These APIs are mostly analogous to the
 //! (safe) `scope`/`spawn` APIs, but with some unsafe requirements
 //! that permit greater efficiency.
