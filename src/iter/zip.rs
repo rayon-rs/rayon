@@ -70,14 +70,14 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
             b: B,
         }
 
-        impl<CB, A_ITEM, B> ProducerCallback<A_ITEM> for CallbackA<CB, B>
+        impl<CB, ITEM, B> ProducerCallback<ITEM> for CallbackA<CB, B>
             where B: IndexedParallelIterator,
-                  CB: ProducerCallback<(A_ITEM, B::Item)>
+                  CB: ProducerCallback<(ITEM, B::Item)>
         {
             type Output = CB::Output;
 
             fn callback<A>(self, a_producer: A) -> Self::Output
-                where A: Producer<Item = A_ITEM>
+                where A: Producer<Item = ITEM>
             {
                 return self.b.with_producer(CallbackB {
                                                 a_producer: a_producer,
@@ -91,14 +91,14 @@ impl<A, B> IndexedParallelIterator for Zip<A, B>
             callback: CB,
         }
 
-        impl<CB, A, B_ITEM> ProducerCallback<B_ITEM> for CallbackB<CB, A>
+        impl<CB, A, ITEM> ProducerCallback<ITEM> for CallbackB<CB, A>
             where A: Producer,
-                  CB: ProducerCallback<(A::Item, B_ITEM)>
+                  CB: ProducerCallback<(A::Item, ITEM)>
         {
             type Output = CB::Output;
 
             fn callback<B>(self, b_producer: B) -> Self::Output
-                where B: Producer<Item = B_ITEM>
+                where B: Producer<Item = ITEM>
             {
                 self.callback.callback(ZipProducer {
                                            a: self.a_producer,

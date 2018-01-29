@@ -1,8 +1,8 @@
 #![doc(html_root_url = "https://docs.rs/rayon/0.9")]
-#![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 #![cfg_attr(test, feature(i128_type))]
+#![deny(missing_docs)]
 
 //! Data-parallelism library that is easy to convert sequential computations into parallel.
 //!
@@ -92,8 +92,18 @@
 //!
 //! # Crate Layout
 //!
-//! Rayon is modeled after [`std`].  Types are included in provided modules.
+//! Rayon extends many of the types found in the standard library with
+//! parallel iterator implementations. The modules in the `rayon`
+//! crate mirror [`std`] itself: so, e.g., the `option` module in
+//! Rayon contains parallel iterators for the `Option` type, which is
+//! found in [the `option` module of `std`]. Similarly, the
+//! `collections` module in Rayon offers parallel iterator types for
+//! [the `collections` from `std`]. You will rarely need to access
+//! these submodules unless you need to name iterator types
+//! explicitly.
 //!
+//! [the `option` module of `std`]: https://doc.rust-lang.org/std/option/index.html
+//! [the `collections` from `std`]: https://doc.rust-lang.org/std/collections/index.html
 //! [`std`]: https://doc.rust-lang.org/std/
 
 extern crate rayon_core;

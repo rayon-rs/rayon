@@ -20,8 +20,8 @@
 //! succeed.
 
 #![doc(html_root_url = "https://docs.rs/rayon-core/1.3")]
-#![allow(non_camel_case_types)] // I prefer to use ALL_CAPS for type parameters
 #![deny(missing_debug_implementations)]
+#![deny(missing_docs)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
 use std::any::Any;
