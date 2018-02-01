@@ -168,20 +168,20 @@ mod vec_i {
     }
 
     #[bench]
-    fn with_collect_into(b: &mut ::test::Bencher) {
+    fn with_collect_into_vec(b: &mut ::test::Bencher) {
         let mut vec = None;
         b.iter(|| {
             let mut v = vec![];
-            generate().collect_into(&mut v);
+            generate().collect_into_vec(&mut v);
             vec = Some(v);
         });
         check(&vec.unwrap());
     }
 
     #[bench]
-    fn with_collect_into_reused(b: &mut ::test::Bencher) {
+    fn with_collect_into_vec_reused(b: &mut ::test::Bencher) {
         let mut vec = vec![];
-        b.iter(|| generate().collect_into(&mut vec));
+        b.iter(|| generate().collect_into_vec(&mut vec));
         check(&vec);
     }
 

@@ -11,5 +11,5 @@ fn main() {
     let mut y = vec![];
     x.into_par_iter() //~ ERROR no method named `into_par_iter`
      .map(|rc| *rc)
-     .collect_into(&mut y);
+     .collect_into_vec(&mut y);
 }

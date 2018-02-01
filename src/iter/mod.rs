@@ -1094,7 +1094,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
-    /// You may prefer to use `collect_into()`, which allocates more
+    /// You may prefer to use `collect_into_vec()`, which allocates more
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse an existing
     /// vector's backing store rather than allocating a fresh vector.
@@ -1276,8 +1276,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
-    fn collect_into(self, target: &mut Vec<Self::Item>) {
-        collect::collect_into(self, target);
+    fn collect_into_vec(self, target: &mut Vec<Self::Item>) {
+        collect::collect_into_vec(self, target);
     }
 
     /// Unzips the results of the iterator into the specified

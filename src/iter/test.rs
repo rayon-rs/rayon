@@ -19,7 +19,7 @@ fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 pub fn execute() {
     let a: Vec<i32> = (0..1024).collect();
     let mut b = vec![];
-    a.par_iter().map(|&i| i + 1).collect_into(&mut b);
+    a.par_iter().map(|&i| i + 1).collect_into_vec(&mut b);
     let c: Vec<i32> = (0..1024).map(|i| i + 1).collect();
     assert_eq!(b, c);
 }
@@ -28,7 +28,7 @@ pub fn execute() {
 pub fn execute_cloned() {
     let a: Vec<i32> = (0..1024).collect();
     let mut b: Vec<i32> = vec![];
-    a.par_iter().cloned().collect_into(&mut b);
+    a.par_iter().cloned().collect_into_vec(&mut b);
     let c: Vec<i32> = (0..1024).collect();
     assert_eq!(b, c);
 }
@@ -37,7 +37,7 @@ pub fn execute_cloned() {
 pub fn execute_range() {
     let a = 0i32..1024;
     let mut b = vec![];
-    a.into_par_iter().map(|i| i + 1).collect_into(&mut b);
+    a.into_par_iter().map(|i| i + 1).collect_into_vec(&mut b);
     let c: Vec<i32> = (0..1024).map(|i| i + 1).collect();
     assert_eq!(b, c);
 }
@@ -204,7 +204,7 @@ pub fn check_enumerate() {
     a.par_iter()
         .enumerate()
         .map(|(i, &x)| i + x)
-        .collect_into(&mut b);
+        .collect_into_vec(&mut b);
     assert!(b.iter().all(|&x| x == a.len() - 1));
 }
 
@@ -217,7 +217,7 @@ pub fn check_enumerate_rev() {
         .enumerate()
         .rev()
         .map(|(i, &x)| i + x)
-        .collect_into(&mut b);
+        .collect_into_vec(&mut b);
     assert!(b.iter().all(|&x| x == a.len() - 1));
 }
 
@@ -259,17 +259,17 @@ pub fn check_skip() {
     let a: Vec<usize> = (0..1024).collect();
 
     let mut v1 = Vec::new();
-    a.par_iter().skip(16).collect_into(&mut v1);
+    a.par_iter().skip(16).collect_into_vec(&mut v1);
     let v2 = a.iter().skip(16).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
     let mut v1 = Vec::new();
-    a.par_iter().skip(2048).collect_into(&mut v1);
+    a.par_iter().skip(2048).collect_into_vec(&mut v1);
     let v2 = a.iter().skip(2048).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
     let mut v1 = Vec::new();
-    a.par_iter().skip(0).collect_into(&mut v1);
+    a.par_iter().skip(0).collect_into_vec(&mut v1);
     let v2 = a.iter().skip(0).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
@@ -288,17 +288,17 @@ pub fn check_take() {
     let a: Vec<usize> = (0..1024).collect();
 
     let mut v1 = Vec::new();
-    a.par_iter().take(16).collect_into(&mut v1);
+    a.par_iter().take(16).collect_into_vec(&mut v1);
     let v2 = a.iter().take(16).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
     let mut v1 = Vec::new();
-    a.par_iter().take(2048).collect_into(&mut v1);
+    a.par_iter().take(2048).collect_into_vec(&mut v1);
     let v2 = a.iter().take(2048).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
     let mut v1 = Vec::new();
-    a.par_iter().take(0).collect_into(&mut v1);
+    a.par_iter().take(0).collect_into_vec(&mut v1);
     let v2 = a.iter().take(0).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 }
@@ -320,7 +320,7 @@ pub fn check_move() {
     let ptr = a[0].as_ptr();
 
     let mut b = vec![];
-    a.into_par_iter().collect_into(&mut b);
+    a.into_par_iter().collect_into_vec(&mut b);
 
     // a simple move means the inner vec will be completely unchanged
     assert_eq!(ptr, b[0].as_ptr());
@@ -334,7 +334,7 @@ pub fn check_drops() {
     let a = vec![DropCounter(&c); 10];
 
     let mut b = vec![];
-    a.clone().into_par_iter().collect_into(&mut b);
+    a.clone().into_par_iter().collect_into_vec(&mut b);
     assert_eq!(c.load(Ordering::Relaxed), 0);
 
     b.into_par_iter();
@@ -1136,7 +1136,7 @@ pub fn check_chain() {
         .enumerate()
         .map(|(a, (b, c))| (a, b, c))
         .chain(None)
-        .collect_into(&mut res);
+        .collect_into_vec(&mut res);
 
     assert_eq!(res,
                vec![(0, 'a', 0),
@@ -1783,7 +1783,7 @@ fn check_interleave_eq() {
     let ys: Vec<usize> = (10..20).collect();
 
     let mut actual = vec![];
-    xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut actual);
+    xs.par_iter().interleave(&ys).map(|&i| i).collect_into_vec(&mut actual);
 
     let expected: Vec<usize> = (0..10).zip(10..20).flat_map(|(i, j)| vec![i, j].into_iter()).collect();
     assert_eq!(expected, actual);
@@ -1802,11 +1802,11 @@ fn check_interleave_uneven() {
 
     for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
         let mut res = vec![];
-        xs.par_iter().interleave(&ys).map(|&i| i).collect_into(&mut res);
+        xs.par_iter().interleave(&ys).map(|&i| i).collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {} failed", i);
 
         res.truncate(0);
-        xs.par_iter().interleave(&ys).rev().map(|&i| i).collect_into(&mut res);
+        xs.par_iter().interleave(&ys).rev().map(|&i| i).collect_into_vec(&mut res);
         assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
     }
 }
@@ -1825,11 +1825,11 @@ fn check_interleave_shortest() {
 
     for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
         let mut res = vec![];
-        xs.par_iter().interleave_shortest(&ys).map(|&i| i).collect_into(&mut res);
+        xs.par_iter().interleave_shortest(&ys).map(|&i| i).collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {} failed", i);
 
         res.truncate(0);
-        xs.par_iter().interleave_shortest(&ys).rev().map(|&i| i).collect_into(&mut res);
+        xs.par_iter().interleave_shortest(&ys).rev().map(|&i| i).collect_into_vec(&mut res);
         assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
     }
 }
@@ -1896,7 +1896,7 @@ fn check_empty() {
     assert!(v.is_empty());
 
     // drive (indexed)
-    empty().collect_into(&mut v);
+    empty().collect_into_vec(&mut v);
     assert!(v.is_empty());
 
     // with_producer
@@ -1911,7 +1911,7 @@ fn check_once() {
     assert_eq!(v, &[42]);
 
     // drive (indexed)
-    once(42).collect_into(&mut v);
+    once(42).collect_into_vec(&mut v);
     assert_eq!(v, &[42]);
 
     // with_producer

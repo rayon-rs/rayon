@@ -11,8 +11,8 @@ mod test;
 
 /// Collects the results of the exact iterator into the specified vector.
 ///
-/// This is not directly public, but called by `IndexedParallelIterator::collect_into`.
-pub fn collect_into<I, T>(pi: I, v: &mut Vec<T>)
+/// This is not directly public, but called by `IndexedParallelIterator::collect_into_vec`.
+pub fn collect_into_vec<I, T>(pi: I, v: &mut Vec<T>)
     where I: IndexedParallelIterator<Item = T>,
           T: Send
 {
