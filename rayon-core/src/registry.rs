@@ -1,4 +1,4 @@
-use ::{Configuration, ExitHandler, PanicHandler, StartHandler};
+use ::{ExitHandler, PanicHandler, StartHandler, ThreadPoolBuilder, ThreadPoolInitError, ErrorKind};
 use coco::deque::{self, Worker, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
@@ -10,32 +10,14 @@ use log::Event::*;
 use rand::{self, Rng};
 use sleep::Sleep;
 use std::any::Any;
-use std::error::Error;
 use std::cell::{Cell, UnsafeCell};
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::mem;
-use std::fmt;
 use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
-
-/// Error if the gloal thread pool is initialized multiple times.
-#[derive(Debug,PartialEq)]
-struct GlobalPoolAlreadyInitialized;
-
-impl fmt::Display for GlobalPoolAlreadyInitialized {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
-}
-
-impl Error for GlobalPoolAlreadyInitialized {
-    fn description(&self) -> &str {
-        "The global thread pool has already been initialized."
-    }
-}
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -76,32 +58,32 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// initialization has not already occurred, use the default
 /// configuration.
 fn global_registry() -> &'static Arc<Registry> {
-    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(Configuration::new()).unwrap() });
+    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(ThreadPoolBuilder::new()).unwrap() });
     unsafe { THE_REGISTRY.expect("The global thread pool has not been initialized.") }
 }
 
 /// Starts the worker threads (if that has not already happened) with
-/// the given configuration.
-pub fn init_global_registry(config: Configuration) -> Result<&'static Registry, Box<Error>> {
+/// the given builder.
+pub fn init_global_registry(builder: ThreadPoolBuilder) -> Result<&'static Registry, ThreadPoolInitError> {
     let mut called = false;
     let mut init_result = Ok(());;
     THE_REGISTRY_SET.call_once(|| unsafe {
-        init_result = init_registry(config);
+        init_result = init_registry(builder);
         called = true;
     });
     if called {
         init_result.map(|()| &**global_registry())
     } else {
-        Err(Box::new(GlobalPoolAlreadyInitialized))
+        Err(ThreadPoolInitError::new(ErrorKind::GlobalPoolAlreadyInitialized))
     }
 }
 
-/// Initializes the global registry with the given configuration.
+/// Initializes the global registry with the given builder.
 /// Meant to be called from within the `THE_REGISTRY_SET` once
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
-unsafe fn init_registry(config: Configuration) -> Result<(), Box<Error>> {
-    Registry::new(config).map(|registry| THE_REGISTRY = Some(leak(registry)))
+unsafe fn init_registry(builder: ThreadPoolBuilder) -> Result<(), ThreadPoolInitError> {
+    Registry::new(builder).map(|registry| THE_REGISTRY = Some(leak(registry)))
 }
 
 struct Terminator<'a>(&'a Arc<Registry>);
@@ -113,9 +95,9 @@ impl<'a> Drop for Terminator<'a> {
 }
 
 impl Registry {
-    pub fn new(mut configuration: Configuration) -> Result<Arc<Registry>, Box<Error>> {
-        let n_threads = configuration.get_num_threads();
-        let breadth_first = configuration.get_breadth_first();
+    pub fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Registry>, ThreadPoolInitError> {
+        let n_threads = builder.get_num_threads();
+        let breadth_first = builder.get_breadth_first();
 
         let (inj_worker, inj_stealer) = deque::new();
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads).map(|_| deque::new()).unzip();
@@ -128,9 +110,9 @@ impl Registry {
             sleep: Sleep::new(),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
-            panic_handler: configuration.take_panic_handler(),
-            start_handler: configuration.take_start_handler(),
-            exit_handler: configuration.take_exit_handler(),
+            panic_handler: builder.take_panic_handler(),
+            start_handler: builder.take_start_handler(),
+            exit_handler: builder.take_exit_handler(),
         });
 
         // If we return early or panic, make sure to terminate existing threads.
@@ -139,13 +121,15 @@ impl Registry {
         for (index, worker) in workers.into_iter().enumerate() {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
-            if let Some(name) = configuration.get_thread_name(index) {
+            if let Some(name) = builder.get_thread_name(index) {
                 b = b.name(name);
             }
-            if let Some(stack_size) = configuration.get_stack_size() {
+            if let Some(stack_size) = builder.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            try!(b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) }));
+            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) }) {
+                return Err(ThreadPoolInitError::new(ErrorKind::IOError(e)))
+            }
         }
 
         // Returning normally now, without termination.

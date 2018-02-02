@@ -134,9 +134,8 @@ mod par_either;
 mod test;
 
 pub use rayon_core::current_num_threads;
-pub use rayon_core::Configuration;
-pub use rayon_core::initialize;
 pub use rayon_core::ThreadPool;
+pub use rayon_core::ThreadPoolBuilder;
 pub use rayon_core::{join, join_context};
 pub use rayon_core::FnContext;
 pub use rayon_core::{scope, Scope};
