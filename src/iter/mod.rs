@@ -1094,7 +1094,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
-    /// You may prefer to use `collect_into()`, which allocates more
+    /// You may prefer to use `collect_into_vec()`, which allocates more
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse an existing
     /// vector's backing store rather than allocating a fresh vector.
@@ -1119,7 +1119,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Unzips the items of a parallel iterator into a pair of arbitrary
     /// `ParallelExtend` containers.
     ///
-    /// You may prefer to use `unzip_into()`, which allocates more
+    /// You may prefer to use `unzip_into_vecs()`, which allocates more
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse existing
     /// vectors' backing stores rather than allocating fresh vectors.
@@ -1276,20 +1276,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
-    fn collect_into(self, target: &mut Vec<Self::Item>) {
-        collect::collect_into(self, target);
+    fn collect_into_vec(self, target: &mut Vec<Self::Item>) {
+        collect::collect_into_vec(self, target);
     }
 
     /// Unzips the results of the iterator into the specified
     /// vectors. The vectors are always truncated before execution
     /// begins. If possible, reusing the vectors across calls can lead
     /// to better performance since they reuse the same backing buffer.
-    fn unzip_into<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
+    fn unzip_into_vecs<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
         where Self: IndexedParallelIterator<Item = (A, B)>,
               A: Send,
               B: Send
     {
-        collect::unzip_into(self, left, right);
+        collect::unzip_into_vecs(self, left, right);
     }
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from

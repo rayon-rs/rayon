@@ -64,7 +64,7 @@ pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
 
 /// Unzip an `IndexedParallelIterator` into two arbitrary `Consumer`s.
 ///
-/// This is not directly public, but called by `super::collect::unzip_into`.
+/// This is not directly public, but called by `super::collect::unzip_into_vecs`.
 pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
     where I: IndexedParallelIterator<Item = (A, B)>,
           CA: Consumer<A>,

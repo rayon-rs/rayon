@@ -10,5 +10,5 @@ fn main() {
     let mut v = vec![];
     a.par_iter()
      .filter_map(|&x| Some(x as f32))
-     .collect_into(&mut v); //~ ERROR no method
+     .collect_into_vec(&mut v); //~ ERROR no method
 }
