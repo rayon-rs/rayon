@@ -2,9 +2,6 @@ environment:
   RUST_MIN_STACK: 16777216
   matrix:
     - TARGET: x86_64-pc-windows-gnu
-      CHANNEL: 1.12.0
-
-    - TARGET: x86_64-pc-windows-gnu
       CHANNEL: stable
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: stable
@@ -22,9 +19,6 @@ environment:
       CHANNEL: nightly
       RUSTFLAGS: --cfg rayon_unstable
 
-
-    - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: 1.12.0
 
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: stable
