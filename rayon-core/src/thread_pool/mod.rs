@@ -126,7 +126,7 @@ impl ThreadPool {
 
     /// Returns the (current) number of threads in the thread pool.
     ///
-    /// ### Future compatibility note
+    /// # Future compatibility note
     ///
     /// Note that unless this thread-pool was created with a
     /// [`ThreadPoolBuilder`] that specifies the number of threads,
@@ -149,7 +149,7 @@ impl ThreadPool {
     /// lifetime. However, multiple threads may share the same index if
     /// they are in distinct thread-pools.
     ///
-    /// ### Future compatibility note
+    /// # Future compatibility note
     ///
     /// Currently, every thread-pool (including the global
     /// thread-pool) has a fixed number of threads, but this may
@@ -276,7 +276,7 @@ impl fmt::Debug for ThreadPool {
 ///
 /// [m]: struct.ThreadPool.html#method.current_thread_index
 ///
-/// ### Future compatibility note
+/// # Future compatibility note
 ///
 /// Currently, every thread-pool (including the global
 /// thread-pool) has a fixed number of threads, but this may

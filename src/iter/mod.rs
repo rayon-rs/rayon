@@ -1,13 +1,47 @@
-//! The `ParallelIterator` module makes it easy to write parallel
-//! programs using an iterator-style interface. To get access to all
-//! the methods you want, the easiest is to write `use
-//! rayon::prelude::*;` at the top of your module, which will import
-//! the various traits and methods you need.
+//! Contains the main "parallel iterator" traits.
 //!
-//! The submodules of this module mostly just contain implementaton
-//! details of little interest to an end-user. If you'd like to read
-//! the code itself, the `plumbing` module and `README.md` file are a
-//! good place to start.
+//! Parallel iterators make it easy to write iterator-like chains that
+//! execute in parallel. For example, to compute the sum of the
+//! squares of a sequence of integers, one might write:
+//!
+//! ```rust
+//! use rayon::prelude::*;
+//! fn sum_of_squares(input: &[i32]) -> i32 {
+//!     input.par_iter()
+//!          .map(|i| i * i)
+//!          .sum()
+//! }
+//! ```
+//!
+//! Or, to increment all the integers in a slice, you could write:
+//!
+//! ```rust
+//! use rayon::prelude::*;
+//! fn increment_all(input: &mut [i32]) {
+//!     input.par_iter_mut()
+//!          .for_each(|p| *p += 1);
+//! }
+//! ```
+//!
+//! To use parallel iterators, first import the traits by adding
+//! something like `use rayon::prelude::*` to your module. You can
+//! then call `par_iter`, `par_iter_mut`, or `into_par_iter` to get a
+//! parallel iterator. Like a [regular iterator][], parallel
+//! iterators work by first constructing a computation and then
+//! executing it.
+//!
+//! To see the full range of methods available on parallel iterators,
+//! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
+//! traits.
+//!
+//! If you'd like to offer parallel iterators for your own collector,
+//! or write your own combinator, then check out the [plumbing]
+//! module.
+//!
+//! [regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
+//! [`ParallelIterator`]: trait.ParallelIterator.html
+//! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+//! [plumbing]: plumbing
 
 pub use either::Either;
 use std::cmp::{self, Ordering};
@@ -189,7 +223,20 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
     }
 }
 
-/// The `ParallelIterator` interface.
+/// Parallel version of the standard iterator trait.
+///
+/// The combinators on this trait are available on **all** parallel
+/// iterators.  Additional methods can be found on the
+/// [`IndexedParallelIterator`] trait: those methods are only
+/// available for parallel iterators where the number of items is
+/// known in advance (so, e.g., after invoking `filter`, those methods
+/// become unavailable).
+///
+/// For examples of using parallel iterators, see [the docs on the
+/// `iter` module][iter].
+///
+/// [iter]: index.html
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 pub trait ParallelIterator: Sized + Send {
     /// The type of item that this parallel iterator produces.
     /// For example, if you use the [`for_each`] method, this is the type of

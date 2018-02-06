@@ -73,7 +73,7 @@ pub use spawn::spawn;
 /// parallel work (the parallel iterator traits use this value
 /// internally for this purpose).
 ///
-/// ### Future compatibility note
+/// # Future compatibility note
 ///
 /// Note that unless this thread-pool was created with a
 /// builder that specifies the number of threads, then this

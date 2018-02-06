@@ -8,78 +8,38 @@
 //!
 //! Rayon is lightweight and convenient for application to existing code.  It guarantees
 //! data-race free executions, and takes advantage of parallelism when sensible, based
-//! on work-load at runtime.  There are two categories of rayon workloads: parallel
-//! iterators and multi-branched recursion (`join` method).
+//! on work-load at runtime.
 //!
-//! # Parallel Iterators
+//! # How to use Rayon
 //!
-//! Parallel iterators are formed using [`par_iter`], [`par_iter_mut`], and [`into_par_iter`]
-//! functions to iterate by shared reference, mutable reference, or by value respectively.
-//! These iterators are chained with computations that can take the
-//! shape of `map` or `for_each` as an example.  This solves [embarrassingly]
-//! parallel tasks that are completely independent of one another.
+//! There are two ways to use Rayon:
 //!
-//! [`par_iter`]: iter/trait.IntoParallelRefIterator.html#tymethod.par_iter
-//! [`par_iter_mut`]: iter/trait.IntoParallelRefMutIterator.html#tymethod.par_iter_mut
-//! [`into_par_iter`]: iter/trait.IntoParallelIterator.html#tymethod.into_par_iter
-//! [embarrassingly]: https://en.wikipedia.org/wiki/Embarrassingly_parallel
+//! - [**Parallel iterators**][iter module] make it easy to convert a sequential iterator to
+//!   execute in parallel.
+//!   - Parallel iterators are the both the simplest and preferred way
+//!     to use Rayon, as the high-level interface gives the library
+//!     plenty of room to adapt the number of parallel tasks
+//!     dynamically for maximum efficiency.
+//!   - For more info, see the docs for the [iter module].
+//! - **Custom tasks** let you divide your work into parallel tasks yourself.
+//!   - There are two main functions available:
+//!     - [`join`] is used to subdivide a task into two pieces.
+//!     - [`scope`] creates a scope within which you can create any number of parallel tasks.
+//!   - See the docs for those functions for examples and more information.
 //!
-//! # Examples
-//!
-//! Here a string is encrypted using ROT13 leveraging parallelism.  Once all the
-//! threads are complete, they are collected into a string.
-//!
-//! ```
-//! extern crate rayon;
-//! use rayon::prelude::*;
-//! # fn main() {
-//! let mut chars: Vec<char> = "A man, a plan, a canal - Panama!".chars().collect();
-//! let encrypted: String = chars.into_par_iter().map(|c| {
-//!        match c {
-//!            'A' ... 'M' | 'a' ... 'm' => ((c as u8) + 13) as char,
-//!            'N' ... 'Z' | 'n' ... 'z' => ((c as u8) - 13) as char,
-//!            _ => c
-//!        }
-//!    }).collect();
-//!    assert_eq!(encrypted, "N zna, n cyna, n pnany - Cnanzn!");
-//! # }
-//! ```
-//!
-//! # Divide and conquer with `join`
-//!
-//! [`join`] takes two closures and runs them in parallel if doing so will improve
-//! execution time.  Parallel Iterators are implemented using [`join`] with
-//! work-stealing.  Given two tasks that safely run in parallel, one task is queued
-//! and another starts processing.  If idle threads exist, they begin execution on
-//! the queued work.
-//!
+//! [iter module]: iter
 //! [`join`]: fn.join.html
+//! [`scope`]: fn.scope.html
 //!
-//! # Examples
+//! # Rayon prelude
 //!
-//! ```rust,ignore
-//! join(|| do_something(), || do_something_else())
-//! ```
+//! To use parallel iterators, you need to import several
+//! traits. Those traits are bundled into the module
+//! [`rayon::prelude`]. It is recommended that you import all of these
+//! traits at once by adding `use rayon::prelude::*` at the top of
+//! each module that uses Rayon methods.
 //!
-//! ```rust
-//! fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
-//!    if v.len() > 1 {
-//!        let mid = partition(v);
-//!        let (lo, hi) = v.split_at_mut(mid);
-//!        rayon::join(|| quick_sort(lo),
-//!                    || quick_sort(hi));
-//!    }
-//! }
-//! # fn main() { }
-//! # fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize { 0 }
-//! ```
-//!
-//! # Rayon Types
-//!
-//! Rayon traits are bundled into [`rayon::prelude::*`].  To get access to parallel
-//! implementations on various standard types include `use rayon::prelude::*;`
-//!
-//! These implementations will give you access to `par_iter` with parallel
+//! These traits will give you access to `par_iter` with parallel
 //! implementations of iterative functions including [`map`], [`for_each`], [`filter`],
 //! [`fold`], and [more].
 //!
@@ -105,6 +65,12 @@
 //! [the `option` module of `std`]: https://doc.rust-lang.org/std/option/index.html
 //! [the `collections` from `std`]: https://doc.rust-lang.org/std/collections/index.html
 //! [`std`]: https://doc.rust-lang.org/std/
+//!
+//! # Other questions?
+//!
+//! See [the Rayon FAQ][faq].
+//!
+//! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 
 extern crate rayon_core;
 extern crate either;
