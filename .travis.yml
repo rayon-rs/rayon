@@ -73,6 +73,7 @@ script:
     fi
   - |
     if [ -n "$RUSTFLAGS" ]; then
+      cargo clean &&
       cargo build -p rayon-futures &&
       if [ $TRAVIS_RUST_VERSION == nightly ]; then
         cargo test -p rayon-futures

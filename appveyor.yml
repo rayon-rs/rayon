@@ -58,6 +58,7 @@ test_script:
       cargo test -p rayon-demo
     )
   - if not "%RUSTFLAGS%"=="%^RUSTFLAGS%" (
+      cargo clean &&
       cargo build -p rayon-futures &&
       if [%CHANNEL%]==[nightly] (
         cargo test -p rayon-futures
