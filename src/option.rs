@@ -7,8 +7,15 @@ use iter::plumbing::*;
 use std;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-
-/// Parallel iterator over an option
+/// A parallel iterator over the value in [`Some`] variant of an [`Option`].
+///
+/// The iterator yields one value if the [`Option`] is a [`Some`], otherwise none.
+///
+/// This `struct` is created by the [`par_iter_mut`] function.
+///
+/// [`Option`]: https://doc.rust-lang.org/std/option/enum.Option.html
+/// [`Some`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
+/// [`into_par_iter`]: ../iter/trait.IntoParallelIterator.html#tymethod.into_par_iter
 #[derive(Debug, Clone)]
 pub struct IntoIter<T: Send> {
     opt: Option<T>,
@@ -62,8 +69,15 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
     }
 }
 
-
-/// Parallel iterator over an immutable reference to an option
+/// A parallel iterator over a reference to the [`Some`] variant of an [`Option`].
+///
+/// The iterator yields one value if the [`Option`] is a [`Some`], otherwise none.
+///
+/// This `struct` is created by the [`par_iter`] function.
+///
+/// [`Option`]: https://doc.rust-lang.org/std/option/enum.Option.html
+/// [`Some`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
+/// [`par_iter`]: ../iter/trait.IntoParallelRefIterator.html#tymethod.par_iter
 #[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
     inner: IntoIter<&'a T>,
@@ -90,7 +104,15 @@ delegate_indexed_iterator!{
 }
 
 
-/// Parallel iterator over a mutable reference to an option
+/// A parallel iterator over a mutable reference to the [`Some`] variant of an [`Option`].
+///
+/// The iterator yields one value if the [`Option`] is a [`Some`], otherwise none.
+///
+/// This `struct` is created by the [`par_iter_mut`] function.
+///
+/// [`Option`]: https://doc.rust-lang.org/std/option/enum.Option.html
+/// [`Some`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
+/// [`par_iter_mut`]: ../iter/trait.IntoParallelRefMutIterator.html#tymethod.par_iter_mut
 #[derive(Debug)]
 pub struct IterMut<'a, T: Send + 'a> {
     inner: IntoIter<&'a mut T>,
