@@ -3,7 +3,7 @@ use std::any::Any;
 use std::sync::Mutex;
 use std::sync::mpsc::channel;
 
-use {Configuration, ThreadPool};
+use ThreadPoolBuilder;
 use super::spawn;
 
 #[test]
@@ -40,9 +40,9 @@ fn panic_fwd() {
         }
     };
 
-    let configuration = Configuration::new().panic_handler(panic_handler);
+    let builder = ThreadPoolBuilder::new().panic_handler(panic_handler);
 
-    ThreadPool::new(configuration).unwrap().spawn(move || panic!("Hello, world!"));
+    builder.build().unwrap().spawn(move || panic!("Hello, world!"));
 
     assert_eq!(1, rx.recv().unwrap());
 }
@@ -58,7 +58,7 @@ fn termination_while_things_are_executing() {
     // Create a thread-pool and spawn some code in it, but then drop
     // our reference to it.
     {
-        let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
+        let thread_pool = ThreadPoolBuilder::new().build().unwrap();
         thread_pool.spawn(move || {
             let data = rx0.recv().unwrap();
 
@@ -89,8 +89,8 @@ fn custom_panic_handler_and_spawn() {
     };
 
     // Execute an async that will panic.
-    let config = Configuration::new().panic_handler(panic_handler);
-    ThreadPool::new(config).unwrap().spawn(move || {
+    let builder = ThreadPoolBuilder::new().panic_handler(panic_handler);
+    builder.build().unwrap().spawn(move || {
         panic!("Hello, world!");
     });
 
@@ -117,8 +117,8 @@ fn custom_panic_handler_and_nested_spawn() {
 
     // Execute an async that will (eventually) panic.
     const PANICS: usize = 3;
-    let config = Configuration::new().panic_handler(panic_handler);
-    ThreadPool::new(config).unwrap().spawn(move || {
+    let builder = ThreadPoolBuilder::new().panic_handler(panic_handler);
+    builder.build().unwrap().spawn(move || {
         // launch 3 nested spawn-asyncs; these should be in the same
         // thread-pool and hence inherit the same panic handler
         for _ in 0 .. PANICS {

@@ -14,7 +14,7 @@ keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [dependencies]
-rand = "0.3"
+rand = ">= 0.3, < 0.5"
 num_cpus = "1.2"
 coco = "0.3.2"
 libc = "0.2.16"

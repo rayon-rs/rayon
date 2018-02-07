@@ -108,9 +108,13 @@ mod test;
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`std::iter::IntoIterator`]: https://doc.rust-lang.org/std/iter/trait.IntoIterator.html
 pub trait IntoParallelIterator {
+    /// The parallel iterator type that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that the parallel iterator will produce.
     type Item: Send;
 
+    /// Converts `self` into a parallel iterator.
     fn into_par_iter(self) -> Self::Iter;
 }
 
@@ -128,9 +132,14 @@ pub trait IntoParallelIterator {
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`IntoParallelIterator`]: trait.IntoParallelIterator.html
 pub trait IntoParallelRefIterator<'data> {
+    /// The type of the parallel iterator that will be returned.
     type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that the parallel iterator will produce.
+    /// This will typically be an `&'data T` reference type.
     type Item: Send + 'data;
 
+    /// Converts `self` into a parallel iterator.
     fn par_iter(&'data self) -> Self::Iter;
 }
 
@@ -160,9 +169,14 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefIterator<'data> for I
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`IntoParallelIterator`]: trait.IntoParallelIterator.html
 pub trait IntoParallelRefMutIterator<'data> {
+    /// The type of iterator that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that will be produced; this is typically an
+    /// `&'data mut T` reference.
     type Item: Send + 'data;
 
+    /// Creates the parallel iterator from `self`.
     fn par_iter_mut(&'data mut self) -> Self::Iter;
 }
 
@@ -179,6 +193,11 @@ impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
 
 /// The `ParallelIterator` interface.
 pub trait ParallelIterator: Sized + Send {
+    /// The type of item that this parallel iterator produces.
+    /// For example, if you use the [`for_each`] method, this is the type of
+    /// item that your closure will be invoked with.
+    ///
+    /// [`for_each`]: #method.for_each
     type Item: Send;
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
@@ -268,6 +287,29 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::mpsc::channel;
+    /// use rayon::prelude::*;
+    ///
+    /// let (sender, receiver) = channel();
+    ///
+    /// let a: Vec<_> = (0..5)
+    ///                 .into_par_iter()            // iterating over i32
+    ///                 .map_with(sender, |s, x| {
+    ///                     s.send(x).unwrap();     // sending i32 values through the channel
+    ///                     x                       // returning i32
+    ///                 })
+    ///                 .collect();                 // collecting the returned values into a vector
+    ///
+    /// let mut b: Vec<_> = receiver.iter()         // iterating over the values in the channel
+    ///                             .collect();     // and collecting them
+    /// b.sort();
+    ///
+    /// assert_eq!(a, b);
+    /// ```
     fn map_with<F, T, R>(self, init: T, map_op: F) -> MapWith<Self, T, F>
         where F: Fn(&mut T, Self::Item) -> R + Sync + Send,
               T: Send + Clone,
@@ -425,7 +467,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens iterable `Item`s into one large iterator
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -449,7 +491,7 @@ pub trait ParallelIterator: Sized + Send {
     /// to produce something that represents the zero for your type
     /// (but consider just calling `sum()` in that case).
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
@@ -485,6 +527,18 @@ pub trait ParallelIterator: Sized + Send {
     /// This version of `reduce` is simple but somewhat less
     /// efficient. If possible, it is better to call `reduce()`, which
     /// requires an identity element.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let sums = [(0, 1), (5, 6), (16, 2), (8, 9)]
+    ///            .par_iter()        // iterating over &(i32, i32)
+    ///            .cloned()          // iterating over (i32, i32)
+    ///            .reduce_with(|a, b| (a.0 + b.0, a.1 + b.1))
+    ///            .unwrap();
+    /// assert_eq!(sums, (0 + 5 + 16 + 8, 1 + 6 + 2 + 9));
+    /// ```
     ///
     /// **Note:** unlike a sequential `fold` operation, the order in
     /// which `op` will be applied to reduce the result is not fully
@@ -653,6 +707,19 @@ pub trait ParallelIterator: Sized + Send {
     /// This works essentially like `fold(|| init.clone(), fold_op)`, except
     /// it doesn't require the `init` type to be `Sync`, nor any other form
     /// of added synchronization.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let bytes = 0..22_u8;
+    /// let sum = bytes.into_par_iter()
+    ///                .fold_with(0_u32, |a: u32, b: u8| a + (b as u32))
+    ///                .sum::<u32>();
+    ///
+    /// assert_eq!(sum, (0..22).sum()); // compare to sequential
+    /// ```
     fn fold_with<F, T>(self, init: T, fold_op: F) -> FoldWith<Self, T, F>
         where F: Fn(T, Self::Item) -> T + Sync + Send,
               T: Send + Clone
@@ -866,7 +933,7 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
-    /// # Exmaples
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -1077,7 +1144,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Create a fresh collection containing all the element produced
     /// by this parallel iterator.
     ///
-    /// You may prefer to use `collect_into()`, which allocates more
+    /// You may prefer to use `collect_into_vec()`, which allocates more
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse an existing
     /// vector's backing store rather than allocating a fresh vector.
@@ -1102,7 +1169,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Unzips the items of a parallel iterator into a pair of arbitrary
     /// `ParallelExtend` containers.
     ///
-    /// You may prefer to use `unzip_into()`, which allocates more
+    /// You may prefer to use `unzip_into_vecs()`, which allocates more
     /// efficiently with precise knowledge of how many elements the
     /// iterator contains, and even allows you to reuse existing
     /// vectors' backing stores rather than allocating fresh vectors.
@@ -1259,20 +1326,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
-    fn collect_into(self, target: &mut Vec<Self::Item>) {
-        collect::collect_into(self, target);
+    fn collect_into_vec(self, target: &mut Vec<Self::Item>) {
+        collect::collect_into_vec(self, target);
     }
 
     /// Unzips the results of the iterator into the specified
     /// vectors. The vectors are always truncated before execution
     /// begins. If possible, reusing the vectors across calls can lead
     /// to better performance since they reuse the same backing buffer.
-    fn unzip_into<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
+    fn unzip_into_vecs<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
         where Self: IndexedParallelIterator<Item = (A, B)>,
               A: Send,
               B: Send
     {
-        collect::unzip_into(self, left, right);
+        collect::unzip_into_vecs(self, left, right);
     }
 
     /// Iterate over tuples `(A, B)`, where the items `A` are from
@@ -1622,8 +1689,9 @@ pub trait IndexedParallelIterator: ParallelIterator {
     fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
 }
 
-/// `FromParallelIterator` implements the conversion from a [`ParallelIterator`].
-/// By implementing `FromParallelIterator` for a type, you define how it will be
+/// `FromParallelIterator` implements the creation of a collection
+/// from a [`ParallelIterator`]. By implementing
+/// `FromParallelIterator` for a given type, you define how it will be
 /// created from an iterator.
 ///
 /// `FromParallelIterator` is used through [`ParallelIterator`]'s [`collect()`] method.
@@ -1633,6 +1701,21 @@ pub trait IndexedParallelIterator: ParallelIterator {
 pub trait FromParallelIterator<T>
     where T: Send
 {
+    /// Creates an instance of the collection from the parallel iterator `par_iter`.
+    ///
+    /// If your collection is not naturally parallel, the easiest (and
+    /// fastest) way to do this is often to collect `par_iter` into a
+    /// [`LinkedList`] or other intermediate data structure and then
+    /// sequentially extend your collection. However, a more 'native'
+    /// technique is to use the [`par_iter.fold`] or
+    /// [`par_iter.fold_with`] methods to create the collection.
+    /// Alternatively, if your collection is 'natively' parallel, you
+    /// can use `par_iter.for_each` to process each element in turn.
+    ///
+    /// [`LinkedList`]: https://doc.rust-lang.org/std/collections/struct.LinkedList.html
+    /// [`par_iter.fold`]: trait.ParallelIterator.html#method.fold
+    /// [`par_iter.fold_with`]: trait.ParallelIterator.html#method.fold_with
+    /// [`par_iter.for_each`]: trait.ParallelIterator.html#method.for_each
     fn from_par_iter<I>(par_iter: I) -> Self where I: IntoParallelIterator<Item = T>;
 }
 
@@ -1642,5 +1725,7 @@ pub trait FromParallelIterator<T>
 pub trait ParallelExtend<T>
     where T: Send
 {
+    /// Extends an instance of the collection with the elements drawn
+    /// from the parallel iterator `par_iter`.
     fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
 }

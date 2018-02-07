@@ -50,7 +50,7 @@ fn main() {
         }
     } else {
         let stack_size_in_mb: usize = env::args().nth(1).unwrap().parse().unwrap();
-        let pool = ThreadPool::new(Configuration::new().stack_size(stack_size_in_mb * 1024 * 1024)).unwrap();
+        let pool = ThreadPoolBuilder::new().stack_size(stack_size_in_mb * 1024 * 1024).build().unwrap();
         let index = pool.install(|| {
             force_stack_overflow(32);
         });

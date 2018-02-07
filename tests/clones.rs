@@ -153,6 +153,6 @@ fn clone_repeat() {
 
 #[test]
 fn clone_splitter() {
-    check(rayon::iter::split((0..1000), |x| (x, None)));
+    check(rayon::iter::split(0..1000, |x| (x, None)));
 }
 

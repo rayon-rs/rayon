@@ -47,7 +47,7 @@ modes (which is why there are two):
     data falls in the overall stream.
     - Not all consumers can operate in this mode. It works for
       `for_each` and `reduce`, for example, but it does not work for
-      `collect_into`, since in that case the position of each item is
+      `collect_into_vec`, since in that case the position of each item is
       important for knowing where it ends up in the target collection.
 
 ## How iterator execution proceeds
@@ -134,6 +134,8 @@ The other time that `bridge` gets used is when we bottom out in an
 indexed producer, such as a slice or range.  There is also a
 `bridge_unindexed` equivalent for - you guessed it - unindexed producers,
 such as string characters.
+
+<a name="producer-callback">
 
 ## What on earth is `ProducerCallback`?
 

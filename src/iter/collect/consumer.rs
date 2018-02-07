@@ -90,7 +90,7 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
     }
 }
 
-/// Pretend to be unindexed for `special_collect_into`,
+/// Pretend to be unindexed for `special_collect_into_vec`,
 /// but we should never actually get used that way...
 impl<'c, T: Send + 'c> UnindexedConsumer<T> for CollectConsumer<'c, T> {
     fn split_off_left(&self) -> Self {

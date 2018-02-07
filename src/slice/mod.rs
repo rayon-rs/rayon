@@ -26,6 +26,17 @@ pub trait ParallelSlice<T: Sync> {
 
     /// Returns a parallel iterator over subslices separated by elements that
     /// match the separator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let smallest = [1, 2, 3, 0, 2, 4, 8, 0, 3, 6, 9]
+    ///     .par_split(|i| *i == 0)
+    ///     .map(|numbers| numbers.iter().min().unwrap())
+    ///     .min();
+    /// assert_eq!(Some(&1), smallest);
+    /// ```
     fn par_split<P>(&self, separator: P) -> Split<T, P>
         where P: Fn(&T) -> bool + Sync + Send
     {
@@ -37,6 +48,14 @@ pub trait ParallelSlice<T: Sync> {
 
     /// Returns a parallel iterator over all contiguous windows of
     /// length `size`. The windows overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let windows: Vec<_> = [1, 2, 3].par_windows(2).collect();
+    /// assert_eq!(vec![[1, 2], [2, 3]], windows);
+    /// ```
     fn par_windows(&self, window_size: usize) -> Windows<T> {
         Windows {
             window_size: window_size,
@@ -46,6 +65,14 @@ pub trait ParallelSlice<T: Sync> {
 
     /// Returns a parallel iterator over at most `size` elements of
     /// `self` at a time. The chunks do not overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let windows: Vec<_> = [1, 2, 3, 4].par_chunks(2).collect();
+    /// assert_eq!(vec![[1, 2], [3, 4]], windows);
+    /// ```
     fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks {

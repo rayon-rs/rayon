@@ -1,6 +1,5 @@
-use Configuration;
+use ThreadPoolBuilder;
 use {scope, Scope};
-use ThreadPool;
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::cmp;
 use std::iter::once;
@@ -142,8 +141,8 @@ fn update_tree() {
 /// permitting an approx 10% change with a 10x input change.
 #[test]
 fn linear_stack_growth() {
-    let config = Configuration::new().num_threads(1);
-    let pool = ThreadPool::new(config).unwrap();
+    let builder = ThreadPoolBuilder::new().num_threads(1);
+    let pool = builder.build().unwrap();
     pool.install(|| {
         let mut max_diff = Mutex::new(0);
         let bottom_of_stack = 0;

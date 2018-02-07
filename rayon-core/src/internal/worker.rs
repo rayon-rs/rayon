@@ -1,3 +1,7 @@
+//! Internal, unsafe APIs for manipulating or querying the current
+//! worker thread. Intended for building abstractions atop the
+//! rayon-core thread pool, rather than direct use by end users.
+
 use std::fmt;
 use latch::LatchProbe;
 use registry;

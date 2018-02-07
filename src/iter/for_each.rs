@@ -45,6 +45,11 @@ impl<'f, F, T> Folder<T> for ForEachConsumer<'f, F>
         self
     }
 
+    fn consume_iter<I>(self, iter: I) -> Self where I: IntoIterator<Item=T> {
+        iter.into_iter().fold((), |_, item| (self.op)(item));
+        self
+    }
+
     fn complete(self) {}
 
     fn full(&self) -> bool {

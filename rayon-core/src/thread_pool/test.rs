@@ -3,15 +3,17 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[allow(deprecated)]
 use Configuration;
+use ThreadPoolBuilder;
 use join;
-use super::ThreadPool;
+use thread_pool::ThreadPool;
 use unwind;
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn panic_propagate() {
-    let thread_pool = ThreadPool::new(Configuration::new()).unwrap();
+    let thread_pool = ThreadPoolBuilder::new().build().unwrap();
     thread_pool.install(|| {
                             panic!("Hello, world!");
                         });
@@ -23,7 +25,7 @@ fn workers_stop() {
 
     {
         // once we exit this block, thread-pool will be dropped
-        let thread_pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
+        let thread_pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
         registry = thread_pool.install(|| {
                                            // do some work on these threads
                                            join_a_lot(22);
@@ -52,7 +54,7 @@ fn sleeper_stop() {
 
     {
         // once we exit this block, thread-pool will be dropped
-        let thread_pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
+        let thread_pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
         registry = thread_pool.registry.clone();
 
         // Give time for at least some of the thread pool to fall asleep.
@@ -98,13 +100,13 @@ fn failed_thread_stack() {
 
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();
-    let config = Configuration::new()
+    let builder = ThreadPoolBuilder::new()
         .num_threads(10)
         .stack_size(stack_size)
         .start_handler(move |i| start_handler(i))
         .exit_handler(move |i| exit_handler(i));
 
-    let pool = ThreadPool::new(config);
+    let pool = builder.build();
     assert!(pool.is_err(), "thread stack should have failed!");
 
     // With such a huge stack, 64-bit will probably fail on the first thread;
@@ -118,7 +120,7 @@ fn failed_thread_stack() {
 fn panic_thread_name() {
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();
-    let config = Configuration::new()
+    let builder = ThreadPoolBuilder::new()
         .num_threads(10)
         .start_handler(move |i| start_handler(i))
         .exit_handler(move |i| exit_handler(i))
@@ -129,7 +131,7 @@ fn panic_thread_name() {
                          format!("panic_thread_name#{}", i)
                      });
 
-    let pool = unwind::halt_unwinding(|| ThreadPool::new(config));
+    let pool = unwind::halt_unwinding(|| builder.build());
     assert!(pool.is_err(), "thread-name panic should propagate!");
 
     // Assuming they're created in order, threads 0 through 4 should have
@@ -140,7 +142,7 @@ fn panic_thread_name() {
 
 #[test]
 fn self_install() {
-    let pool = Configuration::new().num_threads(1).build().unwrap();
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
 
     // If the inner `install` blocks, then nothing will actually run it!
     assert!(pool.install(|| pool.install(|| true)));
@@ -148,8 +150,8 @@ fn self_install() {
 
 #[test]
 fn mutual_install() {
-    let pool1 = Configuration::new().num_threads(1).build().unwrap();
-    let pool2 = Configuration::new().num_threads(1).build().unwrap();
+    let pool1 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+    let pool2 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
 
     let ok = pool1.install(|| {
         // This creates a dependency from `pool1` -> `pool2`
@@ -169,8 +171,8 @@ fn mutual_install() {
 fn mutual_install_sleepy() {
     use std::{thread, time};
 
-    let pool1 = Configuration::new().num_threads(1).build().unwrap();
-    let pool2 = Configuration::new().num_threads(1).build().unwrap();
+    let pool1 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+    let pool2 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
 
     let ok = pool1.install(|| {
         // This creates a dependency from `pool1` -> `pool2`
@@ -190,4 +192,11 @@ fn mutual_install_sleepy() {
         })
     });
     assert!(ok);
+}
+
+#[test]
+#[allow(deprecated)]
+fn check_thread_pool_new() {
+    let pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
+    assert_eq!(pool.current_num_threads(), 22);
 }

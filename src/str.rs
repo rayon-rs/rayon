@@ -50,6 +50,14 @@ pub trait ParallelString {
     fn as_parallel_string(&self) -> &str;
 
     /// Returns a parallel iterator over the characters of a string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let max = "hello".par_chars().max_by_key(|c| *c as i32);
+    /// assert_eq!(Some('o'), max);
+    /// ```
     fn par_chars(&self) -> Chars {
         Chars { chars: self.as_parallel_string() }
     }
@@ -59,6 +67,17 @@ pub trait ParallelString {
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
     /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let total = "1, 2, buckle, 3, 4, door"
+    ///    .par_split(',')
+    ///    .filter_map(|s| s.trim().parse::<i32>().ok())
+    ///    .sum();
+    /// assert_eq!(10, total);
+    /// ```
     fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
         Split::new(self.as_parallel_string(), separator)
     }
@@ -70,6 +89,16 @@ pub trait ParallelString {
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
     /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let parts: Vec<_> = "((1 + 3) * 2)"
+    ///     .par_split_terminator(|c| c == '(' || c == ')')
+    ///     .collect();
+    /// assert_eq!(vec!["", "", "1 + 3", " * 2"], parts);
+    /// ```
     fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
         SplitTerminator::new(self.as_parallel_string(), terminator)
     }
@@ -78,6 +107,17 @@ pub trait ParallelString {
     /// optional carriage return and with a newline (`\r\n` or just `\n`).
     /// The final line ending is optional, and line endings are not included in
     /// the output strings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let lengths: Vec<_> = "hello world\nfizbuzz"
+    ///     .par_lines()
+    ///     .map(|l| l.len())
+    ///     .collect();
+    /// assert_eq!(vec![11, 7], lengths);
+    /// ```
     fn par_lines(&self) -> Lines {
         Lines(self.as_parallel_string())
     }
@@ -87,6 +127,16 @@ pub trait ParallelString {
     ///
     /// As with `str::split_whitespace`, 'whitespace' is defined according to
     /// the terms of the Unicode Derived Core Property `White_Space`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let longest = "which is the longest word?"
+    ///     .par_split_whitespace()
+    ///     .max_by_key(|word| word.len());
+    /// assert_eq!(Some("longest"), longest);
+    /// ```
     fn par_split_whitespace(&self) -> SplitWhitespace {
         SplitWhitespace(self.as_parallel_string())
     }

@@ -93,7 +93,7 @@ equals to the number of logical cores and not the physical ones.
 
 If you want to alter the number of threads spawned, you can set the
 environmental variable `RAYON_NUM_THREADS` to the desired number of threads
-or use the [`initialize` function](https://docs.rs/rayon/*/rayon/fn.initialize.html) method
+or use the [`ThreadPoolBuilder::build_global` function](https://docs.rs/rayon/*/rayon/struct.ThreadPoolBuilder.html#method.build_global) method
 
 ### Parallel Iterators
 
