@@ -16,6 +16,8 @@ use std::cmp;
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
 
+use super::math::div_round_up;
+
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
     /// Returns a plain slice, which is used to implement the rest of the
@@ -72,6 +74,7 @@ pub trait ParallelSlice<T: Sync> {
     /// assert_eq!(vec![[1, 2], [3, 4]], windows);
     /// ```
     fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks {
             chunk_size: chunk_size,
             slice: self.as_parallel_slice(),
@@ -107,6 +110,7 @@ pub trait ParallelSliceMut<T: Send> {
     /// Returns a parallel iterator over at most `size` elements of
     /// `self` at a time. The chunks are mutable and do not overlap.
     fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksMut {
             chunk_size: chunk_size,
             slice: self.as_parallel_slice_mut(),
@@ -501,7 +505,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
     }
 
     fn len(&self) -> usize {
-        (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
+        div_round_up(self.slice.len(), self.chunk_size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
@@ -706,7 +710,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
     }
 
     fn len(&self) -> usize {
-        (self.slice.len() + (self.chunk_size - 1)) / self.chunk_size
+        div_round_up(self.slice.len(), self.chunk_size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output

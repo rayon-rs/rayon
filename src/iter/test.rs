@@ -1835,6 +1835,52 @@ fn check_interleave_shortest() {
 }
 
 #[test]
+#[should_panic(expected = "chunk_size must not be zero")]
+fn check_chunks_zero_size() {
+    let _: Vec<Vec<i32>> = vec![1,2,3].into_par_iter().chunks(0).collect();
+}
+
+#[test]
+fn check_chunks_even_size() {
+    assert_eq!(vec![vec![1,2,3], vec![4,5,6], vec![7,8,9]], (1..10).into_par_iter().chunks(3).collect::<Vec<Vec<i32>>>());
+}
+
+#[test]
+fn check_chunks_empty() {
+    let v: Vec<i32> = vec![];
+    let expected: Vec<Vec<i32>> = vec![];
+    assert_eq!(expected, v.into_par_iter().chunks(2).collect::<Vec<Vec<i32>>>());
+}
+
+#[test]
+fn check_chunks_len() {
+    assert_eq!(4, (0..8).into_par_iter().chunks(2).len());
+    assert_eq!(3, (0..9).into_par_iter().chunks(3).len());
+    assert_eq!(3, (0..8).into_par_iter().chunks(3).len());
+    assert_eq!(1, (&[1]).par_iter().chunks(3).len());
+    assert_eq!(0, (0..0).into_par_iter().chunks(3).len());
+}
+
+#[test]
+fn check_chunks_uneven() {
+    let cases: Vec<(Vec<u32>, usize, Vec<Vec<u32>>)> = vec![
+        ((0..5).collect(), 3, vec![vec![0,1, 2], vec![3, 4]]),
+        (vec![1], 5, vec![vec![1]]),
+        ((0..4).collect(), 3, vec![vec![0,1, 2], vec![3]]),
+    ];
+
+    for (i, (v, n, expected)) in cases.into_iter().enumerate() {
+        let mut res: Vec<Vec<u32>> = vec![];
+        v.par_iter().chunks(n).map(|v| v.into_iter().cloned().collect()).collect_into_vec(&mut res);
+        assert_eq!(expected, res, "Case {} failed", i);
+
+        res.truncate(0);
+        v.into_par_iter().chunks(n).rev().collect_into_vec(&mut res);
+        assert_eq!(expected.into_iter().rev().collect::<Vec<Vec<u32>>>(), res, "Case {} reversed failed", i);
+    }
+}
+
+#[test]
 #[ignore] // it's quick enough on optimized 32-bit platforms, but otherwise... ... ...
 #[should_panic(expected = "overflow")]
 #[cfg(debug_assertions)]
