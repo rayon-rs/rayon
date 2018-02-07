@@ -50,13 +50,6 @@
 //! [`par_extend`]: trait.ParallelExtend.html
 //! [`collect()`]: trait.ParallelIterator.html#method.collect
 //!
-//! These are the full set of methods you can use to create a parallel iterator:
-//!
-//! - `par_iter` -- iterates over `&T` references to the items in the collection
-//! - `par_iter_mut` -- iterates over `&mut T` references to the items in the collection
-//! - `into_par_iter` -- iterates over the items in the collection, taking ownership of each
-//! - `par_split`
-//!
 //! To see the full range of methods available on parallel iterators,
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
 //! traits.
