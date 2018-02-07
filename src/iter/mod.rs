@@ -113,6 +113,27 @@ pub trait IntoParallelIterator {
     type Item: Send;
 
     /// Converts `self` into a parallel iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// println!("counting in parallel:");
+    /// (0..100).into_par_iter()
+    ///     .for_each(|i| println!("{}", i));
+    /// ```
+    ///
+    /// This conversion is often implicit for arguments to methods like [`zip`].
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v: Vec<_> = (0..5).into_par_iter().zip(5..10).collect();
+    /// assert_eq!(v, [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9)]);
+    /// ```
+    ///
+    /// [`zip`]: trait.IndexedParallelIterator.html#method.zip
     fn into_par_iter(self) -> Self::Iter;
 }
 
