@@ -1,6 +1,4 @@
-//! This module contains the parallel iterator types for vectors
-//! (`Vec<T>`). You will rarely need to interact with it directly
-//! unless you have need to name one of those types.
+//! Parallel iterator types for [vectors](std::vec).
 
 use iter::*;
 use iter::plumbing::*;

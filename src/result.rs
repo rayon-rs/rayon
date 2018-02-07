@@ -1,6 +1,4 @@
-//! This module contains the parallel iterator types for results
-//! (`Result<T, E>`). You will rarely need to interact with it directly
-//! unless you have need to name one of the iterator types.
+//! Parallel iterator types for [results](std::Result).
 
 use iter::*;
 use iter::plumbing::*;

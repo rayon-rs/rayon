@@ -1,8 +1,4 @@
-//! This module contains extension methods for `String` that expose
-//! parallel iterators, such as `par_split_whitespace()`. You will
-//! rarely need to interact with it directly, since if you add `use
-//! rayon::prelude::*` to your file, that will include the helper
-//! traits defined in this module.
+//! Parallel iterator types for [strings](std::str).
 //!
 //! Note: [`ParallelString::par_split()`] and [`par_split_terminator()`]
 //! reference a `Pattern` trait which is not visible outside this crate.

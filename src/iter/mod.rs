@@ -1,4 +1,4 @@
-//! Contains the main "parallel iterator" traits.
+//! Traits for writing parallel programs using an iterator-style interface.
 //!
 //! Parallel iterators make it easy to write iterator-like chains that
 //! execute in parallel: typically all you have to do is convert the
