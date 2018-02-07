@@ -4,6 +4,12 @@ use ::math::div_round_up;
 use super::plumbing::*;
 use super::*;
 
+/// `Chunks` is an iterator that groups elements of an underlying iterator.
+///
+/// This struct is created by the [`chunks()`] method on [`IndexedParallelIterator`]
+///
+/// [`chunks()`]: trait.IndexedParallelIterator.html#method.chunks
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Chunks<I>
