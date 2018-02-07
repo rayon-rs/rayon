@@ -1,8 +1,11 @@
 //! Contains the main "parallel iterator" traits.
 //!
 //! Parallel iterators make it easy to write iterator-like chains that
-//! execute in parallel. For example, to compute the sum of the
-//! squares of a sequence of integers, one might write:
+//! execute in parallel: typically all you have to do is convert the
+//! first `.iter()` (or `iter_mut()`, `into_iter()`, etc) method into
+//! `par_iter()` (or `par_iter_mut()`, `into_par_iter()`, etc). For
+//! example, to compute the sum of the squares of a sequence of
+//! integers, one might write:
 //!
 //! ```rust
 //! use rayon::prelude::*;
@@ -29,6 +32,30 @@
 //! parallel iterator. Like a [regular iterator][], parallel
 //! iterators work by first constructing a computation and then
 //! executing it.
+//!
+//! In addition to `par_iter()` and friends, some types offer other
+//! ways to create (or consume) parallel iterators:
+//!
+//! - Slices (`&[T]`, `&mut [T]`) offer methods like `par_split` and
+//!   `par_windows`, as well as various parallel sorting
+//!   operations. See [the `ParallelSlice` trait] for the full list.
+//! - Strings (`&str`) offer methods like `par_split` and `par_lines`.
+//!   See [the `ParallelString` trait] for the full list.
+//! - Various collections offer [`par_extend`], which grows a collection
+//!   given a parallel iterator. (You can use [`collect()`] to create a parallel
+//!   iterator.)
+//!
+//! [the `ParallelSlice` trait]: ../slice/trait.ParallelSlice.html
+//! [the `ParallelString` trait]: ../str/trait.ParallelString.html
+//! [`par_extend`]: trait.ParallelExtend.html
+//! [`collect()`]: trait.ParallelIterator.html#method.collect
+//!
+//! These are the full set of methods you can use to create a parallel iterator:
+//!
+//! - `par_iter` -- iterates over `&T` references to the items in the collection
+//! - `par_iter_mut` -- iterates over `&mut T` references to the items in the collection
+//! - `into_par_iter` -- iterates over the items in the collection, taking ownership of each
+//! - `par_split`
 //!
 //! To see the full range of methods available on parallel iterators,
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]

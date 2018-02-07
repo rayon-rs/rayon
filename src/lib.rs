@@ -4,40 +4,48 @@
 #![cfg_attr(test, feature(i128_type))]
 #![deny(missing_docs)]
 
-//! Data-parallelism library that is easy to convert sequential computations into parallel.
+//! Data-parallelism library that makes it easy to convert sequential
+//! computations into parallel.
 //!
-//! Rayon is lightweight and convenient for application to existing code.  It guarantees
-//! data-race free executions, and takes advantage of parallelism when sensible, based
-//! on work-load at runtime.
+//! Rayon is a lightweight and convenient way to add parallellism into
+//! your existing code.  It guarantees data-race free executions, and
+//! takes advantage of parallelism when sensible, based on work-load
+//! at runtime.
 //!
 //! # How to use Rayon
 //!
 //! There are two ways to use Rayon:
 //!
-//! - [**Parallel iterators**][iter module] make it easy to convert a sequential iterator to
-//!   execute in parallel.
-//!   - Parallel iterators are the both the simplest and preferred way
-//!     to use Rayon, as the high-level interface gives the library
-//!     plenty of room to adapt the number of parallel tasks
-//!     dynamically for maximum efficiency.
-//!   - For more info, see the docs for the [iter module].
+//! - **High-level parallel constructs** are the simplest way to use Rayon and also
+//!   typically the most efficient.
+//!   - [Parallel iterators][iter module] make it easy to convert a sequential iterator to
+//!     execute in parallel.
+//!   - The [`par_sort`] method sorts `&mut [T]` slices (or vectors) in parallel.
+//!   - [`par_extend`] can be used to efficiently grow collections with items produced
+//!     by a parallel iterator.
 //! - **Custom tasks** let you divide your work into parallel tasks yourself.
-//!   - There are two main functions available:
-//!     - [`join`] is used to subdivide a task into two pieces.
-//!     - [`scope`] creates a scope within which you can create any number of parallel tasks.
-//!   - See the docs for those functions for examples and more information.
+//!   - [`join`] is used to subdivide a task into two pieces.
+//!   - [`scope`] creates a scope within which you can create any number of parallel tasks.
+//!   - [`ThreadPoolBuilder`] can be used to create your own thread pools or customize
+//!     the global one.
 //!
 //! [iter module]: iter
 //! [`join`]: fn.join.html
 //! [`scope`]: fn.scope.html
+//! [`par_sort`]: slice/trait.ParallelSliceMut.html#method.par_sort
+//! [`par_extend`]: iter/trait.ParallelExtend.html#tymethod.par_extend
+//! [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
 //!
-//! # Rayon prelude
+//! # Basic usage and the Rayon prelude
 //!
-//! To use parallel iterators, you need to import several
-//! traits. Those traits are bundled into the module
-//! [`rayon::prelude`]. It is recommended that you import all of these
-//! traits at once by adding `use rayon::prelude::*` at the top of
-//! each module that uses Rayon methods.
+//! First, you will need to add `rayon` to your `Cargo.toml` and put
+//! `extern crate rayon` in your main file (`lib.rs`, `main.rs`).
+//!
+//! Next, to use parallel iterators or the other high-level methods,
+//! you need to import several traits. Those traits are bundled into
+//! the module [`rayon::prelude`]. It is recommended that you import
+//! all of these traits at once by adding `use rayon::prelude::*` at
+//! the top of each module that uses Rayon methods.
 //!
 //! These traits will give you access to `par_iter` with parallel
 //! implementations of iterative functions including [`map`], [`for_each`], [`filter`],
