@@ -159,6 +159,20 @@ pub trait IntoParallelRefIterator<'data> {
     type Item: Send + 'data;
 
     /// Converts `self` into a parallel iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v: Vec<_> = (0..100).collect();
+    /// assert_eq!(v.par_iter().sum::<i32>(), 100 * 99 / 2);
+    ///
+    /// // `v.par_iter()` is shorthand for `(&v).into_par_iter()`,
+    /// // producing the exact same references.
+    /// assert!(v.par_iter().zip(&v)
+    ///          .all(|(a, b)| std::ptr::eq(a, b)));
+    /// ```
     fn par_iter(&'data self) -> Self::Iter;
 }
 
