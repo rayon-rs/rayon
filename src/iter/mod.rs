@@ -41,9 +41,10 @@
 //!   operations. See [the `ParallelSlice` trait] for the full list.
 //! - Strings (`&str`) offer methods like `par_split` and `par_lines`.
 //!   See [the `ParallelString` trait] for the full list.
-//! - Various collections offer [`par_extend`], which grows a collection
-//!   given a parallel iterator. (You can use [`collect()`] to create a parallel
-//!   iterator.)
+//! - Various collections offer [`par_extend`], which grows a
+//!   collection given a parallel iterator. (If you don't have a
+//!   collection to extend, you can use [`collect()`] to create a new
+//!   one from scratch.)
 //!
 //! [the `ParallelSlice` trait]: ../slice/trait.ParallelSlice.html
 //! [the `ParallelString` trait]: ../str/trait.ParallelString.html
