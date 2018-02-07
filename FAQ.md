@@ -1,13 +1,13 @@
 # Rayon FAQ
 
-These file is for general questions that don't fit into the README or
+This file is for general questions that don't fit into the README or
 crate docs.
 
 ## How many threads will Rayon spawn?
 
-By default, Rayon uses the same number of threads as the number of CPUs
-available. Note that on systems with hyperthreading enabled this
-equals to the number of logical cores and not the physical ones.
+By default, Rayon uses the same number of threads as the number of
+CPUs available. Note that on systems with hyperthreading enabled this
+equals the number of logical cores and not the physical ones.
 
 If you want to alter the number of threads spawned, you can set the
 environmental variable `RAYON_NUM_THREADS` to the desired number of
