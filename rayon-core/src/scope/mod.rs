@@ -61,7 +61,7 @@ pub struct Scope<'scope> {
 /// whereas `join()` can make exclusive use of the stack. **Prefer
 /// `join()` (or, even better, parallel iterators) where possible.**
 ///
-/// ### Example
+/// # Example
 ///
 /// The Rayon `join()` function launches two closures and waits for them
 /// to stop. One could implement `join()` using a scope like so, although
@@ -85,14 +85,14 @@ pub struct Scope<'scope> {
 /// }
 /// ```
 ///
-/// ### A note on threading
+/// # A note on threading
 ///
 /// The closure given to `scope()` executes in the Rayon thread-pool,
 /// as do those given to `spawn()`. This means that you can't access
 /// thread-local variables (well, you can, but they may have
 /// unexpected values).
 ///
-/// ### Task execution
+/// # Task execution
 ///
 /// Task execution potentially starts as soon as `spawn()` is called.
 /// The task will end sometime before `scope()` returns. Note that the
@@ -156,7 +156,7 @@ pub struct Scope<'scope> {
 /// will be joined before that scope returns, which in turn occurs
 /// before the creating task (task `s.1.1` in this case) finishes.
 ///
-/// ### Accessing stack data
+/// # Accessing stack data
 ///
 /// In general, spawned tasks may access stack data in place that
 /// outlives the scope itself. Other data must be fully owned by the
@@ -246,7 +246,7 @@ pub struct Scope<'scope> {
 /// });
 /// ```
 ///
-/// ### Panics
+/// # Panics
 ///
 /// If a panic occurs, either in the closure given to `scope()` or in
 /// any of the spawned jobs, that panic will be propagated and the
