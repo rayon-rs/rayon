@@ -1671,6 +1671,33 @@ pub trait IndexedParallelIterator: ParallelIterator {
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`collect()`]: trait.ParallelIterator.html#method.collect
+///
+/// # Examples
+///
+/// Implementing `FromParallelIterator` for your type:
+///
+/// ```
+/// use rayon::prelude::*;
+/// use std::mem;
+///
+/// struct BlackHole {
+///     mass: usize,
+/// }
+///
+/// impl<T: Send> FromParallelIterator<T> for BlackHole {
+///     fn from_par_iter<I>(par_iter: I) -> Self
+///         where I: IntoParallelIterator<Item = T>
+///     {
+///         let par_iter = par_iter.into_par_iter();
+///         BlackHole {
+///             mass: par_iter.count() * mem::size_of::<T>(),
+///         }
+///     }
+/// }
+///
+/// let bh: BlackHole = (0i32..1000).into_par_iter().collect();
+/// assert_eq!(bh.mass, 4000);
+/// ```
 pub trait FromParallelIterator<T>
     where T: Send
 {
