@@ -210,6 +210,16 @@ pub trait IntoParallelRefMutIterator<'data> {
     type Item: Send + 'data;
 
     /// Creates the parallel iterator from `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = vec![0usize; 5];
+    /// v.par_iter_mut().enumerate().for_each(|(i, x)| *x = i);
+    /// assert_eq!(v, [0, 1, 2, 3, 4]);
+    /// ```
     fn par_iter_mut(&'data mut self) -> Self::Iter;
 }
 
