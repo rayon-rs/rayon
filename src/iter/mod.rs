@@ -1360,6 +1360,12 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// If the number of elements in the iterator is not divisible by `chunk_size`,
     /// the last chunk may be shorter than `chunk_size`.
     ///
+    /// See also [`par_chunks()`] and [`par_chunks_mut()`] for similar behavior on
+    /// slices, without having to allocate intermediate `Vec`s for the chunks.
+    ///
+    /// [`par_chunks()`]: ../slice/trait.ParallelSlice.html#method.par_chunks
+    /// [`par_chunks_mut()`]: ../slice/trait.ParallelSliceMut.html#method.par_chunks_mut
+    ///
     /// # Examples
     ///
     /// ```
