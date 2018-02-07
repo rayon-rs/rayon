@@ -1871,11 +1871,11 @@ fn check_chunks_uneven() {
 
     for (i, (v, n, expected)) in cases.into_iter().enumerate() {
         let mut res: Vec<Vec<u32>> = vec![];
-        v.par_iter().chunks(n).map(|v| v.into_iter().cloned().collect()).collect_into(&mut res);
+        v.par_iter().chunks(n).map(|v| v.into_iter().cloned().collect()).collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {} failed", i);
 
         res.truncate(0);
-        v.into_par_iter().chunks(n).rev().collect_into(&mut res);
+        v.into_par_iter().chunks(n).rev().collect_into_vec(&mut res);
         assert_eq!(expected.into_iter().rev().collect::<Vec<Vec<u32>>>(), res, "Case {} reversed failed", i);
     }
 }
