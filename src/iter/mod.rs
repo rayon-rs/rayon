@@ -285,6 +285,29 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::mpsc::channel;
+    /// use rayon::prelude::*;
+    ///
+    /// let (sender, receiver) = channel();
+    ///
+    /// let a: Vec<_> = (0..5)
+    ///                 .into_par_iter()            // iterating over i32
+    ///                 .map_with(sender, |s, x| {
+    ///                     s.send(x).unwrap();     // sending i32 values through the channel
+    ///                     x                       // returning i32
+    ///                 })
+    ///                 .collect();                 // collecting the returned values into a vector
+    ///
+    /// let mut b: Vec<_> = receiver.iter()         // iterating over the values in the channel
+    ///                             .collect();     // and collecting them
+    /// b.sort();
+    ///
+    /// assert_eq!(a, b);
+    /// ```
     fn map_with<F, T, R>(self, init: T, map_op: F) -> MapWith<Self, T, F>
         where F: Fn(&mut T, Self::Item) -> R + Sync + Send,
               T: Send + Clone,
@@ -442,7 +465,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens iterable `Item`s into one large iterator
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -466,7 +489,7 @@ pub trait ParallelIterator: Sized + Send {
     /// to produce something that represents the zero for your type
     /// (but consider just calling `sum()` in that case).
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// // Iterate over a sequence of pairs `(x0, y0), ..., (xN, yN)`
@@ -502,6 +525,18 @@ pub trait ParallelIterator: Sized + Send {
     /// This version of `reduce` is simple but somewhat less
     /// efficient. If possible, it is better to call `reduce()`, which
     /// requires an identity element.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let sums = [(0, 1), (5, 6), (16, 2), (8, 9)]
+    ///            .par_iter()        // iterating over &(i32, i32)
+    ///            .cloned()          // iterating over (i32, i32)
+    ///            .reduce_with(|a, b| (a.0 + b.0, a.1 + b.1))
+    ///            .unwrap();
+    /// assert_eq!(sums, (0 + 5 + 16 + 8, 1 + 6 + 2 + 9));
+    /// ```
     ///
     /// **Note:** unlike a sequential `fold` operation, the order in
     /// which `op` will be applied to reduce the result is not fully
@@ -670,6 +705,19 @@ pub trait ParallelIterator: Sized + Send {
     /// This works essentially like `fold(|| init.clone(), fold_op)`, except
     /// it doesn't require the `init` type to be `Sync`, nor any other form
     /// of added synchronization.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let bytes = 0..22_u8;
+    /// let sum = bytes.into_par_iter()
+    ///                .fold_with(0_u32, |a: u32, b: u8| a + (b as u32))
+    ///                .sum::<u32>();
+    ///
+    /// assert_eq!(sum, (0..22).sum()); // compare to sequential
+    /// ```
     fn fold_with<F, T>(self, init: T, fold_op: F) -> FoldWith<Self, T, F>
         where F: Fn(T, Self::Item) -> T + Sync + Send,
               T: Send + Clone
@@ -883,7 +931,7 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
-    /// # Exmaples
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
