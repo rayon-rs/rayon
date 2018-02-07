@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 ///
 /// The iterator yields one value if the [`Option`] is a [`Some`], otherwise none.
 ///
-/// This `struct` is created by the [`par_iter_mut`] function.
+/// This `struct` is created by the [`into_par_iter`] function.
 ///
 /// [`Option`]: https://doc.rust-lang.org/std/option/enum.Option.html
 /// [`Some`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
