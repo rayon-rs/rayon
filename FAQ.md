@@ -58,7 +58,7 @@ The correct way to resolve such errors will depend on the case.  Some
 cases are easy: for example, uses of [`Rc`] can typically be replaced
 with [`Arc`], which is basically equivalent, but thread-safe.
 
-Code that uses `Cell` or `RefCell`, however, can be a mite more complicated.
+Code that uses `Cell` or `RefCell`, however, can be somewhat more complicated.
 If you can refactor your code to avoid those types, that is often the best way
 forward, but otherwise, you can try to replace those types with their threadsafe
 equivalents:
@@ -123,7 +123,7 @@ have a notion of a transaction: the scope of the handle returned by
 `borrow` or `borrow_mut`. So if you convert each call to `borrow` to
 `read` (and `borrow_mut` to `write`), things will mostly work fine in
 a parallel setting, but there can still be changes in behavior.
-Consider using a `handle: RefCell<Vec<i32>>` like :
+Consider using a `handle: RefCell<Vec<i32>>` like:
 
 ```rust
 let len = handle.borrow().len();
