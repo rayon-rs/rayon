@@ -1722,10 +1722,49 @@ pub trait FromParallelIterator<T>
 /// `ParallelExtend` extends an existing collection with items from a [`ParallelIterator`].
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+///
+/// # Examples
+///
+/// Implementing `ParallelExtend` for your type:
+///
+/// ```
+/// use rayon::prelude::*;
+/// use std::mem;
+///
+/// struct BlackHole {
+///     mass: usize,
+/// }
+///
+/// impl<T: Send> ParallelExtend<T> for BlackHole {
+///     fn par_extend<I>(&mut self, par_iter: I)
+///         where I: IntoParallelIterator<Item = T>
+///     {
+///         let par_iter = par_iter.into_par_iter();
+///         self.mass += par_iter.count() * mem::size_of::<T>();
+///     }
+/// }
+///
+/// let mut bh = BlackHole { mass: 0 };
+/// bh.par_extend(0i32..1000);
+/// assert_eq!(bh.mass, 4000);
+/// bh.par_extend(0i64..10);
+/// assert_eq!(bh.mass, 4080);
+/// ```
 pub trait ParallelExtend<T>
     where T: Send
 {
     /// Extends an instance of the collection with the elements drawn
     /// from the parallel iterator `par_iter`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut vec = vec![];
+    /// vec.par_extend(0..5);
+    /// vec.par_extend((0..5).into_par_iter().map(|i| i * i));
+    /// assert_eq!(vec, [0, 1, 2, 3, 4, 0, 1, 4, 9, 16]);
+    /// ```
     fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
 }
