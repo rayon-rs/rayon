@@ -1,4 +1,6 @@
-//! Parallel iterator types for [vectors](std::vec).
+//! Parallel iterator types for [vectors][std::vec]
+//!
+//! [std::vec]: https://doc.rust-lang.org/stable/std/vec/
 
 use iter::*;
 use iter::plumbing::*;

@@ -1,4 +1,6 @@
-//! Parallel iterator types for [options](std::option).
+//! Parallel iterator types for [options][std::option]
+//!
+//! [std::option]: https://doc.rust-lang.org/stable/std/option/
 
 use iter::*;
 use iter::plumbing::*;

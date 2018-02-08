@@ -1,5 +1,5 @@
-//! Parallel iterator types for [ranges](std::ops::Range), the type
-//! for values created by `a..b` expressions.
+//! Parallel iterator types for [ranges][std::range],
+//! the type for values created by `a..b` expressions.
 //! 
 //! ```
 //! use rayon::prelude::*;
@@ -10,6 +10,8 @@
 //! // compare result with sequential calculation
 //! assert_eq!((0..100).sum::<u64>(), r);
 //! ```
+//!
+//! [std::range]: https://doc.rust-lang.org/stable/std/vec/
 
 use iter::*;
 use iter::plumbing::*;

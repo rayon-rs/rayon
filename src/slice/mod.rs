@@ -1,4 +1,6 @@
-//! Parallel iterator types for [slices](std::slice).
+//! Parallel iterator types for [slices][std::slice]
+//!
+//! [std::slice]: https://doc.rust-lang.org/stable/std/slice/
 
 mod mergesort;
 mod quicksort;

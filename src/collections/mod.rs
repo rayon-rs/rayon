@@ -1,4 +1,6 @@
-//! Parallel iterator types for [standard collections](std::collections).
+//! Parallel iterator types for [standard collections][std::collections]
+//!
+//! [std::collections]: https://doc.rust-lang.org/stable/std/collections/
 
 /// Convert an iterable collection into a parallel iterator by first
 /// collecting into a temporary `Vec`, then iterating that.

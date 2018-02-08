@@ -1,4 +1,4 @@
-//! Parallel iterator types for [strings](std::str).
+//! Parallel iterator types for [strings][std::str]
 //!
 //! Note: [`ParallelString::par_split()`] and [`par_split_terminator()`]
 //! reference a `Pattern` trait which is not visible outside this crate.
@@ -7,6 +7,8 @@
 //!
 //! [`ParallelString::par_split()`]: trait.ParallelString.html#method.par_split
 //! [`par_split_terminator()`]: trait.ParallelString.html#method.par_split_terminator
+//!
+//! [std::str]: https://doc.rust-lang.org/stable/std/str/
 
 use iter::*;
 use iter::plumbing::*;

@@ -1,4 +1,6 @@
-//! Parallel iterator types for [results](std::Result).
+//! Parallel iterator types for [results][std::result].
+//!
+//! [std::result]: https://doc.rust-lang.org/stable/std/result/
 
 use iter::*;
 use iter::plumbing::*;
