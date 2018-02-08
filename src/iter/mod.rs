@@ -170,6 +170,27 @@ pub trait IntoParallelIterator {
     type Item: Send;
 
     /// Converts `self` into a parallel iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// println!("counting in parallel:");
+    /// (0..100).into_par_iter()
+    ///     .for_each(|i| println!("{}", i));
+    /// ```
+    ///
+    /// This conversion is often implicit for arguments to methods like [`zip`].
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v: Vec<_> = (0..5).into_par_iter().zip(5..10).collect();
+    /// assert_eq!(v, [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9)]);
+    /// ```
+    ///
+    /// [`zip`]: trait.IndexedParallelIterator.html#method.zip
     fn into_par_iter(self) -> Self::Iter;
 }
 
@@ -195,6 +216,20 @@ pub trait IntoParallelRefIterator<'data> {
     type Item: Send + 'data;
 
     /// Converts `self` into a parallel iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v: Vec<_> = (0..100).collect();
+    /// assert_eq!(v.par_iter().sum::<i32>(), 100 * 99 / 2);
+    ///
+    /// // `v.par_iter()` is shorthand for `(&v).into_par_iter()`,
+    /// // producing the exact same references.
+    /// assert!(v.par_iter().zip(&v)
+    ///          .all(|(a, b)| std::ptr::eq(a, b)));
+    /// ```
     fn par_iter(&'data self) -> Self::Iter;
 }
 
@@ -232,6 +267,16 @@ pub trait IntoParallelRefMutIterator<'data> {
     type Item: Send + 'data;
 
     /// Creates the parallel iterator from `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = vec![0usize; 5];
+    /// v.par_iter_mut().enumerate().for_each(|(i, x)| *x = i);
+    /// assert_eq!(v, [0, 1, 2, 3, 4]);
+    /// ```
     fn par_iter_mut(&'data mut self) -> Self::Iter;
 }
 
@@ -1766,6 +1811,33 @@ pub trait IndexedParallelIterator: ParallelIterator {
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 /// [`collect()`]: trait.ParallelIterator.html#method.collect
+///
+/// # Examples
+///
+/// Implementing `FromParallelIterator` for your type:
+///
+/// ```
+/// use rayon::prelude::*;
+/// use std::mem;
+///
+/// struct BlackHole {
+///     mass: usize,
+/// }
+///
+/// impl<T: Send> FromParallelIterator<T> for BlackHole {
+///     fn from_par_iter<I>(par_iter: I) -> Self
+///         where I: IntoParallelIterator<Item = T>
+///     {
+///         let par_iter = par_iter.into_par_iter();
+///         BlackHole {
+///             mass: par_iter.count() * mem::size_of::<T>(),
+///         }
+///     }
+/// }
+///
+/// let bh: BlackHole = (0i32..1000).into_par_iter().collect();
+/// assert_eq!(bh.mass, 4000);
+/// ```
 pub trait FromParallelIterator<T>
     where T: Send
 {
@@ -1790,10 +1862,49 @@ pub trait FromParallelIterator<T>
 /// `ParallelExtend` extends an existing collection with items from a [`ParallelIterator`].
 ///
 /// [`ParallelIterator`]: trait.ParallelIterator.html
+///
+/// # Examples
+///
+/// Implementing `ParallelExtend` for your type:
+///
+/// ```
+/// use rayon::prelude::*;
+/// use std::mem;
+///
+/// struct BlackHole {
+///     mass: usize,
+/// }
+///
+/// impl<T: Send> ParallelExtend<T> for BlackHole {
+///     fn par_extend<I>(&mut self, par_iter: I)
+///         where I: IntoParallelIterator<Item = T>
+///     {
+///         let par_iter = par_iter.into_par_iter();
+///         self.mass += par_iter.count() * mem::size_of::<T>();
+///     }
+/// }
+///
+/// let mut bh = BlackHole { mass: 0 };
+/// bh.par_extend(0i32..1000);
+/// assert_eq!(bh.mass, 4000);
+/// bh.par_extend(0i64..10);
+/// assert_eq!(bh.mass, 4080);
+/// ```
 pub trait ParallelExtend<T>
     where T: Send
 {
     /// Extends an instance of the collection with the elements drawn
     /// from the parallel iterator `par_iter`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut vec = vec![];
+    /// vec.par_extend(0..5);
+    /// vec.par_extend((0..5).into_par_iter().map(|i| i * i));
+    /// assert_eq!(vec, [0, 1, 2, 3, 4, 0, 1, 4, 9, 16]);
+    /// ```
     fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
 }
