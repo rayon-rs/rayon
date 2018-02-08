@@ -1,5 +1,8 @@
 //! Traits for writing parallel programs using an iterator-style interface
 //!
+//! You will rarely need to interact with this module directly unless you have
+//! need to name one of the iterator types.
+//!
 //! Parallel iterators make it easy to write iterator-like chains that
 //! execute in parallel: typically all you have to do is convert the
 //! first `.iter()` (or `iter_mut()`, `into_iter()`, etc) method into

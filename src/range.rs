@@ -1,5 +1,8 @@
 //! Parallel iterator types for [ranges][std::range],
 //! the type for values created by `a..b` expressions
+//!
+//! You will rarely need to interact with this module directly unless you have
+//! need to name one of the iterator types.
 //! 
 //! ```
 //! use rayon::prelude::*;
