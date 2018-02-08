@@ -1,6 +1,9 @@
-//! This module contains the parallel iterator types for vectors
-//! (`Vec<T>`). You will rarely need to interact with it directly
-//! unless you have need to name one of those types.
+//! Parallel iterator types for [vectors][std::vec] (`Vec<T>`)
+//!
+//! You will rarely need to interact with this module directly unless you need
+//! to name one of the iterator types.
+//!
+//! [std::vec]: https://doc.rust-lang.org/stable/std/vec/
 
 use iter::*;
 use iter::plumbing::*;

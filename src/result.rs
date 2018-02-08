@@ -1,6 +1,9 @@
-//! This module contains the parallel iterator types for results
-//! (`Result<T, E>`). You will rarely need to interact with it directly
-//! unless you have need to name one of the iterator types.
+//! Parallel iterator types for [results][std::result]
+//!
+//! You will rarely need to interact with this module directly unless you need
+//! to name one of the iterator types.
+//!
+//! [std::result]: https://doc.rust-lang.org/stable/std/result/
 
 use iter::*;
 use iter::plumbing::*;

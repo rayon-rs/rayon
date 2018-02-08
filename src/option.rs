@@ -1,6 +1,9 @@
-//! This module contains the parallel iterator types for options
-//! (`Option<T>`). You will rarely need to interact with it directly
-//! unless you have need to name one of the iterator types.
+//! Parallel iterator types for [options][std::option]
+//!
+//! You will rarely need to interact with this module directly unless you need
+//! to name one of the iterator types.
+//!
+//! [std::option]: https://doc.rust-lang.org/stable/std/option/
 
 use iter::*;
 use iter::plumbing::*;

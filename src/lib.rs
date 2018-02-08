@@ -5,12 +5,11 @@
 #![deny(missing_docs)]
 
 //! Data-parallelism library that makes it easy to convert sequential
-//! computations into parallel.
+//! computations into parallel
 //!
-//! Rayon is a lightweight and convenient way to add parallellism into
-//! your existing code.  It guarantees data-race free executions, and
-//! takes advantage of parallelism when sensible, based on work-load
-//! at runtime.
+//! Rayon is lightweight and convenient for introducing parallelism into existing
+//! code. It guarantees data-race free executions and takes advantage of
+//! parallelism when sensible, based on work-load at runtime.
 //!
 //! # How to use Rayon
 //!
@@ -47,9 +46,9 @@
 //! all of these traits at once by adding `use rayon::prelude::*` at
 //! the top of each module that uses Rayon methods.
 //!
-//! These traits will give you access to `par_iter` with parallel
-//! implementations of iterative functions including [`map`], [`for_each`], [`filter`],
-//! [`fold`], and [more].
+//! These traits give you access to the `par_iter` method which provides
+//! parallel implementations of many iterative functions such as [`map`],
+//! [`for_each`], [`filter`], [`fold`], and [more].
 //!
 //! [`rayon::prelude::*`]: prelude/index.html
 //! [`map`]: iter/trait.ParallelIterator.html#method.map

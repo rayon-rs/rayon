@@ -1,7 +1,8 @@
-//! This module contains the parallel iterator types for ranges
-//! (`Range<T>`); this is the type for values created by a `a..b`
-//! expression. You will rarely need to interact with it directly
-//! unless you have need to name one of the iterator types.
+//! Parallel iterator types for [ranges][std::range],
+//! the type for values created by `a..b` expressions
+//!
+//! You will rarely need to interact with this module directly unless you have
+//! need to name one of the iterator types.
 //! 
 //! ```
 //! use rayon::prelude::*;
@@ -12,6 +13,8 @@
 //! // compare result with sequential calculation
 //! assert_eq!((0..100).sum::<u64>(), r);
 //! ```
+//!
+//! [std::range]: https://doc.rust-lang.org/core/ops/struct.Range.html
 
 use iter::*;
 use iter::plumbing::*;
