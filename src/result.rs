@@ -1,4 +1,4 @@
-//! Parallel iterator types for [results][std::result].
+//! Parallel iterator types for [results][std::result]
 //!
 //! [std::result]: https://doc.rust-lang.org/stable/std/result/
 

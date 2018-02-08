@@ -5,7 +5,7 @@
 #![deny(missing_docs)]
 
 //! Data-parallelism library that makes it easy to convert sequential
-//! computations into parallel.
+//! computations into parallel
 //!
 //! Rayon is lightweight and convenient for introducing parallelism into existing
 //! code. It guarantees data-race free executions and takes advantage of

@@ -1,4 +1,4 @@
-//! Parallel iterator types for [vectors][std::vec]
+//! Parallel iterator types for [vectors][std::vec] (`Vec<T>`)
 //!
 //! [std::vec]: https://doc.rust-lang.org/stable/std/vec/
 
