@@ -62,6 +62,16 @@ matrix:
       env: RUSTFLAGS='--cfg rayon_unstable'
       if: NOT type = pull_request
 
+    # wasm won't actually work without threading, but it builds
+    - rust: nightly
+      os: linux
+      env: TARGET=wasm32-unknown-unknown
+      script:
+        - rustup target add $TARGET
+        - cargo build --target $TARGET
+      if: NOT type = pull_request
+
+
 script:
   - cargo build
   - |
