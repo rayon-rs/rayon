@@ -9,14 +9,14 @@ matrix:
   fast_finish: true
   include:
     # NB: To help with CI delays, each `pull_request` is only tested on Linux,
-    # with 1.12 for compatibility and nightly+rayon_unstable for broad test
+    # with 1.13 for compatibility and nightly+rayon_unstable for broad test
     # coverage.  The bors bot counts as a `push` type, which will run it all.
 
-    - rust: 1.12.0
+    - rust: 1.13.0
       os: linux
       #if: everything!
       before_script:
-        # rand 0.4.2 requires rust 1.22, and rand-0.3.22 requires rand-0.4  :/
+        # rand 0.4.2 requires rust 1.15, and rand-0.3.22 requires rand-0.4  :/
         # manually hacking the lockfile due to the limitations of cargo#2773
         - cargo generate-lockfile
         - sed -i -e 's/"rand 0.[34].[0-9]\+/"rand 0.3.20/' Cargo.lock
