@@ -73,8 +73,8 @@ pub trait ParallelSlice<T: Sync> {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// let windows: Vec<_> = [1, 2, 3, 4].par_chunks(2).collect();
-    /// assert_eq!(vec![[1, 2], [3, 4]], windows);
+    /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_chunks(2).collect();
+    /// assert_eq!(chunks, vec![&[1, 2][..], &[3, 4], &[5]]);
     /// ```
     fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
@@ -101,6 +101,16 @@ pub trait ParallelSliceMut<T: Send> {
 
     /// Returns a parallel iterator over mutable subslices separated by
     /// elements that match the separator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 0, 2, 4, 8, 0, 3, 6, 9];
+    /// array.par_split_mut(|i| *i == 0)
+    ///      .for_each(|slice| slice.reverse());
+    /// assert_eq!(array, [3, 2, 1, 0, 8, 4, 2, 0, 9, 6, 3]);
+    /// ```
     fn par_split_mut<P>(&mut self, separator: P) -> SplitMut<T, P>
         where P: Fn(&T) -> bool + Sync + Send
     {
@@ -112,6 +122,16 @@ pub trait ParallelSliceMut<T: Send> {
 
     /// Returns a parallel iterator over at most `size` elements of
     /// `self` at a time. The chunks are mutable and do not overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 4, 5];
+    /// array.par_chunks_mut(2)
+    ///      .for_each(|slice| slice.reverse());
+    /// assert_eq!(array, [2, 1, 4, 3, 5]);
+    /// ```
     fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksMut {
