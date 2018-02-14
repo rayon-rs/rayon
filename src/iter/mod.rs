@@ -1442,6 +1442,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// // any prior data will be truncated
+    /// let mut vec = vec![-1, -2, -3];
+    ///
+    /// (0..5).into_par_iter()
+    ///     .collect_into_vec(&mut vec);
+    ///
+    /// assert_eq!(vec, [0, 1, 2, 3, 4]);
+    /// ```
     fn collect_into_vec(self, target: &mut Vec<Self::Item>) {
         collect::collect_into_vec(self, target);
     }
@@ -1450,6 +1464,23 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// vectors. The vectors are always truncated before execution
     /// begins. If possible, reusing the vectors across calls can lead
     /// to better performance since they reuse the same backing buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// // any prior data will be truncated
+    /// let mut left = vec![42; 10];
+    /// let mut right = vec![-1; 10];
+    ///
+    /// (10..15).into_par_iter()
+    ///     .enumerate()
+    ///     .unzip_into_vecs(&mut left, &mut right);
+    ///
+    /// assert_eq!(left, [0, 1, 2, 3, 4]);
+    /// assert_eq!(right, [10, 11, 12, 13, 14]);
+    /// ```
     fn unzip_into_vecs<A, B>(self, left: &mut Vec<A>, right: &mut Vec<B>)
         where Self: IndexedParallelIterator<Item = (A, B)>,
               A: Send,
@@ -1463,6 +1494,19 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Like the `zip` method on ordinary iterators, if the two
     /// iterators are of unequal length, you only get the items they
     /// have in common.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (1..4)
+    ///     .into_par_iter()
+    ///     .zip(vec!['a', 'b', 'c'])
+    ///     .collect();
+    ///
+    /// assert_eq!(result, [(1, 'a'), (2, 'b'), (3, 'c')]);
+    /// ```
     fn zip<Z>(self, zip_op: Z) -> Zip<Self, Z::Iter>
         where Z: IntoParallelIterator,
               Z::Iter: IndexedParallelIterator
@@ -1504,7 +1548,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// is exhausted before the other, the last elements are provided
     /// from the other.
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -1522,7 +1566,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Interleave elements of this iterator and the other given
     /// iterator, until one is exhausted.
     ///
-    /// Example:
+    /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -1564,6 +1608,18 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use std::cmp::Ordering::*;
+    ///
+    /// let x = vec![1, 2, 3];
+    /// assert_eq!(x.par_iter().cmp(&vec![1, 3, 0]), Less);
+    /// assert_eq!(x.par_iter().cmp(&vec![1, 2, 3]), Equal);
+    /// assert_eq!(x.par_iter().cmp(&vec![1, 2]), Greater);
+    /// ```
     fn cmp<I>(self, other: I) -> Ordering
         where I: IntoParallelIterator<Item = Self::Item>,
               I::Iter: IndexedParallelIterator,
@@ -1579,6 +1635,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
     /// another.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use std::cmp::Ordering::*;
+    /// use std::f64::NAN;
+    ///
+    /// let x = vec![1.0, 2.0, 3.0];
+    /// assert_eq!(x.par_iter().partial_cmp(&vec![1.0, 3.0, 0.0]), Some(Less));
+    /// assert_eq!(x.par_iter().partial_cmp(&vec![1.0, 2.0, 3.0]), Some(Equal));
+    /// assert_eq!(x.par_iter().partial_cmp(&vec![1.0, 2.0]), Some(Greater));
+    /// assert_eq!(x.par_iter().partial_cmp(&vec![1.0, NAN]), None);
+    /// ```
     fn partial_cmp<I>(self, other: I) -> Option<Ordering>
         where I: IntoParallelIterator,
               I::Iter: IndexedParallelIterator,
@@ -1656,16 +1726,56 @@ pub trait IndexedParallelIterator: ParallelIterator {
     }
 
     /// Yields an index along with each item.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let chars = vec!['a', 'b', 'c'];
+    /// let result: Vec<_> = chars
+    ///     .into_par_iter()
+    ///     .enumerate()
+    ///     .collect();
+    ///
+    /// assert_eq!(result, [(0, 'a'), (1, 'b'), (2, 'c')]);
+    /// ```
     fn enumerate(self) -> Enumerate<Self> {
         enumerate::new(self)
     }
 
     /// Creates an iterator that skips the first `n` elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..100)
+    ///     .into_par_iter()
+    ///     .skip(95)
+    ///     .collect();
+    ///
+    /// assert_eq!(result, [95, 96, 97, 98, 99]);
+    /// ```
     fn skip(self, n: usize) -> Skip<Self> {
         skip::new(self, n)
     }
 
     /// Creates an iterator that yields the first `n` elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..100)
+    ///     .into_par_iter()
+    ///     .take(5)
+    ///     .collect();
+    ///
+    /// assert_eq!(result, [0, 1, 2, 3, 4]);
+    /// ```
     fn take(self, n: usize) -> Take<Self> {
         take::new(self, n)
     }
@@ -1675,6 +1785,19 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// `ParallelIterator::find_any`, the parallel search will not
     /// necessarily find the **first** match, and once a match is
     /// found we'll attempt to stop processing any more.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [1, 2, 3, 3];
+    ///
+    /// let i = a.par_iter().position_any(|&x| x == 3).expect("found");
+    /// assert!(i == 2 || i == 3);
+    ///
+    /// assert_eq!(a.par_iter().position_any(|&x| x == 100), None);
+    /// ```
     fn position_any<P>(self, predicate: P) -> Option<usize>
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
@@ -1696,6 +1819,18 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
     /// just want the first match that discovered anywhere in the iterator,
     /// `position_any` is a better choice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [1, 2, 3, 3];
+    ///
+    /// assert_eq!(a.par_iter().position_first(|&x| x == 3), Some(2));
+    ///
+    /// assert_eq!(a.par_iter().position_first(|&x| x == 100), None);
+    /// ```
     fn position_first<P>(self, predicate: P) -> Option<usize>
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
@@ -1717,6 +1852,18 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// sequential `HashMap` iteration, so "last" may be nebulous.  When the
     /// order doesn't actually matter to you, `position_any` is a better
     /// choice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [1, 2, 3, 3];
+    ///
+    /// assert_eq!(a.par_iter().position_last(|&x| x == 3), Some(3));
+    ///
+    /// assert_eq!(a.par_iter().position_last(|&x| x == 100), None);
+    /// ```
     fn position_last<P>(self, predicate: P) -> Option<usize>
         where P: Fn(Self::Item) -> bool + Sync + Send
     {
@@ -1737,6 +1884,19 @@ pub trait IndexedParallelIterator: ParallelIterator {
 
     /// Produces a new iterator with the elements of this iterator in
     /// reverse order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..5)
+    ///     .into_par_iter()
+    ///     .rev()
+    ///     .collect();
+    ///
+    /// assert_eq!(result, [4, 3, 2, 1, 0]);
+    /// ```
     fn rev(self) -> Rev<Self> {
         rev::new(self)
     }
@@ -1749,6 +1909,20 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// minimums.
     /// Chained iterators and iterators inside `flat_map` may each use
     /// their own minimum length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let min = (0..1_000_000)
+    ///     .into_par_iter()
+    ///     .with_min_len(1234)
+    ///     .fold(|| 0, |acc, _| acc + 1) // count how many are in this segment
+    ///     .min().unwrap();
+    ///
+    /// assert!(min >= 1234);
+    /// ```
     fn with_min_len(self, min: usize) -> MinLen<Self> {
         len::new_min_len(self, min)
     }
@@ -1763,12 +1937,38 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// maximums.
     /// Chained iterators and iterators inside `flat_map` may each use
     /// their own maximum length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let max = (0..1_000_000)
+    ///     .into_par_iter()
+    ///     .with_max_len(1234)
+    ///     .fold(|| 0, |acc, _| acc + 1) // count how many are in this segment
+    ///     .max().unwrap();
+    ///
+    /// assert!(max <= 1234);
+    /// ```
     fn with_max_len(self, max: usize) -> MaxLen<Self> {
         len::new_max_len(self, max)
     }
 
     /// Produces an exact count of how many items this iterator will
     /// produce, presuming no panic occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let par_iter = (0..100).into_par_iter().zip(vec![0; 10]);
+    /// assert_eq!(par_iter.len(), 10);
+    ///
+    /// let vec: Vec<_> = par_iter.collect();
+    /// assert_eq!(vec.len(), 10);
+    /// ```
     fn len(&self) -> usize;
 
     /// Internal method used to define the behavior of this parallel
