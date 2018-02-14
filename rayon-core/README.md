@@ -7,3 +7,5 @@ rayon-core aims to never, or almost never, have a breaking change to its API, be
 Please see [Rayon Docs] for details about using Rayon.
 
 [Rayon Docs]: https://docs.rs/rayon/
+
+Rayon-core currently requires `rustc 1.13.0` or greater.
