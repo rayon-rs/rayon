@@ -2,7 +2,7 @@
 
 #[allow(deprecated)]
 use Configuration;
-use {ThreadPoolBuilder, ThreadPoolInitError};
+use {ThreadPoolBuilder, ThreadPoolBuildError};
 use std::sync::{Arc, Barrier};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -128,12 +128,12 @@ fn check_config_build() {
 }
 
 
-/// Helper used by check_error_send_sync to ensure ThreadPoolInitError is Send + Sync
+/// Helper used by check_error_send_sync to ensure ThreadPoolBuildError is Send + Sync
 fn _send_sync<T: Send + Sync>() { }
 
 #[test]
 fn check_error_send_sync() {
-    _send_sync::<ThreadPoolInitError>();
+    _send_sync::<ThreadPoolBuildError>();
 }
 
 #[allow(deprecated)]

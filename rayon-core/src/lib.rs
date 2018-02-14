@@ -87,7 +87,7 @@ pub fn current_num_threads() -> usize {
 
 /// Error when initializing a thread pool.
 #[derive(Debug)]
-pub struct ThreadPoolInitError {
+pub struct ThreadPoolBuildError {
     kind: ErrorKind,
 }
 
@@ -174,7 +174,7 @@ impl ThreadPoolBuilder {
     }
 
     /// Create a new `ThreadPool` initialized using this configuration.
-    pub fn build(self) -> Result<ThreadPool, ThreadPoolInitError> {
+    pub fn build(self) -> Result<ThreadPool, ThreadPoolBuildError> {
         thread_pool::build(self)
     }
 
@@ -195,7 +195,7 @@ impl ThreadPoolBuilder {
     /// changed. Therefore, if you call `build_global` a second time, it
     /// will return an error. An `Ok` result indicates that this
     /// is the first initialization of the thread pool.
-    pub fn build_global(self) -> Result<(), ThreadPoolInitError> {
+    pub fn build_global(self) -> Result<(), ThreadPoolBuildError> {
         let registry = try!(registry::init_global_registry(self));
         registry.wait_until_primed();
         Ok(())
@@ -435,13 +435,13 @@ impl Configuration {
     }
 }
 
-impl ThreadPoolInitError {
-    fn new(kind: ErrorKind) -> ThreadPoolInitError {
-        ThreadPoolInitError { kind: kind }
+impl ThreadPoolBuildError {
+    fn new(kind: ErrorKind) -> ThreadPoolBuildError {
+        ThreadPoolBuildError { kind: kind }
     }
 }
 
-impl Error for ThreadPoolInitError {
+impl Error for ThreadPoolBuildError {
     fn description(&self) -> &str {
         match self.kind {
             ErrorKind::GlobalPoolAlreadyInitialized => "The global thread pool has already been initialized.",
@@ -450,7 +450,7 @@ impl Error for ThreadPoolInitError {
     }
 }
 
-impl fmt::Display for ThreadPoolInitError {
+impl fmt::Display for ThreadPoolBuildError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
             ErrorKind::IOError(ref e) => e.fmt(f),
