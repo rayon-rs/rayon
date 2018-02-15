@@ -71,7 +71,7 @@ as:
 
 ```toml
 [dependencies]
-rayon = "0.9"
+rayon = "1.0"
 ```
 
 and then add the following to to your `lib.rs`:

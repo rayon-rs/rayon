@@ -1,7 +1,7 @@
 [package]
 name = "rayon"
 # Reminder to update html_rool_url in lib.rs when updating version
-version = "0.9.0"
+version = "1.0.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
@@ -17,7 +17,7 @@ members = ["rayon-demo", "rayon-core", "rayon-futures"]
 exclude = ["ci"]
 
 [dependencies]
-rayon-core = { version = "1.3", path = "rayon-core" }
+rayon-core = { version = "1.4", path = "rayon-core" }
 
 # This is a public dependency!
 [dependencies.either]
