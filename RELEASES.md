@@ -1,3 +1,54 @@
+# Release rayon 1.0.0 / rayon-core 1.4.0
+
+- `ParallelIterator` added the `update` method which applies a function to
+  mutable references, inspired by `itertools`.
+- `IndexedParallelIterator` added the `chunks` method which yields vectors of
+  consecutive items from the base iterator, inspired by `itertools`.
+- `String` now implements `FromParallelIterator<Cow<str>>` and
+  `ParallelExtend<Cow<str>>`, inspired by `std`.
+- `()` now implements `FromParallelIterator<()>`, inspired by `std`.
+- The new `ThreadPoolBuilder` replaces and deprecates `Configuration`.
+  - Errors from initialization now have the concrete `ThreadPoolBuildError`
+    type, rather than `Box<Error>`, and this type implements `Send` and `Sync`.
+  - `ThreadPool::new` is deprecated in favor of `ThreadPoolBuilder::build`.
+  - `initialize` is deprecated in favor of `ThreadPoolBuilder::build_global`.
+- Examples have been added to most of the parallel iterator methods.
+- A lot of the documentation has been reorganized and extended.
+
+## Breaking changes
+
+- Rayon now requires rustc 1.13 or greater.
+- `IndexedParallelIterator::len` and `ParallelIterator::opt_len` now operate on
+  `&self` instead of `&mut self`.
+- `IndexedParallelIterator::collect_into` is now `collect_into_vec`.
+- `IndexedParallelIterator::unzip_into` is now `unzip_into_vecs`.
+- Rayon no longer exports the deprecated `Configuration` and `initialize` from
+  rayon-core.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @Bilkow
+- @cuviper
+- @Enet4
+- @ignatenkobrain
+- @iwillspeak
+- @jeehoonkang
+- @jwass
+- @Kerollmops
+- @KodrAus
+- @kornelski
+- @MaloJaffre
+- @nikomatsakis
+- @obv-mikhail
+- @oddg
+- @phimuemue
+- @stjepang
+- @tmccombs
+- bors[bot]
+
+
 # Release rayon 0.9.0 / rayon-core 1.3.0 / rayon-futures 0.1.0
 
 - `Configuration` now has a `build` method.

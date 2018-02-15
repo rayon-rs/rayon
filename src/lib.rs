@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/rayon/0.9")]
+#![doc(html_root_url = "https://docs.rs/rayon/1.0")]
 #![deny(missing_debug_implementations)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 #![cfg_attr(test, feature(i128_type))]
