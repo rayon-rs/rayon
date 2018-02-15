@@ -5,7 +5,7 @@
 
 #[allow(deprecated)]
 use Configuration;
-use {ThreadPoolBuilder, ThreadPoolInitError};
+use {ThreadPoolBuilder, ThreadPoolBuildError};
 use join;
 use {scope, Scope};
 use spawn;
@@ -52,7 +52,7 @@ pub struct ThreadPool {
     registry: Arc<Registry>,
 }
 
-pub fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolInitError> {
+pub fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
     let registry = try!(Registry::new(builder));
     Ok(ThreadPool { registry: registry })
 }

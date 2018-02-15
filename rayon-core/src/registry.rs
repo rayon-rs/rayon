@@ -1,4 +1,4 @@
-use ::{ExitHandler, PanicHandler, StartHandler, ThreadPoolBuilder, ThreadPoolInitError, ErrorKind};
+use ::{ExitHandler, PanicHandler, StartHandler, ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
 use crossbeam_deque::{Deque, Steal, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
@@ -64,7 +64,7 @@ fn global_registry() -> &'static Arc<Registry> {
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given builder.
-pub fn init_global_registry(builder: ThreadPoolBuilder) -> Result<&'static Registry, ThreadPoolInitError> {
+pub fn init_global_registry(builder: ThreadPoolBuilder) -> Result<&'static Registry, ThreadPoolBuildError> {
     let mut called = false;
     let mut init_result = Ok(());;
     THE_REGISTRY_SET.call_once(|| unsafe {
@@ -74,7 +74,7 @@ pub fn init_global_registry(builder: ThreadPoolBuilder) -> Result<&'static Regis
     if called {
         init_result.map(|()| &**global_registry())
     } else {
-        Err(ThreadPoolInitError::new(ErrorKind::GlobalPoolAlreadyInitialized))
+        Err(ThreadPoolBuildError::new(ErrorKind::GlobalPoolAlreadyInitialized))
     }
 }
 
@@ -82,7 +82,7 @@ pub fn init_global_registry(builder: ThreadPoolBuilder) -> Result<&'static Regis
 /// Meant to be called from within the `THE_REGISTRY_SET` once
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
-unsafe fn init_registry(builder: ThreadPoolBuilder) -> Result<(), ThreadPoolInitError> {
+unsafe fn init_registry(builder: ThreadPoolBuilder) -> Result<(), ThreadPoolBuildError> {
     Registry::new(builder).map(|registry| THE_REGISTRY = Some(leak(registry)))
 }
 
@@ -95,7 +95,7 @@ impl<'a> Drop for Terminator<'a> {
 }
 
 impl Registry {
-    pub fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Registry>, ThreadPoolInitError> {
+    pub fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Registry>, ThreadPoolBuildError> {
         let n_threads = builder.get_num_threads();
         let breadth_first = builder.get_breadth_first();
 
@@ -132,7 +132,7 @@ impl Registry {
                 b = b.stack_size(stack_size);
             }
             if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) }) {
-                return Err(ThreadPoolInitError::new(ErrorKind::IOError(e)))
+                return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)))
             }
         }
 
