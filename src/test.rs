@@ -35,14 +35,3 @@ fn negative_tests_run_fail() {
 fn negative_tests_run_fail_unstable() {
     run_compiletest("run-fail", "tests/run-fail-unstable");
 }
-
-#[test]
-fn positive_test_run_pass() {
-    run_compiletest("run-pass", "tests/run-pass");
-}
-
-#[test]
-#[cfg(rayon_unstable)]
-fn positive_test_run_pass_unstable() {
-    run_compiletest("run-pass", "tests/run-pass-unstable");
-}

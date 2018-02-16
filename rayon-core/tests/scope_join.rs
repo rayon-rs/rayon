@@ -1,17 +1,18 @@
-extern crate rayon;
+extern crate rayon_core;
 
 /// Test that one can emulate join with `scope`:
 fn pseudo_join<F, G>(f: F, g: G)
-    where F: FnOnce() + Send,
-          G: FnOnce() + Send,
+where
+    F: FnOnce() + Send,
+    G: FnOnce() + Send,
 {
-    rayon::scope(|s| {
+    rayon_core::scope(|s| {
         s.spawn(|_| g());
         f();
     });
 }
 
-fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
+fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
     if v.len() <= 1 {
         return;
     }
@@ -21,7 +22,7 @@ fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     pseudo_join(|| quick_sort(lo), || quick_sort(hi));
 }
 
-fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
+fn partition<T: PartialOrd + Send>(v: &mut [T]) -> usize {
     let pivot = v.len() - 1;
     let mut i = 0;
     for j in 0..pivot {
@@ -34,12 +35,13 @@ fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
     i
 }
 
-pub fn is_sorted<T: Send + Ord>(v: &[T]) -> bool {
-    (1..v.len()).all(|i| v[i-1] <= v[i])
+fn is_sorted<T: Send + Ord>(v: &[T]) -> bool {
+    (1..v.len()).all(|i| v[i - 1] <= v[i])
 }
 
-fn main() {
-    let mut v: Vec<i32> = (0 .. 256).rev().collect();
+#[test]
+fn scope_join() {
+    let mut v: Vec<i32> = (0..256).rev().collect();
     quick_sort(&mut v);
     assert!(is_sorted(&v));
 }
