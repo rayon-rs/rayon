@@ -24,14 +24,3 @@ fn negative_tests_compile_fail() {
 fn negative_tests_compile_fail_unstable() {
     run_compiletest("compile-fail", "tests/compile-fail-unstable");
 }
-
-#[test]
-fn negative_tests_run_fail() {
-    run_compiletest("run-fail", "tests/run-fail");
-}
-
-#[test]
-#[cfg(rayon_unstable)]
-fn negative_tests_run_fail_unstable() {
-    run_compiletest("run-fail", "tests/run-fail-unstable");
-}

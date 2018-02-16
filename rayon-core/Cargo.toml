@@ -40,3 +40,7 @@ path = "tests/init_zero_threads.rs"
 [[test]]
 name = "scope_join"
 path = "tests/scope_join.rs"
+
+[[test]]
+name = "simple_panic"
+path = "tests/simple_panic.rs"
