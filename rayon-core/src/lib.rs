@@ -22,7 +22,6 @@
 #![doc(html_root_url = "https://docs.rs/rayon-core/1.4")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
-#![cfg_attr(test, feature(conservative_impl_trait))]
 
 use std::any::Any;
 use std::env;

@@ -5,6 +5,7 @@ use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::vec;
 use unwind;
 
 #[test]
@@ -74,7 +75,7 @@ struct Tree<T: Send> {
 }
 
 impl<T: Send> Tree<T> {
-    pub fn iter<'s>(&'s self) -> impl Iterator<Item = &'s T> + 's {
+    pub fn iter<'s>(&'s self) -> vec::IntoIter<&'s T> {
         once(&self.value)
             .chain(self.children.iter().flat_map(|c| c.iter()))
             .collect::<Vec<_>>() // seems like it shouldn't be needed... but prevents overflow
