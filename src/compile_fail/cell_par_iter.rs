@@ -1,4 +1,4 @@
-extern crate rayon;
+/*! ```compile_fail,E0277
 
 // Check that we can't use the par-iter API to access contents of a `Cell`.
 
@@ -11,3 +11,5 @@ fn main() {
              .map(|_| c.get()) //~ ERROR Sync` is not satisfied
              .min();
 }
+
+``` */

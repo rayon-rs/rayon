@@ -1,4 +1,4 @@
-extern crate rayon;
+/*! ```compile_fail,E0599
 
 use rayon::prelude::*;
 
@@ -12,3 +12,5 @@ fn main() {
      .filter_map(|&x| Some(x as f32))
      .collect_into_vec(&mut v); //~ ERROR no method
 }
+
+``` */

@@ -49,10 +49,12 @@ mod registry;
 mod scope;
 mod sleep;
 mod spawn;
-mod test;
 mod thread_pool;
 mod unwind;
 mod util;
+
+mod compile_fail;
+mod test;
 
 #[cfg(rayon_unstable)]
 pub mod internal;

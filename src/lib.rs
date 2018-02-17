@@ -105,7 +105,8 @@ pub mod vec;
 
 mod par_either;
 mod math;
-mod test;
+
+mod compile_fail;
 
 pub use rayon_core::current_num_threads;
 pub use rayon_core::ThreadPool;

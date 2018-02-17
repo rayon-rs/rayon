@@ -1,9 +1,9 @@
-extern crate rayon;
+/*! ```compile_fail,E0599
 
 // Check that we can't use the par-iter API to access contents of an
 // `Rc`.
 
-use rayon::iter::IntoParallelIterator;
+use rayon::prelude::*;
 use std::rc::Rc;
 
 fn main() {
@@ -13,3 +13,5 @@ fn main() {
      .map(|rc| *rc)
      .collect_into_vec(&mut y);
 }
+
+``` */
