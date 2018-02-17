@@ -11,6 +11,7 @@ documentation = "https://docs.rs/rayon/"
 readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
+build = "build.rs"
 
 [workspace]
 members = ["rayon-demo", "rayon-core", "rayon-futures"]
