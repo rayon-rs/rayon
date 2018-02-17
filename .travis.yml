@@ -71,23 +71,23 @@ matrix:
         - cargo build --target $TARGET
       if: NOT type = pull_request
 
+    # rayon-demo has huge dependencies, so just test it once
+    - rust: nightly
+      os: linux
+      env: DEMO=1
+      script: cargo test -p rayon-demo
+      if: NOT type = pull_request
+
 
 script:
   - cargo build
-  - |
-    if [ $TRAVIS_RUST_VERSION == nightly ]; then
-      cargo test -p rayon &&
-      cargo test -p rayon-core &&
-      cargo test -p rayon-demo &&
-      ./ci/highlander.sh
-    fi
+  - cargo test -p rayon
+  - cargo test -p rayon-core
+  - ./ci/highlander.sh
   - |
     if [ -n "$RUSTFLAGS" ]; then
-      cargo clean &&
       cargo build -p rayon-futures &&
-      if [ $TRAVIS_RUST_VERSION == nightly ]; then
-        cargo test -p rayon-futures
-      fi
+      cargo test -p rayon-futures
     fi
 
 branches:

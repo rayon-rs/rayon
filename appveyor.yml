@@ -52,17 +52,11 @@ build: false
 
 test_script:
   - cargo build
-  - if [%CHANNEL%]==[nightly] (
-      cargo test -p rayon &&
-      cargo test -p rayon-core &&
-      cargo test -p rayon-demo
-    )
+  - cargo test -p rayon
+  - cargo test -p rayon-core
   - if not "%RUSTFLAGS%"=="%^RUSTFLAGS%" (
-      cargo clean &&
       cargo build -p rayon-futures &&
-      if [%CHANNEL%]==[nightly] (
-        cargo test -p rayon-futures
-      )
+      cargo test -p rayon-futures
     )
 
 branches:
