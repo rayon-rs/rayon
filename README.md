@@ -116,7 +116,8 @@ For more information on demos, try:
 > cargo +nightly run --release -- --help
 ```
 
-**Note:** While Rayon is usable as a library with the stable compiler, running demos or executing tests requires nightly Rust.
+**Note:** While Rayon is usable as a library with the stable compiler, running
+its demos currently requires nightly Rust.
 
 ## Other questions?
 
