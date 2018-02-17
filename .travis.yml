@@ -21,6 +21,7 @@ matrix:
         - cargo generate-lockfile
         - sed -i -e 's/"rand 0.[34].[0-9]\+/"rand 0.3.20/' Cargo.lock
         - sed -i -e '/^name = "rand"/,/^$/s/version = "0.3.[0-9]\+"/version = "0.3.20"/' Cargo.lock
+      script: cargo build
 
     - rust: stable
       os: linux
