@@ -9,6 +9,11 @@ use std::fmt::{self, Debug};
 /// # Examples
 ///
 /// ```
+/// use rayon::iter;
+/// use rayon::prelude::*;
+/// use std::ops::Range;
+///
+///
 /// // This is a range of bi-dimensional indices
 /// #[derive(Debug)]
 /// struct Range2D {
