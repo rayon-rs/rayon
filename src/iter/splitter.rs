@@ -68,7 +68,6 @@ use std::fmt::{self, Debug};
 /// # }
 /// #
 /// // A two-dimensional range of indices can be built out of two 1D ones
-/// #[derive(Debug)]
 /// struct Range2D {
 ///     // Range of horizontal indices
 ///     pub rx: Range1D,
