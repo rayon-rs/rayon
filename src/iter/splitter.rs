@@ -52,6 +52,9 @@ use std::fmt::{self, Debug};
 /// numerical simulations:
 ///
 /// ```
+/// # use rayon::iter;
+/// # use rayon::prelude::*;
+/// # use std::ops::Range;
 /// # type Range1D = Range<usize>;
 /// # fn split_range1(r: Range1D) -> (Range1D, Option<Range1D>) {
 /// #     if r.end - r.start <= 1 { return (r, None); }
