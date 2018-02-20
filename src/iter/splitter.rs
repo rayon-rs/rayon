@@ -27,15 +27,7 @@ use std::fmt::{self, Debug};
 ///
 ///     // Here, our range is considered large enough to be splittable
 ///     let midpoint = r.start + (r.end - r.start) / 2;
-///     let out1 = Range1D {
-///         start: r.start,
-///         end: midpoint,
-///     };
-///     let out2 = Range1D {
-///         start: midpoint,
-///         end: r.end,
-///     };
-///     (out1, Some(out2))
+///     (r.start..midpoint, Some(midpoint..r.end))
 /// }
 ///
 /// // By using iter::split, Rayon will split the range until it has enough work
@@ -59,15 +51,7 @@ use std::fmt::{self, Debug};
 /// # fn split_range1(r: Range1D) -> (Range1D, Option<Range1D>) {
 /// #     if r.end - r.start <= 1 { return (r, None); }
 /// #     let midpoint = r.start + (r.end - r.start) / 2;
-/// #     let out1 = Range1D {
-/// #         start: r.start,
-/// #         end: midpoint,
-/// #     };
-/// #     let out2 = Range1D {
-/// #         start: midpoint,
-/// #         end: r.end,
-/// #     };
-/// #     (out1, Some(out2))
+/// #     (r.start..midpoint, Some(midpoint..r.end))
 /// # }
 /// #
 /// // A two-dimensional range of indices can be built out of two 1D ones
@@ -87,7 +71,7 @@ use std::fmt::{self, Debug};
 ///     let width = r2.rx.end - r2.rx.start;
 ///     let height = r2.ry.end - r2.ry.start;
 ///     if width >= height {
-///         // This is a wide rectangle, split it on the horizontal axis
+///         // This is a wide range, split it on the horizontal axis
 ///         let (split_rx, ry) = (split_range1(r2.rx), r2.ry);
 ///         let out1 = Range2D {
 ///             rx: split_rx.0,
@@ -96,7 +80,7 @@ use std::fmt::{self, Debug};
 ///         let out2 = split_rx.1.map(|rx| Range2D { rx, ry });
 ///         (out1, out2)
 ///     } else {
-///         // This is a tall rectangle, split it on the vertical axis
+///         // This is a tall range, split it on the vertical axis
 ///         let (rx, split_ry) = (r2.rx, split_range1(r2.ry));
 ///         let out1 = Range2D {
 ///             rx: rx.clone(),
