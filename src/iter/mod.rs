@@ -58,13 +58,13 @@
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
 //! traits.
 //!
-//! If you'd like to offer parallel iterators for your own collector,
-//! or write your own combinator, then check out the [plumbing]
-//! module.
+//! If you'd like to build a custom parallel iterator, or to write your own
+//! combinator, then check out the [split] function and the [plumbing] module.
 //!
 //! [regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
 //! [`ParallelIterator`]: trait.ParallelIterator.html
 //! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+//! [split]: fn.split.html
 //! [plumbing]: plumbing
 
 pub use either::Either;
