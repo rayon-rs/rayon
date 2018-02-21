@@ -99,7 +99,7 @@ use std::fmt::{self, Debug};
 ///     // property will remain true in the final sub-ranges.
 ///     let width = sub_range.rx.end - sub_range.rx.start;
 ///     let height = sub_range.ry.end - sub_range.ry.start;
-///     assert!((width < 2 * height) && (height < 2 * width));
+///     assert!((width / 2 <= height) && (height / 2 <= width));
 /// });
 /// ```
 ///
