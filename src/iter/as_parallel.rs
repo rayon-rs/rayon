@@ -4,7 +4,8 @@ use std::thread::yield_now;
 use std::sync::{Mutex, TryLockError};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 
-use iter::*;
+use iter::ParallelIterator;
+use iter::plumbing::{UnindexedConsumer, UnindexedProducer, bridge_unindexed, Folder};
 use current_num_threads;
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
