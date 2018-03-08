@@ -134,7 +134,7 @@ impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<
 
                                 let (ref mut iter, ref deque) = *guard;
 
-                                for _ in 0..count {
+                                while deque.len() < count {
                                     if let Some(it) = iter.next() {
                                         deque.push(it);
                                     } else {
