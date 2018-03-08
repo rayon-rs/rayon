@@ -148,7 +148,8 @@ impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<
                                 yield_now(); //TODO: use a thread=pool-aware yield? (#548)
                             }
                             Err(TryLockError::Poisoned(_)) => {
-                                // TODO: how to handle poison?
+                                // any panics from other threads will have been caught by the pool,
+                                // and will be re-thrown when joined - just exit
                                 return folder;
                             }
                         }
