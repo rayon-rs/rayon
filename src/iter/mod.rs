@@ -765,7 +765,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Because reduce produces the same type of element as its input,
     /// you have to first map each character into a string, and then
     /// you can reduce them. This means we create one string per
-    /// element in ou iterator -- not so great. Using `fold`, we can
+    /// element in our iterator -- not so great. Using `fold`, we can
     /// do this instead:
     ///
     /// ```
