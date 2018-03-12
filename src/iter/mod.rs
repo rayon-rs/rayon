@@ -745,9 +745,9 @@ pub trait ParallelIterator: Sized + Send {
     /// ### Fold vs Map/Reduce
     ///
     /// Fold makes sense if you have some operation where it is
-    /// cheaper to groups of elements at a time. For example, imagine
-    /// collecting characters into a string. If you were going to use
-    /// map/reduce, you might try this:
+    /// cheaper to create groups of elements at a time. For example,
+    /// imagine collecting characters into a string. If you were going
+    /// to use map/reduce, you might try this:
     ///
     /// ```
     /// use rayon::prelude::*;
