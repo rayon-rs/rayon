@@ -16,8 +16,8 @@ categories = ["concurrency"]
 [dependencies]
 rand = ">= 0.3, < 0.5"
 num_cpus = "1.2"
-crossbeam-deque = "0.2.0"
-libc = "0.2.16"
+crossbeam-deque = "0.3.0"
+libc = "0.2.39"
 lazy_static = "1"
 
 [dev-dependencies]
