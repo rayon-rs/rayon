@@ -28,7 +28,7 @@
 //!   - [`ThreadPoolBuilder`] can be used to create your own thread pools or customize
 //!     the global one.
 //!
-//! [iter module]: iter
+//! [iter module]: iter/index.html
 //! [`join`]: fn.join.html
 //! [`scope`]: fn.scope.html
 //! [`par_sort`]: slice/trait.ParallelSliceMut.html#method.par_sort
