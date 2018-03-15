@@ -1,3 +1,18 @@
+# Release rayon 1.0.1
+
+- Added more documentation for `rayon::iter::split()`.
+- Corrected links and typos in documentation.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @HadrienG2
+- @matthiasbeyer
+- @nikomatsakis
+
+
 # Release rayon 1.0.0 / rayon-core 1.4.0
 
 - `ParallelIterator` added the `update` method which applies a function to
