@@ -280,7 +280,7 @@ pub fn check_skip() {
         .map(|&n| num.fetch_add(n, Ordering::Relaxed))
         .skip(512)
         .count();
-    assert_eq!(num.load(Ordering::Relaxed), a.iter().sum());
+    assert_eq!(num.load(Ordering::Relaxed), a.iter().sum::<usize>());
 }
 
 #[test]
@@ -308,7 +308,7 @@ pub fn check_inspect() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let a = AtomicUsize::new(0);
-    let b =
+    let b: usize =
         (0_usize..1024).into_par_iter().inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); }).sum();
 
     assert_eq!(a.load(Ordering::Relaxed), b);
@@ -997,19 +997,19 @@ pub fn check_windows() {
 pub fn check_options() {
     let mut a = vec![None, Some(1), None, None, Some(2), Some(4)];
 
-    assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum());
-    assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum());
+    assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum::<i32>());
+    assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum::<i32>());
 
     a.par_iter_mut().flat_map(|opt| opt).for_each(|x| *x = *x * *x);
 
-    assert_eq!(21, a.into_par_iter().flat_map(|opt| opt).sum());
+    assert_eq!(21, a.into_par_iter().flat_map(|opt| opt).sum::<i32>());
 }
 
 #[test]
 pub fn check_results() {
     let mut a = vec![Err(()), Ok(1i32), Err(()), Err(()), Ok(2), Ok(4)];
 
-    assert_eq!(7, a.par_iter().flat_map(|res| res).sum());
+    assert_eq!(7, a.par_iter().flat_map(|res| res).sum::<i32>());
 
     assert_eq!(Err::<i32, ()>(()), a.par_iter().cloned().sum());
     assert_eq!(Ok(7),
@@ -1027,7 +1027,7 @@ pub fn check_results() {
 
     a.par_iter_mut().flat_map(|res| res).for_each(|x| *x = *x * *x);
 
-    assert_eq!(21, a.into_par_iter().flat_map(|res| res).sum());
+    assert_eq!(21, a.into_par_iter().flat_map(|res| res).sum::<i32>());
 }
 
 #[test]
@@ -1036,8 +1036,8 @@ pub fn check_binary_heap() {
 
     let a: BinaryHeap<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().sum());
-    assert_eq!(45, a.into_par_iter().sum());
+    assert_eq!(45, a.par_iter().sum::<i32>());
+    assert_eq!(45, a.into_par_iter().sum::<i32>());
 }
 
 #[test]
@@ -1046,12 +1046,12 @@ pub fn check_btree_map() {
 
     let mut a: BTreeMap<i32, i32> = (0..10).map(|i| (i, -i)).collect();
 
-    assert_eq!(45, a.par_iter().map(|(&k, _)| k).sum());
-    assert_eq!(-45, a.par_iter().map(|(_, &v)| v).sum());
+    assert_eq!(45, a.par_iter().map(|(&k, _)| k).sum::<i32>());
+    assert_eq!(-45, a.par_iter().map(|(_, &v)| v).sum::<i32>());
 
     a.par_iter_mut().for_each(|(k, v)| *v += *k);
 
-    assert_eq!(0, a.into_par_iter().map(|(_, v)| v).sum());
+    assert_eq!(0, a.into_par_iter().map(|(_, v)| v).sum::<i32>());
 }
 
 #[test]
@@ -1060,8 +1060,8 @@ pub fn check_btree_set() {
 
     let a: BTreeSet<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().sum());
-    assert_eq!(45, a.into_par_iter().sum());
+    assert_eq!(45, a.par_iter().sum::<i32>());
+    assert_eq!(45, a.into_par_iter().sum::<i32>());
 }
 
 #[test]
@@ -1070,12 +1070,12 @@ pub fn check_hash_map() {
 
     let mut a: HashMap<i32, i32> = (0..10).map(|i| (i, -i)).collect();
 
-    assert_eq!(45, a.par_iter().map(|(&k, _)| k).sum());
-    assert_eq!(-45, a.par_iter().map(|(_, &v)| v).sum());
+    assert_eq!(45, a.par_iter().map(|(&k, _)| k).sum::<i32>());
+    assert_eq!(-45, a.par_iter().map(|(_, &v)| v).sum::<i32>());
 
     a.par_iter_mut().for_each(|(k, v)| *v += *k);
 
-    assert_eq!(0, a.into_par_iter().map(|(_, v)| v).sum());
+    assert_eq!(0, a.into_par_iter().map(|(_, v)| v).sum::<i32>());
 }
 
 #[test]
@@ -1084,8 +1084,8 @@ pub fn check_hash_set() {
 
     let a: HashSet<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().sum());
-    assert_eq!(45, a.into_par_iter().sum());
+    assert_eq!(45, a.par_iter().sum::<i32>());
+    assert_eq!(45, a.into_par_iter().sum::<i32>());
 }
 
 #[test]
@@ -1094,11 +1094,11 @@ pub fn check_linked_list() {
 
     let mut a: LinkedList<i32> = (0..10).collect();
 
-    assert_eq!(45, a.par_iter().sum());
+    assert_eq!(45, a.par_iter().sum::<i32>());
 
     a.par_iter_mut().for_each(|x| *x = -*x);
 
-    assert_eq!(-45, a.into_par_iter().sum());
+    assert_eq!(-45, a.into_par_iter().sum::<i32>());
 }
 
 #[test]
@@ -1111,11 +1111,11 @@ pub fn check_vec_deque() {
     a.drain(..5);
     a.extend(0..5);
 
-    assert_eq!(45, a.par_iter().sum());
+    assert_eq!(45, a.par_iter().sum::<i32>());
 
     a.par_iter_mut().for_each(|x| *x = -*x);
 
-    assert_eq!(-45, a.into_par_iter().sum());
+    assert_eq!(-45, a.into_par_iter().sum::<i32>());
 }
 
 #[test]
