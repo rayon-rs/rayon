@@ -8,6 +8,6 @@ use std::cell::Cell;
 fn main() {
     let c = Cell::new(42_i32);
     (0_i32..1024).into_par_iter()
-             .map(|_| c.get()) //~ ERROR Sync` is not satisfied
+             .map(|_| c.get()) //~ ERROR E0277
              .min();
 }
