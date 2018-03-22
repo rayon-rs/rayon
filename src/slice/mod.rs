@@ -49,8 +49,8 @@ pub trait ParallelSlice<T: Sync> {
         }
     }
 
-    /// Returns a parallel iterator over all contiguous windows of
-    /// length `size`. The windows overlap.
+    /// Returns a parallel iterator over all contiguous windows of length
+    /// `window_size`. The windows overlap.
     ///
     /// # Examples
     ///
@@ -66,8 +66,12 @@ pub trait ParallelSlice<T: Sync> {
         }
     }
 
-    /// Returns a parallel iterator over at most `size` elements of
+    /// Returns a parallel iterator over at most `chunk_size` elements of
     /// `self` at a time. The chunks do not overlap.
+    ///
+    /// If the number of elements in the iterator is not divisible by
+    /// `chunk_size`, the last chunk may be shorter than `chunk_size`.  All
+    /// other chunks will have that exact length.
     ///
     /// # Examples
     ///
@@ -120,8 +124,12 @@ pub trait ParallelSliceMut<T: Send> {
         }
     }
 
-    /// Returns a parallel iterator over at most `size` elements of
+    /// Returns a parallel iterator over at most `chunk_size` elements of
     /// `self` at a time. The chunks are mutable and do not overlap.
+    ///
+    /// If the number of elements in the iterator is not divisible by
+    /// `chunk_size`, the last chunk may be shorter than `chunk_size`.  All
+    /// other chunks will have that exact length.
     ///
     /// # Examples
     ///
