@@ -15,6 +15,7 @@
 
 use iter::*;
 use iter::plumbing::*;
+use slice;
 use split_producer::*;
 
 
@@ -61,6 +62,20 @@ pub trait ParallelString {
     /// ```
     fn par_chars(&self) -> Chars {
         Chars { chars: self.as_parallel_string() }
+    }
+
+    /// Returns a parallel iterator over the bytes of a string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let max = "hello".par_bytes().max();
+    /// assert_eq!(Some(b'o'), max);
+    /// ```
+    fn par_bytes(&self) -> Bytes {
+        let bytes = self.as_parallel_string().as_bytes();
+        Bytes { inner: bytes.par_iter().cloned() }
     }
 
     /// Returns a parallel iterator over substrings separated by a
@@ -272,6 +287,20 @@ impl<'ch> UnindexedProducer for CharsProducer<'ch> {
     {
         folder.consume_iter(self.chars.chars())
     }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over the bytes of a string
+#[derive(Debug, Clone)]
+pub struct Bytes<'ch> {
+    inner: Cloned<slice::Iter<'ch, u8>>,
+}
+
+delegate_indexed_iterator! {
+    Bytes<'ch> => u8,
+    impl<'ch>
 }
 
 

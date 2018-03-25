@@ -20,6 +20,11 @@ pub fn execute_strings() {
     let vchars: Vec<char> = s.par_chars().collect();
     let par_chars: String = vchars.par_iter().collect();
     assert_eq!(s, par_chars);
+
+    let mut par_bytes: Vec<u8> = s.par_bytes().collect();
+    assert_eq!(s.as_bytes(), &*par_bytes);
+    s.par_bytes().collect_into_vec(&mut par_bytes); // indexed!
+    assert_eq!(s.as_bytes(), &*par_bytes);
 }
 
 #[test]
