@@ -29,6 +29,10 @@ pub fn execute_strings() {
     let par_utf16: Vec<u16> = s.par_encode_utf16().collect();
     let ser_utf16: Vec<u16> = s.encode_utf16().collect();
     assert_eq!(par_utf16, ser_utf16);
+
+    let par_charind: Vec<_> = s.par_char_indices().collect();
+    let ser_charind: Vec<_> = s.char_indices().collect();
+    assert_eq!(par_charind, ser_charind);
 }
 
 #[test]

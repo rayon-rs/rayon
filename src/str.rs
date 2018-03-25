@@ -64,6 +64,19 @@ pub trait ParallelString {
         Chars { chars: self.as_parallel_string() }
     }
 
+    /// Returns a parallel iterator over the characters of a string, with their positions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let min = "hello".par_char_indices().min_by_key(|&(_i, c)| c as i32);
+    /// assert_eq!(Some((1, 'e')), min);
+    /// ```
+    fn par_char_indices(&self) -> CharIndices {
+        CharIndices { chars: self.as_parallel_string() }
+    }
+
     /// Returns a parallel iterator over the bytes of a string.
     ///
     /// # Examples
@@ -308,6 +321,54 @@ impl<'ch> UnindexedProducer for CharsProducer<'ch> {
         where F: Folder<Self::Item>
     {
         folder.consume_iter(self.chars.chars())
+    }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over the characters of a string, with their positions
+#[derive(Debug, Clone)]
+pub struct CharIndices<'ch> {
+    chars: &'ch str,
+}
+
+struct CharIndicesProducer<'ch> {
+    index: usize,
+    chars: &'ch str,
+}
+
+impl<'ch> ParallelIterator for CharIndices<'ch> {
+    type Item = (usize, char);
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let producer = CharIndicesProducer { index: 0, chars: self.chars };
+        bridge_unindexed(producer, consumer)
+    }
+}
+
+impl<'ch> UnindexedProducer for CharIndicesProducer<'ch> {
+    type Item = (usize, char);
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let index = find_char_midpoint(self.chars);
+        if index > 0 {
+            let (left, right) = self.chars.split_at(index);
+            let right_index = self.index + index;
+            self.chars = left;
+            (self, Some(CharIndicesProducer { index: right_index, chars: right }))
+        } else {
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        let base = self.index;
+        folder.consume_iter(self.chars.char_indices().map(move |(i, c)| (base + i, c)))
     }
 }
 
