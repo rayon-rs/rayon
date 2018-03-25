@@ -219,7 +219,7 @@ mod private {
         fn find_in(&self, &str) -> Option<usize>;
         fn rfind_in(&self, &str) -> Option<usize>;
         fn is_suffix_of(&self, &str) -> bool;
-        fn fold_with<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
+        fn fold_splits<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
             where F: Folder<&'ch str>;
     }
 }
@@ -243,7 +243,7 @@ impl Pattern for char {
         chars.ends_with(*self)
     }
 
-    fn fold_with<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
+    fn fold_splits<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
         where F: Folder<&'ch str>
     {
         let mut split = chars.split(*self);
@@ -269,7 +269,7 @@ impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
         chars.ends_with(self)
     }
 
-    fn fold_with<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
+    fn fold_splits<'ch, F>(&self, chars: &'ch str, folder: F, skip_last: bool) -> F
         where F: Folder<&'ch str>
     {
         let mut split = chars.split(self);
@@ -489,7 +489,7 @@ impl<'ch, P: Pattern> Fissile<P> for &'ch str {
     fn fold_splits<F>(self, separator: &P, folder: F, skip_last: bool) -> F
         where F: Folder<Self>
     {
-        separator.fold_with(self, folder, skip_last)
+        separator.fold_splits(self, folder, skip_last)
     }
 }
 
