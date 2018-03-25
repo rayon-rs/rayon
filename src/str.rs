@@ -78,6 +78,28 @@ pub trait ParallelString {
         Bytes { inner: bytes.par_iter().cloned() }
     }
 
+    /// Returns a parallel iterator over a string encoded as UTF-16.
+    ///
+    /// Note that surrogate pairs (for codepoints greater than `U+FFFF`) are
+    /// produced as separate items, but will not be split across threads.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let max = "hello".par_encode_utf16().max();
+    /// assert_eq!(Some(b'o' as u16), max);
+    ///
+    /// let text = "Zażółć gęślą jaźń";
+    /// let utf8_len = text.len();
+    /// let utf16_len = text.par_encode_utf16().count();
+    /// assert!(utf16_len <= utf8_len);
+    /// ```
+    fn par_encode_utf16(&self) -> EncodeUtf16 {
+        EncodeUtf16 { chars: self.as_parallel_string() }
+    }
+
     /// Returns a parallel iterator over substrings separated by a
     /// given character or predicate, similar to `str::split`.
     ///
@@ -301,6 +323,50 @@ pub struct Bytes<'ch> {
 delegate_indexed_iterator! {
     Bytes<'ch> => u8,
     impl<'ch>
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over a string encoded as UTF-16
+#[derive(Debug, Clone)]
+pub struct EncodeUtf16<'ch> {
+    chars: &'ch str,
+}
+
+struct EncodeUtf16Producer<'ch> {
+    chars: &'ch str,
+}
+
+impl<'ch> ParallelIterator for EncodeUtf16<'ch> {
+    type Item = u16;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        bridge_unindexed(EncodeUtf16Producer { chars: self.chars }, consumer)
+    }
+}
+
+impl<'ch> UnindexedProducer for EncodeUtf16Producer<'ch> {
+    type Item = u16;
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let index = find_char_midpoint(self.chars);
+        if index > 0 {
+            let (left, right) = self.chars.split_at(index);
+            self.chars = left;
+            (self, Some(EncodeUtf16Producer { chars: right }))
+        } else {
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        folder.consume_iter(self.chars.encode_utf16())
+    }
 }
 
 

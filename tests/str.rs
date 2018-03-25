@@ -25,6 +25,10 @@ pub fn execute_strings() {
     assert_eq!(s.as_bytes(), &*par_bytes);
     s.par_bytes().collect_into_vec(&mut par_bytes); // indexed!
     assert_eq!(s.as_bytes(), &*par_bytes);
+
+    let par_utf16: Vec<u16> = s.par_encode_utf16().collect();
+    let ser_utf16: Vec<u16> = s.encode_utf16().collect();
+    assert_eq!(par_utf16, ser_utf16);
 }
 
 #[test]
