@@ -191,6 +191,26 @@ pub trait ParallelString {
     fn par_split_whitespace(&self) -> SplitWhitespace {
         SplitWhitespace(self.as_parallel_string())
     }
+
+    /// Returns a parallel iterator over substrings that match a
+    /// given character or predicate, similar to `str::matches`.
+    ///
+    /// Note: the `Pattern` trait is private, for use only by Rayon itself.
+    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let total = "1, 2, buckle, 3, 4, door"
+    ///    .par_matches(char::is_numeric)
+    ///    .map(|s| s.parse::<i32>().expect("digit"))
+    ///    .sum();
+    /// assert_eq!(10, total);
+    /// ```
+    fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<P> {
+        Matches { chars: self.as_parallel_string(), pattern }
+    }
 }
 
 impl ParallelString for str {
@@ -220,6 +240,8 @@ mod private {
         fn rfind_in(&self, &str) -> Option<usize>;
         fn is_suffix_of(&self, &str) -> bool;
         fn fold_splits<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
+            where F: Folder<&'ch str>;
+        fn fold_matches<'ch, F>(&self, &'ch str, folder: F) -> F
             where F: Folder<&'ch str>;
     }
 }
@@ -252,6 +274,12 @@ impl Pattern for char {
         }
         folder.consume_iter(split)
     }
+
+    fn fold_matches<'ch, F>(&self, chars: &'ch str, folder: F) -> F
+        where F: Folder<&'ch str>
+    {
+        folder.consume_iter(chars.matches(*self))
+    }
 }
 
 impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
@@ -277,6 +305,12 @@ impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
             split.next_back();
         }
         folder.consume_iter(split)
+    }
+
+    fn fold_matches<'ch, F>(&self, chars: &'ch str, folder: F) -> F
+        where F: Folder<&'ch str>
+    {
+        folder.consume_iter(chars.matches(self))
     }
 }
 
@@ -602,5 +636,53 @@ impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
             .par_split(char::is_whitespace)
             .filter(|string| !string.is_empty())
             .drive_unindexed(consumer)
+    }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over substrings that match a pattern
+#[derive(Debug, Clone)]
+pub struct Matches<'ch, P: Pattern> {
+    chars: &'ch str,
+    pattern: P,
+}
+
+struct MatchesProducer<'ch, 'pat, P: Pattern + 'pat> {
+    chars: &'ch str,
+    pattern: &'pat P,
+}
+
+impl<'ch, P: Pattern> ParallelIterator for Matches<'ch, P> {
+    type Item = &'ch str;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let producer = MatchesProducer { chars: self.chars, pattern: &self.pattern };
+        bridge_unindexed(producer, consumer)
+    }
+}
+
+impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchesProducer<'ch, 'pat, P> {
+    type Item = &'ch str;
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let index = find_char_midpoint(self.chars);
+        if index > 0 {
+            let (left, right) = self.chars.split_at(index);
+            let pattern = self.pattern;
+            self.chars = left;
+            (self, Some(MatchesProducer { chars: right, pattern }))
+        } else {
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.pattern.fold_matches(self.chars, folder)
     }
 }

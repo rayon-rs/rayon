@@ -87,4 +87,15 @@ pub fn execute_strings_split() {
         let parallel: Vec<_> = string.par_split_whitespace().collect();
         assert_eq!(serial, parallel);
     }
+
+    // try matching separators too!
+    for &(string, separator) in &tests {
+        let serial: Vec<_> = string.matches(separator).collect();
+        let parallel: Vec<_> = string.par_matches(separator).collect();
+        assert_eq!(serial, parallel);
+
+        let serial_fn: Vec<_> = string.matches(|c| c == separator).collect();
+        let parallel_fn: Vec<_> = string.par_matches(|c| c == separator).collect();
+        assert_eq!(serial_fn, parallel_fn);
+    }
 }
