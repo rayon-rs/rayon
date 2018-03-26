@@ -209,7 +209,7 @@ pub trait ParallelString {
     /// assert_eq!(10, total);
     /// ```
     fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<P> {
-        Matches { chars: self.as_parallel_string(), pattern }
+        Matches { chars: self.as_parallel_string(), pattern: pattern }
     }
 
     /// Returns a parallel iterator over substrings that match a given character
@@ -228,7 +228,7 @@ pub trait ParallelString {
     /// assert_eq!(digits, vec![(0, "1"), (3, "2"), (14, "3"), (17, "4")]);
     /// ```
     fn par_match_indices<P: Pattern>(&self, pattern: P) -> MatchIndices<P> {
-        MatchIndices { chars: self.as_parallel_string(), pattern }
+        MatchIndices { chars: self.as_parallel_string(), pattern: pattern }
     }
 }
 
@@ -707,7 +707,7 @@ impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchesProducer<'ch, 'pat, P> 
             let (left, right) = self.chars.split_at(index);
             let pattern = self.pattern;
             self.chars = left;
-            (self, Some(MatchesProducer { chars: right, pattern }))
+            (self, Some(MatchesProducer { chars: right, pattern: pattern }))
         } else {
             (self, None)
         }
@@ -742,7 +742,11 @@ impl<'ch, P: Pattern> ParallelIterator for MatchIndices<'ch, P> {
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let producer = MatchIndicesProducer { index: 0, chars: self.chars, pattern: &self.pattern };
+        let producer = MatchIndicesProducer {
+            index: 0,
+            chars: self.chars,
+            pattern: &self.pattern,
+        };
         bridge_unindexed(producer, consumer)
     }
 }
@@ -754,10 +758,13 @@ impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchIndicesProducer<'ch, 'pat
         let index = find_char_midpoint(self.chars);
         if index > 0 {
             let (left, right) = self.chars.split_at(index);
-            let right_index = self.index + index;
-            let pattern = self.pattern;
+            let right_producer = MatchIndicesProducer {
+                index: self.index + index,
+                chars: right,
+                pattern: self.pattern,
+            };
             self.chars = left;
-            (self, Some(MatchIndicesProducer { index: right_index, chars: right, pattern }))
+            (self, Some(right_producer))
         } else {
             (self, None)
         }
