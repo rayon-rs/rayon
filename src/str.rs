@@ -211,6 +211,25 @@ pub trait ParallelString {
     fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<P> {
         Matches { chars: self.as_parallel_string(), pattern }
     }
+
+    /// Returns a parallel iterator over substrings that match a given character
+    /// or predicate, with their positions, similar to `str::match_indices`.
+    ///
+    /// Note: the `Pattern` trait is private, for use only by Rayon itself.
+    /// It is implemented for `char` and any `F: Fn(char) -> bool + Sync + Send`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let digits: Vec<_> = "1, 2, buckle, 3, 4, door"
+    ///    .par_match_indices(char::is_numeric)
+    ///    .collect();
+    /// assert_eq!(digits, vec![(0, "1"), (3, "2"), (14, "3"), (17, "4")]);
+    /// ```
+    fn par_match_indices<P: Pattern>(&self, pattern: P) -> MatchIndices<P> {
+        MatchIndices { chars: self.as_parallel_string(), pattern }
+    }
 }
 
 impl ParallelString for str {
@@ -243,6 +262,8 @@ mod private {
             where F: Folder<&'ch str>;
         fn fold_matches<'ch, F>(&self, &'ch str, folder: F) -> F
             where F: Folder<&'ch str>;
+        fn fold_match_indices<'ch, F>(&self, &'ch str, folder: F, base: usize) -> F
+            where F: Folder<(usize, &'ch str)>;
     }
 }
 use self::private::Pattern;
@@ -280,6 +301,12 @@ impl Pattern for char {
     {
         folder.consume_iter(chars.matches(*self))
     }
+
+    fn fold_match_indices<'ch, F>(&self, chars: &'ch str, folder: F, base: usize) -> F
+        where F: Folder<(usize, &'ch str)>
+    {
+        folder.consume_iter(chars.match_indices(*self).map(move |(i, s)| (base + i, s)))
+    }
 }
 
 impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
@@ -311,6 +338,12 @@ impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
         where F: Folder<&'ch str>
     {
         folder.consume_iter(chars.matches(self))
+    }
+
+    fn fold_match_indices<'ch, F>(&self, chars: &'ch str, folder: F, base: usize) -> F
+        where F: Folder<(usize, &'ch str)>
+    {
+        folder.consume_iter(chars.match_indices(self).map(move |(i, s)| (base + i, s)))
     }
 }
 
@@ -684,5 +717,55 @@ impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchesProducer<'ch, 'pat, P> 
         where F: Folder<Self::Item>
     {
         self.pattern.fold_matches(self.chars, folder)
+    }
+}
+
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over substrings that match a pattern, with their positions
+#[derive(Debug, Clone)]
+pub struct MatchIndices<'ch, P: Pattern> {
+    chars: &'ch str,
+    pattern: P,
+}
+
+struct MatchIndicesProducer<'ch, 'pat, P: Pattern + 'pat> {
+    index: usize,
+    chars: &'ch str,
+    pattern: &'pat P,
+}
+
+impl<'ch, P: Pattern> ParallelIterator for MatchIndices<'ch, P> {
+    type Item = (usize, &'ch str);
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        let producer = MatchIndicesProducer { index: 0, chars: self.chars, pattern: &self.pattern };
+        bridge_unindexed(producer, consumer)
+    }
+}
+
+impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchIndicesProducer<'ch, 'pat, P> {
+    type Item = (usize, &'ch str);
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let index = find_char_midpoint(self.chars);
+        if index > 0 {
+            let (left, right) = self.chars.split_at(index);
+            let right_index = self.index + index;
+            let pattern = self.pattern;
+            self.chars = left;
+            (self, Some(MatchIndicesProducer { index: right_index, chars: right, pattern }))
+        } else {
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        self.pattern.fold_match_indices(self.chars, folder, self.index)
     }
 }
