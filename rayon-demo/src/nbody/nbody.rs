@@ -32,6 +32,8 @@
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use rand::{Rand, Rng};
 use rayon::prelude::*;
+#[cfg(test)]
+use rayon::iter::AsParallel;
 use std::f64::consts::PI;
 
 const INITIAL_VELOCITY: f64 = 8.0; // set to 0.0 to turn off.
@@ -111,6 +113,7 @@ impl NBodyBenchmark {
         out_bodies
     }
 
+    #[cfg(test)]
     pub fn tick_par_as_parallel(&mut self) -> &[Body] {
         let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
             (&self.bodies.0, &mut self.bodies.1)
@@ -121,8 +124,8 @@ impl NBodyBenchmark {
         let time = self.time;
         out_bodies
             .iter_mut()
-            .as_parallel()
             .zip(&in_bodies[..])
+            .as_parallel()
             .for_each(|(out, prev)| {
                 let (vel, vel2) = next_velocity(time, prev, in_bodies);
                 out.velocity = vel;
