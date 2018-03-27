@@ -20,6 +20,7 @@ use time;
 
 use docopt::Docopt;
 use rayon::prelude::*;
+use rayon::iter::AsParallel;
 
 #[cfg(test)]
 mod bench;
@@ -93,6 +94,15 @@ impl Board {
         self.next_board(new_brd)
     }
 
+    pub fn as_parallel_next_generation(&self) -> Board {
+        let new_brd = (0..self.len())
+            .as_parallel()
+            .map(|cell| self.successor_cell(cell))
+            .collect();
+
+        self.next_board(new_brd)
+    }
+
     fn cell_live(&self, x: usize, y: usize) -> bool {
         !(x >= self.cols || y >= self.rows) && self.board[y * self.cols + x]
     }
@@ -145,6 +155,11 @@ fn parallel_generations(board: Board, gens: usize) {
     for _ in 0..gens { brd = brd.parallel_next_generation(); }
 }
 
+fn as_parallel_generations(board: Board, gens: usize) {
+    let mut brd = board;
+    for _ in 0..gens { brd = brd.as_parallel_next_generation(); }
+}
+
 fn measure(f: fn(Board, usize) -> (), args: &Args) -> u64 {
     let (n, gens) = (args.flag_size, args.flag_gens);
     let brd = Board::new(n, n).random();
@@ -168,5 +183,9 @@ pub fn main(args: &[String]) {
         let parallel = measure(parallel_generations, &args);
         println!("parallel: {:10} ns -> {:.2}x speedup", parallel,
                  serial as f64 / parallel as f64);
+
+        let as_parallel = measure(as_parallel_generations, &args);
+        println!("as_parallel: {:10} ns -> {:.2}x speedup", as_parallel,
+                 serial as f64 / as_parallel as f64);
     }
 }

@@ -9,3 +9,8 @@ fn generations(b: &mut ::test::Bencher) {
 fn parallel_generations(b: &mut ::test::Bencher) {
     b.iter(|| super::parallel_generations(Board::new(200, 200).random(), 100));
 }
+
+#[bench]
+fn as_parallel_generations(b: &mut ::test::Bencher) {
+    b.iter(|| super::as_parallel_generations(Board::new(200, 200).random(), 100));
+}
