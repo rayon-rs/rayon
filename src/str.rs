@@ -35,12 +35,13 @@ fn find_char_midpoint(chars: &str) -> usize {
     // character boundary.  So we look at the raw bytes, first scanning
     // forward from the midpoint for a boundary, then trying backward.
     let (left, right) = chars.as_bytes().split_at(mid);
-    right.iter()
-        .cloned()
-        .position(is_char_boundary)
-        .map(|i| mid + i)
-        .or_else(|| left.iter().cloned().rposition(is_char_boundary))
-        .unwrap_or(0)
+    match right.iter().cloned().position(is_char_boundary) {
+        Some(i) => mid + i,
+        None => left.iter()
+            .cloned()
+            .rposition(is_char_boundary)
+            .unwrap_or(0),
+    }
 }
 
 /// Try to split a string near the midpoint.
