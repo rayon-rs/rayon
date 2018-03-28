@@ -43,6 +43,17 @@ fn find_char_midpoint(chars: &str) -> usize {
         .unwrap_or(0)
 }
 
+/// Try to split a string near the midpoint.
+#[inline]
+fn split(chars: &str) -> Option<(&str, &str)> {
+    let index = find_char_midpoint(chars);
+    if index > 0 {
+        Some(chars.split_at(index))
+    } else {
+        None
+    }
+}
+
 
 /// Parallel extensions for strings.
 pub trait ParallelString {
@@ -376,14 +387,13 @@ impl<'ch> ParallelIterator for Chars<'ch> {
 impl<'ch> UnindexedProducer for CharsProducer<'ch> {
     type Item = char;
 
-    fn split(mut self) -> (Self, Option<Self>) {
-        let index = find_char_midpoint(self.chars);
-        if index > 0 {
-            let (left, right) = self.chars.split_at(index);
-            self.chars = left;
-            (self, Some(CharsProducer { chars: right }))
-        } else {
-            (self, None)
+    fn split(self) -> (Self, Option<Self>) {
+        match split(self.chars) {
+            Some((left, right)) => (
+                CharsProducer { chars: left },
+                Some(CharsProducer { chars: right }),
+            ),
+            None => (self, None),
         }
     }
 
@@ -422,15 +432,19 @@ impl<'ch> ParallelIterator for CharIndices<'ch> {
 impl<'ch> UnindexedProducer for CharIndicesProducer<'ch> {
     type Item = (usize, char);
 
-    fn split(mut self) -> (Self, Option<Self>) {
-        let index = find_char_midpoint(self.chars);
-        if index > 0 {
-            let (left, right) = self.chars.split_at(index);
-            let right_index = self.index + index;
-            self.chars = left;
-            (self, Some(CharIndicesProducer { index: right_index, chars: right }))
-        } else {
-            (self, None)
+    fn split(self) -> (Self, Option<Self>) {
+        match split(self.chars) {
+            Some((left, right)) => (
+                CharIndicesProducer {
+                    chars: left,
+                    ..self
+                },
+                Some(CharIndicesProducer {
+                    chars: right,
+                    index: self.index + left.len(),
+                }),
+            ),
+            None => (self, None),
         }
     }
 
@@ -468,14 +482,13 @@ impl<'ch> ParallelIterator for Bytes<'ch> {
 impl<'ch> UnindexedProducer for BytesProducer<'ch> {
     type Item = u8;
 
-    fn split(mut self) -> (Self, Option<Self>) {
-        let index = find_char_midpoint(self.chars);
-        if index > 0 {
-            let (left, right) = self.chars.split_at(index);
-            self.chars = left;
-            (self, Some(BytesProducer { chars: right }))
-        } else {
-            (self, None)
+    fn split(self) -> (Self, Option<Self>) {
+        match split(self.chars) {
+            Some((left, right)) => (
+                BytesProducer { chars: left },
+                Some(BytesProducer { chars: right }),
+            ),
+            None => (self, None),
         }
     }
 
@@ -511,14 +524,13 @@ impl<'ch> ParallelIterator for EncodeUtf16<'ch> {
 impl<'ch> UnindexedProducer for EncodeUtf16Producer<'ch> {
     type Item = u16;
 
-    fn split(mut self) -> (Self, Option<Self>) {
-        let index = find_char_midpoint(self.chars);
-        if index > 0 {
-            let (left, right) = self.chars.split_at(index);
-            self.chars = left;
-            (self, Some(EncodeUtf16Producer { chars: right }))
-        } else {
-            (self, None)
+    fn split(self) -> (Self, Option<Self>) {
+        match split(self.chars) {
+            Some((left, right)) => (
+                EncodeUtf16Producer { chars: left },
+                Some(EncodeUtf16Producer { chars: right }),
+            ),
+            None => (self, None),
         }
     }
 
@@ -733,15 +745,19 @@ impl<'ch, P: Pattern> ParallelIterator for Matches<'ch, P> {
 impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchesProducer<'ch, 'pat, P> {
     type Item = &'ch str;
 
-    fn split(mut self) -> (Self, Option<Self>) {
-        let index = find_char_midpoint(self.chars);
-        if index > 0 {
-            let (left, right) = self.chars.split_at(index);
-            let pattern = self.pattern;
-            self.chars = left;
-            (self, Some(MatchesProducer { chars: right, pattern: pattern }))
-        } else {
-            (self, None)
+    fn split(self) -> (Self, Option<Self>) {
+        match split(self.chars) {
+            Some((left, right)) => (
+                MatchesProducer {
+                    chars: left,
+                    ..self
+                },
+                Some(MatchesProducer {
+                    chars: right,
+                    ..self
+                }),
+            ),
+            None => (self, None),
         }
     }
 
@@ -786,19 +802,20 @@ impl<'ch, P: Pattern> ParallelIterator for MatchIndices<'ch, P> {
 impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchIndicesProducer<'ch, 'pat, P> {
     type Item = (usize, &'ch str);
 
-    fn split(mut self) -> (Self, Option<Self>) {
-        let index = find_char_midpoint(self.chars);
-        if index > 0 {
-            let (left, right) = self.chars.split_at(index);
-            let right_producer = MatchIndicesProducer {
-                index: self.index + index,
-                chars: right,
-                pattern: self.pattern,
-            };
-            self.chars = left;
-            (self, Some(right_producer))
-        } else {
-            (self, None)
+    fn split(self) -> (Self, Option<Self>) {
+        match split(self.chars) {
+            Some((left, right)) => (
+                MatchIndicesProducer {
+                    chars: left,
+                    ..self
+                },
+                Some(MatchIndicesProducer {
+                    chars: right,
+                    index: self.index + left.len(),
+                    ..self
+                }),
+            ),
+            None => (self, None),
         }
     }
 
