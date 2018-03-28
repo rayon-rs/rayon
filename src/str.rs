@@ -15,7 +15,6 @@
 
 use iter::*;
 use iter::plumbing::*;
-use slice;
 use split_producer::*;
 
 
@@ -79,6 +78,11 @@ pub trait ParallelString {
 
     /// Returns a parallel iterator over the bytes of a string.
     ///
+    /// Note that multi-byte sequences (for code points greater than `U+007F`)
+    /// are produced as separate items, but will not be split across threads.
+    /// If you would prefer an indexed iterator without that guarantee, consider
+    /// `string.as_bytes().par_iter().cloned()` instead.
+    ///
     /// # Examples
     ///
     /// ```
@@ -87,13 +91,12 @@ pub trait ParallelString {
     /// assert_eq!(Some(b'o'), max);
     /// ```
     fn par_bytes(&self) -> Bytes {
-        let bytes = self.as_parallel_string().as_bytes();
-        Bytes { inner: bytes.par_iter().cloned() }
+        Bytes { chars: self.as_parallel_string() }
     }
 
     /// Returns a parallel iterator over a string encoded as UTF-16.
     ///
-    /// Note that surrogate pairs (for codepoints greater than `U+FFFF`) are
+    /// Note that surrogate pairs (for code points greater than `U+FFFF`) are
     /// produced as separate items, but will not be split across threads.
     ///
     /// # Examples
@@ -445,14 +448,43 @@ impl<'ch> UnindexedProducer for CharIndicesProducer<'ch> {
 /// Parallel iterator over the bytes of a string
 #[derive(Debug, Clone)]
 pub struct Bytes<'ch> {
-    inner: Cloned<slice::Iter<'ch, u8>>,
+    chars: &'ch str,
 }
 
-delegate_indexed_iterator! {
-    Bytes<'ch> => u8,
-    impl<'ch>
+struct BytesProducer<'ch> {
+    chars: &'ch str,
 }
 
+impl<'ch> ParallelIterator for Bytes<'ch> {
+    type Item = u8;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where C: UnindexedConsumer<Self::Item>
+    {
+        bridge_unindexed(BytesProducer { chars: self.chars }, consumer)
+    }
+}
+
+impl<'ch> UnindexedProducer for BytesProducer<'ch> {
+    type Item = u8;
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        let index = find_char_midpoint(self.chars);
+        if index > 0 {
+            let (left, right) = self.chars.split_at(index);
+            self.chars = left;
+            (self, Some(BytesProducer { chars: right }))
+        } else {
+            (self, None)
+        }
+    }
+
+    fn fold_with<F>(self, folder: F) -> F
+        where F: Folder<Self::Item>
+    {
+        folder.consume_iter(self.chars.bytes())
+    }
+}
 
 // /////////////////////////////////////////////////////////////////////////
 

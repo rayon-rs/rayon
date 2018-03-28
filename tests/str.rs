@@ -21,9 +21,7 @@ pub fn execute_strings() {
     let par_chars: String = vchars.par_iter().collect();
     assert_eq!(s, par_chars);
 
-    let mut par_bytes: Vec<u8> = s.par_bytes().collect();
-    assert_eq!(s.as_bytes(), &*par_bytes);
-    s.par_bytes().collect_into_vec(&mut par_bytes); // indexed!
+    let par_bytes: Vec<u8> = s.par_bytes().collect();
     assert_eq!(s.as_bytes(), &*par_bytes);
 
     let par_utf16: Vec<u16> = s.par_encode_utf16().collect();
