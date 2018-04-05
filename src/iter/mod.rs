@@ -71,8 +71,8 @@ pub use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
 use std::ops::Fn;
-use std::ops::Try;
 use self::plumbing::*;
+use self::private::Try;
 
 // There is a method to the madness here:
 //
@@ -2141,4 +2141,43 @@ pub trait ParallelExtend<T>
     /// assert_eq!(vec, [0, 1, 2, 3, 4, 0, 1, 4, 9, 16]);
     /// ```
     fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
+}
+
+/// We hide the `Try` trait in a private module, as it's only meant to be a
+/// stable clone of the standard library's `Try` trait, as yet unstable.
+mod private {
+    /// Clone of `std::ops::Try`.
+    ///
+    /// Implementing this trait is not permitted outside of `rayon`.
+    pub trait Try {
+        private_decl!{}
+
+        type Ok;
+        type Error;
+        fn into_result(self) -> Result<Self::Ok, Self::Error>;
+        fn from_ok(v: Self::Ok) -> Self;
+        fn from_error(v: Self::Error) -> Self;
+    }
+
+    impl<T> Try for Option<T> {
+        private_impl!{}
+
+        type Ok = T;
+        type Error = ();
+
+        fn into_result(self) -> Result<T, ()> { self.ok_or(()) }
+        fn from_ok(v: T) -> Self { Some(v) }
+        fn from_error(_: ()) -> Self { None }
+    }
+
+    impl<T, E> Try for Result<T, E> {
+        private_impl!{}
+
+        type Ok = T;
+        type Error = E;
+
+        fn into_result(self) -> Result<T, E> { self }
+        fn from_ok(v: T) -> Self { Ok(v) }
+        fn from_error(v: E) -> Self { Err(v) }
+    }
 }

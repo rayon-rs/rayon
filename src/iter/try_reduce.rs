@@ -1,7 +1,7 @@
 use super::ParallelIterator;
 use super::plumbing::*;
 
-use std::ops::Try;
+use super::private::Try;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub fn try_reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
@@ -78,7 +78,10 @@ impl<'r, R, ID, T> Reducer<T> for TryReduceConsumer<'r, R, ID>
           T: Try
 {
     fn reduce(self, left: T, right: T) -> T {
-        (self.reduce_op)(left?, right?)
+        match (left.into_result(), right.into_result()) {
+            (Ok(left), Ok(right)) => (self.reduce_op)(left, right),
+            (Err(e), _) | (_, Err(e)) => T::from_error(e),
+        }
     }
 }
 
@@ -97,7 +100,7 @@ impl<'r, R, T> Folder<T> for TryReduceFolder<'r, R, T>
     fn consume(self, item: T) -> Self {
         let reduce_op = self.reduce_op;
         let result = self.result.and_then(|left| {
-            reduce_op(left, item?).into_result()
+            reduce_op(left, item.into_result()?).into_result()
         });
         TryReduceFolder {
             result: result,
@@ -111,7 +114,7 @@ impl<'r, R, T> Folder<T> for TryReduceFolder<'r, R, T>
         let reduce_op = self.reduce_op;
         let result = self.result.and_then(|mut left| {
             for right in iter {
-                left = reduce_op(left, right?)?;
+                left = reduce_op(left, right.into_result()?).into_result()?;
             }
             Ok(left)
         });

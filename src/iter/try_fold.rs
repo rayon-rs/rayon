@@ -4,7 +4,7 @@ use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
-use std::ops::Try;
+use super::private::Try;
 
 pub fn try_fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> TryFold<I, U, ID, F>
     where I: ParallelIterator,
@@ -148,7 +148,7 @@ impl<'r, C, U, F, T> Folder<T> for TryFoldFolder<'r, C, U, F>
         let fold_op = self.fold_op;
         let result = self.result.and_then(|mut acc| {
             for item in iter {
-                acc = fold_op(acc, item)?;
+                acc = fold_op(acc, item).into_result()?;
             }
             Ok(acc)
         });
