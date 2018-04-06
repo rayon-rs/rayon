@@ -365,6 +365,25 @@ pub trait ParallelIterator: Sized + Send {
         self.map_with(init, op).for_each(|()| ())
     }
 
+    /// TODO
+    fn try_for_each<OP, R>(self, op: OP) -> R
+        where OP: Fn(Self::Item) -> R + Sync + Send,
+              R: Try<Ok = ()> + Send
+    {
+        self.try_fold_with((), move |(), x| op(x))
+            .try_reduce(|| (), |(), ()| R::from_ok(()))
+    }
+
+    /// TODO
+    fn try_for_each_with<OP, T, R>(self, init: T, op: OP) -> R
+        where OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
+              T: Send + Clone,
+              R: Try<Ok = ()> + Send
+    {
+        self.map_with(init, op)
+            .try_reduce(|| (), |(), ()| R::from_ok(()))
+    }
+
     /// Counts the number of items in this parallel iterator.
     ///
     /// # Examples
