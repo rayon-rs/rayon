@@ -708,6 +708,35 @@ pub trait ParallelIterator: Sized + Send {
         try_reduce::try_reduce(self, identity, op)
     }
 
+    /// TODO
+    fn try_reduce_with<T, OP>(self, op: OP) -> Option<Self::Item>
+        where OP: Fn(T, T) -> Self::Item + Sync + Send,
+              Self::Item: Try<Ok = T>,
+              <Self::Item as Try>::Ok: Send,
+              <Self::Item as Try>::Error: Send
+    {
+        let result = self.try_fold(
+            || None,
+            |opt_a, try_b| match (opt_a, try_b.into_result()) {
+                (Some(a), Ok(b)) => op(a, b).into_result().map(Some),
+                (_, res_b) => res_b.map(Some),
+            },
+        ).try_reduce(
+            || None,
+            |opt_a, opt_b| match (opt_a, opt_b) {
+                (Some(a), Some(b)) => op(a, b).into_result().map(Some),
+                (Some(v), None) | (None, Some(v)) => Ok(Some(v)),
+                (None, None) => Ok(None),
+            },
+        );
+
+        match result {
+            Ok(None) => None,
+            Ok(Some(v)) => Some(Self::Item::from_ok(v)),
+            Err(e) => Some(Self::Item::from_error(e)),
+        }
+    }
+
     /// Parallel fold is similar to sequential fold except that the
     /// sequence of items may be subdivided before it is
     /// folded. Consider a list of numbers like `22 3 77 89 46`. If
