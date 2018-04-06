@@ -370,8 +370,7 @@ pub trait ParallelIterator: Sized + Send {
         where OP: Fn(Self::Item) -> R + Sync + Send,
               R: Try<Ok = ()> + Send
     {
-        self.try_fold_with((), move |(), x| op(x))
-            .try_reduce(|| (), |(), ()| R::from_ok(()))
+        self.map(op).try_reduce(|| (), |(), ()| R::from_ok(()))
     }
 
     /// TODO
@@ -715,13 +714,8 @@ pub trait ParallelIterator: Sized + Send {
               <Self::Item as Try>::Ok: Send,
               <Self::Item as Try>::Error: Send
     {
-        let result = self.try_fold(
-            || None,
-            |opt_a, try_b| match (opt_a, try_b.into_result()) {
-                (Some(a), Ok(b)) => op(a, b).into_result().map(Some),
-                (_, res_b) => res_b.map(Some),
-            },
-        ).try_reduce(
+        // Map into `Result<Option<Ok>, Error>`, then reduce it.
+        let result = self.map(|try_b| try_b.into_result().map(Some)).try_reduce(
             || None,
             |opt_a, opt_b| match (opt_a, opt_b) {
                 (Some(a), Some(b)) => op(a, b).into_result().map(Some),
@@ -730,6 +724,7 @@ pub trait ParallelIterator: Sized + Send {
             },
         );
 
+        // Map `Result<Option<Ok>, Error>` back to `Option<Self::Item>`.
         match result {
             Ok(None) => None,
             Ok(Some(v)) => Some(Self::Item::from_ok(v)),
