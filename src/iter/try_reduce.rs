@@ -102,22 +102,9 @@ impl<'r, R, T> Folder<T> for TryReduceFolder<'r, R, T>
         let result = self.result.and_then(|left| {
             reduce_op(left, item.into_result()?).into_result()
         });
-        TryReduceFolder {
-            result: result,
-            ..self
+        if result.is_err() {
+            self.full.store(true, Ordering::Relaxed)
         }
-    }
-
-    fn consume_iter<I>(self, iter: I) -> Self
-        where I: IntoIterator<Item = T>
-    {
-        let reduce_op = self.reduce_op;
-        let result = self.result.and_then(|mut left| {
-            for right in iter {
-                left = reduce_op(left, right.into_result()?).into_result()?;
-            }
-            Ok(left)
-        });
         TryReduceFolder {
             result: result,
             ..self

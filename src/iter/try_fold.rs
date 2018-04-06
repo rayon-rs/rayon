@@ -136,22 +136,9 @@ impl<'r, C, U, F, T> Folder<T> for TryFoldFolder<'r, C, U, F>
         let result = self.result.and_then(|acc| {
             fold_op(acc, item).into_result()
         });
-        TryFoldFolder {
-            result: result,
-            ..self
+        if result.is_err() {
+            self.full.store(true, Ordering::Relaxed);
         }
-    }
-
-    fn consume_iter<I>(self, iter: I) -> Self
-        where I: IntoIterator<Item = T>
-    {
-        let fold_op = self.fold_op;
-        let result = self.result.and_then(|mut acc| {
-            for item in iter {
-                acc = fold_op(acc, item).into_result()?;
-            }
-            Ok(acc)
-        });
         TryFoldFolder {
             result: result,
             ..self
