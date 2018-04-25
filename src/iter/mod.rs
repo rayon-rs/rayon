@@ -84,8 +84,8 @@ use self::plumbing::*;
 //   e.g. `find::find()`, are always used **prefixed**, so that they
 //   can be readily distinguished.
 
-mod as_parallel;
-pub use self::as_parallel::{AsParallel, IterParallel};
+mod par_bridge;
+pub use self::par_bridge::{ParallelBridge, IterParallel};
 
 mod find;
 mod find_first_last;

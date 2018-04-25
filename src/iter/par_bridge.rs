@@ -12,7 +12,7 @@ use current_num_threads;
 ///
 /// This needs to be distinct from `IntoParallelIterator` because that trait is already implemented
 /// on a few `Iterator`s, like `std::ops::Range`.
-pub trait AsParallel {
+pub trait ParallelBridge {
     /// What is the type of the output `ParallelIterator`?
     type Iter: ParallelIterator<Item = Self::Item>;
 
@@ -20,16 +20,16 @@ pub trait AsParallel {
     type Item: Send;
 
     /// Convert this type to a `ParallelIterator`.
-    fn as_parallel(self) -> Self::Iter;
+    fn par_bridge(self) -> Self::Iter;
 }
 
-impl<T: Iterator + Send> AsParallel for T
+impl<T: Iterator + Send> ParallelBridge for T
     where T::Item: Send
 {
     type Iter = IterParallel<T>;
     type Item = T::Item;
 
-    fn as_parallel(self) -> Self::Iter {
+    fn par_bridge(self) -> Self::Iter {
         IterParallel {
             iter: self,
         }

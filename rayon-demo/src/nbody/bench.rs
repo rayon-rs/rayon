@@ -31,8 +31,8 @@ fn nbody_par(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-fn nbody_par_as_parallel(b: &mut ::test::Bencher) {
-    nbody_bench(b, |n| { n.tick_par_as_parallel(); });
+fn nbody_par_bridge(b: &mut ::test::Bencher) {
+    nbody_bench(b, |n| { n.tick_par_bridge(); });
 }
 
 #[bench]

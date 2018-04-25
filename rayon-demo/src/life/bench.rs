@@ -12,5 +12,5 @@ fn parallel_generations(b: &mut ::test::Bencher) {
 
 #[bench]
 fn as_parallel_generations(b: &mut ::test::Bencher) {
-    b.iter(|| super::as_parallel_generations(Board::new(200, 200).random(), 100));
+    b.iter(|| super::par_bridge_generations(Board::new(200, 200).random(), 100));
 }
