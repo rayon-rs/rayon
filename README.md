@@ -1,3 +1,5 @@
+Note: This is an unstable fork made for use in rustc
+
 # Rayon
 
 [![Rayon crate](https://img.shields.io/crates/v/rayon.svg)](https://crates.io/crates/rayon)
