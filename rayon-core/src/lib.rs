@@ -50,6 +50,7 @@ mod scope;
 mod sleep;
 mod spawn;
 mod test;
+mod worker_local;
 mod thread_pool;
 mod unwind;
 mod util;
@@ -65,6 +66,7 @@ pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::{join, join_context};
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
+pub use worker_local::WorkerLocal;
 
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be

@@ -456,7 +456,7 @@ pub struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Deque<JobRef>,
 
-    index: usize,
+    pub(crate) index: usize,
 
     /// are these workers configured to steal breadth-first or not?
     breadth_first: bool,
@@ -464,7 +464,7 @@ pub struct WorkerThread {
     /// A weak random number generator.
     rng: UnsafeCell<rand::XorShiftRng>,
 
-    registry: Arc<Registry>,
+    pub(crate) registry: Arc<Registry>,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
