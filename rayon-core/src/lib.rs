@@ -141,6 +141,9 @@ pub struct ThreadPoolBuilder {
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
 
+    /// Closure invoked on worker thread start.
+    main_handler: Option<Box<MainHandler>>,
+
     /// If false, worker threads will execute spawned jobs in a
     /// "depth-first" fashion. If true, they will do a "breadth-first"
     /// fashion. Depth-first is the default.
@@ -169,6 +172,12 @@ type StartHandler = Fn(usize) + Send + Sync;
 /// closure is passed the index of the thread on which is is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
 type ExitHandler = Fn(usize) + Send + Sync;
+
+/// The type for a closure that gets invoked with a
+/// function which runs rayon tasks.
+/// The closure is passed the index of the thread on which it is invoked.
+/// Note that this same closure may be invoked multiple times in parallel.
+type MainHandler = Fn(usize, &mut FnMut()) + Send + Sync;
 
 impl ThreadPoolBuilder {
     /// Creates and returns a valid rayon thread pool builder, but does not initialize it.
@@ -369,6 +378,23 @@ impl ThreadPoolBuilder {
         self.exit_handler = Some(Box::new(exit_handler));
         self
     }
+
+    /// Takes the current thread main callback, leaving `None`.
+    fn take_main_handler(&mut self) -> Option<Box<MainHandler>> {
+        self.main_handler.take()
+    }
+
+    /// Set a callback to be invoked on thread main.
+    ///
+    /// The closure is passed the index of the thread on which it is invoked.
+    /// Note that this same closure may be invoked multiple times in parallel.
+    /// If this closure panics, the panic will be passed to the panic handler.
+    pub fn main_handler<H>(mut self, main_handler: H) -> ThreadPoolBuilder
+        where H: Fn(usize, &mut FnMut()) + Send + Sync + 'static
+    {
+        self.main_handler = Some(Box::new(main_handler));
+        self
+    }
 }
 
 #[allow(deprecated)]
@@ -474,7 +500,7 @@ impl fmt::Debug for ThreadPoolBuilder {
         let ThreadPoolBuilder { ref num_threads, ref get_thread_name,
                                 ref panic_handler, ref stack_size,
                                 ref start_handler, ref exit_handler,
-                                ref breadth_first } = *self;
+                                ref main_handler, ref breadth_first } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
         // output.
@@ -488,6 +514,7 @@ impl fmt::Debug for ThreadPoolBuilder {
         let panic_handler = panic_handler.as_ref().map(|_| ClosurePlaceholder);
         let start_handler = start_handler.as_ref().map(|_| ClosurePlaceholder);
         let exit_handler = exit_handler.as_ref().map(|_| ClosurePlaceholder);
+        let main_handler = main_handler.as_ref().map(|_| ClosurePlaceholder);
 
         f.debug_struct("ThreadPoolBuilder")
          .field("num_threads", num_threads)
@@ -496,6 +523,7 @@ impl fmt::Debug for ThreadPoolBuilder {
          .field("stack_size", &stack_size)
          .field("start_handler", &start_handler)
          .field("exit_handler", &exit_handler)
+         .field("main_handler", &main_handler)
          .field("breadth_first", &breadth_first)
          .finish()
     }

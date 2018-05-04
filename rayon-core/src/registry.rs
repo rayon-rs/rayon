@@ -1,4 +1,5 @@
-use ::{ExitHandler, PanicHandler, StartHandler, ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
+use ::{ExitHandler, PanicHandler, StartHandler, MainHandler,
+       ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
 use crossbeam_deque::{Deque, Steal, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
@@ -27,6 +28,7 @@ pub struct Registry {
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
+    main_handler: Option<Box<MainHandler>>,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -116,6 +118,7 @@ impl Registry {
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
+            main_handler: builder.take_main_handler(),
             exit_handler: builder.take_exit_handler(),
         });
 
@@ -671,7 +674,21 @@ unsafe fn main_loop(worker: Deque<JobRef>,
         }
     }
 
-    worker_thread.wait_until(&registry.terminate_latch);
+    let mut work = || {
+        worker_thread.wait_until(&registry.terminate_latch);
+    };
+
+    if let Some(ref handler) = registry.main_handler {
+        match unwind::halt_unwinding(|| handler(index, &mut work)) {
+            Ok(()) => {
+            }
+            Err(err) => {
+                registry.handle_panic(err);
+            }
+        }
+    } else {
+        work();
+    }
 
     // Should not be any work left in our queue.
     debug_assert!(worker_thread.take_local_job().is_none());
