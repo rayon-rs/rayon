@@ -54,6 +54,9 @@ mod thread_pool;
 mod unwind;
 mod util;
 
+#[cfg(feature = "tlv")]
+pub mod tlv;
+
 #[cfg(rayon_unstable)]
 pub mod internal;
 pub use thread_pool::ThreadPool;

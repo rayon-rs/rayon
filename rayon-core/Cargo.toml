@@ -12,6 +12,10 @@ readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
+[features]
+default = ["tlv"]
+tlv = []
+
 [dependencies]
 rand = ">= 0.3, < 0.5"
 num_cpus = "1.2"
