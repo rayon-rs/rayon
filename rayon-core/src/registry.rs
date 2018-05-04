@@ -215,8 +215,7 @@ impl Registry {
 
     /// Waits for the worker threads to stop. This is used for testing
     /// -- so we can check that termination actually works.
-    #[cfg(test)]
-    pub fn wait_until_stopped(&self) {
+    pub(crate) fn wait_until_stopped(&self) {
         for info in &self.thread_infos {
             info.stopped.wait();
         }

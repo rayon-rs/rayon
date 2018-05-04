@@ -85,6 +85,40 @@ impl ThreadPool {
         &DEFAULT_THREAD_POOL
     }
 
+    /// Creates a scoped thread pool
+    pub fn scoped_pool<F, R, H>(builder: ThreadPoolBuilder,
+                                main_handler: H,
+                                with_pool: F) -> Result<R, ThreadPoolBuildError>
+    where F: FnOnce(&ThreadPool) -> R,
+          H: Fn(&mut FnMut()) + Send + Sync
+    {
+        struct Handler(*const ());
+        unsafe impl Send for Handler {}
+        unsafe impl Sync for Handler {}
+
+        let handler = Handler(&main_handler as *const _ as *const ());
+
+        let builder = builder.main_handler(move |_, worker| {
+            let handler = unsafe { &*(handler.0 as *const H) };
+            handler(worker);
+        });
+
+        let pool = builder.build()?;
+
+        struct JoinRegistry(Arc<Registry>);
+
+        impl Drop for JoinRegistry {
+            fn drop(&mut self) {
+                self.0.terminate();
+                self.0.wait_until_stopped();
+            }
+        }
+
+        let _join_registry = JoinRegistry(pool.registry.clone());
+
+        Ok(with_pool(&pool))
+    }
+
     /// Executes `op` within the threadpool. Any attempts to use
     /// `join`, `scope`, or parallel iterators will then operate
     /// within that threadpool.
