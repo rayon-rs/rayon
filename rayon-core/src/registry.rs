@@ -594,7 +594,7 @@ pub struct WorkerThread {
 
     rx_resumed_tasks: crossbeam_channel::Receiver<Fiber>,
 
-    index: usize,
+    pub(crate) index: usize,
 
     #[cfg(feature = "debug")]
     stack_low: Ptr,

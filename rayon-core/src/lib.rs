@@ -72,12 +72,14 @@ mod sleep;
 mod spawn;
 mod test;
 mod thread_pool;
+mod worker_local;
 mod unwind;
 mod util;
 pub mod fiber;
 
 #[cfg(rayon_unstable)]
 pub mod internal;
+pub use worker_local::WorkerLocal;
 pub use thread_pool::ThreadPool;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
