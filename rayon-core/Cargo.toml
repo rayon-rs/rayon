@@ -20,7 +20,7 @@ coco = "0.3.2"
 libc = "0.2.16"
 lazy_static = "1"
 context = { git = "https://github.com/Zoxc/context-rs.git" }
-scoped-tls = { git = "https://github.com/Zoxc/scoped-tls.git", features=["nightly"] }
+scoped-tls = { version = "0.1.1", features=["nightly"] }
 crossbeam-channel = "0.1"
 ctrlc = { version = "3.0.3", optional = true }
 
