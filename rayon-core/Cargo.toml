@@ -1,5 +1,5 @@
 [package]
-name = "rayon-core"
+name = "rustc-rayon-core"
 version = "1.3.0" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]

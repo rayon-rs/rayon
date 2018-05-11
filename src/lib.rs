@@ -96,7 +96,7 @@
 //!
 //! [`std`]: https://doc.rust-lang.org/std/
 
-extern crate rayon_core;
+extern crate rustc_rayon_core as rayon_core;
 extern crate either;
 
 #[cfg(test)]

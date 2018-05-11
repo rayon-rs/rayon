@@ -1,5 +1,5 @@
 [package]
-name = "rayon"
+name = "rustc-rayon"
 # Reminder to update html_rool_url in lib.rs when updating version
 version = "0.9.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
@@ -13,11 +13,11 @@ keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [workspace]
-members = ["rayon-demo", "rayon-core", "rayon-futures"]
+members = ["rayon-core"]
 exclude = ["ci"]
 
 [dependencies]
-rayon-core = { version = "1.3", path = "rayon-core", features=[] }
+rustc-rayon-core = { version = "1.3", path = "rayon-core", features=[] }
 
 # This is a public dependency!
 [dependencies.either]
