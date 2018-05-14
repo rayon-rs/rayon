@@ -1,15 +1,32 @@
 //! Code that decides when workers should go to sleep. See README.md
 //! for an overview.
 
+use DeadlockHandler;
 use log::Event::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
 
+struct SleepData {
+    worker_count: usize,
+    active_threads: usize,
+    blocked_threads: usize,
+    external_waiters: usize,
+}
+
+impl SleepData {
+    #[inline]
+    pub fn deadlock_check(&self, deadlock_handler: &Option<Box<DeadlockHandler>>) {
+        if self.active_threads == 0 && self.external_waiters > 0 {
+            (deadlock_handler.as_ref().unwrap())();
+        }
+    }
+}
+
 pub struct Sleep {
     state: AtomicUsize,
-    data: Mutex<()>,
+    data: Mutex<SleepData>,
     tickle: Condvar,
 }
 
@@ -20,12 +37,49 @@ const ROUNDS_UNTIL_SLEEPY: usize = 32;
 const ROUNDS_UNTIL_ASLEEP: usize = 64;
 
 impl Sleep {
-    pub fn new() -> Sleep {
+    pub fn new(worker_count: usize) -> Sleep {
         Sleep {
             state: AtomicUsize::new(AWAKE),
-            data: Mutex::new(()),
+            data: Mutex::new(SleepData {
+                worker_count,
+                active_threads: worker_count,
+                blocked_threads: 0,
+                external_waiters: 0,
+            }),
             tickle: Condvar::new(),
         }
+    }
+
+    #[inline]
+    pub fn add_external_waiter(&self) {
+        let mut data = self.data.lock().unwrap();
+        data.external_waiters += 1;
+    }
+
+    #[inline]
+    pub fn sub_external_waiter(&self) {
+        let mut data = self.data.lock().unwrap();
+        data.external_waiters -= 1;
+    }
+
+    #[inline]
+    pub fn block(&self, deadlock_handler: &Option<Box<DeadlockHandler>>) {
+        let mut data = self.data.lock().unwrap();
+        debug_assert!(data.blocked_threads < data.worker_count);
+        debug_assert!(data.active_threads > 0);
+        data.active_threads -= 1;
+        data.blocked_threads += 1;
+
+        data.deadlock_check(deadlock_handler);
+    }
+
+    #[inline]
+    pub fn unblock(&self) {
+        let mut data = self.data.lock().unwrap();
+        debug_assert!(data.active_threads < data.worker_count);
+        debug_assert!(data.blocked_threads > 0);
+        data.active_threads += 1;
+        data.blocked_threads -= 1;
     }
 
     fn anyone_sleeping(&self, state: usize) -> bool {
@@ -61,7 +115,7 @@ impl Sleep {
     }
 
     #[inline]
-    pub fn no_work_found(&self, worker_index: usize, yields: usize) -> usize {
+    pub fn no_work_found(&self, worker_index: usize, yields: usize, deadlock_handler: &Option<Box<DeadlockHandler>>) -> usize {
         log!(DidNotFindWork {
             worker: worker_index,
             yields: yields,
@@ -86,7 +140,7 @@ impl Sleep {
             }
         } else {
             debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            self.sleep(worker_index);
+            self.sleep(worker_index, deadlock_handler);
             0
         }
     }
@@ -120,7 +174,8 @@ impl Sleep {
             old_state: old_state,
         });
         if self.anyone_sleeping(old_state) {
-            let _data = self.data.lock().unwrap();
+            let mut data = self.data.lock().unwrap();
+            data.active_threads = data.worker_count - data.blocked_threads;
             self.tickle.notify_all();
         }
     }
@@ -182,7 +237,7 @@ impl Sleep {
         self.worker_is_sleepy(state, worker_index)
     }
 
-    fn sleep(&self, worker_index: usize) {
+    fn sleep(&self, worker_index: usize, deadlock_handler: &Option<Box<DeadlockHandler>>) {
         loop {
             // Acquire here suffices. If we observe that the current worker is still
             // sleepy, then in fact we know that no writes have occurred, and anyhow
@@ -229,7 +284,7 @@ impl Sleep {
                 // reason for the `compare_exchange` to fail is if an
                 // awaken comes, in which case the next cycle around
                 // the loop will just return.
-                let data = self.data.lock().unwrap();
+                let mut data = self.data.lock().unwrap();
 
                 // This must be SeqCst on success because we want to
                 // ensure:
@@ -254,6 +309,11 @@ impl Sleep {
                     // problem for us, we'll just loop around and maybe get
                     // sleepy again.
                     log!(FellAsleep { worker: worker_index });
+
+                    data.active_threads -= 1;
+
+                    data.deadlock_check(deadlock_handler);
+
                     let _ = self.tickle.wait(data).unwrap();
                     log!(GotAwoken { worker: worker_index });
                     return;

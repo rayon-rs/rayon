@@ -1,4 +1,4 @@
-use ::{ExitHandler, PanicHandler, StartHandler, MainHandler,
+use ::{ExitHandler, PanicHandler, DeadlockHandler, StartHandler, MainHandler,
        ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
 use crossbeam_deque::{Deque, Steal, Stealer};
 use job::{JobRef, StackJob};
@@ -26,6 +26,7 @@ pub struct Registry {
     sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
+    deadlock_handler: Option<Box<DeadlockHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
     main_handler: Option<Box<MainHandler>>,
@@ -113,10 +114,11 @@ impl Registry {
                 .map(|s| ThreadInfo::new(s))
                 .collect(),
             state: Mutex::new(RegistryState::new(inj_worker)),
-            sleep: Sleep::new(),
+            sleep: Sleep::new(n_threads),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
+            deadlock_handler: builder.take_deadlock_handler(),
             start_handler: builder.take_start_handler(),
             main_handler: builder.take_main_handler(),
             exit_handler: builder.take_exit_handler(),
@@ -354,6 +356,17 @@ impl Registry {
         let job = StackJob::new(|injected| {
             let worker_thread = WorkerThread::current();
             assert!(injected && !worker_thread.is_null());
+            let worker_thread = &*worker_thread;
+            worker_thread.registry.sleep.add_external_waiter();
+            struct OnDrop<F: Fn()>(F);
+            impl<F: Fn()> Drop for OnDrop<F> {
+                fn drop(&mut self) {
+                    (self.0)();
+                }
+            }
+            let _on_drop = OnDrop(|| {
+                worker_thread.registry.sleep.sub_external_waiter();
+            });
             op(&*worker_thread, true)
         }, LockLatch::new());
         self.inject(&[job.as_job_ref()]);
@@ -410,6 +423,24 @@ impl Registry {
         self.terminate_latch.set();
         self.sleep.tickle(usize::MAX);
     }
+}
+
+/// Mark a Rayon worker thread as blocked. This triggers the deadlock handler
+/// if no other worker thread is active
+#[inline]
+pub fn block() {
+    let worker_thread = WorkerThread::current();
+    assert!(!worker_thread.is_null());
+    unsafe {
+        let registry = &(*worker_thread).registry;
+        registry.sleep.block(&registry.deadlock_handler)
+    }
+}
+
+/// Mark a previously blocked Rayon worker thread as unblocked
+#[inline]
+pub fn unblock(registry: &Registry) {
+    registry.sleep.unblock()
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -568,7 +599,11 @@ impl WorkerThread {
                 yields = self.registry.sleep.work_found(self.index, yields);
                 self.execute(job);
             } else {
-                yields = self.registry.sleep.no_work_found(self.index, yields);
+                yields = self.registry.sleep.no_work_found(
+                    self.index,
+                    yields,
+                    &self.registry.deadlock_handler
+                );
             }
         }
 
