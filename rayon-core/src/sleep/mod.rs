@@ -9,13 +9,24 @@ use std::thread;
 use std::usize;
 
 struct SleepData {
+    /// The number of threads in the thread pool.
     worker_count: usize,
+
+    /// The number of threads in the thread pool which are running and
+    /// aren't blocked in user code or sleeping.
     active_threads: usize,
+
+    /// The number of threads which are blocked in user code.
+    /// This doesn't include threads blocked by this module.
     blocked_threads: usize,
+
+    /// The number of things outside the thread pool
+    /// which are waiting on result from the thread pool.
     external_waiters: usize,
 }
 
 impl SleepData {
+    /// Checks if the conditions for a deadlock holds and if so calls the deadlock handler
     #[inline]
     pub fn deadlock_check(&self, deadlock_handler: &Option<Box<DeadlockHandler>>) {
         if self.active_threads == 0 && self.external_waiters > 0 {
@@ -50,21 +61,31 @@ impl Sleep {
         }
     }
 
+    /// Indicate that the thread pool gained an external waiter.
+    /// An external waiter something that waits for a value from the thread pool,
+    /// but is not on a thread in the thread pool.
+    /// This is called from Registry::in_worker_cold.
+    /// The deadlock handler is only triggered if we have any external waiters.
     #[inline]
     pub fn add_external_waiter(&self) {
         let mut data = self.data.lock().unwrap();
         data.external_waiters += 1;
     }
 
+    /// Indicate that the thread pool lost an external waiter.
+    /// This is called from Registry::in_worker_cold.
     #[inline]
     pub fn sub_external_waiter(&self) {
         let mut data = self.data.lock().unwrap();
         data.external_waiters -= 1;
     }
 
+    /// Mark a Rayon worker thread as blocked. This triggers the deadlock handler
+    /// if no other worker thread is active
     #[inline]
-    pub fn block(&self, deadlock_handler: &Option<Box<DeadlockHandler>>) {
+    pub fn mark_blocked(&self, deadlock_handler: &Option<Box<DeadlockHandler>>) {
         let mut data = self.data.lock().unwrap();
+        debug_assert!(data.active_threads > 0);
         debug_assert!(data.blocked_threads < data.worker_count);
         debug_assert!(data.active_threads > 0);
         data.active_threads -= 1;
@@ -73,8 +94,9 @@ impl Sleep {
         data.deadlock_check(deadlock_handler);
     }
 
+    /// Mark a previously blocked Rayon worker thread as unblocked
     #[inline]
-    pub fn unblock(&self) {
+    pub fn mark_unblocked(&self) {
         let mut data = self.data.lock().unwrap();
         debug_assert!(data.active_threads < data.worker_count);
         debug_assert!(data.blocked_threads > 0);
@@ -175,6 +197,8 @@ impl Sleep {
         });
         if self.anyone_sleeping(old_state) {
             let mut data = self.data.lock().unwrap();
+            // Set the active threads to the number of workers,
+            // excluding threads blocked by the user since we won't wake those up
             data.active_threads = data.worker_count - data.blocked_threads;
             self.tickle.notify_all();
         }
@@ -310,8 +334,8 @@ impl Sleep {
                     // sleepy again.
                     log!(FellAsleep { worker: worker_index });
 
+                    // Decrement the number of active threads and check for a deadlock
                     data.active_threads -= 1;
-
                     data.deadlock_check(deadlock_handler);
 
                     let _ = self.tickle.wait(data).unwrap();
