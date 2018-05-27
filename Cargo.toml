@@ -16,6 +16,11 @@ categories = ["concurrency"]
 members = ["rayon-demo", "rayon-core", "rayon-futures"]
 exclude = ["ci"]
 
+[features]
+default = []
+
+range128 = []
+
 [dependencies]
 rayon-core = { version = "1.4", path = "rayon-core" }
 

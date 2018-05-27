@@ -53,7 +53,7 @@ build: false
 test_script:
   - cargo build
   - if [%CHANNEL%]==[nightly] (
-      cargo test -p rayon &&
+      cargo test -p rayon --all-features &&
       cargo test -p rayon-core &&
       cargo test -p rayon-demo
     )

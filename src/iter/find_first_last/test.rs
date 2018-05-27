@@ -127,6 +127,19 @@ fn octillion() -> impl ParallelIterator<Item = u128> {
         )
 }
 
+#[cfg(feature = "range128")]
+fn octillion_range128() -> impl ParallelIterator<Item = u128> {
+    (0u128..1_000_000_000_000_000_000_000_000_000).into_par_iter()
+}
+
+#[cfg(feature = "range128")]
+#[test]
+fn find_first_octillion() {
+    let x = octillion_range128().find_first(|_| true);
+    assert_eq!(x, Some(0));
+}
+
+#[cfg(not(feature = "range128"))]
 #[test]
 fn find_first_octillion() {
     let x = octillion().find_first(|_| true);

@@ -188,6 +188,9 @@ indexed_range_impl!{isize}
 unindexed_range_impl!{u64}
 unindexed_range_impl!{i64}
 
+// 128-bit support uses a feature to permit rustc < 1.26
+#[cfg(feature = "range128")] unindexed_range_impl !{u128}
+#[cfg(feature = "range128")] unindexed_range_impl !{i128}
 
 #[test]
 pub fn check_range_split_at_overflow() {
