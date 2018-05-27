@@ -51,11 +51,13 @@ matrix:
 build: false
 
 test_script:
-  - cargo build
   - if [%CHANNEL%]==[nightly] (
-      cargo test -p rayon &&
+      cargo build --features range128 &&
+      cargo test -p rayon --features range128 &&
       cargo test -p rayon-core &&
       cargo test -p rayon-demo
+    ) else (
+      cargo build
     )
   - if not "%RUSTFLAGS%"=="%^RUSTFLAGS%" (
       cargo clean &&
