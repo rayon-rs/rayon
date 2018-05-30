@@ -10,8 +10,39 @@ use current_num_threads;
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
-/// This needs to be distinct from `IntoParallelIterator` because that trait is already implemented
-/// on a few `Iterator`s, like `std::ops::Range`.
+/// This creates a "bridge" from a sequential iterator to a parallel one, by distributing its items
+/// across the Rayon thread pool. This has the advantage of being able to parallelize just about
+/// anything, but the resulting `ParallelIterator` can be less efficient than if you started with
+/// `par_iter` instead. However, it can still be useful for iterators that are difficult to
+/// parallelize by other means, like channels or file or network I/O.
+///
+/// The resulting iterator is not guaranteed to keep the order of the original iterator.
+///
+/// # Examples
+///
+/// To use this trait, take an existing `Iterator` and call `par_bridge` on it. After that, you can
+/// use any of the `ParallelIterator` methods:
+///
+/// ```
+/// use rayon::iter::ParallelBridge;
+/// use rayon::prelude::ParallelIterator;
+/// use std::sync::mpsc::channel;
+///
+/// let rx = {
+///     let (tx, rx) = channel();
+///
+///     tx.send("one!");
+///     tx.send("two!");
+///     tx.send("three!");
+///
+///     rx
+/// };
+///
+/// let mut output: Vec<&'static str> = rx.into_iter().par_bridge().collect();
+/// output.sort_unstable();
+///
+/// assert_eq!(&*output, &["one!", "three!", "two!"]);
+/// ```
 pub trait ParallelBridge {
     /// What is the type of the output `ParallelIterator`?
     type Iter: ParallelIterator<Item = Self::Item>;
@@ -37,6 +68,11 @@ impl<T: Iterator + Send> ParallelBridge for T
 }
 
 /// `IterParallel` is a parallel iterator that wraps a sequential iterator.
+///
+/// This type is created when using the `par_bridge` method on `ParallelBridge`. See the
+/// [`ParallelBridge`] documentation for details.
+///
+/// [`ParallelBridge`]: trait.ParallelBridge.html
 #[derive(Debug)]
 pub struct IterParallel<Iter> {
     iter: Iter,
