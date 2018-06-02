@@ -101,9 +101,15 @@ fn find_last_folder_yields_last_match() {
     assert_eq!(f.complete(), Some(2_i32));
 }
 
+/// Produce a parallel iterator for 0u128..10²⁷
+#[cfg(has_i128)]
+fn octillion() -> impl ParallelIterator<Item = u128> {
+    (0u128..1_000_000_000_000_000_000_000_000_000).into_par_iter()
+}
 
 /// Produce a parallel iterator for 0u128..10²⁷
-fn octillion() -> impl ParallelIterator<Item = u128> {
+#[cfg(not(has_i128))]
+fn octillion() -> impl ParallelIterator<Item = u128>{
     (0u32..1_000_000_000)
         .into_par_iter()
         .with_max_len(1_000)
@@ -127,19 +133,6 @@ fn octillion() -> impl ParallelIterator<Item = u128> {
         )
 }
 
-#[cfg(feature = "range128")]
-fn octillion_range128() -> impl ParallelIterator<Item = u128> {
-    (0u128..1_000_000_000_000_000_000_000_000_000).into_par_iter()
-}
-
-#[cfg(feature = "range128")]
-#[test]
-fn find_first_octillion() {
-    let x = octillion_range128().find_first(|_| true);
-    assert_eq!(x, Some(0));
-}
-
-#[cfg(not(feature = "range128"))]
 #[test]
 fn find_first_octillion() {
     let x = octillion().find_first(|_| true);

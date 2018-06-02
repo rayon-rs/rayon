@@ -73,15 +73,13 @@ matrix:
 
 
 script:
+  - cargo build
   - |
     if [ $TRAVIS_RUST_VERSION == nightly ]; then
-      cargo build --features range128 &&
-      cargo test -p rayon --features range128 &&
+      cargo test -p rayon &&
       cargo test -p rayon-core &&
       cargo test -p rayon-demo &&
       ./ci/highlander.sh
-    else
-      cargo build
     fi
   - |
     if [ -n "$RUSTFLAGS" ]; then
