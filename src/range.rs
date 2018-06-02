@@ -203,7 +203,8 @@ pub fn check_range_split_at_overflow() {
 #[cfg(has_i128)]
 #[test]
 pub fn test_i128_len_doesnt_overflow() {
-    let octillion = 1_000_000_000_000_000_000_000_000_000i128;
+    // Using parse because some versions of rust don't allow long literals
+    let octillion = "1000000000000000000000000000".parse::<i128>().unwrap();
     let producer = IterProducer { range: 0..octillion };
 
     assert_eq!(octillion as u128, producer.len());
