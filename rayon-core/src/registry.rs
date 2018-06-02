@@ -356,17 +356,6 @@ impl Registry {
         let job = StackJob::new(|injected| {
             let worker_thread = WorkerThread::current();
             assert!(injected && !worker_thread.is_null());
-            let worker_thread = &*worker_thread;
-            worker_thread.registry.sleep.add_external_waiter();
-            struct OnDrop<F: Fn()>(F);
-            impl<F: Fn()> Drop for OnDrop<F> {
-                fn drop(&mut self) {
-                    (self.0)();
-                }
-            }
-            let _on_drop = OnDrop(|| {
-                worker_thread.registry.sleep.sub_external_waiter();
-            });
             op(&*worker_thread, true)
         }, LockLatch::new());
         self.inject(&[job.as_job_ref()]);

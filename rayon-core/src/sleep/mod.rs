@@ -19,17 +19,13 @@ struct SleepData {
     /// The number of threads which are blocked in user code.
     /// This doesn't include threads blocked by this module.
     blocked_threads: usize,
-
-    /// The number of things outside the thread pool
-    /// which are waiting on result from the thread pool.
-    external_waiters: usize,
 }
 
 impl SleepData {
     /// Checks if the conditions for a deadlock holds and if so calls the deadlock handler
     #[inline]
     pub fn deadlock_check(&self, deadlock_handler: &Option<Box<DeadlockHandler>>) {
-        if self.active_threads == 0 && self.external_waiters > 0 {
+        if self.active_threads == 0 && self.blocked_threads > 0 {
             (deadlock_handler.as_ref().unwrap())();
         }
     }
@@ -55,29 +51,9 @@ impl Sleep {
                 worker_count,
                 active_threads: worker_count,
                 blocked_threads: 0,
-                external_waiters: 0,
             }),
             tickle: Condvar::new(),
         }
-    }
-
-    /// Indicate that the thread pool gained an external waiter.
-    /// An external waiter something that waits for a value from the thread pool,
-    /// but is not on a thread in the thread pool.
-    /// This is called from Registry::in_worker_cold.
-    /// The deadlock handler is only triggered if we have any external waiters.
-    #[inline]
-    pub fn add_external_waiter(&self) {
-        let mut data = self.data.lock().unwrap();
-        data.external_waiters += 1;
-    }
-
-    /// Indicate that the thread pool lost an external waiter.
-    /// This is called from Registry::in_worker_cold.
-    #[inline]
-    pub fn sub_external_waiter(&self) {
-        let mut data = self.data.lock().unwrap();
-        data.external_waiters -= 1;
     }
 
     /// Mark a Rayon worker thread as blocked. This triggers the deadlock handler

@@ -397,8 +397,6 @@ It contains the following fields:
                      and aren't blocked in user code or sleeping.
 - `blocked_threads` - The number of threads which are blocked in user code.
                       This doesn't include threads blocked by Rayon.
-- `external_waiters` - The number of things outside the thread pool which
-                       are waiting on result from the thread pool.
 
 User code can indicate blocking by calling `mark_blocked` before blocking and
 calling `mark_unblocked` before unblocking a thread.
@@ -408,13 +406,12 @@ When we tickle the thread pool in `Sleep::tickle_cold`, we set `active_threads` 
 `worker_count` - `blocked_threads` since we wake up all Rayon threads, but not thread blocked
 by user code.
 
-`external_waiters` is updated by `Registry::in_worker_cold` which ensures that it is not
-0 while something is running on our thread pool.
-
-A deadlock is detected by checking if `active_threads` is 0 and `external_waiters` is above 0.
-If we ignored `external_waiters` we would have a deadlock
+A deadlock is detected by checking if `active_threads` is 0 and `blocked_threads` is above 0.
+If we ignored `blocked_threads` we would have a deadlock
 immediately when creating the thread pool.
 We would also deadlock once the thread pool ran out of work.
+It is not possible for Rayon itself to deadlock.
+Deadlocks can only be caused by user code blocking, so this condition doesn't miss any deadlocks.
 
 We check for the deadlock condition when
 threads fall asleep in `mark_unblocked` and in `Sleep::sleep`.
