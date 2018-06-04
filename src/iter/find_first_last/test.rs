@@ -101,9 +101,17 @@ fn find_last_folder_yields_last_match() {
     assert_eq!(f.complete(), Some(2_i32));
 }
 
+/// Produce a parallel iterator for 0u128..10²⁷
+#[cfg(has_i128)]
+fn octillion() -> impl ParallelIterator<Item = u128> {
+    // Using parse because some versions of rust don't allow long literals
+    let octillion = "1000000000000000000000000000".parse::<u128>().unwrap();
+    (0u128..octillion).into_par_iter()
+}
 
 /// Produce a parallel iterator for 0u128..10²⁷
-fn octillion() -> impl ParallelIterator<Item = u128> {
+#[cfg(not(has_i128))]
+fn octillion() -> impl ParallelIterator<Item = u128>{
     (0u32..1_000_000_000)
         .into_par_iter()
         .with_max_len(1_000)

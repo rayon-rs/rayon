@@ -1436,7 +1436,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 ///
-/// **Note:** Not implemented for `u64` and `i64` ranges
+/// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution

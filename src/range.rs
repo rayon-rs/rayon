@@ -23,7 +23,7 @@ use std::ops::Range;
 /// Parallel iterator over a range, implemented for all integer types.
 ///
 /// **Note:** The `zip` operation requires `IndexedParallelIterator`
-/// which is not implemented for `u64` or `i64`.
+/// which is not implemented for `u64`, `i64`, `u128`, or `i128`.
 ///
 /// ```
 /// use rayon::prelude::*;
@@ -128,12 +128,12 @@ macro_rules! indexed_range_impl {
 }
 
 macro_rules! unindexed_range_impl {
-    ( $t:ty ) => {
+    ( $t:ty, $len_t:ty ) => {
         impl IterProducer<$t> {
-            fn len(&self) -> u64 {
+            fn len(&self) -> $len_t {
                 let Range { start, end } = self.range;
                 if end > start {
-                    end.wrapping_sub(start) as u64
+                    end.wrapping_sub(start) as $len_t
                 } else {
                     0
                 }
@@ -185,9 +185,10 @@ indexed_range_impl!{i32}
 indexed_range_impl!{isize}
 
 // other Range<T> with just Iterator
-unindexed_range_impl!{u64}
-unindexed_range_impl!{i64}
-
+unindexed_range_impl!{u64, u64}
+unindexed_range_impl!{i64, u64}
+#[cfg(has_i128)] unindexed_range_impl!{u128, u128}
+#[cfg(has_i128)] unindexed_range_impl!{i128, u128}
 
 #[test]
 pub fn check_range_split_at_overflow() {
@@ -197,4 +198,14 @@ pub fn check_range_split_at_overflow() {
     let r1: i32 = left.range.map(|i| i as i32).sum();
     let r2: i32 = right.range.map(|i| i as i32).sum();
     assert_eq!(r1 + r2, -100);
+}
+
+#[cfg(has_i128)]
+#[test]
+pub fn test_i128_len_doesnt_overflow() {
+    // Using parse because some versions of rust don't allow long literals
+    let octillion = "1000000000000000000000000000".parse::<i128>().unwrap();
+    let producer = IterProducer { range: 0..octillion };
+
+    assert_eq!(octillion as u128, producer.len());
 }
