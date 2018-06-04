@@ -187,8 +187,8 @@ indexed_range_impl!{isize}
 // other Range<T> with just Iterator
 unindexed_range_impl!{u64, u64}
 unindexed_range_impl!{i64, u64}
-#[cfg(has_i128)] unindexed_range_impl !{u128, u128}
-#[cfg(has_i128)] unindexed_range_impl !{i128, u128}
+#[cfg(has_i128)] unindexed_range_impl!{u128, u128}
+#[cfg(has_i128)] unindexed_range_impl!{i128, u128}
 
 #[test]
 pub fn check_range_split_at_overflow() {
