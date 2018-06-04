@@ -10,7 +10,10 @@ use log::Event::*;
 use sleep::Sleep;
 use std::any::Any;
 use std::cell::Cell;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::thread;
 use std::mem;
 use std::usize;
@@ -601,7 +604,7 @@ impl WorkerThread {
             return None;
         }
 
-        let start = self.rng.next() as usize % num_threads;
+        let start = self.rng.next_usize(num_threads);
         (start .. num_threads)
             .chain(0 .. start)
             .filter(|&i| i != self.index)
@@ -716,12 +719,14 @@ struct XorShift64Star {
 
 impl XorShift64Star {
     fn new() -> Self {
-        // Any non-zero seed will do -- this uses a stack address, which should be unique since
-        // we're only calling this once from each new thread.  The address is also shift-XORed to
-        // give us some high bits even on 32-bit platforms.
-        let base = 0;
-        let addr = &base as *const _ as u64;
-        let seed = addr ^ (addr << 32);
+        // Any non-zero seed will do -- this uses the hash of a global counter.
+        let mut seed = 0;
+        while seed == 0 {
+            let mut hasher = DefaultHasher::new();
+            static COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+            hasher.write_usize(COUNTER.fetch_add(1, Ordering::Relaxed));
+            seed = hasher.finish();
+        }
 
         XorShift64Star {
             state: Cell::new(seed),
@@ -736,5 +741,10 @@ impl XorShift64Star {
         x ^= x >> 27;
         self.state.set(x);
         x.wrapping_mul(0x2545_f491_4f6c_dd1d)
+    }
+
+    /// Return a value from `0..n`.
+    fn next_usize(&self, n: usize) -> usize {
+        (self.next() % n as u64) as usize
     }
 }
