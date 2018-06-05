@@ -14,7 +14,6 @@ keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [dependencies]
-rand = ">= 0.3, < 0.5"
 num_cpus = "1.2"
 libc = "0.2.16"
 lazy_static = "1"
@@ -25,3 +24,4 @@ lazy_static = "1"
 version = "0.2.0"
 
 [dev-dependencies]
+rand = "0.4"

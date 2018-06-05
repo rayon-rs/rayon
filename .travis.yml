@@ -15,12 +15,6 @@ matrix:
     - rust: 1.13.0
       os: linux
       #if: everything!
-      before_script:
-        # rand 0.4.2 requires rust 1.15, and rand-0.3.22 requires rand-0.4  :/
-        # manually lowering the dependency in rayon-core:
-        - sed -i -e 's/^rand = .*$/rand = "=0.3.20"/' rayon-core/Cargo.toml
-        - cargo generate-lockfile
-        - git checkout rayon-core/Cargo.toml
 
     - rust: stable
       os: linux

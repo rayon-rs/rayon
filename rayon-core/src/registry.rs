@@ -7,14 +7,15 @@ use job::Job;
 use internal::task::Task;
 use latch::{LatchProbe, Latch, CountLatch, LockLatch, SpinLatch, TickleLatch};
 use log::Event::*;
-use rand::{self, Rng};
 use sleep::Sleep;
 use std::any::Any;
-use std::cell::{Cell, UnsafeCell};
+use std::cell::Cell;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 use std::sync::{Arc, Mutex, Once, ONCE_INIT};
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::thread;
 use std::mem;
-use std::u32;
 use std::usize;
 use unwind;
 use util::leak;
@@ -460,7 +461,7 @@ pub struct WorkerThread {
     breadth_first: bool,
 
     /// A weak random number generator.
-    rng: UnsafeCell<rand::XorShiftRng>,
+    rng: XorShift64Star,
 
     registry: Arc<Registry>,
 }
@@ -602,17 +603,8 @@ impl WorkerThread {
         if num_threads <= 1 {
             return None;
         }
-        assert!(num_threads < (u32::MAX as usize),
-                "we do not support more than u32::MAX worker threads");
 
-        let start = {
-            // OK to use this UnsafeCell because (a) this data is
-            // confined to current thread, as WorkerThread is not Send
-            // nor Sync and (b) rand crate will not call back into
-            // this method.
-            let rng = &mut *self.rng.get();
-            rng.next_u32() % num_threads as u32
-        } as usize;
+        let start = self.rng.next_usize(num_threads);
         (start .. num_threads)
             .chain(0 .. start)
             .filter(|&i| i != self.index)
@@ -646,7 +638,7 @@ unsafe fn main_loop(worker: Deque<JobRef>,
         worker: worker,
         breadth_first: breadth_first,
         index: index,
-        rng: UnsafeCell::new(rand::weak_rng()),
+        rng: XorShift64Star::new(),
         registry: registry.clone(),
     };
     WorkerThread::set_current(&worker_thread);
@@ -714,5 +706,45 @@ pub fn in_worker<OP, R>(op: OP) -> R
         } else {
             global_registry().in_worker_cold(op)
         }
+    }
+}
+
+/// [xorshift*] is a fast pseudorandom number generator which will
+/// even tolerate weak seeding, as long as it's not zero.
+///
+/// [xorshift*]: https://en.wikipedia.org/wiki/Xorshift#xorshift*
+struct XorShift64Star {
+    state: Cell<u64>,
+}
+
+impl XorShift64Star {
+    fn new() -> Self {
+        // Any non-zero seed will do -- this uses the hash of a global counter.
+        let mut seed = 0;
+        while seed == 0 {
+            let mut hasher = DefaultHasher::new();
+            static COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+            hasher.write_usize(COUNTER.fetch_add(1, Ordering::Relaxed));
+            seed = hasher.finish();
+        }
+
+        XorShift64Star {
+            state: Cell::new(seed),
+        }
+    }
+
+    fn next(&self) -> u64 {
+        let mut x = self.state.get();
+        debug_assert_ne!(x, 0);
+        x ^= x >> 12;
+        x ^= x << 25;
+        x ^= x >> 27;
+        self.state.set(x);
+        x.wrapping_mul(0x2545_f491_4f6c_dd1d)
+    }
+
+    /// Return a value from `0..n`.
+    fn next_usize(&self, n: usize) -> usize {
+        (self.next() % n as u64) as usize
     }
 }
