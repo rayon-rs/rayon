@@ -66,7 +66,13 @@ matrix:
         - cargo build --target $TARGET
       if: NOT type = pull_request
 
-    # rayon-demo has huge dependencies, so just test it once
+    # rayon-demo has huge dependencies, so limit its testing.
+    # build on stable, test on nightly (because of #[bench])
+    - rust: stable
+      os: linux
+      env: DEMO=1
+      script: cargo build -p rayon-demo
+      if: NOT type = pull_request
     - rust: nightly
       os: linux
       env: DEMO=1

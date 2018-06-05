@@ -1,5 +1,4 @@
 #![cfg_attr(test, feature(test))]
-#![feature(conservative_impl_trait)]
 
 use std::env;
 use std::io;
