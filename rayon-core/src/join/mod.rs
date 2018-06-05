@@ -39,7 +39,7 @@ mod test;
 /// sort for real, you should prefer [the `par_sort` method] offered
 /// by Rayon).
 ///
-/// [the `par_sort` method]: ../slice/trait.ParallelSliceMut.html#method.par_sort
+/// [the `par_sort` method]: ../rayon/slice/trait.ParallelSliceMut.html#method.par_sort
 ///
 /// ```rust
 /// # use rayon_core as rayon;

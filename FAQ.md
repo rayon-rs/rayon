@@ -196,7 +196,7 @@ these are preferable to random failures in my experience.
 ## But wait, isn't Rust supposed to free me from this kind of thinking?
 
 You might think that Rust is supposed to mean that you don't have to
-think about atomicity at all. In fact, if you avoid inherent
+think about atomicity at all. In fact, if you avoid interior
 mutability (`Cell` and `RefCell` in a sequential setting, or
 `AtomicUsize`, `RwLock`, `Mutex`, et al. in parallel code), then this
 is true: the type system will basically guarantee that you don't have

@@ -14,13 +14,17 @@ keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [dependencies]
-rand = ">= 0.3, < 0.5"
 num_cpus = "1.2"
-crossbeam-deque = "0.2.0"
 libc = "0.2.16"
 lazy_static = "1"
 
+# This is deliberately not the latest version, because we want
+# to support older rustc than crossbeam-deque 0.3+ does.
+[dependencies.crossbeam-deque]
+version = "0.2.0"
+
 [dev-dependencies]
+rand = "0.4"
 
 [[test]]
 name = "stack_overflow_crash"

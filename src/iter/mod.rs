@@ -58,13 +58,13 @@
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
 //! traits.
 //!
-//! If you'd like to offer parallel iterators for your own collector,
-//! or write your own combinator, then check out the [plumbing]
-//! module.
+//! If you'd like to build a custom parallel iterator, or to write your own
+//! combinator, then check out the [split] function and the [plumbing] module.
 //!
 //! [regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
 //! [`ParallelIterator`]: trait.ParallelIterator.html
 //! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+//! [split]: fn.split.html
 //! [plumbing]: plumbing
 
 pub use either::Either;
@@ -745,9 +745,9 @@ pub trait ParallelIterator: Sized + Send {
     /// ### Fold vs Map/Reduce
     ///
     /// Fold makes sense if you have some operation where it is
-    /// cheaper to groups of elements at a time. For example, imagine
-    /// collecting characters into a string. If you were going to use
-    /// map/reduce, you might try this:
+    /// cheaper to create groups of elements at a time. For example,
+    /// imagine collecting characters into a string. If you were going
+    /// to use map/reduce, you might try this:
     ///
     /// ```
     /// use rayon::prelude::*;
@@ -765,7 +765,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Because reduce produces the same type of element as its input,
     /// you have to first map each character into a string, and then
     /// you can reduce them. This means we create one string per
-    /// element in ou iterator -- not so great. Using `fold`, we can
+    /// element in our iterator -- not so great. Using `fold`, we can
     /// do this instead:
     ///
     /// ```
@@ -1436,7 +1436,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// that you can split it at arbitrary indices and draw data from
 /// those points.
 ///
-/// **Note:** Not implemented for `u64` and `i64` ranges
+/// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution

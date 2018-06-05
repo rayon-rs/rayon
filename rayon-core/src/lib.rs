@@ -36,6 +36,8 @@ extern crate crossbeam_deque;
 extern crate lazy_static;
 extern crate libc;
 extern crate num_cpus;
+
+#[cfg(test)]
 extern crate rand;
 
 #[macro_use]

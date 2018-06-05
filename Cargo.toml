@@ -1,7 +1,7 @@
 [package]
 name = "rayon"
 # Reminder to update html_rool_url in lib.rs when updating version
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
@@ -28,6 +28,6 @@ default-features = false
 [dev-dependencies]
 docopt = "0.8"
 lazy_static = "1"
-rand = ">= 0.3, < 0.5"
+rand = "0.4"
 serde = "1"
 serde_derive = "1"

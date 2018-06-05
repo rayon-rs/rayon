@@ -15,12 +15,6 @@ matrix:
     - rust: 1.13.0
       os: linux
       #if: everything!
-      before_script:
-        # rand 0.4.2 requires rust 1.15, and rand-0.3.22 requires rand-0.4  :/
-        # manually hacking the lockfile due to the limitations of cargo#2773
-        - cargo generate-lockfile
-        - sed -i -e 's/"rand 0.[34].[0-9]\+/"rand 0.3.20/' Cargo.lock
-        - sed -i -e '/^name = "rand"/,/^$/s/version = "0.3.[0-9]\+"/version = "0.3.20"/' Cargo.lock
       script: cargo build
 
     - rust: stable
