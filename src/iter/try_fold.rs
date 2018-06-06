@@ -1,7 +1,6 @@
 use super::plumbing::*;
 use super::*;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use super::private::Try;
@@ -53,12 +52,10 @@ impl<U, I, ID, F> ParallelIterator for TryFold<I, U, ID, F>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let full = AtomicBool::new(false);
         let consumer1 = TryFoldConsumer {
             base: consumer,
-            fold_op: &self.fold_op,
             identity: &self.identity,
-            full: &full,
+            fold_op: &self.fold_op,
             marker: PhantomData,
         };
         self.base.drive_unindexed(consumer1)
@@ -67,9 +64,8 @@ impl<U, I, ID, F> ParallelIterator for TryFold<I, U, ID, F>
 
 struct TryFoldConsumer<'c, U, C, ID: 'c, F: 'c> {
     base: C,
-    fold_op: &'c F,
     identity: &'c ID,
-    full: &'c AtomicBool,
+    fold_op: &'c F,
     marker: PhantomData<U>,
 }
 
@@ -93,12 +89,11 @@ impl<'r, U, T, C, ID, F> Consumer<T> for TryFoldConsumer<'r, U, C, ID, F>
             base: self.base.into_folder(),
             result: Ok((self.identity)()),
             fold_op: self.fold_op,
-            full: self.full,
         }
     }
 
     fn full(&self) -> bool {
-        self.full.load(Ordering::Relaxed) || self.base.full()
+        self.base.full()
     }
 }
 
@@ -120,7 +115,6 @@ impl<'r, U, T, C, ID, F> UnindexedConsumer<T> for TryFoldConsumer<'r, U, C, ID, 
 struct TryFoldFolder<'r, C, U: Try, F: 'r> {
     base: C,
     fold_op: &'r F,
-    full: &'r AtomicBool,
     result: Result<U::Ok, U::Error>,
 }
 
@@ -136,9 +130,6 @@ impl<'r, C, U, F, T> Folder<T> for TryFoldFolder<'r, C, U, F>
         let result = self.result.and_then(|acc| {
             fold_op(acc, item).into_result()
         });
-        if result.is_err() {
-            self.full.store(true, Ordering::Relaxed);
-        }
         TryFoldFolder {
             result: result,
             ..self
@@ -154,7 +145,7 @@ impl<'r, C, U, F, T> Folder<T> for TryFoldFolder<'r, C, U, F>
     }
 
     fn full(&self) -> bool {
-        self.result.is_err() || self.full.load(Ordering::Relaxed) || self.base.full()
+        self.result.is_err() || self.base.full()
     }
 }
 
@@ -208,12 +199,10 @@ impl<U, I, F> ParallelIterator for TryFoldWith<I, U, F>
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
         where C: UnindexedConsumer<Self::Item>
     {
-        let full = AtomicBool::new(false);
         let consumer1 = TryFoldWithConsumer {
             base: consumer,
             item: self.item,
             fold_op: &self.fold_op,
-            full: &full,
         };
         self.base.drive_unindexed(consumer1)
     }
@@ -223,7 +212,6 @@ struct TryFoldWithConsumer<'c, C, U: Try, F: 'c> {
     base: C,
     item: U::Ok,
     fold_op: &'c F,
-    full: &'c AtomicBool,
 }
 
 impl<'r, U, T, C, F> Consumer<T> for TryFoldWithConsumer<'r, C, U, F>
@@ -247,12 +235,11 @@ impl<'r, U, T, C, F> Consumer<T> for TryFoldWithConsumer<'r, C, U, F>
             base: self.base.into_folder(),
             result: Ok(self.item),
             fold_op: self.fold_op,
-            full: self.full,
         }
     }
 
     fn full(&self) -> bool {
-        self.full.load(Ordering::Relaxed) || self.base.full()
+        self.base.full()
     }
 }
 
