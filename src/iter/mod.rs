@@ -84,6 +84,9 @@ use self::plumbing::*;
 //   e.g. `find::find()`, are always used **prefixed**, so that they
 //   can be readily distinguished.
 
+mod par_bridge;
+pub use self::par_bridge::{ParallelBridge, IterBridge};
+
 mod find;
 mod find_first_last;
 mod chain;

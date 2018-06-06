@@ -79,6 +79,7 @@
 
 extern crate rayon_core;
 extern crate either;
+extern crate crossbeam_deque;
 
 #[cfg(test)]
 extern crate rand;

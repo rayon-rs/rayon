@@ -30,8 +30,10 @@
 // [1]: https://github.com/IntelLabs/RiverTrail/blob/master/examples/nbody-webgl/NBody.js
 
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
-use rayon::prelude::*;
 use rand::{Rand, Rng};
+use rayon::prelude::*;
+#[cfg(test)]
+use rayon::iter::ParallelBridge;
 use std::f64::consts::PI;
 
 const INITIAL_VELOCITY: f64 = 8.0; // set to 0.0 to turn off.
@@ -50,8 +52,7 @@ pub struct Body {
 
 impl NBodyBenchmark {
     pub fn new<R: Rng>(num_bodies: usize, rng: &mut R) -> NBodyBenchmark {
-        let bodies0: Vec<_> =
-            (0..num_bodies)
+        let bodies0: Vec<_> = (0..num_bodies)
             .map(|_| {
                 let position = Point3 {
                     x: f64::rand(rng).floor() * 40_000.0,
@@ -71,7 +72,11 @@ impl NBodyBenchmark {
                     z: f64::rand(rng) * INITIAL_VELOCITY,
                 };
 
-                Body { position: position, velocity: velocity, velocity2: velocity2 }
+                Body {
+                    position: position,
+                    velocity: velocity,
+                    velocity2: velocity2,
+                }
             })
             .collect();
 
@@ -91,16 +96,44 @@ impl NBodyBenchmark {
         };
 
         let time = self.time;
-        out_bodies.par_iter_mut()
-                  .zip(&in_bodies[..])
-                  .for_each(|(out, prev)| {
-                      let (vel, vel2) = next_velocity(time, prev, in_bodies);
-                      out.velocity = vel;
-                      out.velocity2 = vel2;
+        out_bodies
+            .par_iter_mut()
+            .zip(&in_bodies[..])
+            .for_each(|(out, prev)| {
+                let (vel, vel2) = next_velocity(time, prev, in_bodies);
+                out.velocity = vel;
+                out.velocity2 = vel2;
 
-                      let next_velocity = vel - vel2;
-                      out.position = prev.position + next_velocity;
-                  });
+                let next_velocity = vel - vel2;
+                out.position = prev.position + next_velocity;
+            });
+
+        self.time += 1;
+
+        out_bodies
+    }
+
+    #[cfg(test)]
+    pub fn tick_par_bridge(&mut self) -> &[Body] {
+        let (in_bodies, out_bodies) = if (self.time & 1) == 0 {
+            (&self.bodies.0, &mut self.bodies.1)
+        } else {
+            (&self.bodies.1, &mut self.bodies.0)
+        };
+
+        let time = self.time;
+        out_bodies
+            .iter_mut()
+            .zip(&in_bodies[..])
+            .par_bridge()
+            .for_each(|(out, prev)| {
+                let (vel, vel2) = next_velocity(time, prev, in_bodies);
+                out.velocity = vel;
+                out.velocity2 = vel2;
+
+                let next_velocity = vel - vel2;
+                out.position = prev.position + next_velocity;
+            });
 
         self.time += 1;
 
@@ -115,16 +148,17 @@ impl NBodyBenchmark {
         };
 
         let time = self.time;
-        out_bodies.par_iter_mut()
-                  .zip(&in_bodies[..])
-                  .for_each(|(out, prev)| {
-                      let (vel, vel2) = next_velocity_par(time, prev, in_bodies);
-                      out.velocity = vel;
-                      out.velocity2 = vel2;
+        out_bodies
+            .par_iter_mut()
+            .zip(&in_bodies[..])
+            .for_each(|(out, prev)| {
+                let (vel, vel2) = next_velocity_par(time, prev, in_bodies);
+                out.velocity = vel;
+                out.velocity2 = vel2;
 
-                      let next_velocity = vel - vel2;
-                      out.position = prev.position + next_velocity;
-                  });
+                let next_velocity = vel - vel2;
+                out.position = prev.position + next_velocity;
+            });
 
         self.time += 1;
 
@@ -207,57 +241,57 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
     let zero: Vector3<f64> = Vector3::zero();
     let (diff, diff2) = bodies
         .iter()
-        .fold(
-            (zero, zero),
-            |(mut diff, mut diff2), body| {
-                let r = body.position - prev.position;
+        .fold((zero, zero), |(mut diff, mut diff2), body| {
+            let r = body.position - prev.position;
 
-                // make sure we are not testing the particle against its own position
-                let are_same = r == Vector3::zero();
+            // make sure we are not testing the particle against its own position
+            let are_same = r == Vector3::zero();
 
-                let dist_sqrd = r.magnitude2();
+            let dist_sqrd = r.magnitude2();
 
-                if dist_sqrd < zone_sqrd && !are_same {
-                    let length = dist_sqrd.sqrt();
-                    let percent = dist_sqrd / zone_sqrd;
+            if dist_sqrd < zone_sqrd && !are_same {
+                let length = dist_sqrd.sqrt();
+                let percent = dist_sqrd / zone_sqrd;
 
-                    if dist_sqrd < repel {
-                        let f = (repel / percent - 1.0) * 0.025;
-                        let normal = (r / length) * f;
-                        diff += normal;
-                        diff2 += normal;
-                    } else if dist_sqrd < align {
-                        let thresh_delta = align - repel;
-                        let adjusted_percent = (percent - repel) / thresh_delta;
-                        let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
+                if dist_sqrd < repel {
+                    let f = (repel / percent - 1.0) * 0.025;
+                    let normal = (r / length) * f;
+                    diff += normal;
+                    diff2 += normal;
+                } else if dist_sqrd < align {
+                    let thresh_delta = align - repel;
+                    let adjusted_percent = (percent - repel) / thresh_delta;
+                    let q = (0.5 - (adjusted_percent * PI * 2.0).cos() * 0.5 + 0.5) * 100.9;
 
-                        // normalize vel2 and multiply by factor
-                        let vel2_length = body.velocity2.magnitude();
-                        let vel2 = (body.velocity2 / vel2_length) * q;
+                    // normalize vel2 and multiply by factor
+                    let vel2_length = body.velocity2.magnitude();
+                    let vel2 = (body.velocity2 / vel2_length) * q;
 
-                        // normalize own velocity
-                        let vel_length = prev.velocity.magnitude();
-                        let vel = (prev.velocity / vel_length) * q;
+                    // normalize own velocity
+                    let vel_length = prev.velocity.magnitude();
+                    let vel = (prev.velocity / vel_length) * q;
 
-                        diff += vel2;
-                        diff2 += vel;
-                    }
-
-                    if dist_sqrd > attract { // attract
-                        let thresh_delta2 = 1.0 - attract;
-                        let adjusted_percent2 = (percent - attract) / thresh_delta2;
-                        let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
-
-                        // normalize the distance vector
-                        let d = (r / length) * c;
-
-                        diff += d;
-                        diff2 -= d;
-                    }
+                    diff += vel2;
+                    diff2 += vel;
                 }
 
-                (diff, diff2)
-            });
+                if dist_sqrd > attract {
+                    // attract
+                    let thresh_delta2 = 1.0 - attract;
+                    let adjusted_percent2 = (percent - attract) / thresh_delta2;
+                    let c =
+                        (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
+
+                    // normalize the distance vector
+                    let d = (r / length) * c;
+
+                    diff += d;
+                    diff2 -= d;
+                }
+            }
+
+            (diff, diff2)
+        });
 
     acc += diff;
     acc2 += diff2;
@@ -294,8 +328,7 @@ fn next_velocity(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Ve
 }
 
 /// Compute next velocity of `prev`
-fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
-                     -> (Vector3<f64>, Vector3<f64>) {
+fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>, Vector3<f64>) {
     let time = time as f64;
     let center = Point3 {
         x: (time / 22.0).cos() * -4200.0,
@@ -344,8 +377,9 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
 
     let (diff, diff2) = bodies
         .par_iter()
-        .fold(|| (Vector3::zero(), Vector3::zero()),
-              |(mut diff, mut diff2), body| {
+        .fold(
+            || (Vector3::zero(), Vector3::zero()),
+            |(mut diff, mut diff2), body| {
                 let r = body.position - prev.position;
 
                 // make sure we are not testing the particle against its own position
@@ -379,10 +413,12 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
                         diff2 += vel;
                     }
 
-                    if dist_sqrd > attract { // attract
+                    if dist_sqrd > attract {
+                        // attract
                         let thresh_delta2 = 1.0 - attract;
                         let adjusted_percent2 = (percent - attract) / thresh_delta2;
-                        let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5)) * attract_power;
+                        let c = (1.0 - ((adjusted_percent2 * PI * 2.0).cos() * 0.5 + 0.5))
+                            * attract_power;
 
                         // normalize the distance vector
                         let d = (r / length) * c;
@@ -393,9 +429,12 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body])
                 }
 
                 (diff, diff2)
-              })
-        .reduce(|| (Vector3::zero(), Vector3::zero()),
-                |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b));
+            },
+        )
+        .reduce(
+            || (Vector3::zero(), Vector3::zero()),
+            |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b),
+        );
 
     acc += diff;
     acc2 += diff2;
