@@ -119,6 +119,6 @@ impl<'r, R, T> Folder<T> for TryReduceFolder<'r, R, T>
     }
 
     fn full(&self) -> bool {
-        self.result.is_err() || self.full.load(Ordering::Relaxed)
+        self.full.load(Ordering::Relaxed)
     }
 }
