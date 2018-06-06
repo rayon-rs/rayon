@@ -386,3 +386,36 @@ some of them were hit hard:
   - 8-10% overhead on nbody-parreduce
   - 35% overhead on increment-all
   - 245% overhead on join-recursively
+
+# Deadlock detection
+
+This module tracks a number of variables in order to detect deadlocks due to user code blocking.
+These variables are stored in the `SleepData` struct which itself is kept behind a mutex.
+It contains the following fields:
+- `worker_count` - The number of threads in the thread pool.
+- `active_threads` - The number of threads in the thread pool which are running
+                     and aren't blocked in user code or sleeping.
+- `blocked_threads` - The number of threads which are blocked in user code.
+                      This doesn't include threads blocked by Rayon.
+
+User code can indicate blocking by calling `mark_blocked` before blocking and
+calling `mark_unblocked` before unblocking a thread.
+This will adjust `active_threads` and `blocked_threads` accordingly.
+
+When we tickle the thread pool in `Sleep::tickle_cold`, we set `active_threads` to
+`worker_count` - `blocked_threads` since we wake up all Rayon threads, but not thread blocked
+by user code.
+
+A deadlock is detected by checking if `active_threads` is 0 and `blocked_threads` is above 0.
+If we ignored `blocked_threads` we would have a deadlock
+immediately when creating the thread pool.
+We would also deadlock once the thread pool ran out of work.
+It is not possible for Rayon itself to deadlock.
+Deadlocks can only be caused by user code blocking, so this condition doesn't miss any deadlocks.
+
+We check for the deadlock condition when
+threads fall asleep in `mark_unblocked` and in `Sleep::sleep`.
+If there's a deadlock detected we call the user provided deadlock handler while we hold the
+lock to `SleepData`. This means the deadlock handler cannot call `mark_blocked` and
+`mark_unblocked`. The user is expected to handle the deadlock in some non-Rayon thread.
+Once the deadlock handler returns, the thread which called the deadlock handler will go to sleep.

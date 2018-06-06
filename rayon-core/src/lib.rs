@@ -20,8 +20,6 @@
 //! succeed.
 
 #![doc(html_root_url = "https://docs.rs/rayon-core/1.4")]
-#![deny(missing_debug_implementations)]
-#![deny(missing_docs)]
 #![cfg_attr(test, feature(conservative_impl_trait))]
 
 use std::any::Any;
@@ -52,9 +50,13 @@ mod scope;
 mod sleep;
 mod spawn;
 mod test;
+mod worker_local;
 mod thread_pool;
 mod unwind;
 mod util;
+
+#[cfg(feature = "tlv")]
+pub mod tlv;
 
 #[cfg(rayon_unstable)]
 pub mod internal;
@@ -63,7 +65,9 @@ pub use thread_pool::current_thread_index;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::{join, join_context};
 pub use scope::{scope, Scope};
+pub use registry::{Registry, mark_blocked, mark_unblocked};
 pub use spawn::spawn;
+pub use worker_local::WorkerLocal;
 
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be
@@ -134,11 +138,17 @@ pub struct ThreadPoolBuilder {
     /// The stack size for the created worker threads
     stack_size: Option<usize>,
 
+    /// Closure invoked on deadlock.
+    deadlock_handler: Option<Box<DeadlockHandler>>,
+
     /// Closure invoked on worker thread start.
     start_handler: Option<Box<StartHandler>>,
 
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
+
+    /// Closure invoked on worker thread start.
+    main_handler: Option<Box<MainHandler>>,
 
     /// If false, worker threads will execute spawned jobs in a
     /// "depth-first" fashion. If true, they will do a "breadth-first"
@@ -159,6 +169,9 @@ pub struct Configuration {
 /// may be invoked multiple times in parallel.
 type PanicHandler = Fn(Box<Any + Send>) + Send + Sync;
 
+/// The type for a closure that gets invoked when the Rayon thread pool deadlocks
+type DeadlockHandler = Fn() + Send + Sync;
+
 /// The type for a closure that gets invoked when a thread starts. The
 /// closure is passed the index of the thread on which it is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
@@ -168,6 +181,12 @@ type StartHandler = Fn(usize) + Send + Sync;
 /// closure is passed the index of the thread on which is is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
 type ExitHandler = Fn(usize) + Send + Sync;
+
+/// The type for a closure that gets invoked with a
+/// function which runs rayon tasks.
+/// The closure is passed the index of the thread on which it is invoked.
+/// Note that this same closure may be invoked multiple times in parallel.
+type MainHandler = Fn(usize, &mut FnMut()) + Send + Sync;
 
 impl ThreadPoolBuilder {
     /// Creates and returns a valid rayon thread pool builder, but does not initialize it.
@@ -333,6 +352,19 @@ impl ThreadPoolBuilder {
         self.breadth_first
     }
 
+    /// Takes the current deadlock callback, leaving `None`.
+    fn take_deadlock_handler(&mut self) -> Option<Box<DeadlockHandler>> {
+        self.deadlock_handler.take()
+    }
+
+    /// Set a callback to be invoked on current deadlock.
+    pub fn deadlock_handler<H>(mut self, deadlock_handler: H) -> ThreadPoolBuilder
+        where H: Fn() + Send + Sync + 'static
+    {
+        self.deadlock_handler = Some(Box::new(deadlock_handler));
+        self
+    }
+
     /// Takes the current thread start callback, leaving `None`.
     fn take_start_handler(&mut self) -> Option<Box<StartHandler>> {
         self.start_handler.take()
@@ -366,6 +398,23 @@ impl ThreadPoolBuilder {
         where H: Fn(usize) + Send + Sync + 'static
     {
         self.exit_handler = Some(Box::new(exit_handler));
+        self
+    }
+
+    /// Takes the current thread main callback, leaving `None`.
+    fn take_main_handler(&mut self) -> Option<Box<MainHandler>> {
+        self.main_handler.take()
+    }
+
+    /// Set a callback to be invoked on thread main.
+    ///
+    /// The closure is passed the index of the thread on which it is invoked.
+    /// Note that this same closure may be invoked multiple times in parallel.
+    /// If this closure panics, the panic will be passed to the panic handler.
+    pub fn main_handler<H>(mut self, main_handler: H) -> ThreadPoolBuilder
+        where H: Fn(usize, &mut FnMut()) + Send + Sync + 'static
+    {
+        self.main_handler = Some(Box::new(main_handler));
         self
     }
 }
@@ -472,7 +521,8 @@ impl fmt::Debug for ThreadPoolBuilder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ThreadPoolBuilder { ref num_threads, ref get_thread_name,
                                 ref panic_handler, ref stack_size,
-                                ref start_handler, ref exit_handler,
+                                ref deadlock_handler, ref start_handler,
+                                ref exit_handler, ref main_handler,
                                 ref breadth_first } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
@@ -485,16 +535,20 @@ impl fmt::Debug for ThreadPoolBuilder {
         }
         let get_thread_name = get_thread_name.as_ref().map(|_| ClosurePlaceholder);
         let panic_handler = panic_handler.as_ref().map(|_| ClosurePlaceholder);
+        let deadlock_handler = deadlock_handler.as_ref().map(|_| ClosurePlaceholder);
         let start_handler = start_handler.as_ref().map(|_| ClosurePlaceholder);
         let exit_handler = exit_handler.as_ref().map(|_| ClosurePlaceholder);
+        let main_handler = main_handler.as_ref().map(|_| ClosurePlaceholder);
 
         f.debug_struct("ThreadPoolBuilder")
          .field("num_threads", num_threads)
          .field("get_thread_name", &get_thread_name)
          .field("panic_handler", &panic_handler)
          .field("stack_size", &stack_size)
+         .field("deadlock_handler", &deadlock_handler)
          .field("start_handler", &start_handler)
          .field("exit_handler", &exit_handler)
+         .field("main_handler", &main_handler)
          .field("breadth_first", &breadth_first)
          .finish()
     }

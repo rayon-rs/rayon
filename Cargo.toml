@@ -1,23 +1,23 @@
 [package]
-name = "rayon"
+name = "rustc-rayon"
 # Reminder to update html_rool_url in lib.rs when updating version
-version = "1.0.1"
+version = "0.1.1"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
-description = "Simple work-stealing parallelism for Rust"
+description = "Simple work-stealing parallelism for Rust - fork for rustc"
 license = "Apache-2.0/MIT"
-repository = "https://github.com/rayon-rs/rayon"
-documentation = "https://docs.rs/rayon/"
+repository = "https://github.com/Zoxc/rayon/tree/rustc"
+documentation = "https://docs.rs/rustc-rayon/"
 readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [workspace]
-members = ["rayon-demo", "rayon-core", "rayon-futures"]
+members = ["rayon-core"]
 exclude = ["ci"]
 
 [dependencies]
-rayon-core = { version = "1.4", path = "rayon-core" }
+rustc-rayon-core = { version = "0.1", path = "rayon-core" }
 
 # This is a public dependency!
 [dependencies.either]

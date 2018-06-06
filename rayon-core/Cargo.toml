@@ -1,17 +1,20 @@
 [package]
-name = "rayon-core"
-version = "1.4.0" # reminder to update html_root_url attribute
+name = "rustc-rayon-core"
+version = "0.1.1" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
-description = "Core APIs for Rayon"
+description = "Core APIs for Rayon - fork for rustc"
 license = "Apache-2.0/MIT"
-repository = "https://github.com/rayon-rs/rayon"
-documentation = "https://docs.rs/rayon/"
-links = "rayon-core"
+repository = "https://github.com/Zoxc/rayon/tree/rustc"
+documentation = "https://docs.rs/rustc-rayon-core/"
 build = "build.rs"
 readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
+
+[features]
+default = ["tlv"]
+tlv = []
 
 [dependencies]
 num_cpus = "1.2"

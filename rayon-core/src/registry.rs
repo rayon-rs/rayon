@@ -1,4 +1,5 @@
-use ::{ExitHandler, PanicHandler, StartHandler, ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
+use ::{ExitHandler, PanicHandler, DeadlockHandler, StartHandler, MainHandler,
+       ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
 use crossbeam_deque::{Deque, Steal, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
@@ -26,8 +27,10 @@ pub struct Registry {
     sleep: Sleep,
     job_uninjector: Stealer<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
+    deadlock_handler: Option<Box<DeadlockHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
+    main_handler: Option<Box<MainHandler>>,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -112,11 +115,13 @@ impl Registry {
                 .map(|s| ThreadInfo::new(s))
                 .collect(),
             state: Mutex::new(RegistryState::new(inj_worker)),
-            sleep: Sleep::new(),
+            sleep: Sleep::new(n_threads),
             job_uninjector: inj_stealer,
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
+            deadlock_handler: builder.take_deadlock_handler(),
             start_handler: builder.take_start_handler(),
+            main_handler: builder.take_main_handler(),
             exit_handler: builder.take_exit_handler(),
         });
 
@@ -213,8 +218,7 @@ impl Registry {
 
     /// Waits for the worker threads to stop. This is used for testing
     /// -- so we can check that termination actually works.
-    #[cfg(test)]
-    pub fn wait_until_stopped(&self) {
+    pub(crate) fn wait_until_stopped(&self) {
         for info in &self.thread_infos {
             info.stopped.wait();
         }
@@ -411,6 +415,24 @@ impl Registry {
     }
 }
 
+/// Mark a Rayon worker thread as blocked. This triggers the deadlock handler
+/// if no other worker thread is active
+#[inline]
+pub fn mark_blocked() {
+    let worker_thread = WorkerThread::current();
+    assert!(!worker_thread.is_null());
+    unsafe {
+        let registry = &(*worker_thread).registry;
+        registry.sleep.mark_blocked(&registry.deadlock_handler)
+    }
+}
+
+/// Mark a previously blocked Rayon worker thread as unblocked
+#[inline]
+pub fn mark_unblocked(registry: &Registry) {
+    registry.sleep.mark_unblocked()
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RegistryId {
     addr: usize
@@ -455,7 +477,7 @@ pub struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Deque<JobRef>,
 
-    index: usize,
+    pub(crate) index: usize,
 
     /// are these workers configured to steal breadth-first or not?
     breadth_first: bool,
@@ -463,7 +485,7 @@ pub struct WorkerThread {
     /// A weak random number generator.
     rng: XorShift64Star,
 
-    registry: Arc<Registry>,
+    pub(crate) registry: Arc<Registry>,
 }
 
 // This is a bit sketchy, but basically: the WorkerThread is
@@ -567,7 +589,11 @@ impl WorkerThread {
                 yields = self.registry.sleep.work_found(self.index, yields);
                 self.execute(job);
             } else {
-                yields = self.registry.sleep.no_work_found(self.index, yields);
+                yields = self.registry.sleep.no_work_found(
+                    self.index,
+                    yields,
+                    &self.registry.deadlock_handler
+                );
             }
         }
 
@@ -663,7 +689,21 @@ unsafe fn main_loop(worker: Deque<JobRef>,
         }
     }
 
-    worker_thread.wait_until(&registry.terminate_latch);
+    let mut work = || {
+        worker_thread.wait_until(&registry.terminate_latch);
+    };
+
+    if let Some(ref handler) = registry.main_handler {
+        match unwind::halt_unwinding(|| handler(index, &mut work)) {
+            Ok(()) => {
+            }
+            Err(err) => {
+                registry.handle_panic(err);
+            }
+        }
+    } else {
+        work();
+    }
 
     // Should not be any work left in our queue.
     debug_assert!(worker_thread.take_local_job().is_none());

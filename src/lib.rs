@@ -79,7 +79,7 @@
 //!
 //! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 
-extern crate rayon_core;
+extern crate rustc_rayon_core as rayon_core;
 extern crate either;
 
 #[cfg(test)]
