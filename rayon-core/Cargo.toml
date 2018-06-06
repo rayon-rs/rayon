@@ -25,3 +25,26 @@ version = "0.2.0"
 
 [dev-dependencies]
 rand = "0.4"
+
+[[test]]
+name = "stack_overflow_crash"
+path = "tests/stack_overflow_crash.rs"
+harness = false
+
+# NB: having one [[test]] manually defined means we need to declare them all
+
+[[test]]
+name = "double_init_fail"
+path = "tests/double_init_fail.rs"
+
+[[test]]
+name = "init_zero_threads"
+path = "tests/init_zero_threads.rs"
+
+[[test]]
+name = "scope_join"
+path = "tests/scope_join.rs"
+
+[[test]]
+name = "simple_panic"
+path = "tests/simple_panic.rs"

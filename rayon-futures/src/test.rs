@@ -1,5 +1,4 @@
-#[cfg(not(all(windows, target_env = "gnu")))]
-extern crate compiletest_rs as compiletest;
+#![cfg(test)]
 
 use futures::{self, Async, Future};
 use futures::future::lazy;
@@ -10,24 +9,6 @@ use futures::executor::Notify;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use rayon_core::{scope, ThreadPool, ThreadPoolBuilder};
 use super::ScopeFutureExt;
-
-#[cfg(not(all(windows, target_env = "gnu")))]
-fn run_compiletest(mode: &str, path: &str) {
-    use std::path::PathBuf;
-
-    let mut config = compiletest::Config::default();
-    config.mode = mode.parse().ok().expect("Invalid mode");
-    config.src_base = PathBuf::from(path);
-    config.target_rustcflags = Some("-L ../target/debug/ -L ../target/debug/deps/".to_owned());
-
-    compiletest::run_tests(&config);
-}
-
-#[test]
-#[cfg(not(all(windows, target_env = "gnu")))]
-fn negative_tests_compile_fail() {
-    run_compiletest("compile-fail", "tests/compile-fail");
-}
 
 /// Basic test of using futures to data on the stack frame.
 #[test]

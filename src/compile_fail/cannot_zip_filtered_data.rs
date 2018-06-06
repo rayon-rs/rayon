@@ -1,4 +1,4 @@
-extern crate rayon;
+/*! ```compile_fail,E0277
 
 use rayon::prelude::*;
 
@@ -10,5 +10,7 @@ fn main() {
     let b: Vec<usize> = (0..1024).collect();
 
     a.par_iter()
-     .zip(b.par_iter().filter(|&&x| x > 3)); //~ ERROR E0277
+     .zip(b.par_iter().filter(|&&x| x > 3)); //~ ERROR
 }
+
+``` */

@@ -1,5 +1,3 @@
-#![feature(clone_closures)]
-
 extern crate rayon;
 
 use rayon::prelude::*;

@@ -1,5 +1,3 @@
-#![feature(conservative_impl_trait)]
-
 extern crate rayon;
 
 use rayon::prelude::*;
@@ -12,18 +10,23 @@ fn check<F, I>(expected: &[I::Item], mut f: F)
           I::Iter: IndexedParallelIterator,
           I::Item: PartialEq + std::fmt::Debug
 {
-    for (i, j, k) in triples(expected.len() + 1) {
+    map_triples(expected.len() + 1, |i, j, k| {
         Split::forward(f(), i, j, k, expected);
         Split::reverse(f(), i, j, k, expected);
-    }
+    });
 }
 
-fn triples(end: usize) -> impl Iterator<Item=(usize, usize, usize)> {
-    (0..end).flat_map(move |i| {
-        (i..end).flat_map(move |j| {
-            (j..end).map(move |k| (i, j, k))
-        })
-    })
+fn map_triples<F>(end: usize, mut f: F)
+where
+    F: FnMut(usize, usize, usize),
+{
+    for i in 0..end {
+        for j in i..end {
+            for k in j..end {
+                f(i, j, k);
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -139,10 +142,10 @@ fn slice_iter_mut() {
     let mut v: Vec<_> = s.clone();
     let expected: Vec<_> = v.iter_mut().collect();
 
-    for (i, j, k) in triples(expected.len() + 1) {
+    map_triples(expected.len() + 1, |i, j, k| {
         Split::forward(s.par_iter_mut(), i, j, k, &expected);
         Split::reverse(s.par_iter_mut(), i, j, k, &expected);
-    }
+    });
 }
 
 #[test]
@@ -158,10 +161,10 @@ fn slice_chunks_mut() {
     let mut v: Vec<_> = s.clone();
     let expected: Vec<_> = v.chunks_mut(2).collect();
 
-    for (i, j, k) in triples(expected.len() + 1) {
+    map_triples(expected.len() + 1, |i, j, k| {
         Split::forward(s.par_chunks_mut(2), i, j, k, &expected);
         Split::reverse(s.par_chunks_mut(2), i, j, k, &expected);
-    }
+    });
 }
 
 #[test]

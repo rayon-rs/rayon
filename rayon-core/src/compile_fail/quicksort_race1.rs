@@ -1,4 +1,4 @@
-extern crate rayon;
+/*! ```compile_fail,E0524
 
 fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -7,7 +7,7 @@ fn quick_sort<T:PartialOrd+Send>(v: &mut [T]) {
 
     let mid = partition(v);
     let (lo, _hi) = v.split_at_mut(mid);
-    rayon::join(|| quick_sort(lo), || quick_sort(lo)); //~ ERROR E0524
+    rayon_core::join(|| quick_sort(lo), || quick_sort(lo)); //~ ERROR
 }
 
 fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
@@ -24,3 +24,5 @@ fn partition<T:PartialOrd+Send>(v: &mut [T]) -> usize {
 }
 
 fn main() { }
+
+``` */

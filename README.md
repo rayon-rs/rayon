@@ -106,17 +106,15 @@ parallel.
 
 ```
 > cd rayon-demo
-> cargo +nightly run --release -- nbody visualize
+> cargo run --release -- nbody visualize
 ```
 
 For more information on demos, try:
 
 ```
 > cd rayon-demo
-> cargo +nightly run --release -- --help
+> cargo run --release -- --help
 ```
-
-**Note:** While Rayon is usable as a library with the stable compiler, running demos or executing tests requires nightly Rust.
 
 ## Other questions?
 

@@ -581,5 +581,5 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
     }
 }
 
-#[cfg(test)]
+mod compile_fail;
 mod test;

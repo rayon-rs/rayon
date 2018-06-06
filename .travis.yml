@@ -9,36 +9,37 @@ matrix:
   fast_finish: true
   include:
     # NB: To help with CI delays, each `pull_request` is only tested on Linux,
-    # with 1.13 for compatibility and nightly+rayon_unstable for broad test
+    # with 1.13 for compatibility and stable+rayon_unstable for broad test
     # coverage.  The bors bot counts as a `push` type, which will run it all.
 
     - rust: 1.13.0
       os: linux
       #if: everything!
+      script: cargo build
 
     - rust: stable
       os: linux
       if: NOT type = pull_request
     - rust: stable
-      os: linux
-      env: RUSTFLAGS='--cfg rayon_unstable'
-      if: NOT type = pull_request
-
-    - rust: beta
-      os: linux
-      if: NOT type = pull_request
-    - rust: beta
-      os: linux
-      env: RUSTFLAGS='--cfg rayon_unstable'
-      if: NOT type = pull_request
-
-    - rust: nightly
-      os: linux
-      if: NOT type = pull_request
-    - rust: nightly
       os: linux
       env: RUSTFLAGS='--cfg rayon_unstable'
       #if: everything!
+
+    - rust: beta
+      os: linux
+      if: NOT type = pull_request
+    - rust: beta
+      os: linux
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: nightly
+      os: linux
+      if: NOT type = pull_request
+    - rust: nightly
+      os: linux
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
 
     - rust: stable
       os: osx
@@ -65,23 +66,29 @@ matrix:
         - cargo build --target $TARGET
       if: NOT type = pull_request
 
+    # rayon-demo has huge dependencies, so limit its testing.
+    # build on stable, test on nightly (because of #[bench])
+    - rust: stable
+      os: linux
+      env: DEMO=1
+      script: cargo build -p rayon-demo
+      if: NOT type = pull_request
+    - rust: nightly
+      os: linux
+      env: DEMO=1
+      script: cargo test -p rayon-demo
+      if: NOT type = pull_request
+
 
 script:
   - cargo build
-  - |
-    if [ $TRAVIS_RUST_VERSION == nightly ]; then
-      cargo test -p rayon &&
-      cargo test -p rayon-core &&
-      cargo test -p rayon-demo &&
-      ./ci/highlander.sh
-    fi
+  - cargo test -p rayon
+  - cargo test -p rayon-core
+  - ./ci/highlander.sh
   - |
     if [ -n "$RUSTFLAGS" ]; then
-      cargo clean &&
       cargo build -p rayon-futures &&
-      if [ $TRAVIS_RUST_VERSION == nightly ]; then
-        cargo test -p rayon-futures
-      fi
+      cargo test -p rayon-futures
     fi
 
 branches:

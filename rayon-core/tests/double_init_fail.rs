@@ -1,9 +1,10 @@
-extern crate rayon;
+extern crate rayon_core;
 
-use rayon::*;
+use rayon_core::ThreadPoolBuilder;
 use std::error::Error;
 
-fn main() {
+#[test]
+fn double_init_fail() {
     let result1 = ThreadPoolBuilder::new().build_global();
     assert_eq!(result1.unwrap(), ());
     let err = ThreadPoolBuilder::new().build_global().unwrap_err();

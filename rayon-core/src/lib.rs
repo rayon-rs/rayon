@@ -22,7 +22,6 @@
 #![doc(html_root_url = "https://docs.rs/rayon-core/1.4")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
-#![cfg_attr(test, feature(conservative_impl_trait))]
 
 use std::any::Any;
 use std::env;
@@ -51,10 +50,12 @@ mod registry;
 mod scope;
 mod sleep;
 mod spawn;
-mod test;
 mod thread_pool;
 mod unwind;
 mod util;
+
+mod compile_fail;
+mod test;
 
 #[cfg(rayon_unstable)]
 pub mod internal;
