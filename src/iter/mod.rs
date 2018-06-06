@@ -85,7 +85,7 @@ use self::plumbing::*;
 //   can be readily distinguished.
 
 mod par_bridge;
-pub use self::par_bridge::{ParallelBridge, IterParallel};
+pub use self::par_bridge::{ParallelBridge, IterBridge};
 
 mod find;
 mod find_first_last;

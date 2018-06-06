@@ -43,42 +43,33 @@ use current_num_threads;
 ///
 /// assert_eq!(&*output, &["one!", "three!", "two!"]);
 /// ```
-pub trait ParallelBridge {
-    /// What is the type of the output `ParallelIterator`?
-    type Iter: ParallelIterator<Item = Self::Item>;
-
-    /// What is the `Item` of the output `ParallelIterator`?
-    type Item: Send;
-
-    /// Convert this type to a `ParallelIterator`.
-    fn par_bridge(self) -> Self::Iter;
+pub trait ParallelBridge: Sized {
+    /// Create a bridge from this type to a `ParallelIterator`.
+    fn par_bridge(self) -> IterBridge<Self>;
 }
 
 impl<T: Iterator + Send> ParallelBridge for T
     where T::Item: Send
 {
-    type Iter = IterParallel<T>;
-    type Item = T::Item;
-
-    fn par_bridge(self) -> Self::Iter {
-        IterParallel {
+    fn par_bridge(self) -> IterBridge<Self> {
+        IterBridge {
             iter: self,
         }
     }
 }
 
-/// `IterParallel` is a parallel iterator that wraps a sequential iterator.
+/// `IterBridge` is a parallel iterator that wraps a sequential iterator.
 ///
 /// This type is created when using the `par_bridge` method on `ParallelBridge`. See the
 /// [`ParallelBridge`] documentation for details.
 ///
 /// [`ParallelBridge`]: trait.ParallelBridge.html
 #[derive(Debug)]
-pub struct IterParallel<Iter> {
+pub struct IterBridge<Iter> {
     iter: Iter,
 }
 
-impl<Iter: Iterator + Send> ParallelIterator for IterParallel<Iter>
+impl<Iter: Iterator + Send> ParallelIterator for IterBridge<Iter>
     where Iter::Item: Send
 {
     type Item = Iter::Item;
