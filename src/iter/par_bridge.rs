@@ -64,7 +64,7 @@ impl<T: Iterator + Send> ParallelBridge for T
 /// [`ParallelBridge`] documentation for details.
 ///
 /// [`ParallelBridge`]: trait.ParallelBridge.html
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IterBridge<Iter> {
     iter: Iter,
 }
