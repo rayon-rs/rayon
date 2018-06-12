@@ -111,6 +111,7 @@ mod try_fold;
 pub use self::try_fold::{TryFold, TryFoldWith};
 mod reduce;
 mod try_reduce;
+mod try_reduce_with;
 mod skip;
 pub use self::skip::Skip;
 mod splitter;
@@ -711,25 +712,8 @@ pub trait ParallelIterator: Sized + Send {
     fn try_reduce_with<T, OP>(self, op: OP) -> Option<Self::Item>
         where OP: Fn(T, T) -> Self::Item + Sync + Send,
               Self::Item: Try<Ok = T>,
-              <Self::Item as Try>::Ok: Send,
-              <Self::Item as Try>::Error: Send
     {
-        // Map into `Result<Option<Ok>, Error>`, then reduce it.
-        let result = self.map(|try_b| try_b.into_result().map(Some)).try_reduce(
-            || None,
-            |opt_a, opt_b| match (opt_a, opt_b) {
-                (Some(a), Some(b)) => op(a, b).into_result().map(Some),
-                (Some(v), None) | (None, Some(v)) => Ok(Some(v)),
-                (None, None) => Ok(None),
-            },
-        );
-
-        // Map `Result<Option<Ok>, Error>` back to `Option<Self::Item>`.
-        match result {
-            Ok(None) => None,
-            Ok(Some(v)) => Some(Self::Item::from_ok(v)),
-            Err(e) => Some(Self::Item::from_error(e)),
-        }
+        try_reduce_with::try_reduce_with(self, op)
     }
 
     /// Parallel fold is similar to sequential fold except that the
