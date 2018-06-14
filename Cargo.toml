@@ -27,7 +27,7 @@ version = "1.0"
 default-features = false
 
 [dev-dependencies]
-docopt = "0.8"
+docopt = "1"
 lazy_static = "1"
 rand = "0.4"
 serde = "1"
