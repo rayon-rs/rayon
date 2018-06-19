@@ -152,9 +152,10 @@ macro_rules! unindexed_range_impl {
                 where C: UnindexedConsumer<Self::Item>
             {
                 if let Some(len) = self.opt_len() {
+                    // Drive this in indexed mode for better `collect`.
                     (0..len).into_par_iter()
                         .map(|i| self.range.start.wrapping_add(i as $t))
-                        .drive_unindexed(consumer)
+                        .drive(consumer)
                 } else {
                     bridge_unindexed(IterProducer { range: self.range }, consumer)
                 }
