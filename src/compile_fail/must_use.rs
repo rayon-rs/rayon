@@ -27,6 +27,8 @@ must_use! {
     flatten             /** v.par_iter().flatten(); */
     fold                /** v.par_iter().fold(|| 0, |x, _| x); */
     fold_with           /** v.par_iter().fold_with(0, |x, _| x); */
+    try_fold            /** v.par_iter().try_fold(|| 0, |x, _| Some(x)); */
+    try_fold_with       /** v.par_iter().try_fold_with(0, |x, _| Some(x)); */
     inspect             /** v.par_iter().inspect(|_| {}); */
     interleave          /** v.par_iter().interleave(&v); */
     interleave_shortest /** v.par_iter().interleave_shortest(&v); */
