@@ -153,7 +153,7 @@ macro_rules! unindexed_range_impl {
             {
                 if let Some(len) = self.opt_len() {
                     (0..len).into_par_iter()
-                        .map(|i| self.range.start + i as $t)
+                        .map(|i| self.range.start.wrapping_add(i as $t))
                         .drive_unindexed(consumer)
                 } else {
                     bridge_unindexed(IterProducer { range: self.range }, consumer)
@@ -211,7 +211,7 @@ unindexed_range_impl!{i64, u64}
 #[cfg(has_i128)] unindexed_range_impl!{i128, u128}
 
 #[test]
-pub fn check_range_split_at_overflow() {
+fn check_range_split_at_overflow() {
     // Note, this split index overflows i8!
     let producer = IterProducer { range: -100i8..100 };
     let (left, right) = producer.split_at(150);
@@ -222,7 +222,7 @@ pub fn check_range_split_at_overflow() {
 
 #[cfg(has_i128)]
 #[test]
-pub fn test_i128_len_doesnt_overflow() {
+fn test_i128_len_doesnt_overflow() {
     use std::{i128, u128};
 
     // Using parse because some versions of rust don't allow long literals
@@ -238,7 +238,7 @@ pub fn test_i128_len_doesnt_overflow() {
 }
 
 #[test]
-pub fn test_u64_opt_len() {
+fn test_u64_opt_len() {
     use std::{u64, usize};
     assert_eq!(Some(100), (0..100u64).into_par_iter().opt_len());
     assert_eq!(Some(usize::MAX), (0..usize::MAX as u64).into_par_iter().opt_len());
@@ -250,10 +250,26 @@ pub fn test_u64_opt_len() {
 
 #[cfg(has_i128)]
 #[test]
-pub fn test_u128_opt_len() {
+fn test_u128_opt_len() {
     use std::{u128, usize};
     assert_eq!(Some(100), (0..100u128).into_par_iter().opt_len());
     assert_eq!(Some(usize::MAX), (0..usize::MAX as u128).into_par_iter().opt_len());
     assert_eq!(None, (0..1 + usize::MAX as u128).into_par_iter().opt_len());
     assert_eq!(None, (0..u128::MAX).into_par_iter().opt_len());
+}
+
+// `usize as i64` can overflow, so make sure to wrap it appropriately
+// when using the `opt_len` "indexed" mode.
+#[test]
+#[cfg(target_pointer_width = "64")]
+fn test_usize_i64_overflow() {
+    use std::i64;
+    use ThreadPoolBuilder;
+
+    let iter = (-2..i64::MAX).into_par_iter();
+    assert_eq!(iter.opt_len(), Some(i64::MAX as usize + 2));
+
+    // always run with multiple threads to split into, or this will take forever...
+    let pool = ThreadPoolBuilder::new().num_threads(8).build().unwrap();
+    pool.install(|| assert_eq!(iter.find_last(|_| true), Some(i64::MAX - 1)));
 }
