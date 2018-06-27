@@ -66,12 +66,19 @@
 //! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 //! [split]: fn.split.html
 //! [plumbing]: plumbing
+//!
+//! Note: Several of the `ParallelIterator` methods rely on a `Try` trait which
+//! has been deliberately obscured from the public API.  This trait is intended
+//! to mirror the unstable `std::ops::Try` with implementations for `Option` and
+//! `Result`, where `Some`/`Ok` values will let those iterators continue, but
+//! `None`/`Err` values will exit early.
 
 pub use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Sum, Product};
 use std::ops::Fn;
 use self::plumbing::*;
+use self::private::Try;
 
 // There is a method to the madness here:
 //
@@ -109,7 +116,11 @@ pub mod plumbing;
 mod for_each;
 mod fold;
 pub use self::fold::{Fold, FoldWith};
+mod try_fold;
+pub use self::try_fold::{TryFold, TryFoldWith};
 mod reduce;
+mod try_reduce;
+mod try_reduce_with;
 mod skip;
 pub use self::skip::Skip;
 mod splitter;
@@ -362,6 +373,69 @@ pub trait ParallelIterator: Sized + Send {
               T: Send + Clone
     {
         self.map_with(init, op).for_each(|()| ())
+    }
+
+    /// Executes a fallible `OP` on each item produced by the iterator, in parallel.
+    ///
+    /// If the `OP` returns `Result::Err` or `Option::None`, we will attempt to
+    /// stop processing the rest of the items in the iterator as soon as
+    /// possible, and we will return that terminating value.  Otherwise, we will
+    /// return an empty `Result::Ok(())` or `Option::Some(())`.  If there are
+    /// multiple errors in parallel, it is not specified which will be returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use std::io::{self, Write};
+    ///
+    /// // This will stop iteration early if there's any write error, like
+    /// // having piped output get closed on the other end.
+    /// (0..100).into_par_iter()
+    ///     .try_for_each(|x| writeln!(io::stdout(), "{:?}", x))
+    ///     .expect("expected no write errors");
+    /// ```
+    fn try_for_each<OP, R>(self, op: OP) -> R
+        where OP: Fn(Self::Item) -> R + Sync + Send,
+              R: Try<Ok = ()> + Send
+    {
+        self.map(op).try_reduce(|| (), |(), ()| R::from_ok(()))
+    }
+
+    /// Executes a fallible `OP` on the given `init` value with each item
+    /// produced by the iterator, in parallel.
+    ///
+    /// This combines the `init` semantics of [`for_each_with()`] and the
+    /// failure semantics of [`try_for_each()`].
+    ///
+    /// [`for_each_with()`]: #method.for_each_with
+    /// [`try_for_each()`]: #method.try_for_each
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::mpsc::channel;
+    /// use rayon::prelude::*;
+    ///
+    /// let (sender, receiver) = channel();
+    ///
+    /// (0..5).into_par_iter()
+    ///     .try_for_each_with(sender, |s, x| s.send(x))
+    ///     .expect("expected no send errors");
+    ///
+    /// let mut res: Vec<_> = receiver.iter().collect();
+    ///
+    /// res.sort();
+    ///
+    /// assert_eq!(&res[..], &[0, 1, 2, 3, 4])
+    /// ```
+    fn try_for_each_with<OP, T, R>(self, init: T, op: OP) -> R
+        where OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
+              T: Send + Clone,
+              R: Try<Ok = ()> + Send
+    {
+        self.map_with(init, op)
+            .try_reduce(|| (), |(), ()| R::from_ok(()))
     }
 
     /// Counts the number of items in this parallel iterator.
@@ -679,6 +753,87 @@ pub trait ParallelIterator: Sized + Send {
             })
     }
 
+    /// Reduces the items in the iterator into one item using a fallible `op`.
+    /// The `identity` argument is used the same way as in [`reduce()`].
+    ///
+    /// [`reduce()`]: #method.reduce
+    ///
+    /// If a `Result::Err` or `Option::None` item is found, or if `op` reduces
+    /// to one, we will attempt to stop processing the rest of the items in the
+    /// iterator as soon as possible, and we will return that terminating value.
+    /// Otherwise, we will return the final reduced `Result::Ok(T)` or
+    /// `Option::Some(T)`.  If there are multiple errors in parallel, it is not
+    /// specified which will be returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// // Compute the sum of squares, being careful about overflow.
+    /// fn sum_squares<I: IntoParallelIterator<Item = i32>>(iter: I) -> Option<i32> {
+    ///     iter.into_par_iter()
+    ///         .map(|i| i.checked_mul(i))            // square each item,
+    ///         .try_reduce(|| 0, i32::checked_add)   // and add them up!
+    /// }
+    /// assert_eq!(sum_squares(0..5), Some(0 + 1 + 4 + 9 + 16));
+    ///
+    /// // The sum might overflow
+    /// assert_eq!(sum_squares(0..10_000), None);
+    ///
+    /// // Or the squares might overflow before it even reaches `try_reduce`
+    /// assert_eq!(sum_squares(1_000_000..1_000_001), None);
+    /// ```
+    fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
+        where OP: Fn(T, T) -> Self::Item + Sync + Send,
+              ID: Fn() -> T + Sync + Send,
+              Self::Item: Try<Ok = T>
+    {
+        try_reduce::try_reduce(self, identity, op)
+    }
+
+    /// Reduces the items in the iterator into one item using a fallible `op`.
+    ///
+    /// Like [`reduce_with()`], if the iterator is empty, `None` is returned;
+    /// otherwise, `Some` is returned.  Beyond that, it behaves like
+    /// [`try_reduce()`] for handling `Err`/`None`.
+    ///
+    /// [`reduce_with()`]: #method.reduce_with
+    /// [`try_reduce()`]: #method.try_reduce
+    ///
+    /// For instance, with `Option` items, the return value may be:
+    /// - `None`, the iterator was empty
+    /// - `Some(None)`, we stopped after encountering `None`.
+    /// - `Some(Some(x))`, the entire iterator reduced to `x`.
+    ///
+    /// With `Result` items, the nesting is more obvious:
+    /// - `None`, the iterator was empty
+    /// - `Some(Err(e))`, we stopped after encountering an error `e`.
+    /// - `Some(Ok(x))`, the entire iterator reduced to `x`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let files = ["/dev/null", "/does/not/exist"];
+    ///
+    /// // Find the biggest file
+    /// files.into_par_iter()
+    ///     .map(|path| std::fs::metadata(path).map(|m| (path, m.len())))
+    ///     .try_reduce_with(|a, b| {
+    ///         Ok(if a.1 >= b.1 { a } else { b })
+    ///     })
+    ///     .expect("Some value, since the iterator is not empty")
+    ///     .expect_err("not found");
+    /// ```
+    fn try_reduce_with<T, OP>(self, op: OP) -> Option<Self::Item>
+        where OP: Fn(T, T) -> Self::Item + Sync + Send,
+              Self::Item: Try<Ok = T>,
+    {
+        try_reduce_with::try_reduce_with(self, op)
+    }
+
     /// Parallel fold is similar to sequential fold except that the
     /// sequence of items may be subdivided before it is
     /// folded. Consider a list of numbers like `22 3 77 89 46`. If
@@ -844,6 +999,65 @@ pub trait ParallelIterator: Sized + Send {
               T: Send + Clone
     {
         fold::fold_with(self, init, fold_op)
+    }
+
+    /// Perform a fallible parallel fold.
+    ///
+    /// This is a variation of [`fold()`] for operations which can fail with
+    /// `Option::None` or `Result::Err`.  The first such failure stops
+    /// processing the local set of items, without affecting other folds in the
+    /// iterator's subdivisions.
+    ///
+    /// Often, `try_fold()` will be followed by [`try_reduce()`]
+    /// for a final reduction and global short-circuiting effect.
+    ///
+    /// [`fold()`]: #method.fold
+    /// [`try_reduce()`]: #method.try_reduce
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let bytes = 0..22_u8;
+    /// let sum = bytes.into_par_iter()
+    ///                .try_fold(|| 0_u32, |a: u32, b: u8| a.checked_add(b as u32))
+    ///                .try_reduce(|| 0, u32::checked_add);
+    ///
+    /// assert_eq!(sum, Some((0..22).sum())); // compare to sequential
+    /// ```
+    fn try_fold<T, R, ID, F>(self, identity: ID, fold_op: F) -> TryFold<Self, R, ID, F>
+        where F: Fn(T, Self::Item) -> R + Sync + Send,
+              ID: Fn() -> T + Sync + Send,
+              R: Try<Ok = T> + Send
+    {
+        try_fold::try_fold(self, identity, fold_op)
+    }
+
+    /// Perform a fallible parallel fold with a cloneable `init` value.
+    ///
+    /// This combines the `init` semantics of [`fold_with()`] and the failure
+    /// semantics of [`try_fold()`].
+    ///
+    /// [`fold_with()`]: #method.fold_with
+    /// [`try_fold()`]: #method.try_fold
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let bytes = 0..22_u8;
+    /// let sum = bytes.into_par_iter()
+    ///                .try_fold_with(0_u32, |a: u32, b: u8| a.checked_add(b as u32))
+    ///                .try_reduce(|| 0, u32::checked_add);
+    ///
+    /// assert_eq!(sum, Some((0..22).sum())); // compare to sequential
+    /// ```
+    fn try_fold_with<F, T, R>(self, init: T, fold_op: F) -> TryFoldWith<Self, R, F>
+        where F: Fn(T, Self::Item) -> R + Sync + Send,
+              R: Try<Ok = T> + Send,
+              T: Clone + Send
+    {
+        try_fold::try_fold_with(self, init, fold_op)
     }
 
     /// Sums up the items in the iterator.
@@ -2113,4 +2327,43 @@ pub trait ParallelExtend<T>
     /// assert_eq!(vec, [0, 1, 2, 3, 4, 0, 1, 4, 9, 16]);
     /// ```
     fn par_extend<I>(&mut self, par_iter: I) where I: IntoParallelIterator<Item = T>;
+}
+
+/// We hide the `Try` trait in a private module, as it's only meant to be a
+/// stable clone of the standard library's `Try` trait, as yet unstable.
+mod private {
+    /// Clone of `std::ops::Try`.
+    ///
+    /// Implementing this trait is not permitted outside of `rayon`.
+    pub trait Try {
+        private_decl!{}
+
+        type Ok;
+        type Error;
+        fn into_result(self) -> Result<Self::Ok, Self::Error>;
+        fn from_ok(v: Self::Ok) -> Self;
+        fn from_error(v: Self::Error) -> Self;
+    }
+
+    impl<T> Try for Option<T> {
+        private_impl!{}
+
+        type Ok = T;
+        type Error = ();
+
+        fn into_result(self) -> Result<T, ()> { self.ok_or(()) }
+        fn from_ok(v: T) -> Self { Some(v) }
+        fn from_error(_: ()) -> Self { None }
+    }
+
+    impl<T, E> Try for Result<T, E> {
+        private_impl!{}
+
+        type Ok = T;
+        type Error = E;
+
+        fn into_result(self) -> Result<T, E> { self }
+        fn from_ok(v: T) -> Self { Ok(v) }
+        fn from_error(v: E) -> Self { Err(v) }
+    }
 }
