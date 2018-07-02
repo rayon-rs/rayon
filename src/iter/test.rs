@@ -50,6 +50,21 @@ pub fn execute_unindexed_range() {
     assert_eq!(b, c);
 }
 
+#[cfg(has_i128)]
+#[test]
+pub fn execute_pseudo_indexed_range() {
+    use std::i128::MAX;
+    let range = MAX - 1024..MAX;
+
+    // Given `Some` length, collecting `Vec` will try to act indexed.
+    let a = range.clone().into_par_iter();
+    assert_eq!(a.opt_len(), Some(1024));
+
+    let b: Vec<i128> = a.map(|i| i + 1).collect();
+    let c: Vec<i128> = range.map(|i| i + 1).collect();
+    assert_eq!(b, c);
+}
+
 #[test]
 pub fn check_map_indexed() {
     let a = [1, 2, 3];

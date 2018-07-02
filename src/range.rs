@@ -19,6 +19,7 @@
 use iter::*;
 use iter::plumbing::*;
 use std::ops::Range;
+use std::usize;
 
 /// Parallel iterator over a range, implemented for all integer types.
 ///
@@ -127,11 +128,15 @@ macro_rules! indexed_range_impl {
     }
 }
 
+trait UnindexedRangeLen<L> {
+    fn len(&self) -> L;
+}
+
 macro_rules! unindexed_range_impl {
     ( $t:ty, $len_t:ty ) => {
-        impl IterProducer<$t> {
+        impl UnindexedRangeLen<$len_t> for Range<$t> {
             fn len(&self) -> $len_t {
-                let Range { start, end } = self.range;
+                let &Range { start, end } = self;
                 if end > start {
                     end.wrapping_sub(start) as $len_t
                 } else {
@@ -146,7 +151,23 @@ macro_rules! unindexed_range_impl {
             fn drive_unindexed<C>(self, consumer: C) -> C::Result
                 where C: UnindexedConsumer<Self::Item>
             {
-                bridge_unindexed(IterProducer { range: self.range }, consumer)
+                if let Some(len) = self.opt_len() {
+                    // Drive this in indexed mode for better `collect`.
+                    (0..len).into_par_iter()
+                        .map(|i| self.range.start.wrapping_add(i as $t))
+                        .drive(consumer)
+                } else {
+                    bridge_unindexed(IterProducer { range: self.range }, consumer)
+                }
+            }
+
+            fn opt_len(&self) -> Option<usize> {
+                let len = self.range.len();
+                if len <= usize::MAX as $len_t {
+                    Some(len as usize)
+                } else {
+                    None
+                }
             }
         }
 
@@ -154,7 +175,7 @@ macro_rules! unindexed_range_impl {
             type Item = $t;
 
             fn split(mut self) -> (Self, Option<Self>) {
-                let index = self.len() / 2;
+                let index = self.range.len() / 2;
                 if index > 0 {
                     let mid = self.range.start.wrapping_add(index as $t);
                     let right = mid .. self.range.end;
@@ -191,7 +212,7 @@ unindexed_range_impl!{i64, u64}
 #[cfg(has_i128)] unindexed_range_impl!{i128, u128}
 
 #[test]
-pub fn check_range_split_at_overflow() {
+fn check_range_split_at_overflow() {
     // Note, this split index overflows i8!
     let producer = IterProducer { range: -100i8..100 };
     let (left, right) = producer.split_at(150);
@@ -202,10 +223,54 @@ pub fn check_range_split_at_overflow() {
 
 #[cfg(has_i128)]
 #[test]
-pub fn test_i128_len_doesnt_overflow() {
+fn test_i128_len_doesnt_overflow() {
+    use std::{i128, u128};
+
     // Using parse because some versions of rust don't allow long literals
-    let octillion = "1000000000000000000000000000".parse::<i128>().unwrap();
+    let octillion: i128 = "1000000000000000000000000000".parse().unwrap();
     let producer = IterProducer { range: 0..octillion };
 
-    assert_eq!(octillion as u128, producer.len());
+    assert_eq!(octillion as u128, producer.range.len());
+    assert_eq!(octillion as u128, (0..octillion).len());
+    assert_eq!(2 * octillion as u128, (-octillion..octillion).len());
+
+    assert_eq!(u128::MAX, (i128::MIN..i128::MAX).len());
+
+}
+
+#[test]
+fn test_u64_opt_len() {
+    use std::{u64, usize};
+    assert_eq!(Some(100), (0..100u64).into_par_iter().opt_len());
+    assert_eq!(Some(usize::MAX), (0..usize::MAX as u64).into_par_iter().opt_len());
+    if (usize::MAX as u64) < u64::MAX {
+        assert_eq!(None, (0..1 + usize::MAX as u64).into_par_iter().opt_len());
+        assert_eq!(None, (0..u64::MAX).into_par_iter().opt_len());
+    }
+}
+
+#[cfg(has_i128)]
+#[test]
+fn test_u128_opt_len() {
+    use std::{u128, usize};
+    assert_eq!(Some(100), (0..100u128).into_par_iter().opt_len());
+    assert_eq!(Some(usize::MAX), (0..usize::MAX as u128).into_par_iter().opt_len());
+    assert_eq!(None, (0..1 + usize::MAX as u128).into_par_iter().opt_len());
+    assert_eq!(None, (0..u128::MAX).into_par_iter().opt_len());
+}
+
+// `usize as i64` can overflow, so make sure to wrap it appropriately
+// when using the `opt_len` "indexed" mode.
+#[test]
+#[cfg(target_pointer_width = "64")]
+fn test_usize_i64_overflow() {
+    use std::i64;
+    use ThreadPoolBuilder;
+
+    let iter = (-2..i64::MAX).into_par_iter();
+    assert_eq!(iter.opt_len(), Some(i64::MAX as usize + 2));
+
+    // always run with multiple threads to split into, or this will take forever...
+    let pool = ThreadPoolBuilder::new().num_threads(8).build().unwrap();
+    pool.install(|| assert_eq!(iter.find_last(|_| true), Some(i64::MAX - 1)));
 }
