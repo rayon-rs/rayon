@@ -716,6 +716,7 @@ where
 #[cfg(test)]
 mod tests {
     use rand::{thread_rng, Rng};
+    use rand::distributions::Uniform;
     use super::split_for_merge;
 
     #[test]
@@ -730,19 +731,17 @@ mod tests {
         check(&[1, 2, 2, 2, 2, 3], &[]);
         check(&[], &[1, 2, 2, 2, 2, 3]);
 
+        let mut rng = thread_rng();
+
         for _ in 0..100 {
-            let mut rng = thread_rng();
+            let limit = rng.gen_range::<u32>(1, 21);
+            let left_len = rng.gen_range::<usize>(0, 20);
+            let right_len = rng.gen_range::<usize>(0, 20);
 
-            let limit = rng.gen::<u32>() % 20 + 1;
-            let left_len = rng.gen::<usize>() % 20;
-            let right_len = rng.gen::<usize>() % 20;
-
-            let mut left = rng.gen_iter::<u32>()
-                .map(|x| x % limit)
+            let mut left = rng.sample_iter(&Uniform::new(0, limit))
                 .take(left_len)
                 .collect::<Vec<_>>();
-            let mut right = rng.gen_iter::<u32>()
-                .map(|x| x % limit)
+            let mut right = rng.sample_iter(&Uniform::new(0, limit))
                 .take(right_len)
                 .collect::<Vec<_>>();
 

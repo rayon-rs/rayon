@@ -95,3 +95,10 @@ fn main() {
         _ => usage()
     }
 }
+
+fn seeded_rng() -> rand::XorShiftRng {
+    use rand::{SeedableRng, XorShiftRng};
+    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
+    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
+    XorShiftRng::from_seed(seed)
+}

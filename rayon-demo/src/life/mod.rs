@@ -13,6 +13,7 @@ Options:
 
 
 use rand::{thread_rng, Rng};
+use rand::distributions::Standard;
 use std::iter::repeat;
 use std::num::Wrapping;
 use std::sync::Arc;
@@ -74,7 +75,7 @@ impl Board {
     }
 
     pub fn random(&self) -> Board {
-        let new_brd = thread_rng().gen_iter().take(self.len()).collect();
+        let new_brd = thread_rng().sample_iter(&Standard).take(self.len()).collect();
 
         self.next_board(new_brd)
     }

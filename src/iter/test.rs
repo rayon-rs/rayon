@@ -5,6 +5,7 @@ use prelude::*;
 use super::*;
 
 use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::distributions::Standard;
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
@@ -14,6 +15,12 @@ use std::usize;
 use std::sync::mpsc;
 
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
+
+fn seeded_rng() -> XorShiftRng {
+    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
+    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
+    XorShiftRng::from_seed(seed)
+}
 
 #[test]
 pub fn execute() {
@@ -348,11 +355,9 @@ pub fn check_cmp_to_seq() {
 
 #[test]
 pub fn check_cmp_rng_to_seq() {
-    use rand::{Rng, SeedableRng, XorShiftRng};
-
-    let mut rng = XorShiftRng::from_seed([11507, 46649, 55961, 20171]);
-    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
-    let b: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let mut rng = seeded_rng();
+    let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
+    let b: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
     for i in 0..a.len() {
         let par_result = a[i..].par_iter().cmp(b[i..].par_iter());
         let seq_result = a[i..].iter().cmp(b[i..].iter());
@@ -450,11 +455,9 @@ pub fn check_partial_cmp_to_seq() {
 
 #[test]
 pub fn check_partial_cmp_rng_to_seq() {
-    use rand::{Rng, SeedableRng, XorShiftRng};
-
-    let mut rng = XorShiftRng::from_seed([9346, 26355, 87943, 28346]);
-    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
-    let b: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let mut rng = seeded_rng();
+    let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
+    let b: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
     for i in 0..a.len() {
         let par_result = a[i..].par_iter().partial_cmp(b[i..].par_iter());
         let seq_result = a[i..].iter().partial_cmp(b[i..].iter());
@@ -1360,8 +1363,8 @@ pub fn par_iter_unindexed_flat_map() {
 
 #[test]
 fn min_max() {
-    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
-    let a: Vec<i32> = rng.gen_iter().take(1024).collect();
+    let mut rng = seeded_rng();
+    let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
     for i in 0..a.len() + 1 {
         let slice = &a[..i];
         assert_eq!(slice.par_iter().min(), slice.iter().min());
@@ -1371,9 +1374,9 @@ fn min_max() {
 
 #[test]
 fn min_max_by() {
-    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
+    let mut rng = seeded_rng();
     // Make sure there are duplicate keys, for testing sort stability
-    let r: Vec<i32> = rng.gen_iter().take(512).collect();
+    let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
     let a: Vec<(i32, u16)> = r.iter()
         .chain(&r)
         .cloned()
@@ -1390,9 +1393,9 @@ fn min_max_by() {
 
 #[test]
 fn min_max_by_key() {
-    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
+    let mut rng = seeded_rng();
     // Make sure there are duplicate keys, for testing sort stability
-    let r: Vec<i32> = rng.gen_iter().take(512).collect();
+    let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
     let a: Vec<(i32, u16)> = r.iter()
         .chain(&r)
         .cloned()

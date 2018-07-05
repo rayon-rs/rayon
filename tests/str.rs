@@ -2,12 +2,19 @@ extern crate rand;
 extern crate rayon;
 
 use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::distributions::Standard;
 use rayon::prelude::*;
+
+fn seeded_rng() -> XorShiftRng {
+    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
+    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
+    XorShiftRng::from_seed(seed)
+}
 
 #[test]
 pub fn execute_strings() {
-    let mut rng = XorShiftRng::from_seed([14159, 26535, 89793, 23846]);
-    let s: String = rng.gen_iter::<char>().take(1024).collect();
+    let mut rng = seeded_rng();
+    let s: String = rng.sample_iter::<char, _>(&Standard).take(1024).collect();
 
     let par_chars: String = s.par_chars().collect();
     assert_eq!(s, par_chars);

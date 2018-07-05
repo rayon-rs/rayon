@@ -1,4 +1,5 @@
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::Rng;
+use rand::distributions::{Alphanumeric, Standard, Uniform};
 use rayon::prelude::*;
 use std::mem;
 use std::sync::atomic::AtomicUsize;
@@ -14,45 +15,48 @@ fn gen_descending(len: usize) -> Vec<u64> {
 }
 
 fn gen_random(len: usize) -> Vec<u64> {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    rng.gen_iter::<u64>().take(len).collect()
+    let mut rng = ::seeded_rng();
+    rng.sample_iter(&Standard).take(len).collect()
 }
 
 fn gen_mostly_ascending(len: usize) -> Vec<u64> {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    let mut rng = ::seeded_rng();
+    let len_dist = Uniform::new(0, len);
     let mut v = gen_ascending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
-        let x = rng.gen::<usize>() % len;
-        let y = rng.gen::<usize>() % len;
+        let x = rng.sample(&len_dist);
+        let y = rng.sample(&len_dist);
         v.swap(x, y);
     }
     v
 }
 
 fn gen_mostly_descending(len: usize) -> Vec<u64> {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    let mut rng = ::seeded_rng();
+    let len_dist = Uniform::new(0, len);
     let mut v = gen_descending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
-        let x = rng.gen::<usize>() % len;
-        let y = rng.gen::<usize>() % len;
+        let x = rng.sample(&len_dist);
+        let y = rng.sample(&len_dist);
         v.swap(x, y);
     }
     v
 }
 
 fn gen_strings(len: usize) -> Vec<String> {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    let mut rng = ::seeded_rng();
+    let len_dist = Uniform::new(1, 21);
     let mut v = vec![];
     for _ in 0..len {
-        let n = rng.gen::<usize>() % 20 + 1;
-        v.push(rng.gen_ascii_chars().take(n).collect());
+        let n = rng.sample(&len_dist);
+        v.push(rng.sample_iter(&Alphanumeric).take(n).collect());
     }
     v
 }
 
 fn gen_big_random(len: usize) -> Vec<[u64; 16]> {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    rng.gen_iter().map(|x| [x; 16]).take(len).collect()
+    let mut rng = ::seeded_rng();
+    rng.sample_iter(&Standard).map(|x| [x; 16]).take(len).collect()
 }
 
 macro_rules! sort {

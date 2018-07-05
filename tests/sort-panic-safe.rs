@@ -4,6 +4,7 @@ extern crate rayon;
 extern crate rand;
 
 use rand::{thread_rng, Rng};
+use rand::distributions::Uniform;
 use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::{self, Ordering};
@@ -127,13 +128,14 @@ fn sort_panic_safe() {
     }));
 
     for &len in &[1, 2, 3, 4, 5, 10, 20, 100, 500, 5_000, 20_000] {
+        let len_dist = Uniform::new(0, len);
         for &modulus in &[5, 30, 1_000, 20_000] {
             for &has_runs in &[false, true] {
                 let mut rng = thread_rng();
                 let mut input = (0..len)
                     .map(|id| {
                         DropCounter {
-                            x: rng.next_u32() % modulus,
+                            x: rng.gen_range(0, modulus),
                             id: id,
                             version: Cell::new(0),
                         }
@@ -146,8 +148,8 @@ fn sort_panic_safe() {
                     }
 
                     for _ in 0..5 {
-                        let a = rng.gen::<usize>() % len;
-                        let b = rng.gen::<usize>() % len;
+                        let a = rng.sample(&len_dist);
+                        let b = rng.sample(&len_dist);
                         if a < b {
                             input[a..b].reverse();
                         } else {

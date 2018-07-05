@@ -29,6 +29,6 @@ default-features = false
 [dev-dependencies]
 docopt = "1"
 lazy_static = "1"
-rand = "0.4"
+rand = "0.5"
 serde = "1"
 serde_derive = "1"

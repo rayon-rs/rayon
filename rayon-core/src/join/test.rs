@@ -3,6 +3,7 @@
 use ThreadPoolBuilder;
 use join::*;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::distributions::Standard;
 use unwind;
 
 fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
@@ -28,10 +29,16 @@ fn partition<T: PartialOrd + Send>(v: &mut [T]) -> usize {
     i
 }
 
+fn seeded_rng() -> XorShiftRng {
+    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
+    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
+    XorShiftRng::from_seed(seed)
+}
+
 #[test]
 fn sort() {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut data: Vec<_> = (0..6 * 1024).map(|_| rng.next_u32()).collect();
+    let mut rng = seeded_rng();
+    let mut data: Vec<u32> = rng.sample_iter(&Standard).take(6 * 1024).collect();
     let mut sorted_data = data.clone();
     sorted_data.sort();
     quick_sort(&mut data);
@@ -40,8 +47,8 @@ fn sort() {
 
 #[test]
 fn sort_in_pool() {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    let mut data: Vec<_> = (0..12 * 1024).map(|_| rng.next_u32()).collect();
+    let mut rng = seeded_rng();
+    let mut data: Vec<u32> = rng.sample_iter(&Standard).take(12 * 1024).collect();
 
     let pool = ThreadPoolBuilder::new().build().unwrap();
     let mut sorted_data = data.clone();

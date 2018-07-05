@@ -748,6 +748,7 @@ where
 #[cfg(test)]
 mod tests {
     use rand::{thread_rng, Rng};
+    use rand::distributions::Uniform;
     use super::heapsort;
 
     #[test]
@@ -756,9 +757,9 @@ mod tests {
 
         for len in (0..25).chain(500..501) {
             for &modulus in &[5, 10, 100] {
+                let dist = Uniform::new(0, modulus);
                 for _ in 0..100 {
-                    let v: Vec<_> = rng.gen_iter::<i32>()
-                        .map(|x| x % modulus)
+                    let v: Vec<i32> = rng.sample_iter(&dist)
                         .take(len)
                         .collect();
 

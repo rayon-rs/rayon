@@ -5,16 +5,17 @@ macro_rules! make_tests {
         mod $m {
             use rayon::prelude::*;
             use test::Bencher;
-            use rand::{Rng, SeedableRng, XorShiftRng};
+            use rand::Rng;
+            use rand::distributions::Standard;
 
             lazy_static! {
                 static ref HAYSTACK: Vec<[u32; $n]> = {
-                    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-                    (0..10_000_000).map(|_| {
+                    let mut rng = ::seeded_rng();
+                    rng.sample_iter(&Standard).map(|x| {
                         let mut result: [u32; $n] = [0; $n];
-                        result[0] = rng.next_u32();
+                        result[0] = x;
                         result
-                    }).collect()
+                    }).take(10_000_000).collect()
                 };
             }
 
