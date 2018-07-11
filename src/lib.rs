@@ -48,7 +48,7 @@
 //! parallel implementations of many iterative functions such as [`map`],
 //! [`for_each`], [`filter`], [`fold`], and [more].
 //!
-//! [`rayon::prelude::*`]: prelude/index.html
+//! [`rayon::prelude`]: prelude/index.html
 //! [`map`]: iter/trait.ParallelIterator.html#method.map
 //! [`for_each`]: iter/trait.ParallelIterator.html#method.for_each
 //! [`filter`]: iter/trait.ParallelIterator.html#method.filter

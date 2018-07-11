@@ -65,7 +65,7 @@
 //! [`ParallelIterator`]: trait.ParallelIterator.html
 //! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 //! [split]: fn.split.html
-//! [plumbing]: plumbing
+//! [plumbing]: plumbing/index.html
 //!
 //! Note: Several of the `ParallelIterator` methods rely on a `Try` trait which
 //! has been deliberately obscured from the public API.  This trait is intended
