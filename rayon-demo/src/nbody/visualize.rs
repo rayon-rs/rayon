@@ -6,7 +6,7 @@ use glium::glutin::{EventsLoop, WindowBuilder, ContextBuilder};
 use glium::glutin::{ElementState, Event, WindowEvent};
 use glium::glutin::VirtualKeyCode as Key;
 use glium::index::PrimitiveType;
-use rand::{self, Rng, SeedableRng, XorShiftRng};
+use rand::{self, Rng};
 
 use nbody::nbody::NBodyBenchmark;
 use nbody::ExecutionMode;
@@ -115,7 +115,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = IndexBuffer::new(&display, PrimitiveType::TrianglesList, &indices).unwrap();
 
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    let mut rng = ::seeded_rng();
     let instances: Vec<_> =
         (0..num_bodies)
             .map(|_| {

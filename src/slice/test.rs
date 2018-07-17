@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use rand::{thread_rng, Rng};
+use rand::distributions::Uniform;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use super::ParallelSliceMut;
 
@@ -12,9 +13,9 @@ macro_rules! sort {
 
             for len in (0..25).chain(500..501) {
                 for &modulus in &[5, 10, 100] {
+                    let dist = Uniform::new(0, modulus);
                     for _ in 0..100 {
-                        let v: Vec<_> = rng.gen_iter::<i32>()
-                            .map(|x| x % modulus)
+                        let v: Vec<i32> = rng.sample_iter(&dist)
                             .take(len)
                             .collect();
 
@@ -34,8 +35,8 @@ macro_rules! sort {
             // Test sort with many duplicates.
             for &len in &[1_000, 10_000, 100_000] {
                 for &modulus in &[5, 10, 100, 10_000] {
-                    let mut v: Vec<_> = rng.gen_iter::<i32>()
-                        .map(|x| x % modulus)
+                    let dist = Uniform::new(0, modulus);
+                    let mut v: Vec<i32> = rng.sample_iter(&dist)
                         .take(len)
                         .collect();
 
@@ -46,9 +47,10 @@ macro_rules! sort {
 
             // Test sort with many pre-sorted runs.
             for &len in &[1_000, 10_000, 100_000] {
+                let len_dist = Uniform::new(0, len);
                 for &modulus in &[5, 10, 1000, 50_000] {
-                    let mut v: Vec<_> = rng.gen_iter::<i32>()
-                        .map(|x| x % modulus)
+                    let dist = Uniform::new(0, modulus);
+                    let mut v: Vec<i32> = rng.sample_iter(&dist)
                         .take(len)
                         .collect();
 
@@ -56,8 +58,8 @@ macro_rules! sort {
                     v.reverse();
 
                     for _ in 0..5 {
-                        let a = rng.gen::<usize>() % len;
-                        let b = rng.gen::<usize>() % len;
+                        let a = rng.sample(&len_dist);
+                        let b = rng.sample(&len_dist);
                         if a < b {
                             v[a..b].reverse();
                         } else {
@@ -107,7 +109,7 @@ fn test_par_sort_stability() {
             // will occur in sorted order.
             let mut v: Vec<_> = (0..len)
                 .map(|_| {
-                    let n = thread_rng().gen::<usize>() % 10;
+                    let n = thread_rng().gen_range::<usize>(0, 10);
                     counts[n] += 1;
                     (n, counts[n])
                 })

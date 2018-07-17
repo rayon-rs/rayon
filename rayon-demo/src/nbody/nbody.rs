@@ -30,7 +30,7 @@
 // [1]: https://github.com/IntelLabs/RiverTrail/blob/master/examples/nbody-webgl/NBody.js
 
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
-use rand::{Rand, Rng};
+use rand::Rng;
 use rayon::prelude::*;
 #[cfg(test)]
 use rayon::iter::ParallelBridge;
@@ -54,22 +54,25 @@ impl NBodyBenchmark {
     pub fn new<R: Rng>(num_bodies: usize, rng: &mut R) -> NBodyBenchmark {
         let bodies0: Vec<_> = (0..num_bodies)
             .map(|_| {
+                let r = rng.gen_range(0.0, 10_000.0);
+                let theta = rng.gen_range(0.0, PI);
+                let phi = rng.gen_range(0.0, 2.0 * PI);
                 let position = Point3 {
-                    x: f64::rand(rng).floor() * 40_000.0,
-                    y: f64::rand(rng).floor() * 20_000.0,
-                    z: (f64::rand(rng).floor() - 0.25) * 50_000.0,
+                    x: r * theta.sin() * phi.cos(),
+                    y: r * theta.sin() * phi.sin(),
+                    z: r * theta.cos(),
                 };
 
                 let velocity = Vector3 {
-                    x: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
-                    y: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
-                    z: f64::rand(rng) * INITIAL_VELOCITY + 10.0,
+                    x: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
+                    y: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
+                    z: rng.gen::<f64>() * INITIAL_VELOCITY + 10.0,
                 };
 
                 let velocity2 = Vector3 {
-                    x: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
-                    y: (f64::rand(rng) - 0.5) * INITIAL_VELOCITY,
-                    z: f64::rand(rng) * INITIAL_VELOCITY,
+                    x: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
+                    y: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
+                    z: rng.gen::<f64>() * INITIAL_VELOCITY,
                 };
 
                 Body {

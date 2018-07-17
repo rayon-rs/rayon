@@ -1,12 +1,12 @@
 //! Some microbenchmarks for splitting strings
 
 use rayon::prelude::*;
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::Rng;
 use test::Bencher;
 
 lazy_static! {
     static ref HAYSTACK: String = {
-        let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+        let mut rng = ::seeded_rng();
         let mut bytes: Vec<u8> = "abcdefg ".bytes().cycle().take(1_000_000).collect();
         rng.shuffle(&mut bytes);
         String::from_utf8(bytes).unwrap()

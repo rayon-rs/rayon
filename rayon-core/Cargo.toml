@@ -1,6 +1,6 @@
 [package]
 name = "rayon-core"
-version = "1.4.0" # reminder to update html_root_url attribute
+version = "1.4.1" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
@@ -24,7 +24,7 @@ lazy_static = "1"
 version = "0.2.0"
 
 [dev-dependencies]
-rand = "0.4"
+rand = "0.5"
 
 [[test]]
 name = "stack_overflow_crash"

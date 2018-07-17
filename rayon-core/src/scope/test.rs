@@ -105,7 +105,9 @@ impl<T: Send> Tree<T> {
 
 fn random_tree(depth: usize) -> Tree<u32> {
     assert!(depth > 0);
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
+    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
+    let mut rng = XorShiftRng::from_seed(seed);
     random_tree1(depth, &mut rng)
 }
 
@@ -113,13 +115,13 @@ fn random_tree1(depth: usize, rng: &mut XorShiftRng) -> Tree<u32> {
     let children = if depth == 0 {
         vec![]
     } else {
-        (0..(rng.next_u32() % 3)) // somewhere between 0 and 3 children at each level
+        (0..rng.gen_range(0, 4)) // somewhere between 0 and 3 children at each level
             .map(|_| random_tree1(depth - 1, rng))
             .collect()
     };
 
     Tree {
-        value: rng.next_u32() % 1_000_000,
+        value: rng.gen_range(0, 1_000_000),
         children: children,
     }
 }

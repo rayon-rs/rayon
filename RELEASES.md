@@ -1,3 +1,39 @@
+# Release rayon 1.0.2 / rayon-core 1.4.1
+
+- The `ParallelBridge` trait with method `par_bridge()` makes it possible to
+  use any `Send`able `Iterator` in parallel!
+  - This trait has been added to `rayon::prelude`.
+  - It automatically implements internal synchronization and queueing to
+    spread the `Item`s across the thread pool.  Iteration order is not
+    preserved by this adaptor.
+  - "Native" Rayon iterators like `par_iter()` should still be preferred when
+    possible for better efficiency.
+- `ParallelString` now has additional methods for parity with `std` string
+  iterators: `par_char_indices()`, `par_bytes()`, `par_encode_utf16()`,
+  `par_matches()`, and `par_match_indices()`.
+- `ParallelIterator` now has fallible methods `try_fold()`, `try_reduce()`,
+  and `try_for_each`, plus `*_with()` variants of each, for automatically
+  short-circuiting iterators on `None` or `Err` values.  These are inspired by
+  `Iterator::try_fold()` and `try_for_each()` that were stabilized in Rust 1.27.
+- `Range<i128>` and `Range<u128>` are now supported with Rust 1.26 and later.
+- Small improvements have been made to the documentation.
+- `rayon-core` now only depends on `rand` for testing.
+- Rayon tests now work on stable Rust.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @AndyGauge
+- @cuviper
+- @ignatenkobrain
+- @LukasKalbertodt
+- @MajorBreakfast
+- @nikomatsakis
+- @paulkernfeld
+- @QuietMisdreavus
+
+
 # Release rayon 1.0.1
 
 - Added more documentation for `rayon::iter::split()`.

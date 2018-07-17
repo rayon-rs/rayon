@@ -23,7 +23,8 @@ pub struct Args {
 }
 
 use docopt::Docopt;
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::Rng;
+use rand::distributions::Standard;
 use rayon;
 use std::time::Instant;
 
@@ -99,8 +100,8 @@ pub fn is_sorted<T: Send + Ord>(v: &[T]) -> bool {
 }
 
 fn default_vec(n: usize) -> Vec<u32> {
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
-    (0..n).map(|_| rng.next_u32()).collect()
+    let mut rng = ::seeded_rng();
+    rng.sample_iter(&Standard).take(n).collect()
 }
 
 fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {

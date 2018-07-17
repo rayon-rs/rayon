@@ -1,5 +1,4 @@
 use docopt::Docopt;
-use rand::{SeedableRng, XorShiftRng};
 use time;
 
 #[cfg(test)]
@@ -81,7 +80,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     let run_seq = mode.map(|m| m == ExecutionMode::Seq).unwrap_or(true);
 
     let par_time = if run_par {
-        let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+        let mut rng = ::seeded_rng();
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let par_start = time::precise_time_ns();
 
@@ -98,7 +97,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     };
 
     let par_reduce_time = if run_par_reduce {
-        let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+        let mut rng = ::seeded_rng();
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let par_start = time::precise_time_ns();
 
@@ -115,7 +114,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     };
 
     let seq_time = if run_seq {
-        let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+        let mut rng = ::seeded_rng();
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
         let seq_start = time::precise_time_ns();
 
