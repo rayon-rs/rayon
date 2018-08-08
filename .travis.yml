@@ -16,6 +16,10 @@ matrix:
       os: linux
       #if: everything!
       script: cargo build
+      before_script:
+        # lazy_static 1.1 requires Rust 1.21+, so downgrade it.
+        - cargo generate-lockfile
+        - cargo update -p lazy_static --precise 1.0.2
 
     - rust: stable
       os: linux
