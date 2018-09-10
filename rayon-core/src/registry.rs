@@ -1,5 +1,5 @@
 use crossbeam::sync::SegQueue;
-use crossbeam_deque::{Deque, Steal, Stealer};
+use crossbeam_deque::{self as deque, Pop, Steal, Stealer, Worker};
 #[cfg(rayon_unstable)]
 use internal::task::Task;
 #[cfg(rayon_unstable)]
@@ -102,8 +102,15 @@ impl Registry {
         let n_threads = builder.get_num_threads();
         let breadth_first = builder.get_breadth_first();
 
-        let workers: Vec<_> = (0..n_threads).map(|_| Deque::new()).collect();
-        let stealers: Vec<_> = workers.iter().map(|d| d.stealer()).collect();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads)
+            .map(|_| {
+                if breadth_first {
+                    deque::fifo()
+                } else {
+                    deque::lifo()
+                }
+            })
+            .unzip();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s)).collect(),
@@ -127,9 +134,7 @@ impl Registry {
             if let Some(stack_size) = builder.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            if let Err(e) =
-                b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) })
-            {
+            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index) }) {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)));
             }
         }
@@ -467,15 +472,12 @@ impl ThreadInfo {
 
 pub struct WorkerThread {
     /// the "worker" half of our local deque
-    worker: Deque<JobRef>,
+    worker: Worker<JobRef>,
 
     /// local queue used for `spawn_fifo` indirection
     fifo: JobFifo,
 
     index: usize,
-
-    /// are these workers configured to steal breadth-first or not?
-    breadth_first: bool,
 
     /// A weak random number generator.
     rng: XorShift64Star,
@@ -535,7 +537,7 @@ impl WorkerThread {
 
     #[inline]
     pub fn local_deque_is_empty(&self) -> bool {
-        self.worker.len() == 0
+        self.worker.is_empty()
     }
 
     /// Attempts to obtain a "local" job -- typically this means
@@ -544,15 +546,11 @@ impl WorkerThread {
     /// bottom.
     #[inline]
     pub unsafe fn take_local_job(&self) -> Option<JobRef> {
-        if !self.breadth_first {
-            self.worker.pop()
-        } else {
-            loop {
-                match self.worker.steal() {
-                    Steal::Empty => return None,
-                    Steal::Data(d) => return Some(d),
-                    Steal::Retry => {}
-                }
+        loop {
+            match self.worker.pop() {
+                Pop::Empty => return None,
+                Pop::Data(d) => return Some(d),
+                Pop::Retry => {}
             }
         }
     }
@@ -620,7 +618,7 @@ impl WorkerThread {
     /// local work to do.
     unsafe fn steal(&self) -> Option<JobRef> {
         // we only steal when we don't have any work to do locally
-        debug_assert!(self.worker.pop().is_none());
+        debug_assert!(self.local_deque_is_empty());
 
         // otherwise, try to steal
         let num_threads = self.registry.thread_infos.len();
@@ -654,16 +652,10 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(
-    worker: Deque<JobRef>,
-    registry: Arc<Registry>,
-    index: usize,
-    breadth_first: bool,
-) {
+unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
         worker: worker,
         fifo: JobFifo::new(),
-        breadth_first: breadth_first,
         index: index,
         rng: XorShift64Star::new(),
         registry: registry.clone(),

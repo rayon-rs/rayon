@@ -17,11 +17,7 @@ categories = ["concurrency"]
 num_cpus = "1.2"
 libc = "0.2.16"
 lazy_static = "1"
-
-# This is deliberately not the latest version, because we want
-# to support older rustc than crossbeam-deque 0.3+ does.
-[dependencies.crossbeam-deque]
-version = "0.2.0"
+crossbeam-deque = "0.6.3"
 
 # Also held back for rustc compatibility
 [dependencies.crossbeam]
