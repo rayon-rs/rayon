@@ -6,9 +6,14 @@ fn check<I>(iter: I)
     where I: ParallelIterator + Clone,
           I::Item: std::fmt::Debug + PartialEq
 {
+    let mut iterX = iter.clone();
     let a: Vec<_> = iter.clone().collect();
     let b: Vec<_> = iter.collect();
     assert_eq!(a, b);
+    let iterY = iterX.clone();
+    iterX.clone_from(&iterY);
+    let c: Vec<_> = iterX.collect();
+    assert_eq!(b, c);
 }
 
 #[test]

@@ -42,6 +42,10 @@ impl<'a, T: Sync> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
         Iter { inner: self.inner.clone() }
     }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.inner.clone_from(&other.inner);
+    }
 }
 
 impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {

@@ -180,6 +180,10 @@ where
     fn clone(&self) -> Self {
         ArcScopeFuture(self.0.clone())
     }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.0.clone_from(&other.0);
+    }
 }
 
 impl<'scope, F, S> Notify for ArcScopeFuture<'scope, F, S>

@@ -448,6 +448,10 @@ impl<'data, T: Sync> Clone for Iter<'data, T> {
     fn clone(&self) -> Self {
         Iter { ..*self }
     }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.slice = other.slice;
+    }
 }
 
 impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
@@ -511,6 +515,11 @@ pub struct Chunks<'data, T: 'data + Sync> {
 impl<'data, T: Sync> Clone for Chunks<'data, T> {
     fn clone(&self) -> Self {
         Chunks { ..*self }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.chunk_size = other.chunk_size;
+        self.slice = other.slice;
     }
 }
 
@@ -587,6 +596,11 @@ pub struct Windows<'data, T: 'data + Sync> {
 impl<'data, T: Sync> Clone for Windows<'data, T> {
     fn clone(&self) -> Self {
         Windows { ..*self }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.window_size = other.window_size;
+        self.slice = other.slice;
     }
 }
 
@@ -791,6 +805,11 @@ pub struct Split<'data, T: 'data, P> {
 impl<'data, T, P: Clone> Clone for Split<'data, T, P> {
     fn clone(&self) -> Self {
         Split { separator: self.separator.clone(), ..*self }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.slice = other.slice;
+        self.separator.clone_from(&other.separator);
     }
 }
 
