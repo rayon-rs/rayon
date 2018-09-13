@@ -21,7 +21,7 @@ lazy_static = "1"
 # This is deliberately not the latest version, because we want
 # to support older rustc than crossbeam-deque 0.3+ does.
 [dependencies.crossbeam-deque]
-version = "0.2.0"
+version = "0.6.0"
 
 [dev-dependencies]
 rand = "0.5"
