@@ -71,7 +71,7 @@ pub unsafe trait ScopeHandle<'scope>: 'scope {
     fn ok(self);
 }
 
-/// Converts a Rayon structure (typicaly a `Scope` or `ThreadPool`)
+/// Converts a Rayon structure (typically a `Scope` or `ThreadPool`)
 /// into a "scope handle". See the `ScopeHandle` trait for more
 /// details.
 pub trait ToScopeHandle<'scope> {
