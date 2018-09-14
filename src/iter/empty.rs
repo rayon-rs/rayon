@@ -35,6 +35,8 @@ impl<T: Send> Clone for Empty<T> {
     fn clone(&self) -> Self {
         empty()
     }
+
+    fn clone_from(&mut self, _: &Self) {}
 }
 
 impl<T: Send> fmt::Debug for Empty<T> {

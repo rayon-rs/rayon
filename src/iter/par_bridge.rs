@@ -109,6 +109,13 @@ impl<'a, Iter: Iterator + 'a> Clone for IterParallelProducer<'a, Iter> {
             items: self.items.clone(),
         }
     }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.split_count = other.split_count;
+        self.done = other.done;
+        self.iter = other.iter;
+        self.items.clone_from(&other.items);
+    }
 }
 
 impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<'a, Iter>

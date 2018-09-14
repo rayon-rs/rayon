@@ -37,6 +37,10 @@ impl<'a, K: Hash + Eq + Sync, V: Sync> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Self {
         Iter { inner: self.inner.clone() }
     }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.inner.clone_from(&other.inner);
+    }
 }
 
 into_par_vec!{

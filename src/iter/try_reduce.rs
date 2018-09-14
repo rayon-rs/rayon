@@ -31,6 +31,10 @@ impl<'r, R, ID> Clone for TryReduceConsumer<'r, R, ID> {
     fn clone(&self) -> Self {
         *self
     }
+
+    fn clone_from(&mut self, other: &Self) {
+        *self = *other;
+    }
 }
 
 impl<'r, R, ID, T> Consumer<T> for TryReduceConsumer<'r, R, ID>
