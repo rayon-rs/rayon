@@ -337,16 +337,10 @@ impl<'scope> Scope<'scope> {
     {
         unsafe {
             self.job_completed_latch.increment();
-            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
-                .as_job_ref();
+            let job = Box::new(HeapJob::new(move || self.execute_job(body)));
 
             // Use our private queue to execute in FIFO order.
-            let job_ref = self.queue.wrap(job_ref);
-
-            // Since `Scope` implements `Sync`, we can't be sure
-            // that we're still in a thread of this pool, so we
-            // can't just push to the local worker thread.
-            self.registry.inject_or_push(job_ref);
+            self.queue.inject(&self.registry, job.as_job_ref());
         }
     }
 
@@ -435,12 +429,15 @@ impl ScopeQueue {
         }
     }
 
-    unsafe fn wrap(&self, job: JobRef) -> JobRef {
+    unsafe fn inject(&self, registry: &Registry, job_ref: JobRef) {
         // A little indirection ensures that spawns are always prioritized in FIFO order.  The
         // jobs in a thread's deque may be popped from the back (LIFO) or stolen from the front
         // (FIFO), but either way they will end up popping from the front of this queue.
-        self.inner.push(job);
-        JobRef::new(self)
+        self.inner.push(job_ref);
+
+        // Since `Scope` implements `Sync`, we can't be sure that we're still in a thread of this
+        // pool, so we can't just push to the local worker thread.
+        registry.inject_or_push(JobRef::new(self));
     }
 }
 
