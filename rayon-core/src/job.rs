@@ -1,4 +1,3 @@
-use crossbeam::sync::SegQueue;
 use latch::Latch;
 use std::any::Any;
 use std::cell::UnsafeCell;
@@ -169,11 +168,5 @@ impl<T> JobResult<T> {
             JobResult::Ok(x) => x,
             JobResult::Panic(x) => unwind::resume_unwinding(x),
         }
-    }
-}
-
-impl Job for SegQueue<JobRef> {
-    unsafe fn execute(this: *const Self) {
-        (*this).try_pop().expect("job in scope queue").execute()
     }
 }
