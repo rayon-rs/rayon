@@ -31,6 +31,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::fmt;
 
+extern crate crossbeam;
 extern crate crossbeam_deque;
 #[macro_use]
 extern crate lazy_static;

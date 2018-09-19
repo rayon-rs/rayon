@@ -87,7 +87,9 @@ pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
     // enqueued into some deque for later execution.
     let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
     let job_ref = HeapJob::as_job_ref(async_job);
-    registry.inject_or_push(job_ref);
+
+    // We always inject in the global queue to prioritize jobs in FIFO order.
+    registry.inject(&[job_ref]);
     mem::forget(abort_guard);
 }
 

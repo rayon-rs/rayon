@@ -4,9 +4,10 @@
 //! [`scope()`]: fn.scope.html
 //! [`join()`]: ../join/join.fn.html
 
+use crossbeam::sync::MsQueue;
 use latch::{Latch, CountLatch};
 use log::Event::*;
-use job::HeapJob;
+use job::{HeapJob, JobRef};
 use std::any::Any;
 use std::fmt;
 use std::marker::PhantomData;
@@ -32,6 +33,8 @@ pub struct Scope<'scope> {
 
     /// thread registry where `scope()` was executed.
     registry: Arc<Registry>,
+
+    queue: MsQueue<JobRef>,
 
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
@@ -267,6 +270,7 @@ pub fn scope<'scope, OP, R>(op: OP) -> R
                 panic: AtomicPtr::new(ptr::null_mut()),
                 job_completed_latch: CountLatch::new(),
                 marker: PhantomData,
+                queue: MsQueue::new(),
             };
             let result = scope.execute_job_closure(op);
             scope.steal_till_jobs_complete(owner_thread);
@@ -335,6 +339,12 @@ impl<'scope> Scope<'scope> {
             self.job_completed_latch.increment();
             let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
                 .as_job_ref();
+
+            // A little indirection ensures that spawns are always prioritized in FIFO order.  The
+            // jobs in a thread's deque may be popped from the back (LIFO) or stolen from the front
+            // (FIFO), but either way here they will then pop from the front of our scope's queue.
+            self.queue.push(job_ref);
+            let job_ref = JobRef::new(&self.queue);
 
             // Since `Scope` implements `Sync`, we can't be sure
             // that we're still in a thread of this pool, so we
