@@ -1,4 +1,4 @@
-use crossbeam::sync::MsQueue;
+use crossbeam::sync::SegQueue;
 use latch::Latch;
 use std::any::Any;
 use std::cell::UnsafeCell;
@@ -172,8 +172,8 @@ impl<T> JobResult<T> {
     }
 }
 
-impl Job for MsQueue<JobRef> {
+impl Job for SegQueue<JobRef> {
     unsafe fn execute(this: *const Self) {
-        (*this).pop().execute()
+        (*this).try_pop().expect("job in scope queue").execute()
     }
 }

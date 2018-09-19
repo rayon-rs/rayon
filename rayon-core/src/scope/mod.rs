@@ -4,7 +4,7 @@
 //! [`scope()`]: fn.scope.html
 //! [`join()`]: ../join/join.fn.html
 
-use crossbeam::sync::MsQueue;
+use crossbeam::sync::SegQueue;
 use latch::{Latch, CountLatch};
 use log::Event::*;
 use job::{HeapJob, JobRef};
@@ -34,7 +34,7 @@ pub struct Scope<'scope> {
     /// thread registry where `scope()` was executed.
     registry: Arc<Registry>,
 
-    queue: MsQueue<JobRef>,
+    queue: SegQueue<JobRef>,
 
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
@@ -270,7 +270,7 @@ pub fn scope<'scope, OP, R>(op: OP) -> R
                 panic: AtomicPtr::new(ptr::null_mut()),
                 job_completed_latch: CountLatch::new(),
                 marker: PhantomData,
-                queue: MsQueue::new(),
+                queue: SegQueue::new(),
             };
             let result = scope.execute_job_closure(op);
             scope.steal_till_jobs_complete(owner_thread);

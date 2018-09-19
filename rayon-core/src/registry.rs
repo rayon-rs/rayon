@@ -1,5 +1,5 @@
 use ::{ExitHandler, PanicHandler, StartHandler, ThreadPoolBuilder, ThreadPoolBuildError, ErrorKind};
-use crossbeam::sync::MsQueue;
+use crossbeam::sync::SegQueue;
 use crossbeam_deque::{Deque, Steal, Stealer};
 use job::{JobRef, StackJob};
 #[cfg(rayon_unstable)]
@@ -24,7 +24,7 @@ use util::leak;
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     sleep: Sleep,
-    injected_jobs: MsQueue<JobRef>,
+    injected_jobs: SegQueue<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
@@ -106,7 +106,7 @@ impl Registry {
                 .map(|s| ThreadInfo::new(s))
                 .collect(),
             sleep: Sleep::new(),
-            injected_jobs: MsQueue::new(),
+            injected_jobs: SegQueue::new(),
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
