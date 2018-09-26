@@ -130,7 +130,7 @@ pub use self::take::Take;
 mod map;
 pub use self::map::Map;
 mod map_with;
-pub use self::map_with::MapWith;
+pub use self::map_with::{MapWith, MapInit};
 mod zip;
 pub use self::zip::Zip;
 mod zip_eq;
@@ -375,6 +375,42 @@ pub trait ParallelIterator: Sized + Send {
         self.map_with(init, op).for_each(|()| ())
     }
 
+    /// Executes `OP` on a value returned by `init` with each item produced by
+    /// the iterator, in parallel.
+    ///
+    /// The `init` function will be called only as needed for a value to be
+    /// paired with the group of items in each rayon job.  There is no
+    /// constraint on that returned type at all!
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rand;
+    /// extern crate rayon;
+    ///
+    /// use rand::Rng;
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = vec![0u8; 1_000_000];
+    ///
+    /// v.par_chunks_mut(1000)
+    ///     .for_each_init(
+    ///         || rand::thread_rng(),
+    ///         |rng, chunk| rng.fill(chunk),
+    ///     );
+    ///
+    /// // There's a remote chance that this will fail...
+    /// for i in 0u8..=255 {
+    ///     assert!(v.contains(&i));
+    /// }
+    /// ```
+    fn for_each_init<OP, INIT, T>(self, init: INIT, op: OP)
+        where OP: Fn(&mut T, Self::Item) + Sync + Send,
+              INIT: Fn() -> T + Sync + Send,
+    {
+        self.map_init(init, op).for_each(|()| ())
+    }
+
     /// Executes a fallible `OP` on each item produced by the iterator, in parallel.
     ///
     /// If the `OP` returns `Result::Err` or `Option::None`, we will attempt to
@@ -435,6 +471,47 @@ pub trait ParallelIterator: Sized + Send {
               R: Try<Ok = ()> + Send
     {
         self.map_with(init, op)
+            .try_reduce(|| (), |(), ()| R::from_ok(()))
+    }
+
+    /// Executes a fallible `OP` on a value returned by `init` with each item
+    /// produced by the iterator, in parallel.
+    ///
+    /// This combines the `init` semantics of [`for_each_init()`] and the
+    /// failure semantics of [`try_for_each()`].
+    ///
+    /// [`for_each_init()`]: #method.for_each_init
+    /// [`try_for_each()`]: #method.try_for_each
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rand;
+    /// extern crate rayon;
+    ///
+    /// use rand::Rng;
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = vec![0u8; 1_000_000];
+    ///
+    /// v.par_chunks_mut(1000)
+    ///     .try_for_each_init(
+    ///         || rand::thread_rng(),
+    ///         |rng, chunk| rng.try_fill(chunk),
+    ///     )
+    ///     .expect("expected no rand errors");
+    ///
+    /// // There's a remote chance that this will fail...
+    /// for i in 0u8..=255 {
+    ///     assert!(v.contains(&i));
+    /// }
+    /// ```
+    fn try_for_each_init<OP, INIT, T, R>(self, init: INIT, op: OP) -> R
+        where OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
+              INIT: Fn() -> T + Sync + Send,
+              R: Try<Ok = ()> + Send
+    {
+        self.map_init(init, op)
             .try_reduce(|| (), |(), ()| R::from_ok(()))
     }
 
@@ -509,6 +586,45 @@ pub trait ParallelIterator: Sized + Send {
               R: Send
     {
         map_with::new(self, init, map_op)
+    }
+
+    /// Applies `map_op` to a value returned by `init` with each item of this
+    /// iterator, producing a new iterator with the results.
+    ///
+    /// The `init` function will be called only as needed for a value to be
+    /// paired with the group of items in each rayon job.  There is no
+    /// constraint on that returned type at all!
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rand;
+    /// extern crate rayon;
+    ///
+    /// use rand::Rng;
+    /// use rayon::prelude::*;
+    ///
+    /// let a: Vec<_> = (1i32..1_000_000)
+    ///     .into_par_iter()
+    ///     .map_init(
+    ///         || rand::thread_rng(),  // get the thread-local RNG
+    ///         |rng, x| if rng.gen() { // randomly negate items
+    ///             -x
+    ///         } else {
+    ///             x
+    ///         },
+    ///     ).collect();
+    ///
+    /// // There's a remote chance that this will fail...
+    /// assert!(a.iter().any(|&x| x < 0));
+    /// assert!(a.iter().any(|&x| x > 0));
+    /// ```
+    fn map_init<F, INIT, T, R>(self, init: INIT, map_op: F) -> MapInit<Self, INIT, F>
+        where F: Fn(&mut T, Self::Item) -> R + Sync + Send,
+              INIT: Fn() -> T + Sync + Send,
+              R: Send
+    {
+        map_with::new_init(self, init, map_op)
     }
 
     /// Creates an iterator which clones all of its elements.  This may be

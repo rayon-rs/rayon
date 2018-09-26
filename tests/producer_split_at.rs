@@ -249,6 +249,12 @@ fn map_with() {
 }
 
 #[test]
+fn map_init() {
+    let v: Vec<_> = (0..10).collect();
+    check(&v, || v.par_iter().map_init(|| vec![0], |_, &x| x));
+}
+
+#[test]
 fn rev() {
     let v: Vec<_> = (0..10).rev().collect();
     check(&v, || (0..10).into_par_iter().rev());
