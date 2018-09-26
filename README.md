@@ -54,7 +54,7 @@ all). In other words, **if your code compiles**, it typically does the
 same thing it did before.
 
 For the most, parallel iterators in particular are guaranteed to
-produce the same results as their sequential counterparts. One caevat:
+produce the same results as their sequential counterparts. One caveat:
 If your iterator has side effects (for example, sending methods to
 other threads through a [Rust channel] or writing to disk), those side
 effects may occur in a different order. Note also that, in some cases,
