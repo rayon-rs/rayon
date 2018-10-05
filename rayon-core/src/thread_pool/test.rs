@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -199,4 +200,88 @@ fn mutual_install_sleepy() {
 fn check_thread_pool_new() {
     let pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
     assert_eq!(pool.current_num_threads(), 22);
+}
+
+/// Wait for a successful compare-and-swap
+fn wait_for_swap(x: &AtomicUsize, current: usize, new: usize) {
+    use std::{thread, time};
+
+    let start = time::Instant::now();
+    let max = time::Duration::from_secs(60);
+    while start.elapsed() < max {
+        let previous = x.compare_and_swap(current, new, Ordering::Relaxed);
+        if previous == current {
+            return;
+        }
+        thread::yield_now();
+    }
+
+    // That's too long!
+    panic!("Counter didn't reach the expected value!");
+}
+
+/// Spawn jobs with compare-and-swap incrementing counters
+fn pool_spawn_inc(pool: &ThreadPool, counter: &Arc<AtomicUsize>, range: Range<usize>) {
+    for i in range {
+        let counter = counter.clone();
+        pool.spawn(move || wait_for_swap(&counter, i, i + 1));
+    }
+}
+
+#[test]
+fn threadpool_spawn_order() {
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    pool_spawn_inc(&pool, &counter, 0..100);
+    assert_eq!(wait_for_counter(counter), 100);
+}
+
+#[test]
+fn threadpool_install_spawn_order() {
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    pool.install(|| pool_spawn_inc(&pool, &counter, 0..100));
+    assert_eq!(wait_for_counter(counter), 100);
+}
+
+/// Spawn jobs with compare-and-swap incrementing counters in a scope
+fn scope_spawn_inc(pool: &ThreadPool, counter: &AtomicUsize, range: Range<usize>) {
+    pool.scope(|scope| {
+        for i in range {
+            scope.spawn(move |_| wait_for_swap(counter, i, i + 1));
+        }
+    });
+}
+
+#[test]
+fn scope_spawn_order() {
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
+    let counter = AtomicUsize::new(0);
+    scope_spawn_inc(&pool, &counter, 0..100);
+    assert_eq!(counter.into_inner(), 100);
+}
+
+#[test]
+fn nested_scope_spawn_order() {
+    let pool = ThreadPoolBuilder::new().num_threads(4).build().unwrap();
+
+    let counter = AtomicUsize::new(0);
+    pool.scope(|scope| {
+        let pool = &pool;
+        let counter = &counter;
+        for i in 0..10 {
+            scope.spawn(move |_| {
+                let j = 10 * i;
+                join(
+                    || scope_spawn_inc(pool, counter, j..j + 5),
+                    || scope_spawn_inc(pool, counter, j + 5..j + 10),
+                );
+            });
+        }
+    });
+
+    assert_eq!(counter.into_inner(), 100);
 }
