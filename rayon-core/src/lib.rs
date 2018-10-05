@@ -141,11 +141,6 @@ pub struct ThreadPoolBuilder {
 
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
-
-    /// If false, worker threads will execute spawned jobs in a
-    /// "depth-first" fashion. If true, they will do a "breadth-first"
-    /// fashion. Depth-first is the default.
-    breadth_first: bool,
 }
 
 /// Contains the rayon thread pool configuration. Use [`ThreadPoolBuilder`] instead.
@@ -306,33 +301,30 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Suggest to worker threads that they execute spawned jobs in a
-    /// "breadth-first" fashion. Typically, when a worker thread is
-    /// idle or blocked, it will attempt to execute the job from the
-    /// *top* of its local deque of work (i.e., the job most recently
-    /// spawned). If this flag is set to true, however, workers will
-    /// prefer to execute in a *breadth-first* fashion -- that is,
-    /// they will search for jobs at the *bottom* of their local
-    /// deque. (At present, workers *always* steal from the bottom of
-    /// other worker's deques, regardless of the setting of this
-    /// flag.)
+    /// **(DEPRECATED)** Suggest to worker threads that they execute
+    /// spawned jobs in a "breadth-first" fashion.
     ///
-    /// If you think of the tasks as a tree, where a parent task
-    /// spawns its children in the tree, then this flag loosely
-    /// corresponds to doing a breadth-first traversal of the tree,
-    /// whereas the default would be to do a depth-first traversal.
+    /// It used to be the case that threads would execute jobs from
+    /// their local deque in depth-first fashion by default, last-in
+    /// first-out (LIFO).  This `breadth_first()` method changed to a
+    /// breadth-first strategy (FIFO) for the entire thread pool.
+    /// This can help some spawn workloads to prioritize items in the
+    /// same order they were queued, but this had a bad effect on
+    /// stack-oriented workloads like parallel iterators -- see
+    /// [rayon#590](https://github.com/rayon-rs/rayon/issues/590).
     ///
-    /// **Note that this is an "execution hint".** Rayon's task
+    /// **Note that this was just an "execution hint".** Rayon's task
     /// execution is highly dynamic and the precise order in which
     /// independent tasks are executed is not intended to be
     /// guaranteed.
-    pub fn breadth_first(mut self) -> Self {
-        self.breadth_first = true;
+    ///
+    /// This `breadth_first()` method is now deprecated and has no
+    /// effect.  Instead, we now **always** prioritize `spawn` jobs in
+    /// breadth-first/FIFO order, while keeping all other jobs in
+    /// depth-first/LIFO order.
+    #[deprecated(note = "spawns are now always breadth-first")]
+    pub fn breadth_first(self) -> Self {
         self
-    }
-
-    fn get_breadth_first(&self) -> bool {
-        self.breadth_first
     }
 
     /// Takes the current thread start callback, leaving `None`.
@@ -474,8 +466,7 @@ impl fmt::Debug for ThreadPoolBuilder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ThreadPoolBuilder { ref num_threads, ref get_thread_name,
                                 ref panic_handler, ref stack_size,
-                                ref start_handler, ref exit_handler,
-                                ref breadth_first } = *self;
+                                ref start_handler, ref exit_handler } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
         // output.
@@ -497,7 +488,6 @@ impl fmt::Debug for ThreadPoolBuilder {
          .field("stack_size", &stack_size)
          .field("start_handler", &start_handler)
          .field("exit_handler", &exit_handler)
-         .field("breadth_first", &breadth_first)
          .finish()
     }
 }

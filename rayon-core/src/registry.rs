@@ -94,7 +94,6 @@ impl<'a> Drop for Terminator<'a> {
 impl Registry {
     pub fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Registry>, ThreadPoolBuildError> {
         let n_threads = builder.get_num_threads();
-        let breadth_first = builder.get_breadth_first();
 
         let workers: Vec<_> = (0..n_threads)
             .map(|_| Deque::new())
@@ -125,7 +124,7 @@ impl Registry {
             if let Some(stack_size) = builder.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) }) {
+            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index) }) {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)))
             }
         }
@@ -434,9 +433,6 @@ pub struct WorkerThread {
 
     index: usize,
 
-    /// are these workers configured to steal breadth-first or not?
-    breadth_first: bool,
-
     /// A weak random number generator.
     rng: XorShift64Star,
 
@@ -499,17 +495,7 @@ impl WorkerThread {
     /// bottom.
     #[inline]
     pub unsafe fn take_local_job(&self) -> Option<JobRef> {
-        if !self.breadth_first {
-            self.worker.pop()
-        } else {
-            loop {
-                match self.worker.steal() {
-                    Steal::Empty => return None,
-                    Steal::Data(d) => return Some(d),
-                    Steal::Retry => {},
-                }
-            }
-        }
+        self.worker.pop()
     }
 
     /// Wait until the latch is set. Try to keep busy by popping and
@@ -609,11 +595,9 @@ impl WorkerThread {
 
 unsafe fn main_loop(worker: Deque<JobRef>,
                     registry: Arc<Registry>,
-                    index: usize,
-                    breadth_first: bool) {
+                    index: usize) {
     let worker_thread = WorkerThread {
         worker: worker,
-        breadth_first: breadth_first,
         index: index,
         rng: XorShift64Star::new(),
         registry: registry.clone(),
