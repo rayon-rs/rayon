@@ -5,7 +5,12 @@ mod win;
 #[cfg(windows)]
 pub use self::win::get_cpu_time;
 
-#[cfg(not(windows))]
+#[cfg(unix)]
+mod unix;
+#[cfg(unix)]
+pub use self::unix::get_cpu_time;
+
+#[cfg(not(any(unix, windows)))]
 pub fn get_cpu_time() -> Option<u64> {
     None
 }

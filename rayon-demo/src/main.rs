@@ -33,6 +33,7 @@ extern crate serde; // all
 extern crate cgmath; // nbody
 #[macro_use]
 extern crate glium; // nbody
+extern crate libc; // life
 extern crate rand; // nbody
 extern crate time; // nbody, sieve
 extern crate odds; // sieve
