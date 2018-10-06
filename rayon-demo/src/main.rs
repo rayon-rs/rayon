@@ -42,6 +42,7 @@ extern crate num; // factorial
 extern crate lazy_static; // find
 extern crate fixedbitset; // tsp
 extern crate regex; // tsp
+extern crate winapi; // life
 
 #[cfg(test)]
 extern crate test;

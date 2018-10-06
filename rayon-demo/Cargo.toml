@@ -17,6 +17,7 @@ regex = "1"
 serde = "1"
 serde_derive = "1"
 time = "0.1"
+winapi = { version = "0.3", features = ["processthreadsapi"] }
 
 [dev-dependencies]
 num = "0.2"
