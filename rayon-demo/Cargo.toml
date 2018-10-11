@@ -18,5 +18,11 @@ serde = "1"
 serde_derive = "1"
 time = "0.1"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["processthreadsapi"] }
+
 [dev-dependencies]
 num = "0.2"

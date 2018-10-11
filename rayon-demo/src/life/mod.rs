@@ -1,13 +1,16 @@
 const USAGE: &'static str = "
 Usage: life bench [--size N] [--gens N]
+       life play [--size N] [--gens N] [--fps N]
        life --help
 Conway's Game of Life.
 
 Commands:
     bench           Run the benchmark in different modes and print the timings.
+    play            Run with a max frame rate and monitor CPU resources.
 Options:
     --size N        Size of the game board (N x N) [default: 200]
     --gens N        Simulate N generations [default: 100]
+    --fps N         Maximum frame rate [default: 60]
     -h, --help      Show this message.
 ";
 
@@ -17,6 +20,7 @@ use rand::distributions::Standard;
 use std::iter::repeat;
 use std::num::Wrapping;
 use std::sync::Arc;
+use std::thread;
 use time;
 
 use docopt::Docopt;
@@ -25,12 +29,15 @@ use rayon::iter::ParallelBridge;
 
 #[cfg(test)]
 mod bench;
+mod cpu_time;
 
 #[derive(Deserialize)]
 pub struct Args {
     cmd_bench: bool,
+    cmd_play: bool,
     flag_size: usize,
     flag_gens: usize,
+    flag_fps: usize,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -161,6 +168,44 @@ fn par_bridge_generations(board: Board, gens: usize) {
     for _ in 0..gens { brd = brd.par_bridge_next_generation(); }
 }
 
+fn delay(last_start: u64, min_interval_ns: u64) -> u64 {
+    let mut current_time = time::precise_time_ns();
+    let elapsed = current_time - last_start;
+    if elapsed < min_interval_ns {
+        let delay = min_interval_ns - elapsed;
+        thread::sleep(::std::time::Duration::from_nanos(delay));
+        current_time += delay;
+    }
+    current_time
+}
+
+fn generations_limited(board: Board, gens: usize, min_interval_ns: u64) {
+    let mut brd = board;
+    let mut time = time::precise_time_ns();
+    for _ in 0..gens {
+        brd = brd.next_generation();
+        time = delay(time, min_interval_ns);
+    }
+}
+
+fn parallel_generations_limited(board: Board, gens: usize, min_interval_ns: u64) {
+    let mut brd = board;
+    let mut time = time::precise_time_ns();
+    for _ in 0..gens {
+        brd = brd.parallel_next_generation();
+        time = delay(time, min_interval_ns);
+    }
+}
+
+fn par_bridge_generations_limited(board: Board, gens: usize, min_interval_ns: u64) {
+    let mut brd = board;
+    let mut time = time::precise_time_ns();
+    for _ in 0..gens {
+        brd = brd.par_bridge_next_generation();
+        time = delay(time, min_interval_ns);
+    }
+}
+
 fn measure(f: fn(Board, usize) -> (), args: &Args) -> u64 {
     let (n, gens) = (args.flag_size, args.flag_gens);
     let brd = Board::new(n, n).random();
@@ -169,6 +214,31 @@ fn measure(f: fn(Board, usize) -> (), args: &Args) -> u64 {
     f(brd, gens);
 
     time::precise_time_ns() - start
+}
+
+struct CpuResult {
+    actual_fps: f64,
+    cpu_usage_percent: Option<f64>,
+}
+
+fn measure_cpu(f: fn(Board, usize, u64) -> (), args: &Args) -> CpuResult {
+    let (n, gens, rate) = (args.flag_size, args.flag_gens, args.flag_fps);
+    let interval = 1_000_000_000 / rate as u64;
+    let brd = Board::new(n, n).random();
+    let start = time::precise_time_ns();
+    let cpu_start = cpu_time::get_cpu_time();
+
+    f(brd, gens, interval);
+
+    let cpu_stop = cpu_time::get_cpu_time();
+    let duration = time::precise_time_ns() - start;
+
+    CpuResult {
+        actual_fps: (1_000_000_000.0 * gens as f64) / duration as f64,
+        cpu_usage_percent: cpu_time::get_cpu_duration(cpu_start, cpu_stop)
+            .and_then(|cpu| cpu.num_nanoseconds())
+            .and_then(|cpu| Some(100.0 * cpu as f64 / duration as f64)),
+    }
 }
 
 pub fn main(args: &[String]) {
@@ -183,10 +253,30 @@ pub fn main(args: &[String]) {
 
         let parallel = measure(parallel_generations, &args);
         println!("parallel: {:10} ns -> {:.2}x speedup", parallel,
-                 serial as f64 / parallel as f64);
+            serial as f64 / parallel as f64);
 
         let par_bridge = measure(par_bridge_generations, &args);
         println!("par_bridge: {:10} ns -> {:.2}x speedup", par_bridge,
-                 serial as f64 / par_bridge as f64);
+            serial as f64 / par_bridge as f64);
+    }
+
+    if args.cmd_play {
+        let serial = measure_cpu(generations_limited, &args);
+        println!("  serial: {:.2} fps", serial.actual_fps);
+        if let Some(cpu_usage) = serial.cpu_usage_percent {
+            println!("    cpu usage: {:.1}%", cpu_usage);
+        }
+
+        let parallel = measure_cpu(parallel_generations_limited, &args);
+        println!("parallel: {:.2} fps", parallel.actual_fps);
+        if let Some(cpu_usage) = parallel.cpu_usage_percent {
+            println!("  cpu usage: {:.1}%", cpu_usage);
+        }
+
+        let par_bridge = measure_cpu(par_bridge_generations_limited, &args);
+        println!("par_bridge: {:.2} fps", par_bridge.actual_fps);
+        if let Some(cpu_usage) = par_bridge.cpu_usage_percent {
+            println!("  cpu usage: {:.1}%", cpu_usage);
+        }
     }
 }
