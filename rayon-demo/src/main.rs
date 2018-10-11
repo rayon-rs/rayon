@@ -33,6 +33,7 @@ extern crate serde; // all
 extern crate cgmath; // nbody
 #[macro_use]
 extern crate glium; // nbody
+#[cfg(unix)]
 extern crate libc; // life
 extern crate rand; // nbody
 extern crate time; // nbody, sieve
@@ -43,6 +44,7 @@ extern crate num; // factorial
 extern crate lazy_static; // find
 extern crate fixedbitset; // tsp
 extern crate regex; // tsp
+#[cfg(windows)]
 extern crate winapi; // life
 
 #[cfg(test)]

@@ -11,13 +11,17 @@ docopt = "1"
 fixedbitset = "0.1.5"
 glium = "0.21"
 lazy_static = "1"
-libc = "0.2"
 odds = "0.3"
 rand = "0.5"
 regex = "1"
 serde = "1"
 serde_derive = "1"
 time = "0.1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["processthreadsapi"] }
 
 [dev-dependencies]
