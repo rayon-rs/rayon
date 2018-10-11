@@ -45,6 +45,8 @@ matrix:
       env: RUSTFLAGS='--cfg rayon_unstable'
       if: NOT type = pull_request
 
+    # macOS builders are limited, so just run a few variants.
+
     - rust: stable
       os: osx
       if: NOT type = pull_request
@@ -58,6 +60,40 @@ matrix:
       if: NOT type = pull_request
     - rust: nightly
       os: osx
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    # Windows builders test both MSVC and GNU (mingw)
+
+    - rust: stable-x86_64-pc-windows-msvc
+      os: windows
+      if: NOT type = pull_request
+    - rust: stable-x86_64-pc-windows-msvc
+      os: windows
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: nightly-x86_64-pc-windows-msvc
+      os: windows
+      if: NOT type = pull_request
+    - rust: nightly-x86_64-pc-windows-msvc
+      os: windows
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: stable-x86_64-pc-windows-gnu
+      os: windows
+      if: NOT type = pull_request
+    - rust: stable-x86_64-pc-windows-gnu
+      os: windows
+      env: RUSTFLAGS='--cfg rayon_unstable'
+      if: NOT type = pull_request
+
+    - rust: nightly-x86_64-pc-windows-gnu
+      os: windows
+      if: NOT type = pull_request
+    - rust: nightly-x86_64-pc-windows-gnu
+      os: windows
       env: RUSTFLAGS='--cfg rayon_unstable'
       if: NOT type = pull_request
 
