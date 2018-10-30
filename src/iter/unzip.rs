@@ -24,7 +24,7 @@ trait UnzipOp<T>: Sync + Send {
     }
 }
 
-/// Run an unzip-like operation into `ParallelExtend` collections.
+/// Run an unzip-like operation into default `ParallelExtend` collections.
 fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
     where I: ParallelIterator,
           OP: UnzipOp<I::Item>,
@@ -33,18 +33,27 @@ fn execute<I, OP, FromA, FromB>(pi: I, op: OP) -> (FromA, FromB)
 {
     let mut a = FromA::default();
     let mut b = FromB::default();
-    {
-        // We have no idea what the consumers will look like for these
-        // collections' `par_extend`, but we can intercept them in our own
-        // `drive_unindexed`.  Start with the left side, type `A`:
-        let iter = UnzipA {
-            base: pi,
-            op: op,
-            b: &mut b,
-        };
-        a.par_extend(iter);
-    }
+    execute_into(&mut a, &mut b, pi, op);
     (a, b)
+}
+
+
+/// Run an unzip-like operation into `ParallelExtend` collections.
+fn execute_into<I, OP, FromA, FromB>(a: &mut FromA, b: &mut FromB, pi: I, op: OP)
+    where I: ParallelIterator,
+          OP: UnzipOp<I::Item>,
+          FromA: Send + ParallelExtend<OP::Left>,
+          FromB: Send + ParallelExtend<OP::Right>
+{
+    // We have no idea what the consumers will look like for these
+    // collections' `par_extend`, but we can intercept them in our own
+    // `drive_unindexed`.  Start with the left side, type `A`:
+    let iter = UnzipA {
+        base: pi,
+        op: op,
+        b: b,
+    };
+    a.par_extend(iter);
 }
 
 
@@ -188,7 +197,7 @@ struct UnzipA<'b, I, OP, FromB: 'b> {
 impl<'b, I, OP, FromB> ParallelIterator for UnzipA<'b, I, OP, FromB>
     where I: ParallelIterator,
           OP: UnzipOp<I::Item>,
-          FromB: Default + Send + ParallelExtend<OP::Right>
+          FromB: Send + ParallelExtend<OP::Right>
 {
     type Item = OP::Left;
 
@@ -384,5 +393,59 @@ impl<A, B, RA, RB> Reducer<(A, B)> for UnzipReducer<RA, RB>
 {
     fn reduce(self, left: (A, B), right: (A, B)) -> (A, B) {
         (self.left.reduce(left.0, right.0), self.right.reduce(left.1, right.1))
+    }
+}
+
+
+impl<A, B, FromA, FromB> ParallelExtend<(A, B)> for (FromA, FromB)
+where
+    A: Send,
+    B: Send,
+    FromA: Send + ParallelExtend<A>,
+    FromB: Send + ParallelExtend<B>,
+{
+    fn par_extend<I>(&mut self, pi: I)
+    where
+        I: IntoParallelIterator<Item = (A, B)>,
+    {
+        execute_into(&mut self.0, &mut self.1, pi.into_par_iter(), Unzip);
+    }
+}
+
+impl<L, R, A, B> ParallelExtend<Either<L, R>> for (A, B)
+where
+    L: Send,
+    R: Send,
+    A: Send + ParallelExtend<L>,
+    B: Send + ParallelExtend<R>,
+{
+    fn par_extend<I>(&mut self, pi: I)
+    where
+        I: IntoParallelIterator<Item = Either<L, R>>,
+    {
+        execute_into(&mut self.0, &mut self.1, pi.into_par_iter(), UnEither);
+    }
+}
+
+/// An `UnzipOp` that routes items depending on their `Either` variant.
+struct UnEither;
+
+impl<L, R> UnzipOp<Either<L, R>> for UnEither
+where
+    L: Send,
+    R: Send,
+{
+    type Left = L;
+    type Right = R;
+
+    fn consume<FL, FR>(&self, item: Either<L, R>, left: FL, right: FR) -> (FL, FR)
+    where
+        FL: Folder<L>,
+        FR: Folder<R>,
+    {
+        match item {
+            Either::Left(item) => (left.consume(item), right),
+            Either::Right(item) => (left, right.consume(item)),
+        }
     }
 }

@@ -1519,6 +1519,20 @@ pub trait ParallelIterator: Sized + Send {
     /// assert_eq!(left, [0, 1, 2, 3]);
     /// assert_eq!(right, [1, 2, 3, 4]);
     /// ```
+    ///
+    /// Nested pairs can be unzipped too.
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let (values, (squares, cubes)): (Vec<_>, (Vec<_>, Vec<_>)) = (0..4).into_par_iter()
+    ///     .map(|i| (i, (i * i, i * i * i)))
+    ///     .unzip();
+    ///
+    /// assert_eq!(values, [0, 1, 2, 3]);
+    /// assert_eq!(squares, [0, 1, 4, 9]);
+    /// assert_eq!(cubes, [0, 1, 8, 27]);
+    /// ```
     fn unzip<A, B, FromA, FromB>(self) -> (FromA, FromB)
         where Self: ParallelIterator<Item = (A, B)>,
               FromA: Default + Send + ParallelExtend<A>,
@@ -1567,16 +1581,37 @@ pub trait ParallelIterator: Sized + Send {
     /// use rayon::iter::Either;
     ///
     /// let (left, right): (Vec<_>, Vec<_>) = (0..8).into_par_iter()
-    ///                                             .partition_map(|x| {
-    ///                                                 if x % 2 == 0 {
-    ///                                                     Either::Left(x * 4)
-    ///                                                 } else {
-    ///                                                     Either::Right(x * 3)
-    ///                                                 }
-    ///                                             });
+    ///     .partition_map(|x| {
+    ///         if x % 2 == 0 {
+    ///             Either::Left(x * 4)
+    ///         } else {
+    ///             Either::Right(x * 3)
+    ///         }
+    ///     });
     ///
     /// assert_eq!(left, [0, 8, 16, 24]);
     /// assert_eq!(right, [3, 9, 15, 21]);
+    /// ```
+    ///
+    /// Nested `Either` enums can be split as well.
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use rayon::iter::Either::*;
+    ///
+    /// let ((fizzbuzz, fizz), (buzz, other)): ((Vec<_>, Vec<_>), (Vec<_>, Vec<_>)) = (1..20)
+    ///     .into_par_iter()
+    ///     .partition_map(|x| match (x % 3, x % 5) {
+    ///         (0, 0) => Left(Left(x)),
+    ///         (0, _) => Left(Right(x)),
+    ///         (_, 0) => Right(Left(x)),
+    ///         (_, _) => Right(Right(x)),
+    ///     });
+    ///
+    /// assert_eq!(fizzbuzz, [15]);
+    /// assert_eq!(fizz, [3, 6, 9, 12, 18]);
+    /// assert_eq!(buzz, [5, 10]);
+    /// assert_eq!(other, [1, 2, 4, 7, 8, 11, 13, 14, 16, 17, 19]);
     /// ```
     fn partition_map<A, B, P, L, R>(self, predicate: P) -> (A, B)
         where A: Default + Send + ParallelExtend<L>,
