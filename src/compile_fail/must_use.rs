@@ -4,6 +4,20 @@
 
 macro_rules! must_use {
     ($( $name:ident #[$expr:meta] )*) => {$(
+        /// First sanity check that the expression is OK.
+        ///
+        /// ```
+        /// #![deny(unused_must_use)]
+        ///
+        /// use rayon::prelude::*;
+        ///
+        /// let v: Vec<_> = (0..100).map(Some).collect();
+        /// let _ =
+        #[$expr]
+        /// ```
+        ///
+        /// Now trigger the `must_use`.
+        ///
         /// ```compile_fail
         /// #![deny(unused_must_use)]
         ///
@@ -35,6 +49,7 @@ must_use! {
     intersperse         /** v.par_iter().intersperse(&None); */
     map                 /** v.par_iter().map(|x| x); */
     map_with            /** v.par_iter().map_with(0, |_, x| x); */
+    map_init            /** v.par_iter().map_init(|| 0, |_, x| x); */
     rev                 /** v.par_iter().rev(); */
     skip                /** v.par_iter().skip(1); */
     take                /** v.par_iter().take(1); */
