@@ -1,3 +1,27 @@
+# Release rayon 1.0.3
+
+- `ParallelExtend` is now implemented for tuple pairs, enabling nested
+  `unzip()` and `partition_map()` operations.  For instance, `(A, (B, C))`
+  items can be unzipped into `(Vec<A>, (Vec<B>, Vec<C>))`.
+  - `ParallelExtend<(A, B)>` works like `unzip()`.
+  - `ParallelExtend<Either<A, B>>` works like `partition_map()`.
+- `ParallelIterator` now has a method `map_init()` which calls an `init`
+  function for a value to pair with items, like `map_with()` but dynamically
+  constructed.  That value type has no constraints, not even `Send` or `Sync`.
+  - The new `for_each_init()` is a variant of this for simple iteration.
+  - The new `try_for_each_init()` is a variant for fallible iteration.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @dan-zheng
+- @dholbert
+- @ignatenkobrain
+- @mdonoughe
+
+
 # Release rayon 1.0.2 / rayon-core 1.4.1
 
 - The `ParallelBridge` trait with method `par_bridge()` makes it possible to
