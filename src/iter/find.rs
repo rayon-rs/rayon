@@ -1,10 +1,11 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use super::plumbing::*;
 use super::*;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
-    where I: ParallelIterator,
-          P: Fn(&I::Item) -> bool + Sync
+where
+    I: ParallelIterator,
+    P: Fn(&I::Item) -> bool + Sync,
 {
     let found = AtomicBool::new(false);
     let consumer = FindConsumer::new(&find_op, &found);
@@ -26,8 +27,9 @@ impl<'p, P> FindConsumer<'p, P> {
 }
 
 impl<'p, T, P: 'p> Consumer<T> for FindConsumer<'p, P>
-    where T: Send,
-          P: Fn(&T) -> bool + Sync
+where
+    T: Send,
+    P: Fn(&T) -> bool + Sync,
 {
     type Folder = FindFolder<'p, T, P>;
     type Reducer = FindReducer;
@@ -50,10 +52,10 @@ impl<'p, T, P: 'p> Consumer<T> for FindConsumer<'p, P>
     }
 }
 
-
 impl<'p, T, P: 'p> UnindexedConsumer<T> for FindConsumer<'p, P>
-    where T: Send,
-          P: Fn(&T) -> bool + Sync
+where
+    T: Send,
+    P: Fn(&T) -> bool + Sync,
 {
     fn split_off_left(&self) -> Self {
         FindConsumer::new(self.find_op, self.found)
@@ -64,7 +66,6 @@ impl<'p, T, P: 'p> UnindexedConsumer<T> for FindConsumer<'p, P>
     }
 }
 
-
 struct FindFolder<'p, T, P: 'p> {
     find_op: &'p P,
     found: &'p AtomicBool,
@@ -72,7 +73,8 @@ struct FindFolder<'p, T, P: 'p> {
 }
 
 impl<'p, T, P> Folder<T> for FindFolder<'p, T, P>
-    where P: Fn(&T) -> bool + 'p
+where
+    P: Fn(&T) -> bool + 'p,
 {
     type Result = Option<T>;
 
@@ -92,7 +94,6 @@ impl<'p, T, P> Folder<T> for FindFolder<'p, T, P>
         self.found.load(Ordering::Relaxed)
     }
 }
-
 
 struct FindReducer;
 

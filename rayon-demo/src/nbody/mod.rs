@@ -5,8 +5,8 @@ use time;
 mod bench;
 mod nbody;
 mod visualize;
-use self::visualize::visualize_benchmarks;
 use self::nbody::NBodyBenchmark;
+use self::visualize::visualize_benchmarks;
 
 const USAGE: &'static str = "
 Usage: nbody bench [--mode MODE --bodies N --ticks N]
@@ -59,18 +59,19 @@ pub struct Args {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).deserialize())
-            .unwrap_or_else(|e| e.exit());
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).deserialize())
+        .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
         run_benchmarks(args.flag_mode, args.flag_bodies, args.flag_ticks);
     }
 
     if args.cmd_visualize {
-        visualize_benchmarks(args.flag_bodies,
-                             args.flag_mode.unwrap_or(ExecutionMode::Par));
+        visualize_benchmarks(
+            args.flag_bodies,
+            args.flag_mode.unwrap_or(ExecutionMode::Par),
+        );
     }
 }
 
@@ -138,4 +139,3 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         println!("ParReduce speedup: {}", (st as f32) / (pt as f32));
     }
 }
-

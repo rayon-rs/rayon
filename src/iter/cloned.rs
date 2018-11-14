@@ -19,19 +19,22 @@ pub struct Cloned<I: ParallelIterator> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I>(base: I) -> Cloned<I>
-    where I: ParallelIterator
+where
+    I: ParallelIterator,
 {
     Cloned { base: base }
 }
 
 impl<'a, T, I> ParallelIterator for Cloned<I>
-    where I: ParallelIterator<Item = &'a T>,
-          T: 'a + Clone + Send + Sync
+where
+    I: ParallelIterator<Item = &'a T>,
+    T: 'a + Clone + Send + Sync,
 {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer1 = ClonedConsumer::new(consumer);
         self.base.drive_unindexed(consumer1)
@@ -43,11 +46,13 @@ impl<'a, T, I> ParallelIterator for Cloned<I>
 }
 
 impl<'a, T, I> IndexedParallelIterator for Cloned<I>
-    where I: IndexedParallelIterator<Item = &'a T>,
-          T: 'a + Clone + Send + Sync
+where
+    I: IndexedParallelIterator<Item = &'a T>,
+    T: 'a + Clone + Send + Sync,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         let consumer1 = ClonedConsumer::new(consumer);
         self.base.drive(consumer1)
@@ -58,7 +63,8 @@ impl<'a, T, I> IndexedParallelIterator for Cloned<I>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback { callback: callback });
 
@@ -67,13 +73,15 @@ impl<'a, T, I> IndexedParallelIterator for Cloned<I>
         }
 
         impl<'a, T, CB> ProducerCallback<&'a T> for Callback<CB>
-            where CB: ProducerCallback<T>,
-                  T: 'a + Clone + Send
+        where
+            CB: ProducerCallback<T>,
+            T: 'a + Clone + Send,
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = &'a T>
+            where
+                P: Producer<Item = &'a T>,
             {
                 let producer = ClonedProducer { base: base };
                 self.callback.callback(producer)
@@ -89,8 +97,9 @@ struct ClonedProducer<P> {
 }
 
 impl<'a, T, P> Producer for ClonedProducer<P>
-    where P: Producer<Item = &'a T>,
-          T: 'a + Clone
+where
+    P: Producer<Item = &'a T>,
+    T: 'a + Clone,
 {
     type Item = T;
     type IntoIter = iter::Cloned<P::IntoIter>;
@@ -109,16 +118,19 @@ impl<'a, T, P> Producer for ClonedProducer<P>
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (ClonedProducer { base: left }, ClonedProducer { base: right })
+        (
+            ClonedProducer { base: left },
+            ClonedProducer { base: right },
+        )
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         self.base.fold_with(ClonedFolder { base: folder }).base
     }
 }
-
 
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
@@ -134,8 +146,9 @@ impl<C> ClonedConsumer<C> {
 }
 
 impl<'a, T, C> Consumer<&'a T> for ClonedConsumer<C>
-    where C: Consumer<T>,
-          T: 'a + Clone
+where
+    C: Consumer<T>,
+    T: 'a + Clone,
 {
     type Folder = ClonedFolder<C::Folder>;
     type Reducer = C::Reducer;
@@ -143,11 +156,17 @@ impl<'a, T, C> Consumer<&'a T> for ClonedConsumer<C>
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (ClonedConsumer::new(left), ClonedConsumer::new(right), reducer)
+        (
+            ClonedConsumer::new(left),
+            ClonedConsumer::new(right),
+            reducer,
+        )
     }
 
     fn into_folder(self) -> Self::Folder {
-        ClonedFolder { base: self.base.into_folder() }
+        ClonedFolder {
+            base: self.base.into_folder(),
+        }
     }
 
     fn full(&self) -> bool {
@@ -156,8 +175,9 @@ impl<'a, T, C> Consumer<&'a T> for ClonedConsumer<C>
 }
 
 impl<'a, T, C> UnindexedConsumer<&'a T> for ClonedConsumer<C>
-    where C: UnindexedConsumer<T>,
-          T: 'a + Clone
+where
+    C: UnindexedConsumer<T>,
+    T: 'a + Clone,
 {
     fn split_off_left(&self) -> Self {
         ClonedConsumer::new(self.base.split_off_left())
@@ -168,19 +188,21 @@ impl<'a, T, C> UnindexedConsumer<&'a T> for ClonedConsumer<C>
     }
 }
 
-
 struct ClonedFolder<F> {
     base: F,
 }
 
 impl<'a, T, F> Folder<&'a T> for ClonedFolder<F>
-    where F: Folder<T>,
-          T: 'a + Clone
+where
+    F: Folder<T>,
+    T: 'a + Clone,
 {
     type Result = F::Result;
 
     fn consume(self, item: &'a T) -> Self {
-        ClonedFolder { base: self.base.consume(item.clone()) }
+        ClonedFolder {
+            base: self.base.consume(item.clone()),
+        }
     }
 
     fn complete(self) -> F::Result {

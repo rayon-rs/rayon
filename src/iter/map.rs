@@ -4,7 +4,6 @@ use super::*;
 use std::fmt::{self, Debug};
 use std::iter;
 
-
 /// `Map` is an iterator that transforms the elements of an underlying iterator.
 ///
 /// This struct is created by the [`map()`] method on [`ParallelIterator`]
@@ -20,9 +19,7 @@ pub struct Map<I: ParallelIterator, F> {
 
 impl<I: ParallelIterator + Debug, F> Debug for Map<I, F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Map")
-            .field("base", &self.base)
-            .finish()
+        f.debug_struct("Map").field("base", &self.base).finish()
     }
 }
 
@@ -30,7 +27,8 @@ impl<I: ParallelIterator + Debug, F> Debug for Map<I, F> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
-    where I: ParallelIterator
+where
+    I: ParallelIterator,
 {
     Map {
         base: base,
@@ -39,14 +37,16 @@ pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
 }
 
 impl<I, F, R> ParallelIterator for Map<I, F>
-    where I: ParallelIterator,
-          F: Fn(I::Item) -> R + Sync + Send,
-          R: Send
+where
+    I: ParallelIterator,
+    F: Fn(I::Item) -> R + Sync + Send,
+    R: Send,
 {
     type Item = F::Output;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive_unindexed(consumer1)
@@ -58,12 +58,14 @@ impl<I, F, R> ParallelIterator for Map<I, F>
 }
 
 impl<I, F, R> IndexedParallelIterator for Map<I, F>
-    where I: IndexedParallelIterator,
-          F: Fn(I::Item) -> R + Sync + Send,
-          R: Send
+where
+    I: IndexedParallelIterator,
+    F: Fn(I::Item) -> R + Sync + Send,
+    R: Send,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         let consumer1 = MapConsumer::new(consumer, &self.map_op);
         self.base.drive(consumer1)
@@ -74,12 +76,13 @@ impl<I, F, R> IndexedParallelIterator for Map<I, F>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-                                           callback: callback,
-                                           map_op: self.map_op,
-                                       });
+            callback: callback,
+            map_op: self.map_op,
+        });
 
         struct Callback<CB, F> {
             callback: CB,
@@ -87,14 +90,16 @@ impl<I, F, R> IndexedParallelIterator for Map<I, F>
         }
 
         impl<T, F, R, CB> ProducerCallback<T> for Callback<CB, F>
-            where CB: ProducerCallback<R>,
-                  F: Fn(T) -> R + Sync,
-                  R: Send
+        where
+            CB: ProducerCallback<R>,
+            F: Fn(T) -> R + Sync,
+            R: Send,
         {
             type Output = CB::Output;
 
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            where
+                P: Producer<Item = T>,
             {
                 let producer = MapProducer {
                     base: base,
@@ -114,9 +119,10 @@ struct MapProducer<'f, P, F: 'f> {
 }
 
 impl<'f, P, F, R> Producer for MapProducer<'f, P, F>
-    where P: Producer,
-          F: Fn(P::Item) -> R + Sync,
-          R: Send
+where
+    P: Producer,
+    F: Fn(P::Item) -> R + Sync,
+    R: Send,
 {
     type Item = F::Output;
     type IntoIter = iter::Map<P::IntoIter, &'f F>;
@@ -134,24 +140,29 @@ impl<'f, P, F, R> Producer for MapProducer<'f, P, F>
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (MapProducer {
-             base: left,
-             map_op: self.map_op,
-         },
-         MapProducer {
-             base: right,
-             map_op: self.map_op,
-         })
+        (
+            MapProducer {
+                base: left,
+                map_op: self.map_op,
+            },
+            MapProducer {
+                base: right,
+                map_op: self.map_op,
+            },
+        )
     }
 
     fn fold_with<G>(self, folder: G) -> G
-        where G: Folder<Self::Item>
+    where
+        G: Folder<Self::Item>,
     {
-        let folder1 = MapFolder { base: folder, map_op: self.map_op };
+        let folder1 = MapFolder {
+            base: folder,
+            map_op: self.map_op,
+        };
         self.base.fold_with(folder1).base
     }
 }
-
 
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
@@ -171,9 +182,10 @@ impl<'f, C, F> MapConsumer<'f, C, F> {
 }
 
 impl<'f, T, R, C, F> Consumer<T> for MapConsumer<'f, C, F>
-    where C: Consumer<F::Output>,
-          F: Fn(T) -> R + Sync,
-          R: Send
+where
+    C: Consumer<F::Output>,
+    F: Fn(T) -> R + Sync,
+    R: Send,
 {
     type Folder = MapFolder<'f, C::Folder, F>;
     type Reducer = C::Reducer;
@@ -181,7 +193,11 @@ impl<'f, T, R, C, F> Consumer<T> for MapConsumer<'f, C, F>
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (MapConsumer::new(left, self.map_op), MapConsumer::new(right, self.map_op), reducer)
+        (
+            MapConsumer::new(left, self.map_op),
+            MapConsumer::new(right, self.map_op),
+            reducer,
+        )
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -197,9 +213,10 @@ impl<'f, T, R, C, F> Consumer<T> for MapConsumer<'f, C, F>
 }
 
 impl<'f, T, R, C, F> UnindexedConsumer<T> for MapConsumer<'f, C, F>
-    where C: UnindexedConsumer<F::Output>,
-          F: Fn(T) -> R + Sync,
-          R: Send
+where
+    C: UnindexedConsumer<F::Output>,
+    F: Fn(T) -> R + Sync,
+    R: Send,
 {
     fn split_off_left(&self) -> Self {
         MapConsumer::new(self.base.split_off_left(), &self.map_op)
@@ -216,8 +233,9 @@ struct MapFolder<'f, C, F: 'f> {
 }
 
 impl<'f, T, R, C, F> Folder<T> for MapFolder<'f, C, F>
-    where C: Folder<F::Output>,
-          F: Fn(T) -> R
+where
+    C: Folder<F::Output>,
+    F: Fn(T) -> R,
 {
     type Result = C::Result;
 

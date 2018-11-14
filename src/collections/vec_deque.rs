@@ -4,8 +4,8 @@
 
 use std::collections::VecDeque;
 
-use iter::*;
 use iter::plumbing::*;
+use iter::*;
 
 use slice;
 use vec;
@@ -26,7 +26,6 @@ delegate_indexed_iterator!{
     impl<T: Send>
 }
 
-
 /// Parallel iterator over an immutable reference to a double-ended queue
 #[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
@@ -35,7 +34,9 @@ pub struct Iter<'a, T: Sync + 'a> {
 
 impl<'a, T: Sync> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
-        Iter { inner: self.inner.clone() }
+        Iter {
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -45,7 +46,9 @@ impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_slices();
-        Iter { inner: a.into_par_iter().chain(b) }
+        Iter {
+            inner: a.into_par_iter().chain(b),
+        }
     }
 }
 
@@ -53,7 +56,6 @@ delegate_indexed_iterator!{
     Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
-
 
 /// Parallel iterator over a mutable reference to a double-ended queue
 #[derive(Debug)]
@@ -67,7 +69,9 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
 
     fn into_par_iter(self) -> Self::Iter {
         let (a, b) = self.as_mut_slices();
-        IterMut { inner: a.into_par_iter().chain(b) }
+        IterMut {
+            inner: a.into_par_iter().chain(b),
+        }
     }
 }
 

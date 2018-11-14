@@ -1,13 +1,14 @@
-use super::ParallelIterator;
 use super::plumbing::*;
+use super::ParallelIterator;
 
 use super::private::Try;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub fn try_reduce_with<PI, R, T>(pi: PI, reduce_op: R) -> Option<T>
-    where PI: ParallelIterator<Item = T>,
-          R: Fn(T::Ok, T::Ok) -> T + Sync,
-          T: Try + Send
+where
+    PI: ParallelIterator<Item = T>,
+    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    T: Try + Send,
 {
     let full = AtomicBool::new(false);
     let consumer = TryReduceWithConsumer {
@@ -31,8 +32,9 @@ impl<'r, R> Clone for TryReduceWithConsumer<'r, R> {
 }
 
 impl<'r, R, T> Consumer<T> for TryReduceWithConsumer<'r, R>
-    where R: Fn(T::Ok, T::Ok) -> T + Sync,
-          T: Try + Send
+where
+    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    T: Try + Send,
 {
     type Folder = TryReduceWithFolder<'r, R, T>;
     type Reducer = Self;
@@ -56,8 +58,9 @@ impl<'r, R, T> Consumer<T> for TryReduceWithConsumer<'r, R>
 }
 
 impl<'r, R, T> UnindexedConsumer<T> for TryReduceWithConsumer<'r, R>
-    where R: Fn(T::Ok, T::Ok) -> T + Sync,
-          T: Try + Send
+where
+    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    T: Try + Send,
 {
     fn split_off_left(&self) -> Self {
         *self
@@ -69,19 +72,18 @@ impl<'r, R, T> UnindexedConsumer<T> for TryReduceWithConsumer<'r, R>
 }
 
 impl<'r, R, T> Reducer<Option<T>> for TryReduceWithConsumer<'r, R>
-    where R: Fn(T::Ok, T::Ok) -> T + Sync,
-          T: Try
+where
+    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    T: Try,
 {
     fn reduce(self, left: Option<T>, right: Option<T>) -> Option<T> {
         let reduce_op = self.reduce_op;
         match (left, right) {
             (None, x) | (x, None) => x,
-            (Some(a), Some(b)) => {
-                match (a.into_result(), b.into_result()) {
-                    (Ok(a), Ok(b)) => Some(reduce_op(a, b)),
-                    (Err(e), _) | (_, Err(e)) => Some(T::from_error(e)),
-                }
-            }
+            (Some(a), Some(b)) => match (a.into_result(), b.into_result()) {
+                (Ok(a), Ok(b)) => Some(reduce_op(a, b)),
+                (Err(e), _) | (_, Err(e)) => Some(T::from_error(e)),
+            },
         }
     }
 }
@@ -93,8 +95,9 @@ struct TryReduceWithFolder<'r, R: 'r, T: Try> {
 }
 
 impl<'r, R, T> Folder<T> for TryReduceWithFolder<'r, R, T>
-    where R: Fn(T::Ok, T::Ok) -> T,
-          T: Try
+where
+    R: Fn(T::Ok, T::Ok) -> T,
+    T: Try,
 {
     type Result = Option<T>;
 

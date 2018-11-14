@@ -4,7 +4,8 @@ use rayon::prelude::*;
 use std::fmt::Debug;
 
 fn check<I>(iter: I)
-    where I: ParallelIterator + Debug
+where
+    I: ParallelIterator + Debug,
 {
     println!("{:?}", iter);
 }
@@ -20,7 +21,7 @@ fn debug_binary_heap() {
 #[test]
 fn debug_btree_map() {
     use std::collections::BTreeMap;
-    let mut map: BTreeMap<_,_> = (0..10).enumerate().collect();
+    let mut map: BTreeMap<_, _> = (0..10).enumerate().collect();
     check(map.par_iter());
     check(map.par_iter_mut());
     check(map.into_par_iter());
@@ -37,7 +38,7 @@ fn debug_btree_set() {
 #[test]
 fn debug_hash_map() {
     use std::collections::HashMap;
-    let mut map: HashMap<_,_> = (0..10).enumerate().collect();
+    let mut map: HashMap<_, _> = (0..10).enumerate().collect();
     check(map.par_iter());
     check(map.par_iter_mut());
     check(map.into_par_iter());
@@ -167,4 +168,3 @@ fn debug_repeat() {
 fn debug_splitter() {
     check(rayon::iter::split(0..10, |x| (x, None)));
 }
-

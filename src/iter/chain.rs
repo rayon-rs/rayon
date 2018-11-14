@@ -1,8 +1,8 @@
 use super::plumbing::*;
 use super::*;
+use rayon_core::join;
 use std::cmp;
 use std::iter;
-use rayon_core::join;
 
 /// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
 /// This struct is created by the [`chain()`] method on [`ParallelIterator`]
@@ -12,8 +12,9 @@ use rayon_core::join;
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Chain<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+where
+    A: ParallelIterator,
+    B: ParallelIterator<Item = A::Item>,
 {
     a: A,
     b: B,
@@ -23,20 +24,23 @@ pub struct Chain<A, B>
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<A, B>(a: A, b: B) -> Chain<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+where
+    A: ParallelIterator,
+    B: ParallelIterator<Item = A::Item>,
 {
     Chain { a: a, b: b }
 }
 
 impl<A, B> ParallelIterator for Chain<A, B>
-    where A: ParallelIterator,
-          B: ParallelIterator<Item = A::Item>
+where
+    A: ParallelIterator,
+    B: ParallelIterator<Item = A::Item>,
 {
     type Item = A::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let Chain { a, b } = self;
 
@@ -64,11 +68,13 @@ impl<A, B> ParallelIterator for Chain<A, B>
 }
 
 impl<A, B> IndexedParallelIterator for Chain<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator<Item = A::Item>
+where
+    A: IndexedParallelIterator,
+    B: IndexedParallelIterator<Item = A::Item>,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         let Chain { a, b } = self;
         let (left, right, reducer) = consumer.split_at(a.len());
@@ -77,21 +83,19 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
     }
 
     fn len(&self) -> usize {
-        self.a
-            .len()
-            .checked_add(self.b.len())
-            .expect("overflow")
+        self.a.len().checked_add(self.b.len()).expect("overflow")
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         let a_len = self.a.len();
         return self.a.with_producer(CallbackA {
-                                        callback: callback,
-                                        a_len: a_len,
-                                        b: self.b,
-                                    });
+            callback: callback,
+            a_len: a_len,
+            b: self.b,
+        });
 
         struct CallbackA<CB, B> {
             callback: CB,
@@ -100,19 +104,21 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
         }
 
         impl<CB, B> ProducerCallback<B::Item> for CallbackA<CB, B>
-            where B: IndexedParallelIterator,
-                  CB: ProducerCallback<B::Item>
+        where
+            B: IndexedParallelIterator,
+            CB: ProducerCallback<B::Item>,
         {
             type Output = CB::Output;
 
             fn callback<A>(self, a_producer: A) -> Self::Output
-                where A: Producer<Item = B::Item>
+            where
+                A: Producer<Item = B::Item>,
             {
                 return self.b.with_producer(CallbackB {
-                                                callback: self.callback,
-                                                a_len: self.a_len,
-                                                a_producer: a_producer,
-                                            });
+                    callback: self.callback,
+                    a_len: self.a_len,
+                    a_producer: a_producer,
+                });
             }
         }
 
@@ -123,27 +129,29 @@ impl<A, B> IndexedParallelIterator for Chain<A, B>
         }
 
         impl<CB, A> ProducerCallback<A::Item> for CallbackB<CB, A>
-            where A: Producer,
-                  CB: ProducerCallback<A::Item>
+        where
+            A: Producer,
+            CB: ProducerCallback<A::Item>,
         {
             type Output = CB::Output;
 
             fn callback<B>(self, b_producer: B) -> Self::Output
-                where B: Producer<Item = A::Item>
+            where
+                B: Producer<Item = A::Item>,
             {
                 let producer = ChainProducer::new(self.a_len, self.a_producer, b_producer);
                 self.callback.callback(producer)
             }
         }
-
     }
 }
 
 /// ////////////////////////////////////////////////////////////////////////
 
 struct ChainProducer<A, B>
-    where A: Producer,
-          B: Producer<Item = A::Item>
+where
+    A: Producer,
+    B: Producer<Item = A::Item>,
 {
     a_len: usize,
     a: A,
@@ -151,8 +159,9 @@ struct ChainProducer<A, B>
 }
 
 impl<A, B> ChainProducer<A, B>
-    where A: Producer,
-          B: Producer<Item = A::Item>
+where
+    A: Producer,
+    B: Producer<Item = A::Item>,
 {
     fn new(a_len: usize, a: A, b: B) -> Self {
         ChainProducer {
@@ -164,8 +173,9 @@ impl<A, B> ChainProducer<A, B>
 }
 
 impl<A, B> Producer for ChainProducer<A, B>
-    where A: Producer,
-          B: Producer<Item = A::Item>
+where
+    A: Producer,
+    B: Producer<Item = A::Item>,
 {
     type Item = A::Item;
     type IntoIter = ChainSeq<A::IntoIter, B::IntoIter>;
@@ -187,17 +197,23 @@ impl<A, B> Producer for ChainProducer<A, B>
             let a_rem = self.a_len - index;
             let (a_left, a_right) = self.a.split_at(index);
             let (b_left, b_right) = self.b.split_at(0);
-            (ChainProducer::new(index, a_left, b_left), ChainProducer::new(a_rem, a_right, b_right))
+            (
+                ChainProducer::new(index, a_left, b_left),
+                ChainProducer::new(a_rem, a_right, b_right),
+            )
         } else {
             let (a_left, a_right) = self.a.split_at(self.a_len);
             let (b_left, b_right) = self.b.split_at(index - self.a_len);
-            (ChainProducer::new(self.a_len, a_left, b_left),
-             ChainProducer::new(0, a_right, b_right))
+            (
+                ChainProducer::new(self.a_len, a_left, b_left),
+                ChainProducer::new(0, a_right, b_right),
+            )
         }
     }
 
     fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<A::Item>
+    where
+        F: Folder<A::Item>,
     {
         folder = self.a.fold_with(folder);
         if folder.full() {
@@ -217,16 +233,18 @@ struct ChainSeq<A, B> {
 
 impl<A, B> ChainSeq<A, B> {
     fn new(a: A, b: B) -> ChainSeq<A, B>
-        where A: ExactSizeIterator,
-              B: ExactSizeIterator<Item = A::Item>
+    where
+        A: ExactSizeIterator,
+        B: ExactSizeIterator<Item = A::Item>,
     {
         ChainSeq { chain: a.chain(b) }
     }
 }
 
 impl<A, B> Iterator for ChainSeq<A, B>
-    where A: Iterator,
-          B: Iterator<Item = A::Item>
+where
+    A: Iterator,
+    B: Iterator<Item = A::Item>,
 {
     type Item = A::Item;
 
@@ -240,14 +258,15 @@ impl<A, B> Iterator for ChainSeq<A, B>
 }
 
 impl<A, B> ExactSizeIterator for ChainSeq<A, B>
-    where A: ExactSizeIterator,
-          B: ExactSizeIterator<Item = A::Item>
-{
-}
+where
+    A: ExactSizeIterator,
+    B: ExactSizeIterator<Item = A::Item>,
+{}
 
 impl<A, B> DoubleEndedIterator for ChainSeq<A, B>
-    where A: DoubleEndedIterator,
-          B: DoubleEndedIterator<Item = A::Item>
+where
+    A: DoubleEndedIterator,
+    B: DoubleEndedIterator<Item = A::Item>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.chain.next_back()

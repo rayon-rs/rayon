@@ -1,14 +1,14 @@
 #![cfg(test)]
 
-use futures::{self, Async, Future};
+use super::ScopeFutureExt;
+use futures::executor::Notify;
 use futures::future::lazy;
 use futures::sync::oneshot;
-use std::sync::{Arc, Mutex};
 use futures::task;
-use futures::executor::Notify;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use futures::{self, Async, Future};
 use rayon_core::{scope, ThreadPool, ThreadPoolBuilder};
-use super::ScopeFutureExt;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 /// Basic test of using futures to data on the stack frame.
 #[test]
@@ -18,16 +18,20 @@ fn future_test() {
     // Here we call `wait` on a select future, which will block at
     // least one thread. So we need a second thread to ensure no
     // deadlock.
-    ThreadPoolBuilder::new().num_threads(2).build().unwrap().install(|| {
-        scope(|s| {
-            let a = s.spawn_future(futures::future::ok::<_, ()>(&data[0]));
-            let b = s.spawn_future(futures::future::ok::<_, ()>(&data[1]));
-            let (item1, next) = a.select(b).wait().ok().unwrap();
-            let item2 = next.wait().unwrap();
-            assert!(*item1 == 0 || *item1 == 1);
-            assert!(*item2 == 1 - *item1);
+    ThreadPoolBuilder::new()
+        .num_threads(2)
+        .build()
+        .unwrap()
+        .install(|| {
+            scope(|s| {
+                let a = s.spawn_future(futures::future::ok::<_, ()>(&data[0]));
+                let b = s.spawn_future(futures::future::ok::<_, ()>(&data[1]));
+                let (item1, next) = a.select(b).wait().ok().unwrap();
+                let item2 = next.wait().unwrap();
+                assert!(*item1 == 0 || *item1 == 1);
+                assert!(*item2 == 1 - *item1);
+            });
         });
-    });
 }
 
 /// Test using `map` on a Rayon future. The `map` closure is eecuted
@@ -91,18 +95,22 @@ fn future_panic_prop() {
 fn future_rayon_wait_1_thread() {
     // run with only 1 worker thread; this would deadlock if we couldn't make progress
     let mut result = None;
-    ThreadPoolBuilder::new().num_threads(1).build().unwrap().install(|| {
-        scope(|s| {
-            use std::sync::mpsc::channel;
-            let (tx, rx) = channel();
-            let a = s.spawn_future(lazy(move || Ok::<usize, ()>(rx.recv().unwrap())));
-            //                          ^^^^ FIXME: why is this needed?
-            let b = s.spawn_future(a.map(|v| v + 1));
-            let c = s.spawn_future(b.map(|v| v + 1));
-            s.spawn(move |_| tx.send(20).unwrap());
-            result = Some(c.rayon_wait().unwrap());
+    ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .unwrap()
+        .install(|| {
+            scope(|s| {
+                use std::sync::mpsc::channel;
+                let (tx, rx) = channel();
+                let a = s.spawn_future(lazy(move || Ok::<usize, ()>(rx.recv().unwrap())));
+                //                          ^^^^ FIXME: why is this needed?
+                let b = s.spawn_future(a.map(|v| v + 1));
+                let c = s.spawn_future(b.map(|v| v + 1));
+                s.spawn(move |_| tx.send(20).unwrap());
+                result = Some(c.rayon_wait().unwrap());
+            });
         });
-    });
     assert_eq!(result, Some(22));
 }
 
@@ -170,13 +178,17 @@ fn panicy_unpark() {
         }
     }
 
-    const PANIC_UNPARK : &'static PanicUnpark = &PanicUnpark;
+    const PANIC_UNPARK: &'static PanicUnpark = &PanicUnpark;
 }
 
 #[test]
 fn double_unpark() {
-    let unpark0 = Arc::new(TrackUnpark { value: AtomicUsize::new(0) });
-    let unpark1 = Arc::new(TrackUnpark { value: AtomicUsize::new(0) });
+    let unpark0 = Arc::new(TrackUnpark {
+        value: AtomicUsize::new(0),
+    });
+    let unpark1 = Arc::new(TrackUnpark {
+        value: AtomicUsize::new(0),
+    });
     let mut _tag = None;
     scope(|s| {
         let (a_tx, a_rx) = oneshot::channel::<u32>();
@@ -274,4 +286,3 @@ fn async_future_scope_interact() {
 
     assert_eq!(vec![44], vec);
 }
-

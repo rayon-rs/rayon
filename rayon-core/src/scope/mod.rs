@@ -4,22 +4,22 @@
 //! [`scope()`]: fn.scope.html
 //! [`join()`]: ../join/join.fn.html
 
-use latch::{Latch, CountLatch};
-use log::Event::*;
 use job::HeapJob;
+use latch::{CountLatch, Latch};
+use log::Event::*;
+use registry::{in_worker, Registry, WorkerThread};
 use std::any::Any;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
-use registry::{in_worker, WorkerThread, Registry};
+use std::sync::Arc;
 use unwind;
 
+mod internal;
 #[cfg(test)]
 mod test;
-mod internal;
 
 ///Represents a fork-join scope which can be used to spawn any number of tasks. See [`scope()`] for more information.
 ///
@@ -257,7 +257,9 @@ pub struct Scope<'scope> {
 /// returns once all spawned jobs have completed, and any panics are
 /// propagated at that point.
 pub fn scope<'scope, OP, R>(op: OP) -> R
-    where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send,
+where
+    OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send,
+    R: Send,
 {
     in_worker(|owner_thread, _| {
         unsafe {
@@ -329,12 +331,12 @@ impl<'scope> Scope<'scope> {
     ///
     /// [`scope` function]: fn.scope.html
     pub fn spawn<BODY>(&self, body: BODY)
-        where BODY: FnOnce(&Scope<'scope>) + Send + 'scope
+    where
+        BODY: FnOnce(&Scope<'scope>) + Send + 'scope,
     {
         unsafe {
             self.job_completed_latch.increment();
-            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body)))
-                .as_job_ref();
+            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body))).as_job_ref();
 
             // Since `Scope` implements `Sync`, we can't be sure
             // that we're still in a thread of this pool, so we
@@ -348,7 +350,8 @@ impl<'scope> Scope<'scope> {
     ///
     /// Unsafe because it must be executed on a worker thread.
     unsafe fn execute_job<FUNC>(&self, func: FUNC)
-        where FUNC: FnOnce(&Scope<'scope>) + 'scope
+    where
+        FUNC: FnOnce(&Scope<'scope>) + 'scope,
     {
         let _: Option<()> = self.execute_job_closure(func);
     }
@@ -359,11 +362,18 @@ impl<'scope> Scope<'scope> {
     ///
     /// Unsafe because this must be executed on a worker thread.
     unsafe fn execute_job_closure<FUNC, R>(&self, func: FUNC) -> Option<R>
-        where FUNC: FnOnce(&Scope<'scope>) -> R + 'scope
+    where
+        FUNC: FnOnce(&Scope<'scope>) -> R + 'scope,
     {
         match unwind::halt_unwinding(move || func(self)) {
-            Ok(r) => { self.job_completed_ok(); Some(r) }
-            Err(err) => { self.job_panicked(err); None }
+            Ok(r) => {
+                self.job_completed_ok();
+                Some(r)
+            }
+            Err(err) => {
+                self.job_panicked(err);
+                None
+            }
         }
     }
 
@@ -371,19 +381,28 @@ impl<'scope> Scope<'scope> {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
-        if self.panic.compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed).is_ok() {
-            log!(JobPanickedErrorStored { owner_thread: self.owner_thread_index });
+        if self
+            .panic
+            .compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed)
+            .is_ok()
+        {
+            log!(JobPanickedErrorStored {
+                owner_thread: self.owner_thread_index
+            });
             mem::forget(err); // ownership now transferred into self.panic
         } else {
-            log!(JobPanickedErrorNotStored { owner_thread: self.owner_thread_index });
+            log!(JobPanickedErrorNotStored {
+                owner_thread: self.owner_thread_index
+            });
         }
-
 
         self.job_completed_latch.set();
     }
 
     unsafe fn job_completed_ok(&self) {
-        log!(JobCompletedOk { owner_thread: self.owner_thread_index });
+        log!(JobCompletedOk {
+            owner_thread: self.owner_thread_index
+        });
         self.job_completed_latch.set();
     }
 
@@ -396,11 +415,15 @@ impl<'scope> Scope<'scope> {
         // ordering:
         let panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
         if !panic.is_null() {
-            log!(ScopeCompletePanicked { owner_thread: owner_thread.index() });
+            log!(ScopeCompletePanicked {
+                owner_thread: owner_thread.index()
+            });
             let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);
             unwind::resume_unwinding(*value);
         } else {
-            log!(ScopeCompleteNoPanic { owner_thread: owner_thread.index() });
+            log!(ScopeCompleteNoPanic {
+                owner_thread: owner_thread.index()
+            });
         }
     }
 }

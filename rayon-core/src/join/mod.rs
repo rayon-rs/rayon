@@ -1,6 +1,6 @@
+use job::StackJob;
 use latch::{LatchProbe, SpinLatch};
 use log::Event::*;
-use job::StackJob;
 use registry::{self, WorkerThread};
 use std::any::Any;
 use unwind;
@@ -92,10 +92,11 @@ mod test;
 /// panic with the same panic value. If both closures panic, `join()`
 /// will panic with the panic value from the first closure.
 pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
-    where A: FnOnce() -> RA + Send,
-          B: FnOnce() -> RB + Send,
-          RA: Send,
-          RB: Send
+where
+    A: FnOnce() -> RA + Send,
+    B: FnOnce() -> RB + Send,
+    RA: Send,
+    RB: Send,
 {
     join_context(|_| oper_a(), |_| oper_b())
 }
@@ -108,19 +109,24 @@ pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
 /// `join_context` was called from outside the thread pool to begin
 /// with.
 pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
-    where A: FnOnce(FnContext) -> RA + Send,
-          B: FnOnce(FnContext) -> RB + Send,
-          RA: Send,
-          RB: Send
+where
+    A: FnOnce(FnContext) -> RA + Send,
+    B: FnOnce(FnContext) -> RB + Send,
+    RA: Send,
+    RB: Send,
 {
     registry::in_worker(|worker_thread, injected| unsafe {
-        log!(Join { worker: worker_thread.index() });
+        log!(Join {
+            worker: worker_thread.index()
+        });
 
         // Create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough.
-        let job_b = StackJob::new(|migrated| oper_b(FnContext::new(migrated)),
-                                  SpinLatch::new());
+        let job_b = StackJob::new(
+            |migrated| oper_b(FnContext::new(migrated)),
+            SpinLatch::new(),
+        );
         let job_b_ref = job_b.as_job_ref();
         worker_thread.push(job_b_ref);
 
@@ -142,17 +148,23 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
                     // Found it! Let's run it.
                     //
                     // Note that this could panic, but it's ok if we unwind here.
-                    log!(PoppedRhs { worker: worker_thread.index() });
+                    log!(PoppedRhs {
+                        worker: worker_thread.index()
+                    });
                     let result_b = job_b.run_inline(injected);
                     return (result_a, result_b);
                 } else {
-                    log!(PoppedJob { worker: worker_thread.index() });
+                    log!(PoppedJob {
+                        worker: worker_thread.index()
+                    });
                     worker_thread.execute(job);
                 }
             } else {
                 // Local deque is empty. Time to steal from other
                 // threads.
-                log!(LostJob { worker: worker_thread.index() });
+                log!(LostJob {
+                    worker: worker_thread.index()
+                });
                 worker_thread.wait_until(&job_b.latch);
                 debug_assert!(job_b.latch.probe());
                 break;
@@ -167,11 +179,11 @@ pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
 /// B is complete. This is because it may contain references into the
 /// enclosing stack frame(s).
 #[cold] // cold path
-unsafe fn join_recover_from_panic(worker_thread: &WorkerThread,
-                                  job_b_latch: &SpinLatch,
-                                  err: Box<Any + Send>)
-                                  -> !
-{
+unsafe fn join_recover_from_panic(
+    worker_thread: &WorkerThread,
+    job_b_latch: &SpinLatch,
+    err: Box<Any + Send>,
+) -> ! {
     worker_thread.wait_until(job_b_latch);
     unwind::resume_unwinding(err)
 }

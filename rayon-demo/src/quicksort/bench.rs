@@ -30,15 +30,18 @@ fn quick_sort_seq_bench(b: &mut test::Bencher) {
 fn quick_sort_splitter(b: &mut test::Bencher) {
     use rayon::iter::ParallelIterator;
 
-    bench_harness(|vec| {
-        ::rayon::iter::split(vec, |vec| {
-            if vec.len() > 1 {
-                let mid = super::partition(vec);
-                let (left, right) = vec.split_at_mut(mid);
-                (left, Some(right))
-            } else {
-                (vec, None)
-            }
-        }).for_each(super::quick_sort::<Sequential, u32>)
-    }, b);
+    bench_harness(
+        |vec| {
+            ::rayon::iter::split(vec, |vec| {
+                if vec.len() > 1 {
+                    let mid = super::partition(vec);
+                    let (left, right) = vec.split_at_mut(mid);
+                    (left, Some(right))
+                } else {
+                    (vec, None)
+                }
+            }).for_each(super::quick_sort::<Sequential, u32>)
+        },
+        b,
+    );
 }

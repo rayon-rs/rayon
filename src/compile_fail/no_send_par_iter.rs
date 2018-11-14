@@ -21,7 +21,6 @@ fn main() {
 ``` */
 mod map {}
 
-
 /** ```compile_fail,E0277,E0599
 
 use rayon::prelude::*;

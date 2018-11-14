@@ -4,8 +4,8 @@
 
 use std::collections::BTreeMap;
 
-use iter::*;
 use iter::plumbing::*;
+use iter::*;
 
 use vec;
 
@@ -25,7 +25,6 @@ delegate_iterator!{
     impl<K: Ord + Send, V: Send>
 }
 
-
 /// Parallel iterator over an immutable reference to a B-Tree map
 #[derive(Debug)]
 pub struct Iter<'a, K: Ord + Sync + 'a, V: Sync + 'a> {
@@ -34,7 +33,9 @@ pub struct Iter<'a, K: Ord + Sync + 'a, V: Sync + 'a> {
 
 impl<'a, K: Ord + Sync, V: Sync> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Self {
-        Iter { inner: self.inner.clone() }
+        Iter {
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -47,7 +48,6 @@ delegate_iterator!{
     Iter<'a, K, V> => (&'a K, &'a V),
     impl<'a, K: Ord + Sync + 'a, V: Sync + 'a>
 }
-
 
 /// Parallel iterator over a mutable reference to a B-Tree map
 #[derive(Debug)]

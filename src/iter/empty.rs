@@ -23,7 +23,9 @@ use std::marker::PhantomData;
 /// assert_eq!(pi.count(), 10_000);
 /// ```
 pub fn empty<T: Send>() -> Empty<T> {
-    Empty { marker: PhantomData }
+    Empty {
+        marker: PhantomData,
+    }
 }
 
 /// Iterator adaptor for [the `empty()` function](fn.empty.html).
@@ -47,7 +49,8 @@ impl<T: Send> ParallelIterator for Empty<T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         self.drive(consumer)
     }
@@ -59,7 +62,8 @@ impl<T: Send> ParallelIterator for Empty<T> {
 
 impl<T: Send> IndexedParallelIterator for Empty<T> {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         consumer.into_folder().complete()
     }
@@ -69,7 +73,8 @@ impl<T: Send> IndexedParallelIterator for Empty<T> {
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         callback.callback(EmptyProducer(PhantomData))
     }
@@ -92,7 +97,8 @@ impl<T: Send> Producer for EmptyProducer<T> {
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         folder
     }

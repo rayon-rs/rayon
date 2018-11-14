@@ -1,10 +1,10 @@
 #![cfg(rayon_unstable)]
 
-use internal::task::{ScopeHandle, ToScopeHandle, Task};
+use super::Scope;
+use internal::task::{ScopeHandle, Task, ToScopeHandle};
 use std::any::Any;
 use std::mem;
 use std::sync::Arc;
-use super::Scope;
 
 impl<'scope> ToScopeHandle<'scope> for Scope<'scope> {
     type ScopeHandle = LocalScopeHandle<'scope>;
@@ -16,7 +16,7 @@ impl<'scope> ToScopeHandle<'scope> for Scope<'scope> {
 
 #[derive(Debug)]
 pub struct LocalScopeHandle<'scope> {
-    scope: *const Scope<'scope>
+    scope: *const Scope<'scope>,
 }
 
 impl<'scope> LocalScopeHandle<'scope> {

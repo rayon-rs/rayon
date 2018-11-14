@@ -1,14 +1,15 @@
 extern crate rayon;
 
-use rayon::prelude::*;
 use rayon::iter::plumbing::*;
+use rayon::prelude::*;
 
 /// Stress-test indexes for `Producer::split_at`.
 fn check<F, I>(expected: &[I::Item], mut f: F)
-    where F: FnMut() -> I,
-          I: IntoParallelIterator,
-          I::Iter: IndexedParallelIterator,
-          I::Item: PartialEq + std::fmt::Debug
+where
+    F: FnMut() -> I,
+    I: IntoParallelIterator,
+    I::Iter: IndexedParallelIterator,
+    I::Item: PartialEq + std::fmt::Debug,
 {
     map_triples(expected.len() + 1, |i, j, k| {
         Split::forward(f(), i, j, k, expected);
@@ -34,27 +35,37 @@ struct Split {
     i: usize,
     j: usize,
     k: usize,
-    reverse: bool
+    reverse: bool,
 }
 
 impl Split {
     fn forward<I>(iter: I, i: usize, j: usize, k: usize, expected: &[I::Item])
-        where I: IntoParallelIterator,
-              I::Iter: IndexedParallelIterator,
-              I::Item: PartialEq + std::fmt::Debug
+    where
+        I: IntoParallelIterator,
+        I::Iter: IndexedParallelIterator,
+        I::Item: PartialEq + std::fmt::Debug,
     {
-        let result = iter.into_par_iter()
-            .with_producer(Split { i, j, k, reverse: false });
+        let result = iter.into_par_iter().with_producer(Split {
+            i,
+            j,
+            k,
+            reverse: false,
+        });
         assert_eq!(result, expected);
     }
 
     fn reverse<I>(iter: I, i: usize, j: usize, k: usize, expected: &[I::Item])
-        where I: IntoParallelIterator,
-              I::Iter: IndexedParallelIterator,
-              I::Item: PartialEq + std::fmt::Debug
+    where
+        I: IntoParallelIterator,
+        I::Iter: IndexedParallelIterator,
+        I::Item: PartialEq + std::fmt::Debug,
     {
-        let result = iter.into_par_iter()
-            .with_producer(Split { i, j, k, reverse: true });
+        let result = iter.into_par_iter().with_producer(Split {
+            i,
+            j,
+            k,
+            reverse: true,
+        });
         assert!(result.iter().eq(expected.iter().rev()));
     }
 }
@@ -63,7 +74,8 @@ impl<T> ProducerCallback<T> for Split {
     type Output = Vec<T>;
 
     fn callback<P>(self, producer: P) -> Self::Output
-        where P: Producer<Item = T>
+    where
+        P: Producer<Item = T>,
     {
         println!("{:?}", self);
 
@@ -95,7 +107,6 @@ fn check_len<I: ExactSizeIterator>(iter: &I, len: usize) {
     assert_eq!(iter.size_hint(), (len, Some(len)));
     assert_eq!(iter.len(), len);
 }
-
 
 // **** Base Producers ****
 
@@ -179,7 +190,6 @@ fn vec() {
     let v: Vec<_> = (0..10).collect();
     check(&v, || v.clone());
 }
-
 
 // **** Adaptors ****
 

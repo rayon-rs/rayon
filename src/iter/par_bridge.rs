@@ -1,12 +1,12 @@
-use crossbeam_deque::{Deque, Stealer, Steal};
+use crossbeam_deque::{Deque, Steal, Stealer};
 
-use std::thread::yield_now;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, TryLockError};
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use std::thread::yield_now;
 
-use iter::ParallelIterator;
-use iter::plumbing::{UnindexedConsumer, UnindexedProducer, bridge_unindexed, Folder};
 use current_num_threads;
+use iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
+use iter::ParallelIterator;
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
@@ -49,12 +49,11 @@ pub trait ParallelBridge: Sized {
 }
 
 impl<T: Iterator + Send> ParallelBridge for T
-    where T::Item: Send
+where
+    T::Item: Send,
 {
     fn par_bridge(self) -> IterBridge<Self> {
-        IterBridge {
-            iter: self,
-        }
+        IterBridge { iter: self }
     }
 }
 
@@ -70,12 +69,14 @@ pub struct IterBridge<Iter> {
 }
 
 impl<Iter: Iterator + Send> ParallelIterator for IterBridge<Iter>
-    where Iter::Item: Send
+where
+    Iter::Item: Send,
 {
     type Item = Iter::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let split_count = AtomicUsize::new(current_num_threads());
         let deque = Deque::new();
@@ -83,12 +84,15 @@ impl<Iter: Iterator + Send> ParallelIterator for IterBridge<Iter>
         let done = AtomicBool::new(false);
         let iter = Mutex::new((self.iter, deque));
 
-        bridge_unindexed(IterParallelProducer {
-            split_count: &split_count,
-            done: &done,
-            iter: &iter,
-            items: stealer,
-        }, consumer)
+        bridge_unindexed(
+            IterParallelProducer {
+                split_count: &split_count,
+                done: &done,
+                iter: &iter,
+                items: stealer,
+            },
+            consumer,
+        )
     }
 }
 
@@ -112,7 +116,8 @@ impl<'a, Iter: Iterator + 'a> Clone for IterParallelProducer<'a, Iter> {
 }
 
 impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<'a, Iter>
-    where Iter::Item: Send
+where
+    Iter::Item: Send,
 {
     type Item = Iter::Item;
 
@@ -123,7 +128,9 @@ impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<
             let done = self.done.load(Ordering::SeqCst);
             match count.checked_sub(1) {
                 Some(new_count) if !done => {
-                    let last_count = self.split_count.compare_and_swap(count, new_count, Ordering::SeqCst);
+                    let last_count =
+                        self.split_count
+                            .compare_and_swap(count, new_count, Ordering::SeqCst);
                     if last_count == count {
                         return (self.clone(), Some(self));
                     } else {
@@ -138,7 +145,8 @@ impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<
     }
 
     fn fold_with<F>(self, mut folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         loop {
             match self.items.steal() {

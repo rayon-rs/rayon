@@ -18,7 +18,8 @@ pub struct MinLen<I: IndexedParallelIterator> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
-    where I: IndexedParallelIterator
+where
+    I: IndexedParallelIterator,
 {
     MinLen {
         base: base,
@@ -27,12 +28,14 @@ pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
 }
 
 impl<I> ParallelIterator for MinLen<I>
-    where I: IndexedParallelIterator
+where
+    I: IndexedParallelIterator,
 {
     type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -43,7 +46,8 @@ impl<I> ParallelIterator for MinLen<I>
 }
 
 impl<I> IndexedParallelIterator for MinLen<I>
-    where I: IndexedParallelIterator
+where
+    I: IndexedParallelIterator,
 {
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
@@ -54,12 +58,13 @@ impl<I> IndexedParallelIterator for MinLen<I>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-                                           callback: callback,
-                                           min: self.min,
-                                       });
+            callback: callback,
+            min: self.min,
+        });
 
         struct Callback<CB> {
             callback: CB,
@@ -67,11 +72,13 @@ impl<I> IndexedParallelIterator for MinLen<I>
         }
 
         impl<T, CB> ProducerCallback<T> for Callback<CB>
-            where CB: ProducerCallback<T>
+        where
+            CB: ProducerCallback<T>,
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            where
+                P: Producer<Item = T>,
             {
                 let producer = MinLenProducer {
                     base: base,
@@ -92,7 +99,8 @@ struct MinLenProducer<P> {
 }
 
 impl<P> Producer for MinLenProducer<P>
-    where P: Producer
+where
+    P: Producer,
 {
     type Item = P::Item;
     type IntoIter = P::IntoIter;
@@ -111,23 +119,25 @@ impl<P> Producer for MinLenProducer<P>
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (MinLenProducer {
-             base: left,
-             min: self.min,
-         },
-         MinLenProducer {
-             base: right,
-             min: self.min,
-         })
+        (
+            MinLenProducer {
+                base: left,
+                min: self.min,
+            },
+            MinLenProducer {
+                base: right,
+                min: self.min,
+            },
+        )
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         self.base.fold_with(folder)
     }
 }
-
 
 /// `MaxLen` is an iterator that imposes a maximum length on iterator splits.
 /// This struct is created by the [`max_len()`] method on [`IndexedParallelIterator`]
@@ -145,7 +155,8 @@ pub struct MaxLen<I: IndexedParallelIterator> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
-    where I: IndexedParallelIterator
+where
+    I: IndexedParallelIterator,
 {
     MaxLen {
         base: base,
@@ -154,12 +165,14 @@ pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
 }
 
 impl<I> ParallelIterator for MaxLen<I>
-    where I: IndexedParallelIterator
+where
+    I: IndexedParallelIterator,
 {
     type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -170,7 +183,8 @@ impl<I> ParallelIterator for MaxLen<I>
 }
 
 impl<I> IndexedParallelIterator for MaxLen<I>
-    where I: IndexedParallelIterator
+where
+    I: IndexedParallelIterator,
 {
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
@@ -181,12 +195,13 @@ impl<I> IndexedParallelIterator for MaxLen<I>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-                                           callback: callback,
-                                           max: self.max,
-                                       });
+            callback: callback,
+            max: self.max,
+        });
 
         struct Callback<CB> {
             callback: CB,
@@ -194,11 +209,13 @@ impl<I> IndexedParallelIterator for MaxLen<I>
         }
 
         impl<T, CB> ProducerCallback<T> for Callback<CB>
-            where CB: ProducerCallback<T>
+        where
+            CB: ProducerCallback<T>,
         {
             type Output = CB::Output;
             fn callback<P>(self, base: P) -> CB::Output
-                where P: Producer<Item = T>
+            where
+                P: Producer<Item = T>,
             {
                 let producer = MaxLenProducer {
                     base: base,
@@ -219,7 +236,8 @@ struct MaxLenProducer<P> {
 }
 
 impl<P> Producer for MaxLenProducer<P>
-    where P: Producer
+where
+    P: Producer,
 {
     type Item = P::Item;
     type IntoIter = P::IntoIter;
@@ -238,18 +256,21 @@ impl<P> Producer for MaxLenProducer<P>
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.split_at(index);
-        (MaxLenProducer {
-             base: left,
-             max: self.max,
-         },
-         MaxLenProducer {
-             base: right,
-             max: self.max,
-         })
+        (
+            MaxLenProducer {
+                base: left,
+                max: self.max,
+            },
+            MaxLenProducer {
+                base: right,
+                max: self.max,
+            },
+        )
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         self.base.fold_with(folder)
     }

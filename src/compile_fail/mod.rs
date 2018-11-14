@@ -1,4 +1,3 @@
-
 // These modules contain `compile_fail` doc tests.
 mod cannot_collect_filtermap_data;
 mod cannot_zip_filtered_data;

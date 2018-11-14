@@ -1,9 +1,9 @@
-use std::cmp::{PartialEq, Eq, PartialOrd, Ord, Ordering};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::sync::Arc;
 
 use super::graph::{Node, NodeSet};
-use super::weight::{Priority, Weight};
 use super::solver::TourId;
+use super::weight::{Priority, Weight};
 
 #[derive(Clone, Debug)]
 pub struct TourPrefix {
@@ -47,8 +47,7 @@ impl PartialEq for TourPrefix {
     }
 }
 
-impl Eq for TourPrefix {
-}
+impl Eq for TourPrefix {}
 
 impl PartialOrd for TourPrefix {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

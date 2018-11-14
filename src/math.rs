@@ -20,6 +20,9 @@ mod tests {
         assert_eq!(1, div_round_up(5, 5));
         assert_eq!(1, div_round_up(1, 5));
         assert_eq!(2, div_round_up(3, 2));
-        assert_eq!(usize::max_value() / 2 + 1, div_round_up(usize::max_value(), 2));
+        assert_eq!(
+            usize::max_value() / 2 + 1,
+            div_round_up(usize::max_value(), 2)
+        );
     }
 }

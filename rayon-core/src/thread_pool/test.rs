@@ -1,22 +1,22 @@
 #![cfg(test)]
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
-#[allow(deprecated)]
-use Configuration;
-use ThreadPoolBuilder;
 use join;
 use thread_pool::ThreadPool;
 use unwind;
+#[allow(deprecated)]
+use Configuration;
+use ThreadPoolBuilder;
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
 fn panic_propagate() {
     let thread_pool = ThreadPoolBuilder::new().build().unwrap();
     thread_pool.install(|| {
-                            panic!("Hello, world!");
-                        });
+        panic!("Hello, world!");
+    });
 }
 
 #[test]
@@ -27,11 +27,11 @@ fn workers_stop() {
         // once we exit this block, thread-pool will be dropped
         let thread_pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
         registry = thread_pool.install(|| {
-                                           // do some work on these threads
-                                           join_a_lot(22);
+            // do some work on these threads
+            join_a_lot(22);
 
-                                           thread_pool.registry.clone()
-                                       });
+            thread_pool.registry.clone()
+        });
         assert_eq!(registry.num_threads(), 22);
     }
 
@@ -69,7 +69,12 @@ fn sleeper_stop() {
 /// Create a start/exit handler that increments an atomic counter.
 fn count_handler() -> (Arc<AtomicUsize>, Box<::StartHandler>) {
     let count = Arc::new(AtomicUsize::new(0));
-    (count.clone(), Box::new(move |_| { count.fetch_add(1, Ordering::SeqCst); }))
+    (
+        count.clone(),
+        Box::new(move |_| {
+            count.fetch_add(1, Ordering::SeqCst);
+        }),
+    )
 }
 
 /// Wait until a counter is no longer shared, then return its value.
@@ -125,11 +130,11 @@ fn panic_thread_name() {
         .start_handler(move |i| start_handler(i))
         .exit_handler(move |i| exit_handler(i))
         .thread_name(|i| {
-                         if i >= 5 {
-                             panic!();
-                         }
-                         format!("panic_thread_name#{}", i)
-                     });
+            if i >= 5 {
+                panic!();
+            }
+            format!("panic_thread_name#{}", i)
+        });
 
     let pool = unwind::halt_unwinding(|| builder.build());
     assert!(pool.is_err(), "thread-name panic should propagate!");
@@ -158,9 +163,9 @@ fn mutual_install() {
         pool2.install(|| {
             // This creates a dependency from `pool2` -> `pool1`
             pool1.install(|| {
-               // If they blocked on inter-pool installs, there would be no
-               // threads left to run this!
-               true
+                // If they blocked on inter-pool installs, there would be no
+                // threads left to run this!
+                true
             })
         })
     });
@@ -182,12 +187,12 @@ fn mutual_install_sleepy() {
 
             // This creates a dependency from `pool2` -> `pool1`
             pool1.install(|| {
-               // Give `pool2` time to fall asleep.
-               thread::sleep(time::Duration::from_secs(1));
+                // Give `pool2` time to fall asleep.
+                thread::sleep(time::Duration::from_secs(1));
 
-               // If they blocked on inter-pool installs, there would be no
-               // threads left to run this!
-               true
+                // If they blocked on inter-pool installs, there would be no
+                // threads left to run this!
+                true
             })
         })
     });

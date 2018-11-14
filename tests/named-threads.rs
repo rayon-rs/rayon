@@ -2,8 +2,8 @@ extern crate rayon;
 
 use std::collections::HashSet;
 
-use rayon::*;
 use rayon::prelude::*;
+use rayon::*;
 
 #[test]
 fn named_threads() {

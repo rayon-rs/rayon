@@ -4,8 +4,8 @@
 
 use std::collections::LinkedList;
 
-use iter::*;
 use iter::plumbing::*;
+use iter::*;
 
 use vec;
 
@@ -25,7 +25,6 @@ delegate_iterator!{
     impl<T: Send>
 }
 
-
 /// Parallel iterator over an immutable reference to a linked list
 #[derive(Debug)]
 pub struct Iter<'a, T: Sync + 'a> {
@@ -34,7 +33,9 @@ pub struct Iter<'a, T: Sync + 'a> {
 
 impl<'a, T: Sync> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
-        Iter { inner: self.inner.clone() }
+        Iter {
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -47,7 +48,6 @@ delegate_iterator!{
     Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
-
 
 /// Parallel iterator over a mutable reference to a linked list
 #[derive(Debug)]

@@ -1,11 +1,11 @@
 #![cfg(rayon_unstable)]
 
-use internal::task::{ScopeHandle, ToScopeHandle, Task};
+use super::ThreadPool;
+use internal::task::{ScopeHandle, Task, ToScopeHandle};
 use registry::Registry;
 use std::any::Any;
 use std::fmt;
 use std::sync::Arc;
-use super::ThreadPool;
 
 impl ToScopeHandle<'static> for ThreadPool {
     type ScopeHandle = ThreadPoolScopeHandle;
@@ -16,7 +16,7 @@ impl ToScopeHandle<'static> for ThreadPool {
 }
 
 pub struct ThreadPoolScopeHandle {
-    registry: Arc<Registry>
+    registry: Arc<Registry>,
 }
 
 impl fmt::Debug for ThreadPoolScopeHandle {
@@ -57,8 +57,7 @@ unsafe impl ScopeHandle<'static> for ThreadPoolScopeHandle {
         self.registry.submit_task(task);
     }
 
-    fn ok(self) {
-    }
+    fn ok(self) {}
 
     fn panicked(self, err: Box<Any + Send>) {
         self.registry.handle_panic(err);

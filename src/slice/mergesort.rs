@@ -7,8 +7,8 @@
 use iter::*;
 use rayon_core;
 use slice::ParallelSliceMut;
-use std::mem::size_of;
 use std::mem;
+use std::mem::size_of;
 use std::ptr;
 use std::slice;
 
@@ -64,7 +64,9 @@ where
             //    performance than with the 2nd method.
             //
             // All methods were benchmarked, and the 3rd showed best results. So we chose that one.
-            let mut tmp = NoDrop { value: Some(ptr::read(&v[0])) };
+            let mut tmp = NoDrop {
+                value: Some(ptr::read(&v[0])),
+            };
 
             // Intermediate state of the insertion process is always tracked by `hole`, which
             // serves two purposes:
@@ -261,10 +263,11 @@ struct Run {
 fn collapse(runs: &[Run]) -> Option<usize> {
     let n = runs.len();
 
-    if n >= 2 && (runs[n - 1].start == 0 ||
-                  runs[n - 2].len <= runs[n - 1].len ||
-                  (n >= 3 && runs[n - 3].len <= runs[n - 2].len + runs[n - 1].len) ||
-                  (n >= 4 && runs[n - 4].len <= runs[n - 3].len + runs[n - 2].len))
+    if n >= 2
+        && (runs[n - 1].start == 0
+            || runs[n - 2].len <= runs[n - 1].len
+            || (n >= 3 && runs[n - 3].len <= runs[n - 2].len + runs[n - 1].len)
+            || (n >= 4 && runs[n - 4].len <= runs[n - 3].len + runs[n - 2].len))
     {
         if n >= 3 && runs[n - 3].len < runs[n - 1].len {
             Some(n - 3)
@@ -361,7 +364,12 @@ where
         while let Some(r) = collapse(&runs) {
             let left = runs[r + 1];
             let right = runs[r];
-            merge(&mut v[left.start..right.start + right.len], left.len, buf, &is_less);
+            merge(
+                &mut v[left.start..right.start + right.len],
+                left.len,
+                buf,
+                &is_less,
+            );
 
             runs[r] = Run {
                 start: left.start,
@@ -515,7 +523,7 @@ where
         fn drop(&mut self) {
             let size = mem::size_of::<T>();
             let left_len = (self.left_end as usize - self.left_start as usize) / size;
-            let right_len = (self.right_end as usize -  self.right_start as usize) / size;
+            let right_len = (self.right_end as usize - self.right_start as usize) / size;
 
             // Copy array `left`, followed by `right`.
             unsafe {
@@ -545,8 +553,7 @@ unsafe fn recurse<T, F>(
     chunks: &[(usize, usize)],
     into_buf: bool,
     is_less: &F,
-)
-where
+) where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,
 {
@@ -674,8 +681,7 @@ where
                     let buf = (buf as *mut T).offset(l as isize);
                     (l, r, mergesort(chunk, buf, &is_less))
                 }
-            })
-            .collect::<Vec<_>>()
+            }).collect::<Vec<_>>()
             .into_iter()
             .peekable()
     };
@@ -715,15 +721,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rand::{thread_rng, Rng};
-    use rand::distributions::Uniform;
     use super::split_for_merge;
+    use rand::distributions::Uniform;
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn test_split_for_merge() {
         fn check(left: &[u32], right: &[u32]) {
             let (l, r) = split_for_merge(left, right, &|&a, &b| a < b);
-            assert!(left[..l].iter().all(|&x| right[r..].iter().all(|&y| x <= y)));
+            assert!(
+                left[..l]
+                    .iter()
+                    .all(|&x| right[r..].iter().all(|&y| x <= y))
+            );
             assert!(right[..r].iter().all(|&x| left[l..].iter().all(|&y| x < y)));
         }
 
@@ -738,10 +748,12 @@ mod tests {
             let left_len = rng.gen_range::<usize>(0, 20);
             let right_len = rng.gen_range::<usize>(0, 20);
 
-            let mut left = rng.sample_iter(&Uniform::new(0, limit))
+            let mut left = rng
+                .sample_iter(&Uniform::new(0, limit))
                 .take(left_len)
                 .collect::<Vec<_>>();
-            let mut right = rng.sample_iter(&Uniform::new(0, limit))
+            let mut right = rng
+                .sample_iter(&Uniform::new(0, limit))
                 .take(right_len)
                 .collect::<Vec<_>>();
 

@@ -1,4 +1,3 @@
-
 use super::plumbing::*;
 use super::*;
 
@@ -13,7 +12,7 @@ use super::*;
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
-    zip: Zip<A, B>
+    zip: Zip<A, B>,
 }
 
 /// Create a new `ZipEq` iterator.
@@ -21,20 +20,25 @@ pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
 /// NB: a free fn because it is NOT part of the end-user API.
 #[inline]
 pub fn new<A, B>(a: A, b: B) -> ZipEq<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator
+where
+    A: IndexedParallelIterator,
+    B: IndexedParallelIterator,
 {
-    ZipEq { zip: super::zip::new(a, b) }
+    ZipEq {
+        zip: super::zip::new(a, b),
+    }
 }
 
 impl<A, B> ParallelIterator for ZipEq<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator
+where
+    A: IndexedParallelIterator,
+    B: IndexedParallelIterator,
 {
     type Item = (A::Item, B::Item);
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge(self.zip, consumer)
     }
@@ -45,11 +49,13 @@ impl<A, B> ParallelIterator for ZipEq<A, B>
 }
 
 impl<A, B> IndexedParallelIterator for ZipEq<A, B>
-    where A: IndexedParallelIterator,
-          B: IndexedParallelIterator
+where
+    A: IndexedParallelIterator,
+    B: IndexedParallelIterator,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         bridge(self.zip, consumer)
     }
@@ -59,7 +65,8 @@ impl<A, B> IndexedParallelIterator for ZipEq<A, B>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         self.zip.with_producer(callback)
     }

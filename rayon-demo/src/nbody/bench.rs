@@ -8,12 +8,13 @@ const BENCH_BODIES: usize = 1000;
 const BENCH_TICKS: usize = 10;
 
 fn nbody_bench<TICK>(b: &mut test::Bencher, mut tick: TICK)
-    where TICK: FnMut(&mut NBodyBenchmark)
+where
+    TICK: FnMut(&mut NBodyBenchmark),
 {
     let mut rng = ::seeded_rng();
     let mut benchmark = NBodyBenchmark::new(BENCH_BODIES, &mut rng);
     b.iter(|| {
-        for _ in 0 .. BENCH_TICKS {
+        for _ in 0..BENCH_TICKS {
             tick(&mut benchmark);
         }
     });
@@ -21,20 +22,28 @@ fn nbody_bench<TICK>(b: &mut test::Bencher, mut tick: TICK)
 
 #[bench]
 fn nbody_seq(b: &mut ::test::Bencher) {
-    nbody_bench(b, |n| { n.tick_seq(); });
+    nbody_bench(b, |n| {
+        n.tick_seq();
+    });
 }
 
 #[bench]
 fn nbody_par(b: &mut ::test::Bencher) {
-    nbody_bench(b, |n| { n.tick_par(); });
+    nbody_bench(b, |n| {
+        n.tick_par();
+    });
 }
 
 #[bench]
 fn nbody_par_bridge(b: &mut ::test::Bencher) {
-    nbody_bench(b, |n| { n.tick_par_bridge(); });
+    nbody_bench(b, |n| {
+        n.tick_par_bridge();
+    });
 }
 
 #[bench]
 fn nbody_parreduce(b: &mut ::test::Bencher) {
-    nbody_bench(b, |n| { n.tick_par_reduce(); });
+    nbody_bench(b, |n| {
+        n.tick_par_reduce();
+    });
 }

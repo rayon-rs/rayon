@@ -81,4 +81,3 @@ pub trait ToScopeHandle<'scope> {
     /// Convert the receiver into a scope handle.
     fn to_scope_handle(&self) -> Self::ScopeHandle;
 }
-

@@ -1,10 +1,10 @@
 //! Tests for the join code.
 
-use ThreadPoolBuilder;
 use join::*;
-use rand::{Rng, SeedableRng, XorShiftRng};
 use rand::distributions::Standard;
+use rand::{Rng, SeedableRng, XorShiftRng};
 use unwind;
+use ThreadPoolBuilder;
 
 fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -96,9 +96,8 @@ fn join_context_both() {
 fn join_context_neither() {
     // If we're already in a 1-thread pool, neither job should be stolen.
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
-    let (a_migrated, b_migrated) = pool.install(|| {
-        join_context(|a| a.migrated(), |b| b.migrated())
-    });
+    let (a_migrated, b_migrated) =
+        pool.install(|| join_context(|a| a.migrated(), |b| b.migrated()));
     assert!(!a_migrated);
     assert!(!b_migrated);
 }
@@ -111,8 +110,16 @@ fn join_context_second() {
     let barrier = Barrier::new(2);
     let pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
     let (a_migrated, b_migrated) = pool.install(|| {
-        join_context(|a| { barrier.wait(); a.migrated() },
-                     |b| { barrier.wait(); b.migrated() })
+        join_context(
+            |a| {
+                barrier.wait();
+                a.migrated()
+            },
+            |b| {
+                barrier.wait();
+                b.migrated()
+            },
+        )
     });
     assert!(!a_migrated);
     assert!(b_migrated);

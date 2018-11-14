@@ -31,9 +31,9 @@
 
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use rand::Rng;
-use rayon::prelude::*;
 #[cfg(test)]
 use rayon::iter::ParallelBridge;
+use rayon::prelude::*;
 use std::f64::consts::PI;
 
 const INITIAL_VELOCITY: f64 = 8.0; // set to 0.0 to turn off.
@@ -80,8 +80,7 @@ impl NBodyBenchmark {
                     velocity: velocity,
                     velocity2: velocity2,
                 }
-            })
-            .collect();
+            }).collect();
 
         let bodies1 = bodies0.clone();
 
@@ -433,8 +432,7 @@ fn next_velocity_par(time: usize, prev: &Body, bodies: &[Body]) -> (Vector3<f64>
 
                 (diff, diff2)
             },
-        )
-        .reduce(
+        ).reduce(
             || (Vector3::zero(), Vector3::zero()),
             |(diffa, diff2a), (diffb, diff2b)| (diffa + diffb, diff2a + diff2b),
         );

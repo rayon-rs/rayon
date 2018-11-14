@@ -25,11 +25,11 @@
 
 use std::any::Any;
 use std::env;
-use std::io;
 use std::error::Error;
+use std::fmt;
+use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use std::fmt;
 
 extern crate crossbeam_deque;
 #[macro_use]
@@ -43,9 +43,9 @@ extern crate rand;
 #[macro_use]
 mod log;
 
-mod latch;
-mod join;
 mod job;
+mod join;
+mod latch;
 mod registry;
 mod scope;
 mod sleep;
@@ -59,12 +59,12 @@ mod test;
 
 #[cfg(rayon_unstable)]
 pub mod internal;
-pub use thread_pool::ThreadPool;
-pub use thread_pool::current_thread_index;
-pub use thread_pool::current_thread_has_pending_tasks;
 pub use join::{join, join_context};
 pub use scope::{scope, Scope};
 pub use spawn::spawn;
+pub use thread_pool::current_thread_has_pending_tasks;
+pub use thread_pool::current_thread_index;
+pub use thread_pool::ThreadPool;
 
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be
@@ -210,14 +210,20 @@ impl ThreadPoolBuilder {
         if self.num_threads > 0 {
             self.num_threads
         } else {
-            match env::var("RAYON_NUM_THREADS").ok().and_then(|s| usize::from_str(&s).ok()) {
+            match env::var("RAYON_NUM_THREADS")
+                .ok()
+                .and_then(|s| usize::from_str(&s).ok())
+            {
                 Some(x) if x > 0 => return x,
                 Some(x) if x == 0 => return num_cpus::get(),
-                _ => {},
+                _ => {}
             }
 
             // Support for deprecated `RAYON_RS_NUM_CPUS`.
-            match env::var("RAYON_RS_NUM_CPUS").ok().and_then(|s| usize::from_str(&s).ok()) {
+            match env::var("RAYON_RS_NUM_CPUS")
+                .ok()
+                .and_then(|s| usize::from_str(&s).ok())
+            {
                 Some(x) if x > 0 => x,
                 _ => num_cpus::get(),
             }
@@ -232,7 +238,9 @@ impl ThreadPoolBuilder {
     /// Set a closure which takes a thread index and returns
     /// the thread's name.
     pub fn thread_name<F>(mut self, closure: F) -> Self
-    where F: FnMut(usize) -> String + 'static {
+    where
+        F: FnMut(usize) -> String + 'static,
+    {
         self.get_thread_name = Some(Box::new(closure));
         self
     }
@@ -288,14 +296,15 @@ impl ThreadPoolBuilder {
     /// process. To prevent this, wrap the body of your panic handler
     /// in a call to `std::panic::catch_unwind()`.
     pub fn panic_handler<H>(mut self, panic_handler: H) -> ThreadPoolBuilder
-        where H: Fn(Box<Any + Send>) + Send + Sync + 'static
+    where
+        H: Fn(Box<Any + Send>) + Send + Sync + 'static,
     {
         self.panic_handler = Some(Box::new(panic_handler));
         self
     }
 
     /// Get the stack size of the worker threads
-    fn get_stack_size(&self) -> Option<usize>{
+    fn get_stack_size(&self) -> Option<usize> {
         self.stack_size
     }
 
@@ -346,7 +355,8 @@ impl ThreadPoolBuilder {
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then startup will continue normally.
     pub fn start_handler<H>(mut self, start_handler: H) -> ThreadPoolBuilder
-        where H: Fn(usize) + Send + Sync + 'static
+    where
+        H: Fn(usize) + Send + Sync + 'static,
     {
         self.start_handler = Some(Box::new(start_handler));
         self
@@ -364,7 +374,8 @@ impl ThreadPoolBuilder {
     /// If this closure panics, the panic will be passed to the panic handler.
     /// If that handler returns, then the thread will exit normally.
     pub fn exit_handler<H>(mut self, exit_handler: H) -> ThreadPoolBuilder
-        where H: Fn(usize) + Send + Sync + 'static
+    where
+        H: Fn(usize) + Send + Sync + 'static,
     {
         self.exit_handler = Some(Box::new(exit_handler));
         self
@@ -375,7 +386,9 @@ impl ThreadPoolBuilder {
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
-        Configuration { builder: ThreadPoolBuilder::new() }
+        Configuration {
+            builder: ThreadPoolBuilder::new(),
+        }
     }
 
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
@@ -385,9 +398,11 @@ impl Configuration {
 
     /// Deprecated in favor of `ThreadPoolBuilder::thread_name`.
     pub fn thread_name<F>(mut self, closure: F) -> Self
-    where F: FnMut(usize) -> String + 'static {
+    where
+        F: FnMut(usize) -> String + 'static,
+    {
         self.builder = self.builder.thread_name(closure);
-        self 
+        self
     }
 
     /// Deprecated in favor of `ThreadPoolBuilder::num_threads`.
@@ -398,7 +413,8 @@ impl Configuration {
 
     /// Deprecated in favor of `ThreadPoolBuilder::panic_handler`.
     pub fn panic_handler<H>(mut self, panic_handler: H) -> Configuration
-        where H: Fn(Box<Any + Send>) + Send + Sync + 'static
+    where
+        H: Fn(Box<Any + Send>) + Send + Sync + 'static,
     {
         self.builder = self.builder.panic_handler(panic_handler);
         self
@@ -418,7 +434,8 @@ impl Configuration {
 
     /// Deprecated in favor of `ThreadPoolBuilder::start_handler`.
     pub fn start_handler<H>(mut self, start_handler: H) -> Configuration
-        where H: Fn(usize) + Send + Sync + 'static
+    where
+        H: Fn(usize) + Send + Sync + 'static,
     {
         self.builder = self.builder.start_handler(start_handler);
         self
@@ -426,7 +443,8 @@ impl Configuration {
 
     /// Deprecated in favor of `ThreadPoolBuilder::exit_handler`.
     pub fn exit_handler<H>(mut self, exit_handler: H) -> Configuration
-        where H: Fn(usize) + Send + Sync + 'static
+    where
+        H: Fn(usize) + Send + Sync + 'static,
     {
         self.builder = self.builder.exit_handler(exit_handler);
         self
@@ -447,7 +465,9 @@ impl ThreadPoolBuildError {
 impl Error for ThreadPoolBuildError {
     fn description(&self) -> &str {
         match self.kind {
-            ErrorKind::GlobalPoolAlreadyInitialized => "The global thread pool has already been initialized.",
+            ErrorKind::GlobalPoolAlreadyInitialized => {
+                "The global thread pool has already been initialized."
+            }
             ErrorKind::IOError(ref e) => e.description(),
         }
     }
@@ -471,10 +491,15 @@ pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
 
 impl fmt::Debug for ThreadPoolBuilder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ThreadPoolBuilder { ref num_threads, ref get_thread_name,
-                                ref panic_handler, ref stack_size,
-                                ref start_handler, ref exit_handler,
-                                ref breadth_first } = *self;
+        let ThreadPoolBuilder {
+            ref num_threads,
+            ref get_thread_name,
+            ref panic_handler,
+            ref stack_size,
+            ref start_handler,
+            ref exit_handler,
+            ref breadth_first,
+        } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
         // output.
@@ -490,14 +515,14 @@ impl fmt::Debug for ThreadPoolBuilder {
         let exit_handler = exit_handler.as_ref().map(|_| ClosurePlaceholder);
 
         f.debug_struct("ThreadPoolBuilder")
-         .field("num_threads", num_threads)
-         .field("get_thread_name", &get_thread_name)
-         .field("panic_handler", &panic_handler)
-         .field("stack_size", &stack_size)
-         .field("start_handler", &start_handler)
-         .field("exit_handler", &exit_handler)
-         .field("breadth_first", &breadth_first)
-         .finish()
+            .field("num_threads", num_threads)
+            .field("get_thread_name", &get_thread_name)
+            .field("panic_handler", &panic_handler)
+            .field("stack_size", &stack_size)
+            .field("start_handler", &start_handler)
+            .field("exit_handler", &exit_handler)
+            .field("breadth_first", &breadth_first)
+            .finish()
     }
 }
 

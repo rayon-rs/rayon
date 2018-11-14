@@ -12,8 +12,9 @@ use std::iter::Fuse;
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Interleave<I, J>
-    where I: IndexedParallelIterator,
-          J: IndexedParallelIterator<Item = I::Item>
+where
+    I: IndexedParallelIterator,
+    J: IndexedParallelIterator<Item = I::Item>,
 {
     i: I,
     j: J,
@@ -23,20 +24,23 @@ pub struct Interleave<I, J>
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I, J>(i: I, j: J) -> Interleave<I, J>
-    where I: IndexedParallelIterator,
-          J: IndexedParallelIterator<Item = I::Item>
+where
+    I: IndexedParallelIterator,
+    J: IndexedParallelIterator<Item = I::Item>,
 {
     Interleave { i: i, j: j }
 }
 
 impl<I, J> ParallelIterator for Interleave<I, J>
-    where I: IndexedParallelIterator,
-          J: IndexedParallelIterator<Item = I::Item>
+where
+    I: IndexedParallelIterator,
+    J: IndexedParallelIterator<Item = I::Item>,
 {
     type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: Consumer<I::Item>
+    where
+        C: Consumer<I::Item>,
     {
         bridge(self, consumer)
     }
@@ -47,24 +51,24 @@ impl<I, J> ParallelIterator for Interleave<I, J>
 }
 
 impl<I, J> IndexedParallelIterator for Interleave<I, J>
-    where I: IndexedParallelIterator,
-          J: IndexedParallelIterator<Item = I::Item>,
+where
+    I: IndexedParallelIterator,
+    J: IndexedParallelIterator<Item = I::Item>,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         bridge(self, consumer)
     }
 
     fn len(&self) -> usize {
-        self.i
-            .len()
-            .checked_add(self.j.len())
-            .expect("overflow")
+        self.i.len().checked_add(self.j.len()).expect("overflow")
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         let (i_len, j_len) = (self.i.len(), self.j.len());
         return self.i.with_producer(CallbackI {
@@ -72,7 +76,7 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             i_len: i_len,
             j_len: j_len,
             i_next: false,
-            j: self.j
+            j: self.j,
         });
 
         struct CallbackI<CB, J> {
@@ -80,24 +84,26 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             i_len: usize,
             j_len: usize,
             i_next: bool,
-            j: J
+            j: J,
         }
 
         impl<CB, J> ProducerCallback<J::Item> for CallbackI<CB, J>
-            where J: IndexedParallelIterator,
-                  CB: ProducerCallback<J::Item>
+        where
+            J: IndexedParallelIterator,
+            CB: ProducerCallback<J::Item>,
         {
             type Output = CB::Output;
 
             fn callback<I>(self, i_producer: I) -> Self::Output
-                where I: Producer<Item = J::Item>
+            where
+                I: Producer<Item = J::Item>,
             {
                 self.j.with_producer(CallbackJ {
                     i_producer: i_producer,
                     i_len: self.i_len,
                     j_len: self.j_len,
                     i_next: self.i_next,
-                    callback: self.callback
+                    callback: self.callback,
                 })
             }
         }
@@ -107,19 +113,27 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
             i_len: usize,
             j_len: usize,
             i_next: bool,
-            i_producer: I
+            i_producer: I,
         }
 
         impl<CB, I> ProducerCallback<I::Item> for CallbackJ<CB, I>
-            where I: Producer,
-                  CB: ProducerCallback<I::Item>
+        where
+            I: Producer,
+            CB: ProducerCallback<I::Item>,
         {
             type Output = CB::Output;
 
             fn callback<J>(self, j_producer: J) -> Self::Output
-                where J: Producer<Item = I::Item>
+            where
+                J: Producer<Item = I::Item>,
             {
-                let producer = InterleaveProducer::new(self.i_producer, j_producer, self.i_len, self.j_len, self.i_next);
+                let producer = InterleaveProducer::new(
+                    self.i_producer,
+                    j_producer,
+                    self.i_len,
+                    self.j_len,
+                    self.i_next,
+                );
                 self.callback.callback(producer)
             }
         }
@@ -127,8 +141,9 @@ impl<I, J> IndexedParallelIterator for Interleave<I, J>
 }
 
 pub struct InterleaveProducer<I, J>
-    where I: Producer,
-          J: Producer<Item = I::Item>
+where
+    I: Producer,
+    J: Producer<Item = I::Item>,
 {
     i: I,
     j: J,
@@ -138,17 +153,25 @@ pub struct InterleaveProducer<I, J>
 }
 
 impl<I, J> InterleaveProducer<I, J>
-    where I: Producer,
-          J: Producer<Item = I::Item>
+where
+    I: Producer,
+    J: Producer<Item = I::Item>,
 {
     fn new(i: I, j: J, i_len: usize, j_len: usize, i_next: bool) -> InterleaveProducer<I, J> {
-        InterleaveProducer { i: i, j: j, i_len: i_len, j_len: j_len, i_next: i_next }
+        InterleaveProducer {
+            i: i,
+            j: j,
+            i_len: i_len,
+            j_len: j_len,
+            i_next: i_next,
+        }
     }
 }
 
 impl<I, J> Producer for InterleaveProducer<I, J>
-    where I: Producer,
-          J: Producer<Item = I::Item>
+where
+    I: Producer,
+    J: Producer<Item = I::Item>,
 {
     type Item = I::Item;
     type IntoIter = InterleaveSeq<I::IntoIter, J::IntoIter>;
@@ -182,14 +205,16 @@ impl<I, J> Producer for InterleaveProducer<I, J>
     /// should yield the next element, otherwise, if `j` should yield
     /// the next element, set a = index/2 and b = (index/2)+1
     fn split_at(self, index: usize) -> (Self, Self) {
-        let even = index%2 == 0;
+        let even = index % 2 == 0;
         let idx = index >> 1;
 
         let odd_offset = |flag| if flag { 0 } else { 1 };
 
         // desired split
-        let (i_idx, j_idx) = (idx + odd_offset(even || self.i_next),
-                              idx + odd_offset(even || !self.i_next));
+        let (i_idx, j_idx) = (
+            idx + odd_offset(even || self.i_next),
+            idx + odd_offset(even || !self.i_next),
+        );
 
         let (i_split, j_split) = if self.i_len >= i_idx && self.j_len >= j_idx {
             (i_idx, j_idx)
@@ -205,22 +230,18 @@ impl<I, J> Producer for InterleaveProducer<I, J>
         let (i_left, i_right) = self.i.split_at(i_split);
         let (j_left, j_right) = self.j.split_at(j_split);
 
-        (InterleaveProducer::new(
-            i_left,
-            j_left,
-            i_split,
-            j_split,
-            self.i_next
-        ), InterleaveProducer::new(
-            i_right,
-            j_right,
-            self.i_len - i_split,
-            self.j_len - j_split,
-            trailing_i_next
-        ))
+        (
+            InterleaveProducer::new(i_left, j_left, i_split, j_split, self.i_next),
+            InterleaveProducer::new(
+                i_right,
+                j_right,
+                self.i_len - i_split,
+                self.j_len - j_split,
+                trailing_i_next,
+            ),
+        )
     }
 }
-
 
 /// Wrapper for Interleave to implement DoubleEndedIterator and
 /// ExactSizeIterator.
@@ -233,7 +254,7 @@ pub struct InterleaveSeq<I, J> {
     /// Flag to control which iterator should provide the next element. When
     /// `false` then `i` produces the next element, otherwise `j` produces the
     /// next element.
-    i_next: bool
+    i_next: bool,
 }
 
 /// Iterator implementation for InterleaveSeq. This implementation is
@@ -241,8 +262,9 @@ pub struct InterleaveSeq<I, J> {
 /// (instead of calling itertools directly), because we also need to
 /// implement `DoubledEndedIterator` and `ExactSizeIterator`.
 impl<I, J> Iterator for InterleaveSeq<I, J>
-    where I: Iterator,
-          J: Iterator<Item = I::Item>
+where
+    I: Iterator,
+    J: Iterator<Item = I::Item>,
 {
     type Item = I::Item;
 
@@ -252,12 +274,12 @@ impl<I, J> Iterator for InterleaveSeq<I, J>
         if self.i_next {
             match self.i.next() {
                 None => self.j.next(),
-                r => r
+                r => r,
             }
         } else {
             match self.j.next() {
                 None => self.i.next(),
-                r => r
+                r => r,
             }
         }
     }
@@ -267,7 +289,7 @@ impl<I, J> Iterator for InterleaveSeq<I, J>
         let min = ih.0.saturating_add(jh.0);
         let max = match (ih.1, jh.1) {
             (Some(x), Some(y)) => x.checked_add(y),
-            _=> None
+            _ => None,
         };
         (min, max)
     }
@@ -279,8 +301,9 @@ impl<I, J> Iterator for InterleaveSeq<I, J>
 // in it). If the iterators have the same number of elements, then the
 // last iterator will provide the last element.
 impl<I, J> DoubleEndedIterator for InterleaveSeq<I, J>
-    where I: DoubleEndedIterator + ExactSizeIterator,
-          J: DoubleEndedIterator<Item = I::Item> + ExactSizeIterator<Item = I::Item>
+where
+    I: DoubleEndedIterator + ExactSizeIterator,
+    J: DoubleEndedIterator<Item = I::Item> + ExactSizeIterator<Item = I::Item>,
 {
     #[inline]
     fn next_back(&mut self) -> Option<I::Item> {
@@ -299,8 +322,9 @@ impl<I, J> DoubleEndedIterator for InterleaveSeq<I, J>
 }
 
 impl<I, J> ExactSizeIterator for InterleaveSeq<I, J>
-    where I: ExactSizeIterator,
-          J: ExactSizeIterator<Item = I::Item>
+where
+    I: ExactSizeIterator,
+    J: ExactSizeIterator<Item = I::Item>,
 {
     #[inline]
     fn len(&self) -> usize {

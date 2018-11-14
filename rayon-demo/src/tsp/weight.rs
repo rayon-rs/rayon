@@ -1,14 +1,14 @@
-use std::usize;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::usize;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Weight {
-    weight: usize
+    weight: usize,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Priority {
-    priority: usize
+    priority: usize,
 }
 
 impl Weight {
@@ -35,7 +35,9 @@ impl Weight {
     /// Returns a priority for tours with this weight; lighter tours
     /// have higher priority.
     pub fn to_priority(self) -> Priority {
-        Priority { priority: usize::MAX - self.weight }
+        Priority {
+            priority: usize::MAX - self.weight,
+        }
     }
 }
 
@@ -66,4 +68,3 @@ impl SubAssign for Weight {
         *self = *self - rhs;
     }
 }
-

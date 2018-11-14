@@ -3,9 +3,9 @@
 //! accidental panics in the rayon code itself.
 
 use std::any::Any;
-use std::panic::{self, AssertUnwindSafe};
-use std::io::stderr;
 use std::io::prelude::*;
+use std::io::stderr;
+use std::panic::{self, AssertUnwindSafe};
 use std::thread;
 
 /// Executes `f` and captures any panic, translating that panic into a
@@ -13,7 +13,8 @@ use std::thread;
 /// later with `resume_unwinding`, and hence `f` can be treated as
 /// exception safe.
 pub fn halt_unwinding<F, R>(func: F) -> thread::Result<R>
-    where F: FnOnce() -> R
+where
+    F: FnOnce() -> R,
 {
     panic::catch_unwind(AssertUnwindSafe(func))
 }
