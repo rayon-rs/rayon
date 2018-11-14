@@ -1,18 +1,18 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rayon_core::*;
-use prelude::*;
 use super::*;
+use prelude::*;
+use rayon_core::*;
 
-use rand::{Rng, SeedableRng, XorShiftRng};
 use rand::distributions::Standard;
+use rand::{Rng, SeedableRng, XorShiftRng};
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
 use std::fmt::Debug;
-use std::usize;
 use std::sync::mpsc;
+use std::usize;
 
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 
@@ -117,21 +117,54 @@ pub fn fold_map_reduce() {
     let r1 = (0_i32..32)
         .into_par_iter()
         .with_max_len(1)
-        .fold(|| vec![], |mut v, e| {
-            v.push(e);
-            v
-        })
-        .map(|v| vec![v])
+        .fold(
+            || vec![],
+            |mut v, e| {
+                v.push(e);
+                v
+            },
+        ).map(|v| vec![v])
         .reduce_with(|mut v_a, v_b| {
-                         v_a.extend(v_b);
-                         v_a
-                     });
-    assert_eq!(r1,
-               Some(vec![vec![0], vec![1], vec![2], vec![3], vec![4], vec![5], vec![6], vec![7],
-                         vec![8], vec![9], vec![10], vec![11], vec![12], vec![13], vec![14],
-                         vec![15], vec![16], vec![17], vec![18], vec![19], vec![20], vec![21],
-                         vec![22], vec![23], vec![24], vec![25], vec![26], vec![27], vec![28],
-                         vec![29], vec![30], vec![31]]));
+            v_a.extend(v_b);
+            v_a
+        });
+    assert_eq!(
+        r1,
+        Some(vec![
+            vec![0],
+            vec![1],
+            vec![2],
+            vec![3],
+            vec![4],
+            vec![5],
+            vec![6],
+            vec![7],
+            vec![8],
+            vec![9],
+            vec![10],
+            vec![11],
+            vec![12],
+            vec![13],
+            vec![14],
+            vec![15],
+            vec![16],
+            vec![17],
+            vec![18],
+            vec![19],
+            vec![20],
+            vec![21],
+            vec![22],
+            vec![23],
+            vec![24],
+            vec![25],
+            vec![26],
+            vec![27],
+            vec![28],
+            vec![29],
+            vec![30],
+            vec![31]
+        ])
+    );
 }
 
 #[test]
@@ -139,8 +172,9 @@ pub fn fold_is_full() {
     let counter = AtomicUsize::new(0);
     let a = (0_i32..2048)
         .into_par_iter()
-        .inspect(|_| { counter.fetch_add(1, Ordering::SeqCst); })
-        .fold(|| 0, |a, b| a + b)
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        }).fold(|| 0, |a, b| a + b)
         .find_any(|_| true);
     assert!(a.is_some());
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
@@ -180,7 +214,8 @@ pub fn check_indices_after_enumerate_split() {
     impl<'a> ProducerCallback<(usize, &'a i32)> for WithProducer {
         type Output = ();
         fn callback<P>(self, producer: P)
-            where P: Producer<Item = (usize, &'a i32)>
+        where
+            P: Producer<Item = (usize, &'a i32)>,
         {
             let (a, b) = producer.split_at(512);
             for ((index, value), trusted_index) in a.into_iter().zip(0..) {
@@ -258,8 +293,11 @@ pub fn check_inspect() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let a = AtomicUsize::new(0);
-    let b: usize =
-        (0_usize..1024).into_par_iter().inspect(|&i| { a.fetch_add(i, Ordering::Relaxed); }).sum();
+    let b: usize = (0_usize..1024)
+        .into_par_iter()
+        .inspect(|&i| {
+            a.fetch_add(i, Ordering::Relaxed);
+        }).sum();
 
     assert_eq!(a.load(Ordering::Relaxed), b);
 }
@@ -293,7 +331,6 @@ pub fn check_drops() {
     a.into_par_iter().with_producer(Partial);
     assert_eq!(c.load(Ordering::Relaxed), 20);
 
-
     #[derive(Clone)]
     struct DropCounter<'a>(&'a AtomicUsize);
     impl<'a> Drop for DropCounter<'a> {
@@ -306,7 +343,8 @@ pub fn check_drops() {
     impl<'a> ProducerCallback<DropCounter<'a>> for Partial {
         type Output = ();
         fn callback<P>(self, producer: P)
-            where P: Producer<Item = DropCounter<'a>>
+        where
+            P: Producer<Item = DropCounter<'a>>,
         {
             let (a, _) = producer.split_at(5);
             a.into_iter().next();
@@ -349,8 +387,10 @@ pub fn check_cmp_direct() {
 
 #[test]
 pub fn check_cmp_to_seq() {
-    assert_eq!((0..1024).into_par_iter().cmp(0..1024),
-               (0..1024).cmp(0..1024));
+    assert_eq!(
+        (0..1024).into_par_iter().cmp(0..1024),
+        (0..1024).cmp(0..1024)
+    );
 }
 
 #[test]
@@ -378,8 +418,10 @@ pub fn check_cmp_lt_direct() {
 
 #[test]
 pub fn check_cmp_lt_to_seq() {
-    assert_eq!((0..1024).into_par_iter().cmp(1..1024),
-               (0..1024).cmp(1..1024))
+    assert_eq!(
+        (0..1024).into_par_iter().cmp(1..1024),
+        (0..1024).cmp(1..1024)
+    )
 }
 
 #[test]
@@ -394,8 +436,10 @@ pub fn check_cmp_gt_direct() {
 
 #[test]
 pub fn check_cmp_gt_to_seq() {
-    assert_eq!((1..1024).into_par_iter().cmp(0..1024),
-               (1..1024).cmp(0..1024))
+    assert_eq!(
+        (1..1024).into_par_iter().cmp(0..1024),
+        (1..1024).cmp(0..1024)
+    )
 }
 
 #[test]
@@ -405,7 +449,11 @@ pub fn check_cmp_short_circuit() {
     b[42] = 1;
 
     let counter = AtomicUsize::new(0);
-    let result = a.par_iter().inspect(|_| { counter.fetch_add(1, Ordering::SeqCst); }).cmp(&b);
+    let result = a
+        .par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        }).cmp(&b);
     assert!(result == ::std::cmp::Ordering::Less);
     assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
 }
@@ -417,8 +465,11 @@ pub fn check_partial_cmp_short_circuit() {
     b[42] = 1;
 
     let counter = AtomicUsize::new(0);
-    let result =
-        a.par_iter().inspect(|_| { counter.fetch_add(1, Ordering::SeqCst); }).partial_cmp(&b);
+    let result = a
+        .par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        }).partial_cmp(&b);
     assert!(result == Some(::std::cmp::Ordering::Less));
     assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
 }
@@ -430,8 +481,11 @@ pub fn check_partial_cmp_nan_short_circuit() {
     b[42] = f64::NAN;
 
     let counter = AtomicUsize::new(0);
-    let result =
-        a.par_iter().inspect(|_| { counter.fetch_add(1, Ordering::SeqCst); }).partial_cmp(&b);
+    let result = a
+        .par_iter()
+        .inspect(|_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        }).partial_cmp(&b);
     assert!(result == None);
     assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
 }
@@ -551,7 +605,6 @@ pub fn check_cmp_lengths() {
     assert_eq!(a.par_iter().cmp(&b), a.iter().cmp(&b));
     assert_eq!(a.par_iter().partial_cmp(&b), a.iter().partial_cmp(&b));
 }
-
 
 #[test]
 pub fn check_eq_direct() {
@@ -694,8 +747,8 @@ pub fn check_zip_into_par_iter() {
     let b: Vec<usize> = (0..1024).collect();
 
     a.par_iter_mut()
-     .zip(&b) // here we rely on &b iterating over &usize
-     .for_each(|(a, &b)| *a += b);
+        .zip(&b) // here we rely on &b iterating over &usize
+        .for_each(|(a, &b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -714,7 +767,9 @@ pub fn check_zip_into_mut_par_iter() {
 pub fn check_zip_range() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
 
-    a.par_iter_mut().zip(0usize..1024).for_each(|(a, b)| *a += b);
+    a.par_iter_mut()
+        .zip(0usize..1024)
+        .for_each(|(a, b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -735,8 +790,8 @@ pub fn check_zip_eq_into_par_iter() {
     let b: Vec<usize> = (0..1024).collect();
 
     a.par_iter_mut()
-     .zip_eq(&b) // here we rely on &b iterating over &usize
-     .for_each(|(a, &b)| *a += b);
+        .zip_eq(&b) // here we rely on &b iterating over &usize
+        .for_each(|(a, &b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -755,7 +810,9 @@ pub fn check_zip_eq_into_mut_par_iter() {
 pub fn check_zip_eq_range() {
     let mut a: Vec<usize> = (0..1024).rev().collect();
 
-    a.par_iter_mut().zip_eq(0usize..1024).for_each(|(a, b)| *a += b);
+    a.par_iter_mut()
+        .zip_eq(0usize..1024)
+        .for_each(|(a, b)| *a += b);
 
     assert!(a.iter().all(|&x| x == a.len() - 1));
 }
@@ -764,7 +821,8 @@ pub fn check_zip_eq_range() {
 pub fn check_sum_filtered_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let par_sum_evens: i32 = a.par_iter().filter(|&x| (x & 1) == 0).sum();
-    let seq_sum_evens = a.iter()
+    let seq_sum_evens = a
+        .iter()
         .filter(|&x| (x & 1) == 0)
         .map(|&x| x)
         .fold(0, |a, b| a + b);
@@ -774,9 +832,12 @@ pub fn check_sum_filtered_ints() {
 #[test]
 pub fn check_sum_filtermap_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let par_sum_evens: f32 =
-        a.par_iter().filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None }).sum();
-    let seq_sum_evens = a.iter()
+    let par_sum_evens: f32 = a
+        .par_iter()
+        .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
+        .sum();
+    let seq_sum_evens = a
+        .iter()
         .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
         .fold(0.0, |a, b| a + b);
     assert_eq!(par_sum_evens, seq_sum_evens);
@@ -816,7 +877,6 @@ pub fn check_empty_flat_map_sum() {
 
 #[test]
 pub fn check_flatten_vec() {
-
     let a: Vec<i32> = (0..1024).collect();
     let b: Vec<Vec<i32>> = vec![a.clone(), a.clone(), a.clone(), a.clone()];
     let c: Vec<i32> = b.par_iter().flatten().cloned().collect();
@@ -830,7 +890,6 @@ pub fn check_flatten_vec() {
 
 #[test]
 pub fn check_flatten_vec_empty() {
-
     let a: Vec<Vec<i32>> = vec![vec![]];
     let b: Vec<i32> = a.par_iter().flatten().cloned().collect();
 
@@ -881,17 +940,25 @@ pub fn check_slice_split_mut() {
 #[test]
 pub fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
-    let par_sum_product_pairs: i32 =
-        a.par_chunks(2).map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j)).sum();
-    let seq_sum_product_pairs =
-        a.chunks(2).map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j)).fold(0, |i, j| i + j);
+    let par_sum_product_pairs: i32 = a
+        .par_chunks(2)
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .sum();
+    let seq_sum_product_pairs = a
+        .chunks(2)
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .fold(0, |i, j| i + j);
     assert_eq!(par_sum_product_pairs, 12345);
     assert_eq!(par_sum_product_pairs, seq_sum_product_pairs);
 
-    let par_sum_product_triples: i32 =
-        a.par_chunks(3).map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j)).sum();
-    let seq_sum_product_triples =
-        a.chunks(3).map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j)).fold(0, |i, j| i + j);
+    let par_sum_product_triples: i32 = a
+        .par_chunks(3)
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .sum();
+    let seq_sum_product_triples = a
+        .chunks(3)
+        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
+        .fold(0, |i, j| i + j);
     assert_eq!(par_sum_product_triples, 5_0 + 12_00 + 2_000_0000 + 1);
     assert_eq!(par_sum_product_triples, seq_sum_product_triples);
 }
@@ -900,15 +967,21 @@ pub fn check_chunks() {
 pub fn check_chunks_mut() {
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
-    a.par_chunks_mut(2).for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
-    b.chunks_mut(2).map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j)).count();
+    a.par_chunks_mut(2)
+        .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
+    b.chunks_mut(2)
+        .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
+        .count();
     assert_eq!(a, &[3, 2, 7, 4, 11, 6, 15, 8, 19, 10]);
     assert_eq!(a, b);
 
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
-    a.par_chunks_mut(3).for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
-    b.chunks_mut(3).map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j)).count();
+    a.par_chunks_mut(3)
+        .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
+    b.chunks_mut(3)
+        .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
+        .count();
     assert_eq!(a, &[6, 2, 3, 15, 5, 6, 24, 8, 9, 10]);
     assert_eq!(a, b);
 }
@@ -928,11 +1001,13 @@ pub fn check_windows() {
     let seq: Vec<_> = a.windows(1_000_000).collect();
     assert_eq!(par, seq);
 
-    let par: Vec<_> = a.par_windows(2)
+    let par: Vec<_> = a
+        .par_windows(2)
         .chain(a.par_windows(1_000_000))
         .zip(a.par_windows(2))
         .collect();
-    let seq: Vec<_> = a.windows(2)
+    let seq: Vec<_> = a
+        .windows(2)
         .chain(a.windows(1_000_000))
         .zip(a.windows(2))
         .collect();
@@ -946,7 +1021,9 @@ pub fn check_options() {
     assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum::<i32>());
     assert_eq!(7, a.par_iter().flat_map(|opt| opt).sum::<i32>());
 
-    a.par_iter_mut().flat_map(|opt| opt).for_each(|x| *x = *x * *x);
+    a.par_iter_mut()
+        .flat_map(|opt| opt)
+        .for_each(|x| *x = *x * *x);
 
     assert_eq!(21, a.into_par_iter().flat_map(|opt| opt).sum::<i32>());
 }
@@ -958,20 +1035,14 @@ pub fn check_results() {
     assert_eq!(7, a.par_iter().flat_map(|res| res).sum::<i32>());
 
     assert_eq!(Err::<i32, ()>(()), a.par_iter().cloned().sum());
-    assert_eq!(Ok(7),
-               a.par_iter()
-                   .cloned()
-                   .filter(Result::is_ok)
-                   .sum());
+    assert_eq!(Ok(7), a.par_iter().cloned().filter(Result::is_ok).sum());
 
     assert_eq!(Err::<i32, ()>(()), a.par_iter().cloned().product());
-    assert_eq!(Ok(8),
-               a.par_iter()
-                   .cloned()
-                   .filter(Result::is_ok)
-                   .product());
+    assert_eq!(Ok(8), a.par_iter().cloned().filter(Result::is_ok).product());
 
-    a.par_iter_mut().flat_map(|res| res).for_each(|x| *x = *x * *x);
+    a.par_iter_mut()
+        .flat_map(|res| res)
+        .for_each(|x| *x = *x * *x);
 
     assert_eq!(21, a.into_par_iter().flat_map(|res| res).sum::<i32>());
 }
@@ -1084,28 +1155,33 @@ pub fn check_chain() {
         .chain(None)
         .collect_into_vec(&mut res);
 
-    assert_eq!(res,
-               vec![(0, 'a', 0),
-                    (1, 'b', -1),
-                    (2, 'b', -2),
-                    (3, 'c', -3),
-                    (4, 'd', -4),
-                    (5, 'f', -5),
-                    (6, 'i', -6),
-                    (7, 'n', -7),
-                    (8, 'x', -8),
-                    (9, 'y', -9),
-                    (10, 'z', -10)]);
+    assert_eq!(
+        res,
+        vec![
+            (0, 'a', 0),
+            (1, 'b', -1),
+            (2, 'b', -2),
+            (3, 'c', -3),
+            (4, 'd', -4),
+            (5, 'f', -5),
+            (6, 'i', -6),
+            (7, 'n', -7),
+            (8, 'x', -8),
+            (9, 'y', -9),
+            (10, 'z', -10)
+        ]
+    );
 
     // unindexed is ok too
     let res: Vec<i32> = Some(1i32)
         .into_par_iter()
-        .chain((2i32..4)
-                   .into_par_iter()
-                   .chain(vec![5, 6, 7, 8, 9])
-                   .chain(Some((10, 100)).into_par_iter().flat_map(|(a, b)| a..b))
-                   .filter(|x| x & 1 == 1))
-        .collect();
+        .chain(
+            (2i32..4)
+                .into_par_iter()
+                .chain(vec![5, 6, 7, 8, 9])
+                .chain(Some((10, 100)).into_par_iter().flat_map(|(a, b)| a..b))
+                .filter(|x| x & 1 == 1),
+        ).collect();
     let other: Vec<i32> = (0..100).filter(|x| x & 1 == 1).collect();
     assert_eq!(res, other);
 
@@ -1114,27 +1190,32 @@ pub fn check_chain() {
     assert_eq!(res, &[1]);
 }
 
-
 #[test]
 pub fn check_count() {
     let c0 = (0_u32..24 * 1024).filter(|i| i % 2 == 0).count();
-    let c1 = (0_u32..24 * 1024).into_par_iter().filter(|i| i % 2 == 0).count();
+    let c1 = (0_u32..24 * 1024)
+        .into_par_iter()
+        .filter(|i| i % 2 == 0)
+        .count();
     assert_eq!(c0, c1);
 }
-
 
 #[test]
 pub fn find_any() {
     let a: Vec<i32> = (0..1024).collect();
 
     assert!(a.par_iter().find_any(|&&x| x % 42 == 41).is_some());
-    assert_eq!(a.par_iter().find_any(|&&x| x % 19 == 1 && x % 53 == 0),
-               Some(&742_i32));
+    assert_eq!(
+        a.par_iter().find_any(|&&x| x % 19 == 1 && x % 53 == 0),
+        Some(&742_i32)
+    );
     assert_eq!(a.par_iter().find_any(|&&x| x < 0), None);
 
     assert!(a.par_iter().position_any(|&x| x % 42 == 41).is_some());
-    assert_eq!(a.par_iter().position_any(|&x| x % 19 == 1 && x % 53 == 0),
-               Some(742_usize));
+    assert_eq!(
+        a.par_iter().position_any(|&x| x % 19 == 1 && x % 53 == 0),
+        Some(742_usize)
+    );
     assert_eq!(a.par_iter().position_any(|&x| x < 0), None);
 
     assert!(a.par_iter().any(|&x| x > 1000));
@@ -1149,36 +1230,47 @@ pub fn find_first_or_last() {
     let a: Vec<i32> = (0..1024).collect();
 
     assert_eq!(a.par_iter().find_first(|&&x| x % 42 == 41), Some(&41_i32));
-    assert_eq!(a.par_iter().find_first(|&&x| x % 19 == 1 && x % 53 == 0),
-               Some(&742_i32));
+    assert_eq!(
+        a.par_iter().find_first(|&&x| x % 19 == 1 && x % 53 == 0),
+        Some(&742_i32)
+    );
     assert_eq!(a.par_iter().find_first(|&&x| x < 0), None);
 
-    assert_eq!(a.par_iter().position_first(|&x| x % 42 == 41),
-               Some(41_usize));
-    assert_eq!(a.par_iter().position_first(|&x| x % 19 == 1 && x % 53 == 0),
-               Some(742_usize));
+    assert_eq!(
+        a.par_iter().position_first(|&x| x % 42 == 41),
+        Some(41_usize)
+    );
+    assert_eq!(
+        a.par_iter().position_first(|&x| x % 19 == 1 && x % 53 == 0),
+        Some(742_usize)
+    );
     assert_eq!(a.par_iter().position_first(|&x| x < 0), None);
 
     assert_eq!(a.par_iter().find_last(|&&x| x % 42 == 41), Some(&1007_i32));
-    assert_eq!(a.par_iter().find_last(|&&x| x % 19 == 1 && x % 53 == 0),
-               Some(&742_i32));
+    assert_eq!(
+        a.par_iter().find_last(|&&x| x % 19 == 1 && x % 53 == 0),
+        Some(&742_i32)
+    );
     assert_eq!(a.par_iter().find_last(|&&x| x < 0), None);
 
-    assert_eq!(a.par_iter().position_last(|&x| x % 42 == 41),
-               Some(1007_usize));
-    assert_eq!(a.par_iter().position_last(|&x| x % 19 == 1 && x % 53 == 0),
-               Some(742_usize));
+    assert_eq!(
+        a.par_iter().position_last(|&x| x % 42 == 41),
+        Some(1007_usize)
+    );
+    assert_eq!(
+        a.par_iter().position_last(|&x| x % 19 == 1 && x % 53 == 0),
+        Some(742_usize)
+    );
     assert_eq!(a.par_iter().position_last(|&x| x < 0), None);
 }
 
 #[test]
 pub fn check_find_not_present() {
     let counter = AtomicUsize::new(0);
-    let value: Option<i32> =
-        (0_i32..2048).into_par_iter().find_any(|&p| {
-                                                   counter.fetch_add(1, Ordering::SeqCst);
-                                                   p >= 2048
-                                               });
+    let value: Option<i32> = (0_i32..2048).into_par_iter().find_any(|&p| {
+        counter.fetch_add(1, Ordering::SeqCst);
+        p >= 2048
+    });
     assert!(value.is_none());
     assert!(counter.load(Ordering::SeqCst) == 2048); // should have visited every single one
 }
@@ -1186,11 +1278,10 @@ pub fn check_find_not_present() {
 #[test]
 pub fn check_find_is_present() {
     let counter = AtomicUsize::new(0);
-    let value: Option<i32> =
-        (0_i32..2048).into_par_iter().find_any(|&p| {
-                                                   counter.fetch_add(1, Ordering::SeqCst);
-                                                   p >= 1024 && p < 1096
-                                               });
+    let value: Option<i32> = (0_i32..2048).into_par_iter().find_any(|&p| {
+        counter.fetch_add(1, Ordering::SeqCst);
+        p >= 1024 && p < 1096
+    });
     let q = value.unwrap();
     assert!(q >= 1024 && q < 1096);
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
@@ -1198,21 +1289,20 @@ pub fn check_find_is_present() {
 
 #[test]
 pub fn check_while_some() {
-    let value = (0_i32..2048)
-        .into_par_iter()
-        .map(Some)
-        .while_some()
-        .max();
+    let value = (0_i32..2048).into_par_iter().map(Some).while_some().max();
     assert_eq!(value, Some(2047));
 
     let counter = AtomicUsize::new(0);
     let value = (0_i32..2048)
         .into_par_iter()
         .map(|x| {
-                 counter.fetch_add(1, Ordering::SeqCst);
-                 if x < 1024 { Some(x) } else { None }
-             })
-        .while_some()
+            counter.fetch_add(1, Ordering::SeqCst);
+            if x < 1024 {
+                Some(x)
+            } else {
+                None
+            }
+        }).while_some()
         .max();
     assert!(value < Some(1024));
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
@@ -1323,7 +1413,10 @@ pub fn par_iter_collect_linked_list_flat_map_filter() {
         .flat_map(|i| (0..i))
         .filter(|&i| i % 2 == 0)
         .collect();
-    let c: LinkedList<i32> = (0_i32..1024).flat_map(|i| (0..i)).filter(|&i| i % 2 == 0).collect();
+    let c: LinkedList<i32> = (0_i32..1024)
+        .flat_map(|i| (0..i))
+        .filter(|&i| i % 2 == 0)
+        .collect();
     assert_eq!(b, c);
 }
 
@@ -1356,7 +1449,10 @@ pub fn par_iter_collect_cows() {
 
 #[test]
 pub fn par_iter_unindexed_flat_map() {
-    let b: Vec<i64> = (0_i64..1024).into_par_iter().flat_map(|i| Some(i)).collect();
+    let b: Vec<i64> = (0_i64..1024)
+        .into_par_iter()
+        .flat_map(|i| Some(i))
+        .collect();
     let c: Vec<i64> = (0_i64..1024).flat_map(|i| Some(i)).collect();
     assert_eq!(b, c);
 }
@@ -1377,17 +1473,17 @@ fn min_max_by() {
     let mut rng = seeded_rng();
     // Make sure there are duplicate keys, for testing sort stability
     let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
-    let a: Vec<(i32, u16)> = r.iter()
-        .chain(&r)
-        .cloned()
-        .zip(0..)
-        .collect();
+    let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
     for i in 0..a.len() + 1 {
         let slice = &a[..i];
-        assert_eq!(slice.par_iter().min_by(|x, y| x.0.cmp(&y.0)),
-                   slice.iter().min_by(|x, y| x.0.cmp(&y.0)));
-        assert_eq!(slice.par_iter().max_by(|x, y| x.0.cmp(&y.0)),
-                   slice.iter().max_by(|x, y| x.0.cmp(&y.0)));
+        assert_eq!(
+            slice.par_iter().min_by(|x, y| x.0.cmp(&y.0)),
+            slice.iter().min_by(|x, y| x.0.cmp(&y.0))
+        );
+        assert_eq!(
+            slice.par_iter().max_by(|x, y| x.0.cmp(&y.0)),
+            slice.iter().max_by(|x, y| x.0.cmp(&y.0))
+        );
     }
 }
 
@@ -1396,17 +1492,17 @@ fn min_max_by_key() {
     let mut rng = seeded_rng();
     // Make sure there are duplicate keys, for testing sort stability
     let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
-    let a: Vec<(i32, u16)> = r.iter()
-        .chain(&r)
-        .cloned()
-        .zip(0..)
-        .collect();
+    let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
     for i in 0..a.len() + 1 {
         let slice = &a[..i];
-        assert_eq!(slice.par_iter().min_by_key(|x| x.0),
-                   slice.iter().min_by_key(|x| x.0));
-        assert_eq!(slice.par_iter().max_by_key(|x| x.0),
-                   slice.iter().max_by_key(|x| x.0));
+        assert_eq!(
+            slice.par_iter().min_by_key(|x| x.0),
+            slice.iter().min_by_key(|x| x.0)
+        );
+        assert_eq!(
+            slice.par_iter().max_by_key(|x| x.0),
+            slice.iter().max_by_key(|x| x.0)
+        );
     }
 }
 
@@ -1415,23 +1511,22 @@ fn check_rev() {
     let a: Vec<usize> = (0..1024).rev().collect();
     let b: Vec<usize> = (0..1024).collect();
 
-    assert!(a.par_iter()
-                .rev()
-                .zip(b)
-                .all(|(&a, b)| a == b));
+    assert!(a.par_iter().rev().zip(b).all(|(&a, b)| a == b));
 }
 
 #[test]
 fn scope_mix() {
     let counter_p = &AtomicUsize::new(0);
     scope(|s| {
-        s.spawn(move |s| { divide_and_conquer(s, counter_p, 1024); });
+        s.spawn(move |s| {
+            divide_and_conquer(s, counter_p, 1024);
+        });
         s.spawn(move |_| {
-                    let a: Vec<i32> = (0..1024).collect();
-                    let r1 = a.par_iter().map(|&i| i + 1).reduce_with(|i, j| i + j);
-                    let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
-                    assert_eq!(r1.unwrap(), r2);
-                });
+            let a: Vec<i32> = (0..1024).collect();
+            let r1 = a.par_iter().map(|&i| i + 1).reduce_with(|i, j| i + j);
+            let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
+            assert_eq!(r1.unwrap(), r2);
+        });
     });
 }
 
@@ -1458,8 +1553,7 @@ fn check_split() {
         } else {
             (start..end, None)
         }
-    })
-            .flat_map(|range| range);
+    }).flat_map(|range| range);
 
     assert_eq!(a.collect::<Vec<_>>(), b.collect::<Vec<_>>());
 }
@@ -1473,14 +1567,17 @@ fn check_lengths() {
         let min_check = cmp::min(cmp::max(min, 1), range.len());
         let max_check = cmp::max(max, min_check.saturating_add(min_check - 1));
 
-        assert!(range.into_par_iter()
-                    .with_min_len(min)
-                    .with_max_len(max)
-                    .fold(|| 0, |count, _| count + 1)
-                    .all(|c| c >= min_check && c <= max_check),
-                "check_lengths failed {:?} -> {:?} ",
-                (min, max),
-                (min_check, max_check));
+        assert!(
+            range
+                .into_par_iter()
+                .with_min_len(min)
+                .with_max_len(max)
+                .fold(|| 0, |count, _| count + 1)
+                .all(|c| c >= min_check && c <= max_check),
+            "check_lengths failed {:?} -> {:?} ",
+            (min, max),
+            (min_check, max_check)
+        );
     }
 
     let lengths = [0, 1, 10, 100, 1000, 10000, 100000, 1000000, usize::MAX];
@@ -1515,8 +1612,7 @@ fn check_fold_with() {
         .fold_with(sender, |s, i| {
             s.send(i).unwrap();
             s
-        })
-        .count();
+        }).count();
 
     let b: HashSet<_> = receiver.iter().collect();
     assert_eq!(a, b);
@@ -1538,9 +1634,14 @@ fn check_for_each_with() {
 #[test]
 fn check_extend_items() {
     fn check<C>()
-        where C: Default + Eq + Debug
-               + Extend<i32> + for<'a> Extend<&'a i32>
-               + ParallelExtend<i32> + for<'a> ParallelExtend<&'a i32>
+    where
+        C: Default
+            + Eq
+            + Debug
+            + Extend<i32>
+            + for<'a> Extend<&'a i32>
+            + ParallelExtend<i32>
+            + for<'a> ParallelExtend<&'a i32>,
     {
         let mut serial = C::default();
         let mut parallel = C::default();
@@ -1573,7 +1674,10 @@ fn check_extend_heap() {
     let v: Vec<_> = (0..128).collect();
     serial.extend(&v);
     parallel.par_extend(&v);
-    assert_eq!(serial.clone().into_sorted_vec(), parallel.clone().into_sorted_vec());
+    assert_eq!(
+        serial.clone().into_sorted_vec(),
+        parallel.clone().into_sorted_vec()
+    );
 
     // extend with values
     serial.extend(-128..0);
@@ -1584,9 +1688,14 @@ fn check_extend_heap() {
 #[test]
 fn check_extend_pairs() {
     fn check<C>()
-        where C: Default + Eq + Debug
-               + Extend<(usize, i32)> + for<'a> Extend<(&'a usize, &'a i32)>
-               + ParallelExtend<(usize, i32)> + for<'a> ParallelExtend<(&'a usize, &'a i32)>
+    where
+        C: Default
+            + Eq
+            + Debug
+            + Extend<(usize, i32)>
+            + for<'a> Extend<(&'a usize, &'a i32)>
+            + ParallelExtend<(usize, i32)>
+            + for<'a> ParallelExtend<(&'a usize, &'a i32)>,
     {
         let mut serial = C::default();
         let mut parallel = C::default();
@@ -1626,31 +1735,19 @@ fn check_unzip_into_vecs() {
 #[test]
 fn check_unzip() {
     // indexed, unindexed
-    let (a, b): (Vec<_>, HashSet<_>) = (0..1024)
-        .into_par_iter()
-        .map(|i| i * i)
-        .enumerate()
-        .unzip();
+    let (a, b): (Vec<_>, HashSet<_>) = (0..1024).into_par_iter().map(|i| i * i).enumerate().unzip();
     let (c, d): (Vec<_>, HashSet<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
     assert_eq!(a, c);
     assert_eq!(b, d);
 
     // unindexed, indexed
-    let (a, b): (HashSet<_>, Vec<_>) = (0..1024)
-        .into_par_iter()
-        .map(|i| i * i)
-        .enumerate()
-        .unzip();
+    let (a, b): (HashSet<_>, Vec<_>) = (0..1024).into_par_iter().map(|i| i * i).enumerate().unzip();
     let (c, d): (HashSet<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
     assert_eq!(a, c);
     assert_eq!(b, d);
 
     // indexed, indexed
-    let (a, b): (Vec<_>, Vec<_>) = (0..1024)
-        .into_par_iter()
-        .map(|i| i * i)
-        .enumerate()
-        .unzip();
+    let (a, b): (Vec<_>, Vec<_>) = (0..1024).into_par_iter().map(|i| i * i).enumerate().unzip();
     let (c, d): (Vec<_>, Vec<_>) = (0..1024).map(|i| i * i).enumerate().unzip();
     assert_eq!(a, c);
     assert_eq!(b, d);
@@ -1676,12 +1773,13 @@ fn check_partition() {
 #[test]
 fn check_partition_map() {
     let input = "a b c 1 2 3 x y z";
-    let (a, b): (Vec<_>, String) = input
-        .par_split_whitespace()
-        .partition_map(|s| match s.parse::<i32>() {
-                           Ok(n) => Either::Left(n),
-                           Err(_) => Either::Right(s),
-                       });
+    let (a, b): (Vec<_>, String) =
+        input
+            .par_split_whitespace()
+            .partition_map(|s| match s.parse::<i32>() {
+                Ok(n) => Either::Left(n),
+                Err(_) => Either::Right(s),
+            });
     assert_eq!(a, vec![1, 2, 3]);
     assert_eq!(b, "abcxyz");
 }
@@ -1729,73 +1827,144 @@ fn check_interleave_eq() {
     let ys: Vec<usize> = (10..20).collect();
 
     let mut actual = vec![];
-    xs.par_iter().interleave(&ys).map(|&i| i).collect_into_vec(&mut actual);
+    xs.par_iter()
+        .interleave(&ys)
+        .map(|&i| i)
+        .collect_into_vec(&mut actual);
 
-    let expected: Vec<usize> = (0..10).zip(10..20).flat_map(|(i, j)| vec![i, j].into_iter()).collect();
+    let expected: Vec<usize> = (0..10)
+        .zip(10..20)
+        .flat_map(|(i, j)| vec![i, j].into_iter())
+        .collect();
     assert_eq!(expected, actual);
 }
 
 #[test]
 fn check_interleave_uneven() {
     let cases: Vec<(Vec<usize>, Vec<usize>, Vec<usize>)> = vec![
-        ((0..9).collect(), vec![10], vec![0, 10, 1, 2, 3, 4, 5, 6, 7, 8]),
-        (vec![10], (0..9).collect(), vec![10, 0, 1, 2, 3, 4, 5, 6, 7, 8]),
-        ((0..5).collect(), (5..10).collect(), (0..5).zip(5..10).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+        (
+            (0..9).collect(),
+            vec![10],
+            vec![0, 10, 1, 2, 3, 4, 5, 6, 7, 8],
+        ),
+        (
+            vec![10],
+            (0..9).collect(),
+            vec![10, 0, 1, 2, 3, 4, 5, 6, 7, 8],
+        ),
+        (
+            (0..5).collect(),
+            (5..10).collect(),
+            (0..5)
+                .zip(5..10)
+                .flat_map(|(i, j)| vec![i, j].into_iter())
+                .collect(),
+        ),
         (vec![], (0..9).collect(), (0..9).collect()),
         ((0..9).collect(), vec![], (0..9).collect()),
-        ((0..50).collect(), (50..100).collect(), (0..50).zip(50..100).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+        (
+            (0..50).collect(),
+            (50..100).collect(),
+            (0..50)
+                .zip(50..100)
+                .flat_map(|(i, j)| vec![i, j].into_iter())
+                .collect(),
+        ),
     ];
 
     for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
         let mut res = vec![];
-        xs.par_iter().interleave(&ys).map(|&i| i).collect_into_vec(&mut res);
+        xs.par_iter()
+            .interleave(&ys)
+            .map(|&i| i)
+            .collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {} failed", i);
 
         res.truncate(0);
-        xs.par_iter().interleave(&ys).rev().map(|&i| i).collect_into_vec(&mut res);
-        assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
+        xs.par_iter()
+            .interleave(&ys)
+            .rev()
+            .map(|&i| i)
+            .collect_into_vec(&mut res);
+        assert_eq!(
+            expected.into_iter().rev().collect::<Vec<usize>>(),
+            res,
+            "Case {} reversed failed",
+            i
+        );
     }
 }
-
 
 #[test]
 fn check_interleave_shortest() {
     let cases: Vec<(Vec<usize>, Vec<usize>, Vec<usize>)> = vec![
         ((0..9).collect(), vec![10], vec![0, 10, 1]),
         (vec![10], (0..9).collect(), vec![10, 0]),
-        ((0..5).collect(), (5..10).collect(), (0..5).zip(5..10).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+        (
+            (0..5).collect(),
+            (5..10).collect(),
+            (0..5)
+                .zip(5..10)
+                .flat_map(|(i, j)| vec![i, j].into_iter())
+                .collect(),
+        ),
         (vec![], (0..9).collect(), vec![]),
         ((0..9).collect(), vec![], vec![0]),
-        ((0..50).collect(), (50..100).collect(), (0..50).zip(50..100).flat_map(|(i, j)| vec![i, j].into_iter()).collect()),
+        (
+            (0..50).collect(),
+            (50..100).collect(),
+            (0..50)
+                .zip(50..100)
+                .flat_map(|(i, j)| vec![i, j].into_iter())
+                .collect(),
+        ),
     ];
 
     for (i, (xs, ys, expected)) in cases.into_iter().enumerate() {
         let mut res = vec![];
-        xs.par_iter().interleave_shortest(&ys).map(|&i| i).collect_into_vec(&mut res);
+        xs.par_iter()
+            .interleave_shortest(&ys)
+            .map(|&i| i)
+            .collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {} failed", i);
 
         res.truncate(0);
-        xs.par_iter().interleave_shortest(&ys).rev().map(|&i| i).collect_into_vec(&mut res);
-        assert_eq!(expected.into_iter().rev().collect::<Vec<usize>>(), res, "Case {} reversed failed", i);
+        xs.par_iter()
+            .interleave_shortest(&ys)
+            .rev()
+            .map(|&i| i)
+            .collect_into_vec(&mut res);
+        assert_eq!(
+            expected.into_iter().rev().collect::<Vec<usize>>(),
+            res,
+            "Case {} reversed failed",
+            i
+        );
     }
 }
 
 #[test]
 #[should_panic(expected = "chunk_size must not be zero")]
 fn check_chunks_zero_size() {
-    let _: Vec<Vec<i32>> = vec![1,2,3].into_par_iter().chunks(0).collect();
+    let _: Vec<Vec<i32>> = vec![1, 2, 3].into_par_iter().chunks(0).collect();
 }
 
 #[test]
 fn check_chunks_even_size() {
-    assert_eq!(vec![vec![1,2,3], vec![4,5,6], vec![7,8,9]], (1..10).into_par_iter().chunks(3).collect::<Vec<Vec<i32>>>());
+    assert_eq!(
+        vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]],
+        (1..10).into_par_iter().chunks(3).collect::<Vec<Vec<i32>>>()
+    );
 }
 
 #[test]
 fn check_chunks_empty() {
     let v: Vec<i32> = vec![];
     let expected: Vec<Vec<i32>> = vec![];
-    assert_eq!(expected, v.into_par_iter().chunks(2).collect::<Vec<Vec<i32>>>());
+    assert_eq!(
+        expected,
+        v.into_par_iter().chunks(2).collect::<Vec<Vec<i32>>>()
+    );
 }
 
 #[test]
@@ -1810,19 +1979,27 @@ fn check_chunks_len() {
 #[test]
 fn check_chunks_uneven() {
     let cases: Vec<(Vec<u32>, usize, Vec<Vec<u32>>)> = vec![
-        ((0..5).collect(), 3, vec![vec![0,1, 2], vec![3, 4]]),
+        ((0..5).collect(), 3, vec![vec![0, 1, 2], vec![3, 4]]),
         (vec![1], 5, vec![vec![1]]),
-        ((0..4).collect(), 3, vec![vec![0,1, 2], vec![3]]),
+        ((0..4).collect(), 3, vec![vec![0, 1, 2], vec![3]]),
     ];
 
     for (i, (v, n, expected)) in cases.into_iter().enumerate() {
         let mut res: Vec<Vec<u32>> = vec![];
-        v.par_iter().chunks(n).map(|v| v.into_iter().cloned().collect()).collect_into_vec(&mut res);
+        v.par_iter()
+            .chunks(n)
+            .map(|v| v.into_iter().cloned().collect())
+            .collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {} failed", i);
 
         res.truncate(0);
         v.into_par_iter().chunks(n).rev().collect_into_vec(&mut res);
-        assert_eq!(expected.into_iter().rev().collect::<Vec<Vec<u32>>>(), res, "Case {} reversed failed", i);
+        assert_eq!(
+            expected.into_iter().rev().collect::<Vec<Vec<u32>>>(),
+            res,
+            "Case {} reversed failed",
+            i
+        );
     }
 }
 
@@ -1853,7 +2030,7 @@ fn check_repeat_take() {
 
 #[test]
 fn check_repeat_zip() {
-    let v = vec!(4,4,4,4);
+    let v = vec![4, 4, 4, 4];
     let mut fours: Vec<_> = repeat(4).zip(v).collect();
     assert_eq!(fours.len(), 4);
     while let Some(item) = fours.pop() {
@@ -1863,7 +2040,7 @@ fn check_repeat_zip() {
 
 #[test]
 fn check_repeatn_zip_left() {
-    let v = vec!(4,4,4,4);
+    let v = vec![4, 4, 4, 4];
     let mut fours: Vec<_> = repeatn(4, usize::MAX).zip(v).collect();
     assert_eq!(fours.len(), 4);
     while let Some(item) = fours.pop() {
@@ -1873,7 +2050,7 @@ fn check_repeatn_zip_left() {
 
 #[test]
 fn check_repeatn_zip_right() {
-    let v = vec!(4,4,4,4);
+    let v = vec![4, 4, 4, 4];
     let mut fours: Vec<_> = v.into_par_iter().zip(repeatn(4, usize::MAX)).collect();
     assert_eq!(fours.len(), 4);
     while let Some(item) = fours.pop() {
@@ -1914,9 +2091,7 @@ fn check_once() {
 #[test]
 fn check_update() {
     let mut v: Vec<Vec<_>> = vec![vec![1], vec![3, 2, 1]];
-    v.par_iter_mut()
-        .update(|v| v.push(0))
-        .for_each(|_|());
+    v.par_iter_mut().update(|v| v.push(0)).for_each(|_| ());
 
     assert_eq!(v, vec![vec![1, 0], vec![3, 2, 1, 0]]);
 }

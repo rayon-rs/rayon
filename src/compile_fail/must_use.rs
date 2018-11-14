@@ -1,4 +1,3 @@
-
 // Check that we are flagged for ignoring `must_use` parallel adaptors.
 // (unfortunately there's no error code for `unused_must_use`)
 

@@ -2,29 +2,28 @@
 //!
 //! See `README.md` for details.
 #![deny(missing_debug_implementations)]
-
 #![doc(html_root_url = "https://docs.rs/rayon-futures/0.1")]
 
 extern crate futures;
 extern crate rayon_core;
 
-use futures::{Async, Future, Poll};
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task};
+use futures::{Async, Future, Poll};
 use rayon_core::internal::worker; // May need `RUSTFLAGS='--cfg rayon_unstable'` to compile
 
-use rayon_core::internal::task::{Task as RayonTask, ScopeHandle, ToScopeHandle};
+use futures::executor::{self, Notify, NotifyHandle, UnsafeNotify};
+use rayon_core::internal::task::{ScopeHandle, Task as RayonTask, ToScopeHandle};
 use std::any::Any;
 use std::fmt;
-use std::panic::{self, AssertUnwindSafe};
-use futures::executor::{self, Notify, NotifyHandle, UnsafeNotify};
 use std::marker::PhantomData;
 use std::mem;
-use std::sync::Arc;
+use std::panic::{self, AssertUnwindSafe};
+use std::ptr;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::*;
+use std::sync::Arc;
 use std::sync::Mutex;
-use std::ptr;
 
 const STATE_PARKED: usize = 0;
 const STATE_UNPARKED: usize = 1;
@@ -34,14 +33,17 @@ const STATE_COMPLETE: usize = 4;
 
 pub trait ScopeFutureExt<'scope> {
     fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'scope;
+    where
+        F: Future + Send + 'scope;
 }
 
 impl<'scope, T> ScopeFutureExt<'scope> for T
-    where T: ToScopeHandle<'scope>
+where
+    T: ToScopeHandle<'scope>,
 {
     fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
-        where F: Future + Send + 'scope
+    where
+        F: Future + Send + 'scope,
     {
         let inner = ScopeFuture::spawn(future, self.to_scope_handle());
 
@@ -52,11 +54,14 @@ impl<'scope, T> ScopeFutureExt<'scope> for T
         // *are* exposed in the `RayonFuture<F::Item, F::Error>` type. See
         // README.md for details.
         unsafe {
-            return RayonFuture { inner: hide_lifetime(inner) };
+            return RayonFuture {
+                inner: hide_lifetime(inner),
+            };
         }
 
-        unsafe fn hide_lifetime<'l, T, E>(x: Arc<ScopeFutureTrait<T, E> + 'l>)
-                                          -> Arc<ScopeFutureTrait<T, E>> {
+        unsafe fn hide_lifetime<'l, T, E>(
+            x: Arc<ScopeFutureTrait<T, E> + 'l>,
+        ) -> Arc<ScopeFutureTrait<T, E>> {
             mem::transmute(x)
         }
     }
@@ -87,10 +92,9 @@ impl<T, E> RayonFuture<T, E> {
             }
             self.poll().map(|a_v| match a_v {
                 Async::Ready(v) => v,
-                Async::NotReady => panic!("probe() returned true but poll not ready")
+                Async::NotReady => panic!("probe() returned true but poll not ready"),
             })
-        })
-            .unwrap_or_else(|| self.wait())
+        }).unwrap_or_else(|| self.wait())
     }
 }
 
@@ -99,8 +103,9 @@ impl<T, E> Future for RayonFuture<T, E> {
     type Error = E;
 
     fn wait(self) -> Result<T, E> {
-        worker::if_in_worker_thread(
-            |_| panic!("using  `wait()` in a Rayon thread is unwise; try `rayon_wait()`"));
+        worker::if_in_worker_thread(|_| {
+            panic!("using  `wait()` in a Rayon thread is unwise; try `rayon_wait()`")
+        });
         executor::spawn(self).wait_future()
     }
 
@@ -128,7 +133,9 @@ impl<T, E> fmt::Debug for RayonFuture<T, E> {
 /// ////////////////////////////////////////////////////////////////////////
 #[derive(Debug)]
 struct ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {
     state: AtomicUsize,
     contents: Mutex<ScopeFutureContents<'scope, F, S>>,
@@ -139,7 +146,9 @@ type CUItem<F> = <CU<F> as Future>::Item;
 type CUError<F> = <CU<F> as Future>::Error;
 
 struct ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
 
@@ -159,7 +168,10 @@ struct ScopeFutureContents<'scope, F, S>
 }
 
 impl<'scope, F, S> fmt::Debug for ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope> {
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
+{
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("ScopeFutureContents").finish()
     }
@@ -218,8 +230,8 @@ where
         unsafe {
             let me: *const ScopeFutureWrapped<'scope, F, S> = self;
             ArcScopeFuture::notify(
-                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
-                       *const ArcScopeFuture<'scope, F, S>),
+                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S>
+                    as *const ArcScopeFuture<'scope, F, S>),
                 id,
             )
         }
@@ -229,8 +241,8 @@ where
         unsafe {
             let me: *const ScopeFutureWrapped<'scope, F, S> = self;
             ArcScopeFuture::clone_id(
-                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
-                       *const ArcScopeFuture<'scope, F, S>),
+                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S>
+                    as *const ArcScopeFuture<'scope, F, S>),
                 id,
             )
         }
@@ -240,8 +252,8 @@ where
         unsafe {
             let me: *const ScopeFutureWrapped<'scope, F, S> = self;
             ArcScopeFuture::drop_id(
-                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
-                       *const ArcScopeFuture<'scope, F, S>),
+                &*(&me as *const *const ScopeFutureWrapped<'scope, F, S>
+                    as *const ArcScopeFuture<'scope, F, S>),
                 id,
             )
         }
@@ -255,16 +267,16 @@ where
 {
     unsafe fn clone_raw(&self) -> NotifyHandle {
         let me: *const ScopeFutureWrapped<'scope, F, S> = self;
-        let arc = (*(&me as *const *const ScopeFutureWrapped<'scope, F, S> as
-                         *const ArcScopeFuture<'scope, F, S>))
-                .clone();
+        let arc = (*(&me as *const *const ScopeFutureWrapped<'scope, F, S>
+            as *const ArcScopeFuture<'scope, F, S>))
+            .clone();
         NotifyHandle::from(arc)
     }
 
     unsafe fn drop_raw(&self) {
         let mut me: *const ScopeFutureWrapped<'scope, F, S> = self;
-        let me = &mut me as *mut *const ScopeFutureWrapped<'scope, F, S> as
-            *mut ArcScopeFuture<'scope, F, S>;
+        let me = &mut me as *mut *const ScopeFutureWrapped<'scope, F, S>
+            as *mut ArcScopeFuture<'scope, F, S>;
         ptr::drop_in_place(me);
     }
 }
@@ -276,8 +288,10 @@ where
 {
     fn from(rc: ArcScopeFuture<'scope, F, S>) -> NotifyHandle {
         unsafe {
-            let ptr = mem::transmute::<ArcScopeFuture<'scope, F, S>,
-                                       *mut ScopeFutureWrapped<'scope, F, S>>(rc);
+            let ptr = mem::transmute::<
+                ArcScopeFuture<'scope, F, S>,
+                *mut ScopeFutureWrapped<'scope, F, S>,
+            >(rc);
             // Hide any lifetimes in `self`. This is safe because, until
             // `self` is dropped, the counter is not decremented, and so
             // the `'scope` lifetimes cannot end.
@@ -293,17 +307,22 @@ where
     }
 }
 
-
 // Assert that the `*const` is safe to transmit between threads:
 unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {}
 unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {}
 
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {
     fn spawn(future: F, scope: S) -> Arc<Self> {
         // Using `AssertUnwindSafe` is valid here because (a) the data
@@ -350,17 +369,18 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                         // previous execution might have moved us to the
                         // PARKED state but not yet released the lock.
                         let contents = self.contents.lock().unwrap();
-                        let task_ref = contents.this.clone()
-                                                    .expect("this ref already dropped");
+                        let task_ref = contents.this.clone().expect("this ref already dropped");
 
                         // We assert that `contents.scope` will be not
                         // be dropped until the task is executed. This
                         // is true because we only drop
                         // `contents.scope` from within `RayonTask::execute()`.
                         unsafe {
-                            contents.scope.as_ref()
-                                          .expect("scope already dropped")
-                                          .spawn_task(task_ref.0);
+                            contents
+                                .scope
+                                .as_ref()
+                                .expect("scope already dropped")
+                                .spawn_task(task_ref.0);
                         }
                         return;
                     }
@@ -369,19 +389,23 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
                 STATE_EXECUTING => {
                     if {
                         self.state
-                            .compare_exchange_weak(STATE_EXECUTING,
-                                                   STATE_EXECUTING_UNPARKED,
-                                                   Release,
-                                                   Relaxed)
-                            .is_ok()
+                            .compare_exchange_weak(
+                                STATE_EXECUTING,
+                                STATE_EXECUTING_UNPARKED,
+                                Release,
+                                Relaxed,
+                            ).is_ok()
                     } {
                         return;
                     }
                 }
 
                 state => {
-                    debug_assert!(state == STATE_UNPARKED || state == STATE_EXECUTING_UNPARKED ||
-                                  state == STATE_COMPLETE);
+                    debug_assert!(
+                        state == STATE_UNPARKED
+                            || state == STATE_EXECUTING_UNPARKED
+                            || state == STATE_COMPLETE
+                    );
                     return;
                 }
             }
@@ -395,7 +419,9 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
         // should be contending with us to change the state here.
         let state = self.state.load(Acquire);
         debug_assert_eq!(state, STATE_UNPARKED);
-        let result = self.state.compare_exchange(state, STATE_EXECUTING, Release, Relaxed);
+        let result = self
+            .state
+            .compare_exchange(state, STATE_EXECUTING, Release, Relaxed);
         debug_assert_eq!(result, Ok(STATE_UNPARKED));
     }
 
@@ -434,7 +460,9 @@ impl<'scope, F, S> ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> Notify for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {
     fn notify(&self, _: usize) {
         self.unpark_inherent();
@@ -442,7 +470,9 @@ impl<'scope, F, S> Notify for ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> RayonTask for ScopeFuture<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {
     fn execute(this: Arc<Self>) {
         // *generally speaking* there should be no contention for the
@@ -474,7 +504,9 @@ impl<'scope, F, S> RayonTask for ScopeFuture<'scope, F, S>
 }
 
 impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
-    where F: Future + Send + 'scope, S: ScopeHandle<'scope>,
+where
+    F: Future + Send + 'scope,
+    S: ScopeHandle<'scope>,
 {
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
         let notify = self.this.as_ref().unwrap();
@@ -494,9 +526,11 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         let this = self.this.take().unwrap();
         if cfg!(debug_assertions) {
             let state = this.0.state.load(Relaxed);
-            debug_assert!(state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
-                          "cannot complete when not executing (state = {})",
-                          state);
+            debug_assert!(
+                state == STATE_EXECUTING || state == STATE_EXECUTING_UNPARKED,
+                "cannot complete when not executing (state = {})",
+                state
+            );
         }
         this.0.state.store(STATE_COMPLETE, Release);
 
@@ -506,8 +540,10 @@ impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
         let mut err = None;
         if let Some(waiting_task) = self.waiting_task.take() {
             match panic::catch_unwind(AssertUnwindSafe(|| waiting_task.notify())) {
-                Ok(()) => { }
-                Err(e) => { err = Some(e); }
+                Ok(()) => {}
+                Err(e) => {
+                    err = Some(e);
+                }
             }
         }
 
@@ -537,7 +573,9 @@ trait ScopeFutureTrait<T, E>: Send + Sync {
 }
 
 impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F, S>
-    where F: Future + Send, S: ScopeHandle<'scope>,
+where
+    F: Future + Send,
+    S: ScopeHandle<'scope>,
 {
     fn probe(&self) -> bool {
         self.state.load(Acquire) == STATE_COMPLETE
@@ -569,7 +607,7 @@ impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scop
 
         // Slow-path. Get the lock and set the canceled flag to
         // true. Also grab the `this` instance (which may be `None`,
-        // if the future completes before we get the lack). 
+        // if the future completes before we get the lack).
         let mut contents = self.contents.lock().unwrap();
         contents.canceled = true;
 

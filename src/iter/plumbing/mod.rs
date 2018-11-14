@@ -4,7 +4,6 @@
 //!
 //! [r]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
 
-
 use join_context;
 
 use super::IndexedParallelIterator;
@@ -28,7 +27,9 @@ pub trait ProducerCallback<T> {
     /// Invokes the callback with the given producer as argument. The
     /// key point of this trait is that this method is generic over
     /// `P`, and hence implementors must be defined for any producer.
-    fn callback<P>(self, producer: P) -> Self::Output where P: Producer<Item = T>;
+    fn callback<P>(self, producer: P) -> Self::Output
+    where
+        P: Producer<Item = T>;
 }
 
 /// A `Producer` is effectively a "splittable `IntoIterator`". That
@@ -103,7 +104,8 @@ pub trait Producer: Send + Sized {
     ///
     /// The provided implementation is sufficient for most iterables.
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         folder.consume_iter(self.into_iter())
     }
@@ -170,7 +172,8 @@ pub trait Folder<Item>: Sized {
     /// The main reason to override it is if you can provide a more
     /// specialized, efficient implementation.
     fn consume_iter<I>(mut self, iter: I) -> Self
-        where I: IntoIterator<Item = Item>
+    where
+        I: IntoIterator<Item = Item>,
     {
         for item in iter {
             self = self.consume(item);
@@ -239,7 +242,9 @@ pub trait UnindexedProducer: Send + Sized {
 
     /// Iterate the producer, feeding each element to `folder`, and
     /// stop when the folder is full (or all elements have been consumed).
-    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item>;
+    fn fold_with<F>(self, folder: F) -> F
+    where
+        F: Folder<Self::Item>;
 }
 
 /// A splitter controls the policy for splitting into smaller work items.
@@ -344,14 +349,15 @@ impl LengthSplitter {
 /// [`drive_unindexed`]: ../trait.ParallelIterator.html#tymethod.drive_unindexed
 /// [`drive`]: ../trait.IndexedParallelIterator.html#tymethod.drive
 pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
-    where I: IndexedParallelIterator,
-          C: Consumer<I::Item>
+where
+    I: IndexedParallelIterator,
+    C: Consumer<I::Item>,
 {
     let len = par_iter.len();
     return par_iter.with_producer(Callback {
-                                      len: len,
-                                      consumer: consumer,
-                                  });
+        len: len,
+        consumer: consumer,
+    });
 
     struct Callback<C> {
         len: usize,
@@ -359,11 +365,13 @@ pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
     }
 
     impl<C, I> ProducerCallback<I> for Callback<C>
-        where C: Consumer<I>
+    where
+        C: Consumer<I>,
     {
         type Output = C::Result;
         fn callback<P>(self, producer: P) -> C::Result
-            where P: Producer<Item = I>
+        where
+            P: Producer<Item = I>,
         {
             bridge_producer_consumer(self.len, producer, self.consumer)
         }
@@ -384,20 +392,23 @@ pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
 /// [`drive_unindexed`]: ../trait.ParallelIterator.html#tymethod.drive_unindexed
 /// [`drive`]: ../trait.IndexedParallelIterator.html#tymethod.drive
 pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C::Result
-    where P: Producer,
-          C: Consumer<P::Item>
+where
+    P: Producer,
+    C: Consumer<P::Item>,
 {
     let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
     return helper(len, false, splitter, producer, consumer);
 
-    fn helper<P, C>(len: usize,
-                    migrated: bool,
-                    mut splitter: LengthSplitter,
-                    producer: P,
-                    consumer: C)
-                    -> C::Result
-        where P: Producer,
-              C: Consumer<P::Item>
+    fn helper<P, C>(
+        len: usize,
+        migrated: bool,
+        mut splitter: LengthSplitter,
+        producer: P,
+        consumer: C,
+    ) -> C::Result
+    where
+        P: Producer,
+        C: Consumer<P::Item>,
     {
         if consumer.full() {
             consumer.into_folder().complete()
@@ -405,14 +416,26 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
-            let (left_result, right_result) =
-                join_context(|context| {
-                    helper(mid, context.migrated(), splitter,
-                           left_producer, left_consumer)
-                }, |context| {
-                    helper(len - mid, context.migrated(), splitter,
-                           right_producer, right_consumer)
-                });
+            let (left_result, right_result) = join_context(
+                |context| {
+                    helper(
+                        mid,
+                        context.migrated(),
+                        splitter,
+                        left_producer,
+                        left_consumer,
+                    )
+                },
+                |context| {
+                    helper(
+                        len - mid,
+                        context.migrated(),
+                        splitter,
+                        right_producer,
+                        right_consumer,
+                    )
+                },
+            );
             reducer.reduce(left_result, right_result)
         } else {
             producer.fold_with(consumer.into_folder()).complete()
@@ -424,20 +447,23 @@ pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C
 ///
 /// [`bridge_producer_consumer`]: fn.bridge_producer_consumer.html
 pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
-    where P: UnindexedProducer,
-          C: UnindexedConsumer<P::Item>
+where
+    P: UnindexedProducer,
+    C: UnindexedConsumer<P::Item>,
 {
     let splitter = Splitter::new();
     bridge_unindexed_producer_consumer(false, splitter, producer, consumer)
 }
 
-fn bridge_unindexed_producer_consumer<P, C>(migrated: bool,
-                                            mut splitter: Splitter,
-                                            producer: P,
-                                            consumer: C)
-                                            -> C::Result
-    where P: UnindexedProducer,
-          C: UnindexedConsumer<P::Item>
+fn bridge_unindexed_producer_consumer<P, C>(
+    migrated: bool,
+    mut splitter: Splitter,
+    producer: P,
+    consumer: C,
+) -> C::Result
+where
+    P: UnindexedProducer,
+    C: UnindexedConsumer<P::Item>,
 {
     if consumer.full() {
         consumer.into_folder().complete()
@@ -447,12 +473,10 @@ fn bridge_unindexed_producer_consumer<P, C>(migrated: bool,
                 let (reducer, left_consumer, right_consumer) =
                     (consumer.to_reducer(), consumer.split_off_left(), consumer);
                 let bridge = bridge_unindexed_producer_consumer;
-                let (left_result, right_result) =
-                    join_context(|context| {
-                        bridge(context.migrated(), splitter, left_producer, left_consumer)
-                    }, |context| {
-                        bridge(context.migrated(), splitter, right_producer, right_consumer)
-                    });
+                let (left_result, right_result) = join_context(
+                    |context| bridge(context.migrated(), splitter, left_producer, left_consumer),
+                    |context| bridge(context.migrated(), splitter, right_producer, right_consumer),
+                );
                 reducer.reduce(left_result, right_result)
             }
             (producer, None) => producer.fold_with(consumer.into_folder()).complete(),

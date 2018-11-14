@@ -35,8 +35,9 @@ pub struct Args {
 }
 
 fn main() {
-    let args: &Args =
-        &Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
+    let args: &Args = &Docopt::new(USAGE)
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
 
     match &args.arg_scenario[..] {
         "tasks_ended" => tasks_ended(args),
@@ -80,7 +81,7 @@ fn task_stall_root(args: &Args) {
 
 fn task_stall_scope(args: &Args) {
     rayon::scope(|scope| {
-                     scope.spawn(move |_| task(args));
-                     scope.spawn(move |_| wait_for_user());
-                 });
+        scope.spawn(move |_| task(args));
+        scope.spawn(move |_| wait_for_user());
+    });
 }

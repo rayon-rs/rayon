@@ -2,8 +2,8 @@ extern crate rayon_core;
 
 use rayon_core::ThreadPoolBuilder;
 
-use std::process::Command;
 use std::env;
+use std::process::Command;
 
 #[cfg(target_os = "linux")]
 use std::os::unix::process::ExitStatusExt;

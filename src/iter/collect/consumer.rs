@@ -1,5 +1,5 @@
-use super::super::plumbing::*;
 use super::super::noop::*;
+use super::super::plumbing::*;
 use std::ptr;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -20,7 +20,6 @@ pub struct CollectFolder<'c, T: Send + 'c> {
     /// An iterator over the *uninitialized* target memory.
     target: slice::IterMut<'c, T>,
 }
-
 
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
@@ -47,7 +46,11 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
         // Produce new consumers. Normal slicing ensures that the
         // memory range given to each consumer is disjoint.
         let (left, right) = target.split_at_mut(index);
-        (CollectConsumer::new(writes, left), CollectConsumer::new(writes, right), NoopReducer)
+        (
+            CollectConsumer::new(writes, left),
+            CollectConsumer::new(writes, right),
+            NoopReducer,
+        )
     }
 
     fn into_folder(self) -> CollectFolder<'c, T> {
@@ -69,7 +72,10 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
     fn consume(mut self, item: T) -> CollectFolder<'c, T> {
         // Compute target pointer and write to it. Safe because the iterator
         // does all the bounds checking; we're only avoiding the target drop.
-        let head = self.target.next().expect("too many values pushed to consumer");
+        let head = self
+            .target
+            .next()
+            .expect("too many values pushed to consumer");
         unsafe {
             ptr::write(head, item);
         }
@@ -82,7 +88,8 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
         assert!(self.target.len() == 0, "too few values pushed to consumer");
 
         // track total values written
-        self.global_writes.fetch_add(self.local_writes, Ordering::Relaxed);
+        self.global_writes
+            .fetch_add(self.local_writes, Ordering::Relaxed);
     }
 
     fn full(&self) -> bool {

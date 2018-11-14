@@ -15,23 +15,18 @@ fn octillion_flat() -> impl ParallelIterator<Item = u128> {
         .into_par_iter()
         .with_max_len(1_000)
         .map(|i| i as u64 * 1_000_000_000)
-        .flat_map(
-            |i| {
-                (0u32..1_000_000_000)
-                    .into_par_iter()
-                    .with_max_len(1_000)
-                    .map(move |j| i + j as u64)
-            }
-        )
-        .map(|i| i as u128 * 1_000_000_000)
-        .flat_map(
-            |i| {
-                (0u32..1_000_000_000)
-                    .into_par_iter()
-                    .with_max_len(1_000)
-                    .map(move |j| i + j as u128)
-            }
-        )
+        .flat_map(|i| {
+            (0u32..1_000_000_000)
+                .into_par_iter()
+                .with_max_len(1_000)
+                .map(move |j| i + j as u64)
+        }).map(|i| i as u128 * 1_000_000_000)
+        .flat_map(|i| {
+            (0u32..1_000_000_000)
+                .into_par_iter()
+                .with_max_len(1_000)
+                .map(move |j| i + j as u128)
+        })
 }
 
 #[test]

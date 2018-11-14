@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Mutex, Condvar};
+use std::sync::{Condvar, Mutex};
 use std::usize;
 
 use sleep::Sleep;
@@ -50,7 +50,9 @@ pub struct SpinLatch {
 impl SpinLatch {
     #[inline]
     pub fn new() -> SpinLatch {
-        SpinLatch { b: AtomicBool::new(false) }
+        SpinLatch {
+            b: AtomicBool::new(false),
+        }
     }
 }
 
@@ -124,7 +126,9 @@ pub struct CountLatch {
 impl CountLatch {
     #[inline]
     pub fn new() -> CountLatch {
-        CountLatch { counter: AtomicUsize::new(1) }
+        CountLatch {
+            counter: AtomicUsize::new(1),
+        }
     }
 
     #[inline]
@@ -149,7 +153,6 @@ impl Latch for CountLatch {
         self.counter.fetch_sub(1, Ordering::SeqCst);
     }
 }
-
 
 /// A tickling latch wraps another latch type, and will also awaken a thread
 /// pool when it is set.  This is useful for jobs injected between thread pools,

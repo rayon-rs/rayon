@@ -13,7 +13,11 @@ fn check_intersperse() {
 
 #[test]
 fn check_intersperse_again() {
-    let v: Vec<_> = (0..1000).into_par_iter().intersperse(-1).intersperse(-2).collect();
+    let v: Vec<_> = (0..1000)
+        .into_par_iter()
+        .intersperse(-1)
+        .intersperse(-2)
+        .collect();
     assert_eq!(v.len(), 3997);
     for (i, x) in v.into_iter().enumerate() {
         let y = match i % 4 {
@@ -36,7 +40,9 @@ fn check_intersperse_unindexed() {
 
 #[test]
 fn check_intersperse_producer() {
-    (0..1000).into_par_iter().intersperse(-1)
+    (0..1000)
+        .into_par_iter()
+        .intersperse(-1)
         .zip_eq(0..1999)
         .for_each(|(x, i)| {
             assert_eq!(x, if i % 2 == 0 { i / 2 } else { -1 });
@@ -45,8 +51,11 @@ fn check_intersperse_producer() {
 
 #[test]
 fn check_intersperse_rev() {
-    (0..1000).into_par_iter().intersperse(-1)
-        .zip_eq(0..1999).rev()
+    (0..1000)
+        .into_par_iter()
+        .intersperse(-1)
+        .zip_eq(0..1999)
+        .rev()
         .for_each(|(x, i)| {
             assert_eq!(x, if i % 2 == 0 { i / 2 } else { -1 });
         });

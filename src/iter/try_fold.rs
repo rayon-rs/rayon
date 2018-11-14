@@ -1,15 +1,16 @@
 use super::plumbing::*;
 use super::*;
 
+use super::private::Try;
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
-use super::private::Try;
 
 pub fn try_fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> TryFold<I, U, ID, F>
-    where I: ParallelIterator,
-          F: Fn(U::Ok, I::Item) -> U + Sync + Send,
-          ID: Fn() -> U::Ok + Sync + Send,
-          U: Try + Send
+where
+    I: ParallelIterator,
+    F: Fn(U::Ok, I::Item) -> U + Sync + Send,
+    ID: Fn() -> U::Ok + Sync + Send,
+    U: Try + Send,
 {
     TryFold {
         base: base,
@@ -35,22 +36,22 @@ pub struct TryFold<I, U, ID, F> {
 
 impl<U, I: ParallelIterator + Debug, ID, F> Debug for TryFold<I, U, ID, F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("TryFold")
-            .field("base", &self.base)
-            .finish()
+        f.debug_struct("TryFold").field("base", &self.base).finish()
     }
 }
 
 impl<U, I, ID, F> ParallelIterator for TryFold<I, U, ID, F>
-    where I: ParallelIterator,
-          F: Fn(U::Ok, I::Item) -> U + Sync + Send,
-          ID: Fn() -> U::Ok + Sync + Send,
-          U: Try + Send
+where
+    I: ParallelIterator,
+    F: Fn(U::Ok, I::Item) -> U + Sync + Send,
+    ID: Fn() -> U::Ok + Sync + Send,
+    U: Try + Send,
 {
     type Item = U;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer1 = TryFoldConsumer {
             base: consumer,
@@ -70,10 +71,11 @@ struct TryFoldConsumer<'c, U, C, ID: 'c, F: 'c> {
 }
 
 impl<'r, U, T, C, ID, F> Consumer<T> for TryFoldConsumer<'r, U, C, ID, F>
-    where C: Consumer<U>,
-          F: Fn(U::Ok, T) -> U + Sync,
-          ID: Fn() -> U::Ok + Sync,
-          U: Try + Send
+where
+    C: Consumer<U>,
+    F: Fn(U::Ok, T) -> U + Sync,
+    ID: Fn() -> U::Ok + Sync,
+    U: Try + Send,
 {
     type Folder = TryFoldFolder<'r, C::Folder, U, F>;
     type Reducer = C::Reducer;
@@ -81,7 +83,14 @@ impl<'r, U, T, C, ID, F> Consumer<T> for TryFoldConsumer<'r, U, C, ID, F>
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (TryFoldConsumer { base: left, ..self }, TryFoldConsumer { base: right, ..self }, reducer)
+        (
+            TryFoldConsumer { base: left, ..self },
+            TryFoldConsumer {
+                base: right,
+                ..self
+            },
+            reducer,
+        )
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -98,13 +107,17 @@ impl<'r, U, T, C, ID, F> Consumer<T> for TryFoldConsumer<'r, U, C, ID, F>
 }
 
 impl<'r, U, T, C, ID, F> UnindexedConsumer<T> for TryFoldConsumer<'r, U, C, ID, F>
-    where C: UnindexedConsumer<U>,
-          F: Fn(U::Ok, T) -> U + Sync,
-          ID: Fn() -> U::Ok + Sync,
-          U: Try + Send
+where
+    C: UnindexedConsumer<U>,
+    F: Fn(U::Ok, T) -> U + Sync,
+    ID: Fn() -> U::Ok + Sync,
+    U: Try + Send,
 {
     fn split_off_left(&self) -> Self {
-        TryFoldConsumer { base: self.base.split_off_left(), ..*self }
+        TryFoldConsumer {
+            base: self.base.split_off_left(),
+            ..*self
+        }
     }
 
     fn to_reducer(&self) -> Self::Reducer {
@@ -119,17 +132,16 @@ struct TryFoldFolder<'r, C, U: Try, F: 'r> {
 }
 
 impl<'r, C, U, F, T> Folder<T> for TryFoldFolder<'r, C, U, F>
-    where C: Folder<U>,
-          F: Fn(U::Ok, T) -> U + Sync,
-          U: Try
+where
+    C: Folder<U>,
+    F: Fn(U::Ok, T) -> U + Sync,
+    U: Try,
 {
     type Result = C::Result;
 
     fn consume(self, item: T) -> Self {
         let fold_op = self.fold_op;
-        let result = self.result.and_then(|acc| {
-            fold_op(acc, item).into_result()
-        });
+        let result = self.result.and_then(|acc| fold_op(acc, item).into_result());
         TryFoldFolder {
             result: result,
             ..self
@@ -152,10 +164,11 @@ impl<'r, C, U, F, T> Folder<T> for TryFoldFolder<'r, C, U, F>
 // ///////////////////////////////////////////////////////////////////////////
 
 pub fn try_fold_with<U, I, F>(base: I, item: U::Ok, fold_op: F) -> TryFoldWith<I, U, F>
-    where I: ParallelIterator,
-          F: Fn(U::Ok, I::Item) -> U + Sync,
-          U: Try + Send,
-          U::Ok: Clone + Send
+where
+    I: ParallelIterator,
+    F: Fn(U::Ok, I::Item) -> U + Sync,
+    U: Try + Send,
+    U::Ok: Clone + Send,
 {
     TryFoldWith {
         base: base,
@@ -178,7 +191,8 @@ pub struct TryFoldWith<I, U: Try, F> {
 }
 
 impl<I: ParallelIterator + Debug, U: Try, F> Debug for TryFoldWith<I, U, F>
-    where U::Ok: Debug
+where
+    U::Ok: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("TryFoldWith")
@@ -189,15 +203,17 @@ impl<I: ParallelIterator + Debug, U: Try, F> Debug for TryFoldWith<I, U, F>
 }
 
 impl<U, I, F> ParallelIterator for TryFoldWith<I, U, F>
-    where I: ParallelIterator,
-          F: Fn(U::Ok, I::Item) -> U + Sync + Send,
-          U: Try + Send,
-          U::Ok: Clone + Send
+where
+    I: ParallelIterator,
+    F: Fn(U::Ok, I::Item) -> U + Sync + Send,
+    U: Try + Send,
+    U::Ok: Clone + Send,
 {
     type Item = U;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer1 = TryFoldWithConsumer {
             base: consumer,
@@ -215,10 +231,11 @@ struct TryFoldWithConsumer<'c, C, U: Try, F: 'c> {
 }
 
 impl<'r, U, T, C, F> Consumer<T> for TryFoldWithConsumer<'r, C, U, F>
-    where C: Consumer<U>,
-          F: Fn(U::Ok, T) -> U + Sync,
-          U: Try + Send,
-          U::Ok: Clone + Send
+where
+    C: Consumer<U>,
+    F: Fn(U::Ok, T) -> U + Sync,
+    U: Try + Send,
+    U::Ok: Clone + Send,
 {
     type Folder = TryFoldFolder<'r, C::Folder, U, F>;
     type Reducer = C::Reducer;
@@ -226,8 +243,18 @@ impl<'r, U, T, C, F> Consumer<T> for TryFoldWithConsumer<'r, C, U, F>
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (TryFoldWithConsumer { base: left, item: self.item.clone(), ..self },
-         TryFoldWithConsumer { base: right, ..self }, reducer)
+        (
+            TryFoldWithConsumer {
+                base: left,
+                item: self.item.clone(),
+                ..self
+            },
+            TryFoldWithConsumer {
+                base: right,
+                ..self
+            },
+            reducer,
+        )
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -244,13 +271,18 @@ impl<'r, U, T, C, F> Consumer<T> for TryFoldWithConsumer<'r, C, U, F>
 }
 
 impl<'r, U, T, C, F> UnindexedConsumer<T> for TryFoldWithConsumer<'r, C, U, F>
-    where C: UnindexedConsumer<U>,
-          F: Fn(U::Ok, T) -> U + Sync,
-          U: Try + Send,
-          U::Ok: Clone + Send
+where
+    C: UnindexedConsumer<U>,
+    F: Fn(U::Ok, T) -> U + Sync,
+    U: Try + Send,
+    U::Ok: Clone + Send,
 {
     fn split_off_left(&self) -> Self {
-        TryFoldWithConsumer { base: self.base.split_off_left(), item: self.item.clone(), ..*self }
+        TryFoldWithConsumer {
+            base: self.base.split_off_left(),
+            item: self.item.clone(),
+            ..*self
+        }
     }
 
     fn to_reducer(&self) -> Self::Reducer {

@@ -3,8 +3,9 @@ extern crate rayon;
 use rayon::prelude::*;
 
 fn check<I>(iter: I)
-    where I: ParallelIterator + Clone,
-          I::Item: std::fmt::Debug + PartialEq
+where
+    I: ParallelIterator + Clone,
+    I::Item: std::fmt::Debug + PartialEq,
 {
     let a: Vec<_> = iter.clone().collect();
     let b: Vec<_> = iter.collect();
@@ -22,7 +23,7 @@ fn clone_binary_heap() {
 #[test]
 fn clone_btree_map() {
     use std::collections::BTreeMap;
-    let map: BTreeMap<_,_> = (0..1000).enumerate().collect();
+    let map: BTreeMap<_, _> = (0..1000).enumerate().collect();
     check(map.par_iter());
 }
 
@@ -36,7 +37,7 @@ fn clone_btree_set() {
 #[test]
 fn clone_hash_map() {
     use std::collections::HashMap;
-    let map: HashMap<_,_> = (0..1000).enumerate().collect();
+    let map: HashMap<_, _> = (0..1000).enumerate().collect();
     check(map.par_iter());
 }
 
@@ -156,4 +157,3 @@ fn clone_repeat() {
 fn clone_splitter() {
     check(rayon::iter::split(0..1000, |x| (x, None)));
 }
-

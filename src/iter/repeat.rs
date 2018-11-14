@@ -28,7 +28,8 @@ pub fn repeat<T: Clone + Send>(elt: T) -> Repeat<T> {
 }
 
 impl<T> Repeat<T>
-    where T: Clone + Send
+where
+    T: Clone + Send,
 {
     /// Take only `n` repeats of the element, similar to the general
     /// [`take()`](trait.IndexedParallelIterator.html#method.take).
@@ -43,8 +44,9 @@ impl<T> Repeat<T>
     /// iterator, similar to the general
     /// [`zip()`](trait.IndexedParallelIterator.html#method.zip).
     pub fn zip<Z>(self, zip_op: Z) -> Zip<RepeatN<T>, Z::Iter>
-        where Z: IntoParallelIterator,
-              Z::Iter: IndexedParallelIterator
+    where
+        Z: IntoParallelIterator,
+        Z::Iter: IndexedParallelIterator,
     {
         let z = zip_op.into_par_iter();
         let n = z.len();
@@ -53,14 +55,18 @@ impl<T> Repeat<T>
 }
 
 impl<T> ParallelIterator for Repeat<T>
-    where T: Clone + Send
+where
+    T: Clone + Send,
 {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
-        let producer = RepeatProducer { element: self.element };
+        let producer = RepeatProducer {
+            element: self.element,
+        };
         bridge_unindexed(producer, consumer)
     }
 }
@@ -74,17 +80,23 @@ impl<T: Clone + Send> UnindexedProducer for RepeatProducer<T> {
     type Item = T;
 
     fn split(self) -> (Self, Option<Self>) {
-        (RepeatProducer { element: self.element.clone() },
-         Some(RepeatProducer { element: self.element }))
+        (
+            RepeatProducer {
+                element: self.element.clone(),
+            },
+            Some(RepeatProducer {
+                element: self.element,
+            }),
+        )
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<T>
+    where
+        F: Folder<T>,
     {
         folder.consume_iter(iter::repeat(self.element))
     }
 }
-
 
 /// Iterator adaptor for [the `repeatn()` function](fn.repeatn.html).
 #[derive(Debug, Clone)]
@@ -105,16 +117,21 @@ pub struct RepeatN<T: Clone + Send> {
 /// assert_eq!(x, vec![(22, 0), (22, 1), (22, 2)]);
 /// ```
 pub fn repeatn<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
-    RepeatN { element: elt, count: n }
+    RepeatN {
+        element: elt,
+        count: n,
+    }
 }
 
 impl<T> ParallelIterator for RepeatN<T>
-    where T: Clone + Send
+where
+    T: Clone + Send,
 {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         bridge(self, consumer)
     }
@@ -125,25 +142,30 @@ impl<T> ParallelIterator for RepeatN<T>
 }
 
 impl<T> IndexedParallelIterator for RepeatN<T>
-    where T: Clone + Send
+where
+    T: Clone + Send,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         bridge(self, consumer)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
-        callback.callback(RepeatNProducer { element: self.element, count: self.count })
+        callback.callback(RepeatNProducer {
+            element: self.element,
+            count: self.count,
+        })
     }
 
     fn len(&self) -> usize {
         self.count
     }
 }
-
 
 /// Producer for `RepeatN`.
 struct RepeatNProducer<T: Clone + Send> {
@@ -156,12 +178,23 @@ impl<T: Clone + Send> Producer for RepeatNProducer<T> {
     type IntoIter = Iter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Iter { element: self.element, count: self.count }
+        Iter {
+            element: self.element,
+            count: self.count,
+        }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        (RepeatNProducer { element: self.element.clone(), count: index },
-         RepeatNProducer { element: self.element, count: self.count - index })
+        (
+            RepeatNProducer {
+                element: self.element.clone(),
+                count: index,
+            },
+            RepeatNProducer {
+                element: self.element,
+                count: self.count - index,
+            },
+        )
     }
 }
 

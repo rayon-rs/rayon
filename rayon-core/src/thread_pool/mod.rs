@@ -3,16 +3,16 @@
 //!
 //! [`ThreadPool`]: struct.ThreadPool.html
 
-#[allow(deprecated)]
-use Configuration;
-use {ThreadPoolBuilder, ThreadPoolBuildError};
 use join;
-use {scope, Scope};
+use registry::{Registry, WorkerThread};
 use spawn;
-use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
-use registry::{Registry, WorkerThread};
+use std::sync::Arc;
+#[allow(deprecated)]
+use Configuration;
+use {scope, Scope};
+use {ThreadPoolBuildError, ThreadPoolBuilder};
 
 mod internal;
 mod test;
@@ -78,8 +78,9 @@ impl ThreadPool {
     #[cfg(rayon_unstable)]
     pub fn global() -> &'static Arc<ThreadPool> {
         lazy_static! {
-            static ref DEFAULT_THREAD_POOL: Arc<ThreadPool> =
-                Arc::new(ThreadPool { registry: Registry::global() });
+            static ref DEFAULT_THREAD_POOL: Arc<ThreadPool> = Arc::new(ThreadPool {
+                registry: Registry::global()
+            });
         }
 
         &DEFAULT_THREAD_POOL
@@ -118,8 +119,9 @@ impl ThreadPool {
     ///     }
     /// ```
     pub fn install<OP, R>(&self, op: OP) -> R
-        where OP: FnOnce() -> R + Send,
-              R: Send
+    where
+        OP: FnOnce() -> R + Send,
+        R: Send,
     {
         self.registry.in_worker(|_, _| op())
     }
@@ -213,10 +215,11 @@ impl ThreadPool {
     /// the results. Equivalent to `self.install(|| join(oper_a,
     /// oper_b))`.
     pub fn join<A, B, RA, RB>(&self, oper_a: A, oper_b: B) -> (RA, RB)
-        where A: FnOnce() -> RA + Send,
-              B: FnOnce() -> RB + Send,
-              RA: Send,
-              RB: Send
+    where
+        A: FnOnce() -> RA + Send,
+        B: FnOnce() -> RB + Send,
+        RA: Send,
+        RB: Send,
     {
         self.install(|| join(oper_a, oper_b))
     }
@@ -228,7 +231,9 @@ impl ThreadPool {
     ///
     /// [scope]: fn.scope.html
     pub fn scope<'scope, OP, R>(&self, op: OP) -> R
-        where OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send, R: Send
+    where
+        OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send,
+        R: Send,
     {
         self.install(|| scope(op))
     }
@@ -242,7 +247,8 @@ impl ThreadPool {
     ///
     /// [spawn]: struct.Scope.html#method.spawn
     pub fn spawn<OP>(&self, op: OP)
-        where OP: FnOnce() + Send + 'static
+    where
+        OP: FnOnce() + Send + 'static,
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_in(op, &self.registry) }

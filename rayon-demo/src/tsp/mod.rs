@@ -10,12 +10,13 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::time::Instant;
 
-#[cfg(test)] mod bench;
+#[cfg(test)]
+mod bench;
 mod graph;
-mod tour;
-mod step;
-mod solver;
 mod parser;
+mod solver;
+mod step;
+mod tour;
 mod weight;
 
 use self::graph::{Graph, Node};
@@ -50,13 +51,16 @@ pub struct Args {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).deserialize())
-            .unwrap_or_else(|e| e.exit());
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).deserialize())
+        .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        let _ = run_solver(Path::new(&args.arg_datafile), args.flag_seq_threshold, args.flag_from);
+        let _ = run_solver(
+            Path::new(&args.arg_datafile),
+            args.flag_seq_threshold,
+            args.flag_from,
+        );
     }
 }
 

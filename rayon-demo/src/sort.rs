@@ -1,10 +1,10 @@
-use rand::Rng;
 use rand::distributions::{Alphanumeric, Standard, Uniform};
+use rand::Rng;
 use rayon::prelude::*;
 use std::mem;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
-use test::{Bencher, black_box};
+use test::{black_box, Bencher};
 
 fn gen_ascending(len: usize) -> Vec<u64> {
     (0..len as u64).collect()
@@ -56,7 +56,10 @@ fn gen_strings(len: usize) -> Vec<String> {
 
 fn gen_big_random(len: usize) -> Vec<[u64; 16]> {
     let mut rng = ::seeded_rng();
-    rng.sample_iter(&Standard).map(|x| [x; 16]).take(len).collect()
+    rng.sample_iter(&Standard)
+        .map(|x| [x; 16])
+        .take(len)
+        .collect()
 }
 
 macro_rules! sort {
@@ -67,7 +70,7 @@ macro_rules! sort {
             b.iter(|| v.clone().$f());
             b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;
         }
-    }
+    };
 }
 
 macro_rules! sort_strings {
@@ -79,7 +82,7 @@ macro_rules! sort_strings {
             b.iter(|| v.clone().$f());
             b.bytes = $len * mem::size_of::<&str>() as u64;
         }
-    }
+    };
 }
 
 macro_rules! sort_expensive {
@@ -106,26 +109,76 @@ macro_rules! sort_expensive {
             });
             b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;
         }
-    }
+    };
 }
 
 sort!(par_sort, par_sort_ascending, gen_ascending, 50_000);
 sort!(par_sort, par_sort_descending, gen_descending, 50_000);
-sort!(par_sort, par_sort_mostly_ascending, gen_mostly_ascending, 50_000);
-sort!(par_sort, par_sort_mostly_descending, gen_mostly_descending, 50_000);
+sort!(
+    par_sort,
+    par_sort_mostly_ascending,
+    gen_mostly_ascending,
+    50_000
+);
+sort!(
+    par_sort,
+    par_sort_mostly_descending,
+    gen_mostly_descending,
+    50_000
+);
 sort!(par_sort, par_sort_random, gen_random, 50_000);
 sort!(par_sort, par_sort_big, gen_big_random, 50_000);
 sort_strings!(par_sort, par_sort_strings, gen_strings, 50_000);
 sort_expensive!(par_sort_by, par_sort_expensive, gen_random, 50_000);
 
-sort!(par_sort_unstable, par_sort_unstable_ascending, gen_ascending, 50_000);
-sort!(par_sort_unstable, par_sort_unstable_descending, gen_descending, 50_000);
-sort!(par_sort_unstable, par_sort_unstable_mostly_ascending, gen_mostly_ascending, 50_000);
-sort!(par_sort_unstable, par_sort_unstable_mostly_descending, gen_mostly_descending, 50_000);
-sort!(par_sort_unstable, par_sort_unstable_random, gen_random, 50_000);
-sort!(par_sort_unstable, par_sort_unstable_big, gen_big_random, 50_000);
-sort_strings!(par_sort_unstable, par_sort_unstable_strings, gen_strings, 50_000);
-sort_expensive!(par_sort_unstable_by, par_sort_unstable_expensive, gen_random, 50_000);
+sort!(
+    par_sort_unstable,
+    par_sort_unstable_ascending,
+    gen_ascending,
+    50_000
+);
+sort!(
+    par_sort_unstable,
+    par_sort_unstable_descending,
+    gen_descending,
+    50_000
+);
+sort!(
+    par_sort_unstable,
+    par_sort_unstable_mostly_ascending,
+    gen_mostly_ascending,
+    50_000
+);
+sort!(
+    par_sort_unstable,
+    par_sort_unstable_mostly_descending,
+    gen_mostly_descending,
+    50_000
+);
+sort!(
+    par_sort_unstable,
+    par_sort_unstable_random,
+    gen_random,
+    50_000
+);
+sort!(
+    par_sort_unstable,
+    par_sort_unstable_big,
+    gen_big_random,
+    50_000
+);
+sort_strings!(
+    par_sort_unstable,
+    par_sort_unstable_strings,
+    gen_strings,
+    50_000
+);
+sort_expensive!(
+    par_sort_unstable_by,
+    par_sort_unstable_expensive,
+    gen_random,
+    50_000
+);
 
 trait MergeSort {
     fn demo_merge_sort(&mut self);
@@ -137,13 +190,38 @@ impl<T: Ord + Send + Copy> MergeSort for [T] {
     }
 }
 
-sort!(demo_merge_sort, demo_merge_sort_ascending, gen_ascending, 50_000);
-sort!(demo_merge_sort, demo_merge_sort_descending, gen_descending, 50_000);
-sort!(demo_merge_sort, demo_merge_sort_mostly_ascending, gen_mostly_ascending, 50_000);
-sort!(demo_merge_sort, demo_merge_sort_mostly_descending, gen_mostly_descending, 50_000);
+sort!(
+    demo_merge_sort,
+    demo_merge_sort_ascending,
+    gen_ascending,
+    50_000
+);
+sort!(
+    demo_merge_sort,
+    demo_merge_sort_descending,
+    gen_descending,
+    50_000
+);
+sort!(
+    demo_merge_sort,
+    demo_merge_sort_mostly_ascending,
+    gen_mostly_ascending,
+    50_000
+);
+sort!(
+    demo_merge_sort,
+    demo_merge_sort_mostly_descending,
+    gen_mostly_descending,
+    50_000
+);
 sort!(demo_merge_sort, demo_merge_sort_random, gen_random, 50_000);
 sort!(demo_merge_sort, demo_merge_sort_big, gen_big_random, 50_000);
-sort_strings!(demo_merge_sort, demo_merge_sort_strings, gen_strings, 50_000);
+sort_strings!(
+    demo_merge_sort,
+    demo_merge_sort_strings,
+    gen_strings,
+    50_000
+);
 //sort_expensive!(demo_merge_sort_by, demo_merge_sort_expensive, gen_random, 50_000);
 
 trait QuickSort {
@@ -160,9 +238,24 @@ impl<T: PartialOrd + Send> QuickSort for [T] {
 // ascending/descending sorts need better pivot choices to avoid stack overflow
 //sort!(demo_quick_sort, demo_quick_sort_ascending, gen_ascending, 50_000);
 //sort!(demo_quick_sort, demo_quick_sort_descending, gen_descending, 50_000);
-sort!(demo_quick_sort, demo_quick_sort_mostly_ascending, gen_mostly_ascending, 50_000);
-sort!(demo_quick_sort, demo_quick_sort_mostly_descending, gen_mostly_descending, 50_000);
+sort!(
+    demo_quick_sort,
+    demo_quick_sort_mostly_ascending,
+    gen_mostly_ascending,
+    50_000
+);
+sort!(
+    demo_quick_sort,
+    demo_quick_sort_mostly_descending,
+    gen_mostly_descending,
+    50_000
+);
 sort!(demo_quick_sort, demo_quick_sort_random, gen_random, 50_000);
 sort!(demo_quick_sort, demo_quick_sort_big, gen_big_random, 50_000);
-sort_strings!(demo_quick_sort, demo_quick_sort_strings, gen_strings, 50_000);
+sort_strings!(
+    demo_quick_sort,
+    demo_quick_sort_strings,
+    gen_strings,
+    50_000
+);
 //sort_expensive!(demo_quick_sort_by, demo_quick_sort_expensive, gen_random, 50_000);

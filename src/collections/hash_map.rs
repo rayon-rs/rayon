@@ -3,10 +3,10 @@
 //! unless you have need to name one of the iterator types.
 
 use std::collections::HashMap;
-use std::hash::{Hash, BuildHasher};
+use std::hash::{BuildHasher, Hash};
 
-use iter::*;
 use iter::plumbing::*;
+use iter::*;
 
 use vec;
 
@@ -26,7 +26,6 @@ delegate_iterator!{
     impl<K: Hash + Eq + Send, V: Send>
 }
 
-
 /// Parallel iterator over an immutable reference to a hash map
 #[derive(Debug)]
 pub struct Iter<'a, K: Hash + Eq + Sync + 'a, V: Sync + 'a> {
@@ -35,7 +34,9 @@ pub struct Iter<'a, K: Hash + Eq + Sync + 'a, V: Sync + 'a> {
 
 impl<'a, K: Hash + Eq + Sync, V: Sync> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Self {
-        Iter { inner: self.inner.clone() }
+        Iter {
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -48,7 +49,6 @@ delegate_iterator!{
     Iter<'a, K, V> => (&'a K, &'a V),
     impl<'a, K: Hash + Eq + Sync + 'a, V: Sync + 'a>
 }
-
 
 /// Parallel iterator over a mutable reference to a hash map
 #[derive(Debug)]

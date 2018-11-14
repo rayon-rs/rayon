@@ -5,45 +5,54 @@ use std::io;
 use std::io::prelude::*;
 use std::process::exit;
 
+mod life;
 mod matmul;
 mod mergesort;
 mod nbody;
 mod quicksort;
 mod sieve;
 mod tsp;
-mod life;
 
 // these are not "full-fledged" benchmarks yet,
 // they only run with cargo bench
-#[cfg(test)] mod map_collect;
-#[cfg(test)] mod vec_collect;
-#[cfg(test)] mod factorial;
-#[cfg(test)] mod pythagoras;
-#[cfg(test)] mod fibonacci;
-#[cfg(test)] mod find;
-#[cfg(test)] mod join_microbench;
-#[cfg(test)] mod str_split;
-#[cfg(test)] mod sort;
+#[cfg(test)]
+mod factorial;
+#[cfg(test)]
+mod fibonacci;
+#[cfg(test)]
+mod find;
+#[cfg(test)]
+mod join_microbench;
+#[cfg(test)]
+mod map_collect;
+#[cfg(test)]
+mod pythagoras;
+#[cfg(test)]
+mod sort;
+#[cfg(test)]
+mod str_split;
+#[cfg(test)]
+mod vec_collect;
 
-extern crate rayon; // all
-extern crate docopt; // all
+extern crate docopt;
+extern crate rayon; // all // all
 #[macro_use]
 extern crate serde_derive; // all
-extern crate serde; // all
-extern crate cgmath; // nbody
+extern crate cgmath;
+extern crate serde; // all // nbody
 #[macro_use]
 extern crate glium; // nbody
 #[cfg(unix)]
 extern crate libc; // life
-extern crate rand; // nbody
-extern crate time; // nbody, sieve
-extern crate odds; // sieve
 #[cfg(test)]
-extern crate num; // factorial
+extern crate num;
+extern crate odds; // sieve
+extern crate rand; // nbody
+extern crate time; // nbody, sieve // factorial
 #[macro_use]
 extern crate lazy_static; // find
 extern crate fixedbitset; // tsp
-extern crate regex; // tsp
+extern crate regex;       // tsp
 #[cfg(windows)]
 extern crate winapi; // life
 
@@ -96,7 +105,7 @@ fn main() {
         "sieve" => sieve::main(&args[1..]),
         "tsp" => tsp::main(&args[1..]),
         "life" => life::main(&args[1..]),
-        _ => usage()
+        _ => usage(),
     }
 }
 

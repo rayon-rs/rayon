@@ -2,13 +2,13 @@
 //! worker thread. Intended for building abstractions atop the
 //! rayon-core thread pool, rather than direct use by end users.
 
-use std::fmt;
 use latch::LatchProbe;
 use registry;
+use std::fmt;
 
 /// Represents the active worker thread.
 pub struct WorkerThread<'w> {
-    thread: &'w registry::WorkerThread
+    thread: &'w registry::WorkerThread,
 }
 
 impl<'w> WorkerThread<'w> {
@@ -25,8 +25,13 @@ impl<'w> WorkerThread<'w> {
     /// you must ensure that, once the condition `f()` becomes true,
     /// some "rayon event" will also occur to ensure that waiting
     /// threads are awoken.
-    pub unsafe fn wait_until_true<F>(&self, f: F) where F: Fn() -> bool {
-        struct DummyLatch<'a, F: 'a> { f: &'a F }
+    pub unsafe fn wait_until_true<F>(&self, f: F)
+    where
+        F: Fn() -> bool,
+    {
+        struct DummyLatch<'a, F: 'a> {
+            f: &'a F,
+        }
 
         impl<'a, F: Fn() -> bool> LatchProbe for DummyLatch<'a, F> {
             fn probe(&self) -> bool {
@@ -51,17 +56,19 @@ impl<'w> fmt::Debug for WorkerThread<'w> {
 /// is invoked with a reference to the worker-thread the result of
 /// that callback is returned with `Some`. Otherwise, if we are not on
 /// a Rayon worker thread, `None` is immediately returned.
-pub fn if_in_worker_thread<F,R>(if_true: F) -> Option<R>
-    where F: FnOnce(&WorkerThread) -> R,
+pub fn if_in_worker_thread<F, R>(if_true: F) -> Option<R>
+where
+    F: FnOnce(&WorkerThread) -> R,
 {
     let worker_thread = registry::WorkerThread::current();
     if worker_thread.is_null() {
         None
     } else {
         unsafe {
-            let wt = WorkerThread { thread: &*worker_thread };
+            let wt = WorkerThread {
+                thread: &*worker_thread,
+            };
             Some(if_true(&wt))
         }
     }
 }
-

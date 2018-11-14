@@ -1,10 +1,10 @@
 use scope;
 use std::any::Any;
-use std::sync::Mutex;
 use std::sync::mpsc::channel;
+use std::sync::Mutex;
 
-use ThreadPoolBuilder;
 use super::spawn;
+use ThreadPoolBuilder;
 
 #[test]
 fn spawn_then_join_in_worker() {
@@ -42,7 +42,10 @@ fn panic_fwd() {
 
     let builder = ThreadPoolBuilder::new().panic_handler(panic_handler);
 
-    builder.build().unwrap().spawn(move || panic!("Hello, world!"));
+    builder
+        .build()
+        .unwrap()
+        .spawn(move || panic!("Hello, world!"));
 
     assert_eq!(1, rx.recv().unwrap());
 }
@@ -121,7 +124,7 @@ fn custom_panic_handler_and_nested_spawn() {
     builder.build().unwrap().spawn(move || {
         // launch 3 nested spawn-asyncs; these should be in the same
         // thread-pool and hence inherit the same panic handler
-        for _ in 0 .. PANICS {
+        for _ in 0..PANICS {
             spawn(move || {
                 panic!("Hello, world!");
             });
@@ -129,7 +132,7 @@ fn custom_panic_handler_and_nested_spawn() {
     });
 
     // Check that we get back the panics we expected.
-    for _ in 0 .. PANICS {
+    for _ in 0..PANICS {
         let error = rx.recv().unwrap();
         if let Some(&msg) = error.downcast_ref::<&str>() {
             assert_eq!(msg, "Hello, world!");

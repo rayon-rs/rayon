@@ -48,7 +48,8 @@ use unwind;
 /// });
 /// ```
 pub fn spawn<F>(func: F)
-    where F: FnOnce() + Send + 'static
+where
+    F: FnOnce() + Send + 'static,
 {
     // We assert that current registry has not terminated.
     unsafe { spawn_in(func, &Registry::current()) }
@@ -60,7 +61,8 @@ pub fn spawn<F>(func: F)
 ///
 /// Not a public API, but used elsewhere in Rayon.
 pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
-    where F: FnOnce() + Send + 'static
+where
+    F: FnOnce() + Send + 'static,
 {
     // Ensure that registry cannot terminate until this job has
     // executed. This ref is decremented at the (*) below.
@@ -70,8 +72,7 @@ pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
         let registry = registry.clone();
         move || {
             match unwind::halt_unwinding(func) {
-                Ok(()) => {
-                }
+                Ok(()) => {}
                 Err(err) => {
                     registry.handle_panic(err);
                 }

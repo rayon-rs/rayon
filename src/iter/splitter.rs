@@ -104,8 +104,9 @@ use std::fmt::{self, Debug};
 /// ```
 ///
 pub fn split<D, S>(data: D, splitter: S) -> Split<D, S>
-    where D: Send,
-          S: Fn(D) -> (D, Option<D>) + Sync
+where
+    D: Send,
+    S: Fn(D) -> (D, Option<D>) + Sync,
 {
     Split {
         data: data,
@@ -125,20 +126,20 @@ pub struct Split<D, S> {
 
 impl<D: Debug, S> Debug for Split<D, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Split")
-            .field("data", &self.data)
-            .finish()
+        f.debug_struct("Split").field("data", &self.data).finish()
     }
 }
 
 impl<D, S> ParallelIterator for Split<D, S>
-    where D: Send,
-          S: Fn(D) -> (D, Option<D>) + Sync + Send
+where
+    D: Send,
+    S: Fn(D) -> (D, Option<D>) + Sync + Send,
 {
     type Item = D;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let producer = SplitProducer {
             data: self.data,
@@ -154,8 +155,9 @@ struct SplitProducer<'a, D, S: 'a> {
 }
 
 impl<'a, D, S> UnindexedProducer for SplitProducer<'a, D, S>
-    where D: Send,
-          S: Fn(D) -> (D, Option<D>) + Sync
+where
+    D: Send,
+    S: Fn(D) -> (D, Option<D>) + Sync,
 {
     type Item = D;
 
@@ -163,17 +165,18 @@ impl<'a, D, S> UnindexedProducer for SplitProducer<'a, D, S>
         let splitter = self.splitter;
         let (left, right) = splitter(self.data);
         self.data = left;
-        (self,
-         right.map(|data| {
-                       SplitProducer {
-                           data: data,
-                           splitter: splitter,
-                       }
-                   }))
+        (
+            self,
+            right.map(|data| SplitProducer {
+                data: data,
+                splitter: splitter,
+            }),
+        )
     }
 
     fn fold_with<F>(self, folder: F) -> F
-        where F: Folder<Self::Item>
+    where
+        F: Folder<Self::Item>,
     {
         folder.consume(self.data)
     }

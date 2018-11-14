@@ -1,16 +1,18 @@
-use iter::*;
 use iter::plumbing::*;
 use iter::Either::{Left, Right};
+use iter::*;
 
 /// `Either<L, R>` is a parallel iterator if both `L` and `R` are parallel iterators.
 impl<L, R> ParallelIterator for Either<L, R>
-    where L: ParallelIterator,
-          R: ParallelIterator<Item = L::Item>
+where
+    L: ParallelIterator,
+    R: ParallelIterator<Item = L::Item>,
 {
     type Item = L::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         match self {
             Left(iter) => iter.drive_unindexed(consumer),
@@ -24,11 +26,13 @@ impl<L, R> ParallelIterator for Either<L, R>
 }
 
 impl<L, R> IndexedParallelIterator for Either<L, R>
-    where L: IndexedParallelIterator,
-          R: IndexedParallelIterator<Item = L::Item>
+where
+    L: IndexedParallelIterator,
+    R: IndexedParallelIterator<Item = L::Item>,
 {
     fn drive<C>(self, consumer: C) -> C::Result
-        where C: Consumer<Self::Item>
+    where
+        C: Consumer<Self::Item>,
     {
         match self {
             Left(iter) => iter.drive(consumer),
@@ -41,7 +45,8 @@ impl<L, R> IndexedParallelIterator for Either<L, R>
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where CB: ProducerCallback<Self::Item>
+    where
+        CB: ProducerCallback<Self::Item>,
     {
         match self {
             Left(iter) => iter.with_producer(callback),
@@ -50,15 +55,16 @@ impl<L, R> IndexedParallelIterator for Either<L, R>
     }
 }
 
-
 /// `Either<L, R>` can be extended if both `L` and `R` are parallel extendable.
 impl<L, R, T> ParallelExtend<T> for Either<L, R>
-    where L: ParallelExtend<T>,
-          R: ParallelExtend<T>,
-          T: Send
+where
+    L: ParallelExtend<T>,
+    R: ParallelExtend<T>,
+    T: Send,
 {
     fn par_extend<I>(&mut self, par_iter: I)
-        where I: IntoParallelIterator<Item = T>
+    where
+        I: IntoParallelIterator<Item = T>,
     {
         match self.as_mut() {
             Left(collection) => collection.par_extend(par_iter),

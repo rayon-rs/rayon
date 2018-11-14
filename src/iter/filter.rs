@@ -17,9 +17,7 @@ pub struct Filter<I: ParallelIterator, P> {
 
 impl<I: ParallelIterator + Debug, P> Debug for Filter<I, P> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Filter")
-            .field("base", &self.base)
-            .finish()
+        f.debug_struct("Filter").field("base", &self.base).finish()
     }
 }
 
@@ -27,7 +25,8 @@ impl<I: ParallelIterator + Debug, P> Debug for Filter<I, P> {
 ///
 /// NB: a free fn because it is NOT part of the end-user API.
 pub fn new<I, P>(base: I, filter_op: P) -> Filter<I, P>
-    where I: ParallelIterator
+where
+    I: ParallelIterator,
 {
     Filter {
         base: base,
@@ -36,13 +35,15 @@ pub fn new<I, P>(base: I, filter_op: P) -> Filter<I, P>
 }
 
 impl<I, P> ParallelIterator for Filter<I, P>
-    where I: ParallelIterator,
-          P: Fn(&I::Item) -> bool + Sync + Send
+where
+    I: ParallelIterator,
+    P: Fn(&I::Item) -> bool + Sync + Send,
 {
     type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
-        where C: UnindexedConsumer<Self::Item>
+    where
+        C: UnindexedConsumer<Self::Item>,
     {
         let consumer1 = FilterConsumer::new(consumer, &self.filter_op);
         self.base.drive_unindexed(consumer1)
@@ -67,8 +68,9 @@ impl<'p, C, P> FilterConsumer<'p, C, P> {
 }
 
 impl<'p, T, C, P: 'p> Consumer<T> for FilterConsumer<'p, C, P>
-    where C: Consumer<T>,
-          P: Fn(&T) -> bool + Sync
+where
+    C: Consumer<T>,
+    P: Fn(&T) -> bool + Sync,
 {
     type Folder = FilterFolder<'p, C::Folder, P>;
     type Reducer = C::Reducer;
@@ -76,9 +78,11 @@ impl<'p, T, C, P: 'p> Consumer<T> for FilterConsumer<'p, C, P>
 
     fn split_at(self, index: usize) -> (Self, Self, C::Reducer) {
         let (left, right, reducer) = self.base.split_at(index);
-        (FilterConsumer::new(left, self.filter_op),
-         FilterConsumer::new(right, self.filter_op),
-         reducer)
+        (
+            FilterConsumer::new(left, self.filter_op),
+            FilterConsumer::new(right, self.filter_op),
+            reducer,
+        )
     }
 
     fn into_folder(self) -> Self::Folder {
@@ -93,10 +97,10 @@ impl<'p, T, C, P: 'p> Consumer<T> for FilterConsumer<'p, C, P>
     }
 }
 
-
 impl<'p, T, C, P: 'p> UnindexedConsumer<T> for FilterConsumer<'p, C, P>
-    where C: UnindexedConsumer<T>,
-          P: Fn(&T) -> bool + Sync
+where
+    C: UnindexedConsumer<T>,
+    P: Fn(&T) -> bool + Sync,
 {
     fn split_off_left(&self) -> Self {
         FilterConsumer::new(self.base.split_off_left(), &self.filter_op)
@@ -113,8 +117,9 @@ struct FilterFolder<'p, C, P: 'p> {
 }
 
 impl<'p, C, P, T> Folder<T> for FilterFolder<'p, C, P>
-    where C: Folder<T>,
-          P: Fn(&T) -> bool + 'p
+where
+    C: Folder<T>,
+    P: Fn(&T) -> bool + 'p,
 {
     type Result = C::Result;
 

@@ -1,4 +1,3 @@
-
 // These modules contain `compile_fail` doc tests.
 mod quicksort_race1;
 mod quicksort_race2;

@@ -5,8 +5,8 @@
 // try to drive the "collect consumer" incorrectly. These should
 // result in panics.
 
-use iter::plumbing::*;
 use super::Collect;
+use iter::plumbing::*;
 
 /// Promises to produce 2 items, but then produces 3.  Does not do any
 /// splits at all.
@@ -125,7 +125,6 @@ fn right_produces_too_many_items() {
     }
     collect.complete();
 }
-
 
 // The left consumer produces fewer items while the right
 // consumer produces correct number.

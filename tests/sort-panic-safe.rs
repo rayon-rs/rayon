@@ -1,24 +1,22 @@
 #[macro_use]
 extern crate lazy_static;
-extern crate rayon;
 extern crate rand;
+extern crate rayon;
 
-use rand::{thread_rng, Rng};
 use rand::distributions::Uniform;
+use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::{self, Ordering};
 use std::panic;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize};
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
 
 static VERSIONS: AtomicUsize = ATOMIC_USIZE_INIT;
 
 lazy_static! {
-    static ref DROP_COUNTS: Vec<AtomicUsize> = (0..20_000)
-        .map(|_| AtomicUsize::new(0))
-        .collect();
+    static ref DROP_COUNTS: Vec<AtomicUsize> = (0..20_000).map(|_| AtomicUsize::new(0)).collect();
 }
 
 #[derive(Clone, Eq)]
@@ -100,9 +98,13 @@ macro_rules! test {
             // what we expect (i.e. the contents of `v`).
             for (i, c) in DROP_COUNTS.iter().enumerate().take(len) {
                 let count = c.load(Relaxed);
-                assert!(count == 1,
-                        "found drop count == {} for i == {}, len == {}",
-                        count, i, len);
+                assert!(
+                    count == 1,
+                    "found drop count == {} for i == {}, len == {}",
+                    count,
+                    i,
+                    len
+                );
             }
 
             // Check that the most recent versions of values were dropped.
@@ -113,7 +115,7 @@ macro_rules! test {
             }
             panic_countdown -= step;
         }
-    }
+    };
 }
 
 thread_local!(static SILENCE_PANIC: Cell<bool> = Cell::new(false));
@@ -133,14 +135,11 @@ fn sort_panic_safe() {
             for &has_runs in &[false, true] {
                 let mut rng = thread_rng();
                 let mut input = (0..len)
-                    .map(|id| {
-                        DropCounter {
-                            x: rng.gen_range(0, modulus),
-                            id: id,
-                            version: Cell::new(0),
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                    .map(|id| DropCounter {
+                        x: rng.gen_range(0, modulus),
+                        id: id,
+                        version: Cell::new(0),
+                    }).collect::<Vec<_>>();
 
                 if has_runs {
                     for c in &mut input {

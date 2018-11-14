@@ -64,7 +64,9 @@ where
             // Read the first element into a stack-allocated variable. If a following comparison
             // operation panics, `hole` will get dropped and automatically write the element back
             // into the slice.
-            let mut tmp = NoDrop { value: Some(ptr::read(v.get_unchecked(0))) };
+            let mut tmp = NoDrop {
+                value: Some(ptr::read(v.get_unchecked(0))),
+            };
             let mut hole = CopyOnDrop {
                 src: tmp.value.as_mut().unwrap(),
                 dest: v.get_unchecked_mut(1),
@@ -97,7 +99,9 @@ where
             // Read the last element into a stack-allocated variable. If a following comparison
             // operation panics, `hole` will get dropped and automatically write the element back
             // into the slice.
-            let mut tmp = NoDrop { value: Some(ptr::read(v.get_unchecked(len - 1))) };
+            let mut tmp = NoDrop {
+                value: Some(ptr::read(v.get_unchecked(len - 1))),
+            };
             let mut hole = CopyOnDrop {
                 src: tmp.value.as_mut().unwrap(),
                 dest: v.get_unchecked_mut(len - 2),
@@ -329,8 +333,16 @@ where
         let count = cmp::min(width(start_l, end_l), width(start_r, end_r));
 
         if count > 0 {
-            macro_rules! left { () => { l.offset(*start_l as isize) } }
-            macro_rules! right { () => { r.offset(-(*start_r as isize) - 1) } }
+            macro_rules! left {
+                () => {
+                    l.offset(*start_l as isize)
+                };
+            }
+            macro_rules! right {
+                () => {
+                    r.offset(-(*start_r as isize) - 1)
+                };
+            }
 
             // Instead of swapping one pair at the time, it is more efficient to perform a cyclic
             // permutation. This is not strictly equivalent to swapping, but produces a similar
@@ -527,10 +539,12 @@ fn break_patterns<T>(v: &mut [T]) {
             random ^= random << 5;
             random
         };
-        let mut gen_usize = || if mem::size_of::<usize>() <= 4 {
-            gen_u32() as usize
-        } else {
-            (((gen_u32() as u64) << 32) | (gen_u32() as u64)) as usize
+        let mut gen_usize = || {
+            if mem::size_of::<usize>() <= 4 {
+                gen_u32() as usize
+            } else {
+                (((gen_u32() as u64) << 32) | (gen_u32() as u64)) as usize
+            }
         };
 
         // Take random numbers modulo this number.
@@ -688,7 +702,7 @@ where
                 let mid = partition_equal(v, pivot, is_less);
 
                 // Continue sorting elements greater than the pivot.
-                v = &mut {v}[mid..];
+                v = &mut { v }[mid..];
                 continue;
             }
         }
@@ -699,7 +713,7 @@ where
         was_partitioned = was_p;
 
         // Split the slice into `left`, `pivot`, and `right`.
-        let (left, right) = {v}.split_at_mut(mid);
+        let (left, right) = { v }.split_at_mut(mid);
         let (pivot, right) = right.split_at_mut(1);
         let pivot = &mut pivot[0];
 
@@ -747,9 +761,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rand::{thread_rng, Rng};
-    use rand::distributions::Uniform;
     use super::heapsort;
+    use rand::distributions::Uniform;
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn test_heapsort() {
@@ -759,9 +773,7 @@ mod tests {
             for &modulus in &[5, 10, 100] {
                 let dist = Uniform::new(0, modulus);
                 for _ in 0..100 {
-                    let v: Vec<i32> = rng.sample_iter(&dist)
-                        .take(len)
-                        .collect();
+                    let v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
                     // Test heapsort using `<` operator.
                     let mut tmp = v.clone();

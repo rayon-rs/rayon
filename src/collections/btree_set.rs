@@ -4,8 +4,8 @@
 
 use std::collections::BTreeSet;
 
-use iter::*;
 use iter::plumbing::*;
+use iter::*;
 
 use vec;
 
@@ -25,7 +25,6 @@ delegate_iterator!{
     impl<T: Ord + Send>
 }
 
-
 /// Parallel iterator over an immutable reference to a B-Tree set
 #[derive(Debug)]
 pub struct Iter<'a, T: Ord + Sync + 'a> {
@@ -34,7 +33,9 @@ pub struct Iter<'a, T: Ord + Sync + 'a> {
 
 impl<'a, T: Ord + Sync + 'a> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
-        Iter { inner: self.inner.clone() }
+        Iter {
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -47,6 +48,5 @@ delegate_iterator!{
     Iter<'a, T> => &'a T,
     impl<'a, T: Ord + Sync + 'a>
 }
-
 
 // `BTreeSet` doesn't have a mutable `Iterator`

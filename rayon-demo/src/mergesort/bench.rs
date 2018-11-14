@@ -23,4 +23,3 @@ fn merge_sort_par_bench(b: &mut test::Bencher) {
 fn merge_sort_seq_bench(b: &mut test::Bencher) {
     bench_harness(super::seq_merge_sort, b);
 }
-

@@ -14,9 +14,8 @@ Options:
     -h, --help      Show this message.
 ";
 
-
-use rand::{thread_rng, Rng};
 use rand::distributions::Standard;
+use rand::{thread_rng, Rng};
 use std::iter::repeat;
 use std::num::Wrapping;
 use std::sync::Arc;
@@ -24,8 +23,8 @@ use std::thread;
 use time;
 
 use docopt::Docopt;
-use rayon::prelude::*;
 use rayon::iter::ParallelBridge;
+use rayon::prelude::*;
 
 #[cfg(test)]
 mod bench;
@@ -46,7 +45,7 @@ pub struct Board {
     survive: Arc<Vec<usize>>,
     born: Arc<Vec<usize>>,
     rows: usize,
-    cols: usize
+    cols: usize,
 }
 
 impl Board {
@@ -57,14 +56,21 @@ impl Board {
         Board::new_with_custom_rules(rows, cols, born, survive)
     }
 
-    fn new_with_custom_rules(rows: usize, cols: usize, born: Vec<usize>, survive: Vec<usize>) -> Board {
+    fn new_with_custom_rules(
+        rows: usize,
+        cols: usize,
+        born: Vec<usize>,
+        survive: Vec<usize>,
+    ) -> Board {
         let new_board = repeat(false).take(rows * cols).collect();
 
-        Board { board  : new_board,
-                born   : Arc::new(born),
-                survive: Arc::new(survive),
-                rows   : rows,
-                cols   : cols }
+        Board {
+            board: new_board,
+            born: Arc::new(born),
+            survive: Arc::new(survive),
+            rows: rows,
+            cols: cols,
+        }
     }
 
     fn len(&self) -> usize {
@@ -74,21 +80,28 @@ impl Board {
     fn next_board(&self, new_board: Vec<bool>) -> Board {
         assert!(new_board.len() == self.len());
 
-        Board { board  : new_board,
-                born   : self.born.clone(),
-                survive: self.survive.clone(),
-                rows   : self.rows,
-                cols   : self.cols }
+        Board {
+            board: new_board,
+            born: self.born.clone(),
+            survive: self.survive.clone(),
+            rows: self.rows,
+            cols: self.cols,
+        }
     }
 
     pub fn random(&self) -> Board {
-        let new_brd = thread_rng().sample_iter(&Standard).take(self.len()).collect();
+        let new_brd = thread_rng()
+            .sample_iter(&Standard)
+            .take(self.len())
+            .collect();
 
         self.next_board(new_brd)
     }
 
     pub fn next_generation(&self) -> Board {
-        let new_brd = (0..self.len()).map(|cell| self.successor_cell(cell)).collect();
+        let new_brd = (0..self.len())
+            .map(|cell| self.successor_cell(cell))
+            .collect();
 
         self.next_board(new_brd)
     }
@@ -119,9 +132,14 @@ impl Board {
         let Wrapping(x_1) = Wrapping(x) - Wrapping(1);
         let Wrapping(y_1) = Wrapping(y) - Wrapping(1);
         let neighbors = [
-            self.cell_live(x_1, y_1), self.cell_live(x, y_1), self.cell_live(x+1, y_1),
-            self.cell_live(x_1, y+0),                         self.cell_live(x+1, y+0),
-            self.cell_live(x_1, y+1), self.cell_live(x, y+1), self.cell_live(x+1, y+1),
+            self.cell_live(x_1, y_1),
+            self.cell_live(x, y_1),
+            self.cell_live(x + 1, y_1),
+            self.cell_live(x_1, y + 0),
+            self.cell_live(x + 1, y + 0),
+            self.cell_live(x_1, y + 1),
+            self.cell_live(x, y + 1),
+            self.cell_live(x + 1, y + 1),
         ];
         neighbors.iter().filter(|&x| *x).count()
     }
@@ -155,17 +173,23 @@ fn test_life() {
 
 fn generations(board: Board, gens: usize) {
     let mut brd = board;
-    for _ in 0..gens { brd = brd.next_generation(); }
+    for _ in 0..gens {
+        brd = brd.next_generation();
+    }
 }
 
 fn parallel_generations(board: Board, gens: usize) {
     let mut brd = board;
-    for _ in 0..gens { brd = brd.parallel_next_generation(); }
+    for _ in 0..gens {
+        brd = brd.parallel_next_generation();
+    }
 }
 
 fn par_bridge_generations(board: Board, gens: usize) {
     let mut brd = board;
-    for _ in 0..gens { brd = brd.par_bridge_next_generation(); }
+    for _ in 0..gens {
+        brd = brd.par_bridge_next_generation();
+    }
 }
 
 fn delay(last_start: u64, min_interval_ns: u64) -> u64 {
@@ -242,22 +266,27 @@ fn measure_cpu(f: fn(Board, usize, u64) -> (), args: &Args) -> CpuResult {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args =
-        Docopt::new(USAGE)
-            .and_then(|d| d.argv(args).deserialize())
-            .unwrap_or_else(|e| e.exit());
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).deserialize())
+        .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
         let serial = measure(generations, &args);
         println!("  serial: {:10} ns", serial);
 
         let parallel = measure(parallel_generations, &args);
-        println!("parallel: {:10} ns -> {:.2}x speedup", parallel,
-            serial as f64 / parallel as f64);
+        println!(
+            "parallel: {:10} ns -> {:.2}x speedup",
+            parallel,
+            serial as f64 / parallel as f64
+        );
 
         let par_bridge = measure(par_bridge_generations, &args);
-        println!("par_bridge: {:10} ns -> {:.2}x speedup", par_bridge,
-            serial as f64 / par_bridge as f64);
+        println!(
+            "par_bridge: {:10} ns -> {:.2}x speedup",
+            par_bridge,
+            serial as f64 / par_bridge as f64
+        );
     }
 
     if args.cmd_play {

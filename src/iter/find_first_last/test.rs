@@ -1,5 +1,5 @@
-use std::sync::atomic::AtomicUsize;
 use super::*;
+use std::sync::atomic::AtomicUsize;
 
 #[test]
 fn same_range_first_consumers_return_correct_answer() {
@@ -31,8 +31,10 @@ fn same_range_first_consumers_return_correct_answer() {
     assert!(!right_folder.full());
     assert!(far_right_consumer.full());
     let right_folder = right_folder.consume(2).consume(3);
-    assert_eq!(reducer.reduce(left_folder.complete(), right_folder.complete()),
-               Some(0));
+    assert_eq!(
+        reducer.reduce(left_folder.complete(), right_folder.complete()),
+        Some(0)
+    );
 }
 
 #[test]
@@ -65,8 +67,10 @@ fn same_range_last_consumers_return_correct_answer() {
     assert!(!left_folder.full());
     assert!(far_left_consumer.full());
     let left_folder = left_folder.consume(0).consume(1);
-    assert_eq!(reducer.reduce(left_folder.complete(), right_folder.complete()),
-               Some(2));
+    assert_eq!(
+        reducer.reduce(left_folder.complete(), right_folder.complete()),
+        Some(2)
+    );
 }
 
 // These tests requires that a folder be assigned to an iterator with more than
