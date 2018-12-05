@@ -44,11 +44,11 @@ then it will have registered the current thread already, and hence
 
 A key concept of the futures.rs library is that of an *executor*.  The
 executor is the runtime that first invokes the top-level future
-(`T_map`, in our example). This is precisely the role that Rayon
+(`F_map`, in our example). This is precisely the role that Rayon
 plays. Note that in any futures system there may be many
-interoperating execturs though.
+interoperating executors though.
 
-Part of an executors job is to maintain some thread-local storage
+Part of an executor's job is to maintain some thread-local storage
 (TLS) when a future is executing. In particular, it must setup the
 "current task" (basically a unique integer, although it's an opaque
 type) as well as an "unpark object" of type
@@ -80,7 +80,7 @@ in the result.
 
 ### Future reference counting
 
-Each spawned future is represents by an `Arc`. This `Arc` actually has
+Each spawned future is represented by an `Arc`. This `Arc` actually has
 some interesting structure. Each of the edges in the diagram below
 represents something that is "kept alive" by holding a ref count (in
 some way, usually via an `Arc`):
@@ -102,7 +102,7 @@ Let's walk through them:
 
 - The incoming edge from `F'` represents the edge from the future that was returned
   to the caller of `spawn_future`. This ensures that the future arc will
-  not be freed so long as the caller is still interesting in looking at
+  not be freed so long as the caller is still interested in looking at
   its result.
 - The incoming edge from `[ deque ]` represents the fact that when the
   future is enqueued into a thread-local deque (which it only
@@ -176,7 +176,7 @@ up its `contents.this` field as the current "notify" instance. Hence
 if `F` returns `NotReady`, it will clone the `this` field and hold
 onto it to signal us the future is ready to execute again.
 
-For now let's assume that `F` is complete and hence readys either
+For now let's assume that `F` is complete and hence returns either
 `Ok(Ready(_))` or `Err(_)`. In that case, the future can transition to
 `COMPLETE`. At this point, many bits of state that are no longer
 needed (e.g., the future itself, but also the `this` field)
@@ -191,7 +191,7 @@ the `UNPARK` state and inject it into the registry.
 
 However, due to the vagaries of thread-scheduling, it *can* happen
 that `notify()` is called before we exit the `EXECUTING` state. For
-example, we might invoke `F.poll()`, which send the `Unpark` instance
+example, we might invoke `F.poll()`, which sends the `Unpark` instance
 to the I/O thread, which detects I/O, and invokes `notify()`, all
 before `F.poll()` has returned. In that case, the `notify()` method
 will transition the state (atomically, of course) to
@@ -215,7 +215,7 @@ then, we know we don't have to worry, the references are still valid.
 
 As we transition into the *COMPLETE* state is where things get more
 interesting. You'll notice that signaling the `self.scope` job as done
-the *last* thing that happens during that transition. Importantly,
+is the *last* thing that happens during that transition. Importantly,
 before that is done, we drop all access that we have to the type `F`:
 that is, we store `None` into the fields that might reference values
 of type `F`. This implies that we know that, whatever happens after we
@@ -265,8 +265,8 @@ So what about `poll()`? This is how the user gets the final result out
 of the future. The important thing that it does is to access (and
 effectively nullify) the field `result`, which stores the result of
 the future and hence may have access to `T` and `E` values. These
-values may contain references...so how we know that they are still in
-scope?  The answer is that those types are exposed in the user's type
+values may contain references...so how do we know that they are still in
+scope? The answer is that those types are exposed in the user's type
 of the future, and hence the basic Rust type system should guarantee
 that any references are still valid, or else the user shouldn't be
 able to call `poll()`. (The same is true at the time of cancellation,
