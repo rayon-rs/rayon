@@ -200,3 +200,44 @@ fn fifo_lifo_order() {
         .collect();
     assert_eq!(vec, expected);
 }
+
+macro_rules! spawn_send {
+    ($spawn:ident, $tx:ident, $i:expr) => {{
+        let tx = $tx.clone();
+        $spawn(move || tx.send($i).unwrap());
+    }};
+}
+
+/// Test mixed spawns pushing a series of numbers, interleaved such
+/// such that negative values are using the second kind of spawn.
+macro_rules! test_mixed_order {
+    ($pos_spawn:ident, $neg_spawn:ident) => {{
+        let builder = ThreadPoolBuilder::new().num_threads(1);
+        let pool = builder.build().unwrap();
+        let (tx, rx) = channel();
+        pool.install(move || {
+            spawn_send!($pos_spawn, tx, 0);
+            spawn_send!($neg_spawn, tx, -1);
+            spawn_send!($pos_spawn, tx, 1);
+            spawn_send!($neg_spawn, tx, -2);
+            spawn_send!($pos_spawn, tx, 2);
+            spawn_send!($neg_spawn, tx, -3);
+            spawn_send!($pos_spawn, tx, 3);
+        });
+        rx.iter().collect::<Vec<i32>>()
+    }};
+}
+
+#[test]
+fn mixed_lifo_fifo_order() {
+    let vec = test_mixed_order!(spawn, spawn_fifo);
+    let expected = vec![3, -1, 2, -2, 1, -3, 0];
+    assert_eq!(vec, expected);
+}
+
+#[test]
+fn mixed_fifo_lifo_order() {
+    let vec = test_mixed_order!(spawn_fifo, spawn);
+    let expected = vec![0, -3, 1, -2, 2, -1, 3];
+    assert_eq!(vec, expected);
+}
