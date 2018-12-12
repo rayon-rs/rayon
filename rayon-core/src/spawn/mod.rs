@@ -64,11 +64,26 @@ pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
 where
     F: FnOnce() + Send + 'static,
 {
+    // We assert that this does not hold any references (we know
+    // this because of the `'static` bound in the inferface);
+    // moreover, we assert that the code below is not supposed to
+    // be able to panic, and hence the data won't leak but will be
+    // enqueued into some deque for later execution.
+    let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
+    let job_ref = spawn_job(func, registry);
+    registry.inject_or_push(job_ref);
+    mem::forget(abort_guard);
+}
+
+unsafe fn spawn_job<F>(func: F, registry: &Arc<Registry>) -> JobRef
+where
+    F: FnOnce() + Send + 'static,
+{
     // Ensure that registry cannot terminate until this job has
     // executed. This ref is decremented at the (*) below.
     registry.increment_terminate_count();
 
-    let async_job = Box::new(HeapJob::new({
+    Box::new(HeapJob::new({
         let registry = registry.clone();
         move || {
             match unwind::halt_unwinding(func) {
@@ -79,16 +94,42 @@ where
             }
             registry.terminate(); // (*) permit registry to terminate now
         }
-    }));
+    }))
+    .as_job_ref()
+}
 
+/// TODO: like `spawn`, but FIFO
+pub fn spawn_fifo<F>(func: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    // We assert that current registry has not terminated.
+    unsafe { spawn_fifo_in(func, &Registry::current()) }
+}
+
+/// Spawn an asynchronous FIFO job in `registry.`
+///
+/// Unsafe because `registry` must not yet have terminated.
+///
+/// Not a public API, but used elsewhere in Rayon.
+pub unsafe fn spawn_fifo_in<F>(func: F, registry: &Arc<Registry>)
+where
+    F: FnOnce() + Send + 'static,
+{
     // We assert that this does not hold any references (we know
     // this because of the `'static` bound in the inferface);
     // moreover, we assert that the code below is not supposed to
     // be able to panic, and hence the data won't leak but will be
     // enqueued into some deque for later execution.
     let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
-    let job_ref = HeapJob::as_job_ref(async_job);
-    registry.inject_or_push(job_ref);
+    let job_ref = spawn_job(func, registry);
+
+    // If we're in the pool, use our thread's private fifo for this thread to execute
+    // in a locally-FIFO order.  Otherwise, just use the pool's global injector.
+    match registry.current_thread() {
+        Some(worker) => worker.push_fifo(job_ref),
+        None => registry.inject(&[job_ref]),
+    }
     mem::forget(abort_guard);
 }
 

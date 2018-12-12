@@ -269,6 +269,15 @@ impl ThreadPool {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
+
+    /// TODO: like `spawn`, but FIFO
+    pub fn spawn_fifo<OP>(&self, op: OP)
+    where
+        OP: FnOnce() + Send + 'static,
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { spawn::spawn_in(op, &self.registry) }
+    }
 }
 
 impl Drop for ThreadPool {

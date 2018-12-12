@@ -4,7 +4,7 @@ use crossbeam_deque::{Deque, Steal, Stealer};
 use internal::task::Task;
 #[cfg(rayon_unstable)]
 use job::Job;
-use job::{JobRef, StackJob};
+use job::{JobFifo, JobRef, StackJob};
 use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
 use log::Event::*;
 use sleep::Sleep;
@@ -467,6 +467,9 @@ pub struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Deque<JobRef>,
 
+    /// local queue used for `spawn_fifo` indirection
+    fifo: JobFifo,
+
     index: usize,
 
     /// are these workers configured to steal breadth-first or not?
@@ -521,6 +524,11 @@ impl WorkerThread {
     pub unsafe fn push(&self, job: JobRef) {
         self.worker.push(job);
         self.registry.sleep.tickle(self.index);
+    }
+
+    #[inline]
+    pub unsafe fn push_fifo(&self, job: JobRef) {
+        self.push(self.fifo.push(job));
     }
 
     #[inline]
@@ -652,6 +660,7 @@ unsafe fn main_loop(
 ) {
     let worker_thread = WorkerThread {
         worker: worker,
+        fifo: JobFifo::new(),
         breadth_first: breadth_first,
         index: index,
         rng: XorShift64Star::new(),

@@ -3,7 +3,7 @@ use std::any::Any;
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
 
-use super::spawn;
+use super::{spawn, spawn_fifo};
 use ThreadPoolBuilder;
 
 #[test]
@@ -140,4 +140,63 @@ fn custom_panic_handler_and_nested_spawn() {
             panic!("did not receive a string from panic handler");
         }
     }
+}
+
+macro_rules! test_order {
+    ($outer_spawn:ident, $inner_spawn:ident) => {{
+        let builder = ThreadPoolBuilder::new().num_threads(1);
+        let pool = builder.build().unwrap();
+        let (tx, rx) = channel();
+        pool.install(move || {
+            for i in 0..10 {
+                let tx = tx.clone();
+                $outer_spawn(move || {
+                    for j in 0..10 {
+                        let tx = tx.clone();
+                        $inner_spawn(move || {
+                            tx.send(i * 10 + j).unwrap();
+                        });
+                    }
+                });
+            }
+        });
+        rx.iter().collect::<Vec<i32>>()
+    }};
+}
+
+#[test]
+fn lifo_order() {
+    // In the absense of stealing, `spawn()` jobs on a thread will run in LIFO order.
+    let vec = test_order!(spawn, spawn);
+    let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
+    assert_eq!(vec, expected);
+}
+
+#[test]
+fn fifo_order() {
+    // In the absense of stealing, `spawn_fifo()` jobs on a thread will run in FIFO order.
+    let vec = test_order!(spawn_fifo, spawn_fifo);
+    let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
+    assert_eq!(vec, expected);
+}
+
+#[test]
+fn lifo_fifo_order() {
+    // LIFO on the outside, FIFO on the inside
+    let vec = test_order!(spawn, spawn_fifo);
+    let expected: Vec<i32> = (0..10)
+        .rev()
+        .flat_map(|i| (0..10).map(move |j| i * 10 + j))
+        .collect();
+    assert_eq!(vec, expected);
+}
+
+#[test]
+fn fifo_lifo_order() {
+    // FIFO on the outside, LIFO on the inside
+    let vec = test_order!(spawn_fifo, spawn);
+    let expected: Vec<i32> = (0..10)
+        .flat_map(|i| (0..10).rev().map(move |j| i * 10 + j))
+        .collect();
+    assert_eq!(vec, expected);
 }
