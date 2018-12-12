@@ -31,6 +31,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
+extern crate crossbeam;
 extern crate crossbeam_deque;
 #[macro_use]
 extern crate lazy_static;
@@ -61,6 +62,7 @@ mod test;
 pub mod internal;
 pub use join::{join, join_context};
 pub use scope::{scope, Scope};
+pub use scope::{scope_fifo, ScopeFifo};
 pub use spawn::spawn;
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use thread_pool::current_thread_index;

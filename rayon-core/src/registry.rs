@@ -1,3 +1,4 @@
+use crossbeam::sync::SegQueue;
 use crossbeam_deque::{Deque, Steal, Stealer};
 #[cfg(rayon_unstable)]
 use internal::task::Task;
@@ -13,7 +14,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-use std::sync::{Arc, Mutex, Once, ONCE_INIT};
+use std::sync::{Arc, Once, ONCE_INIT};
 use std::thread;
 use std::usize;
 use unwind;
@@ -22,9 +23,8 @@ use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, T
 
 pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
-    state: Mutex<RegistryState>,
     sleep: Sleep,
-    job_uninjector: Stealer<JobRef>,
+    injected_jobs: SegQueue<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
@@ -43,10 +43,6 @@ pub struct Registry {
     //   These are always owned by some other job (e.g., one injected by `ThreadPool::install()`)
     //   and that job will keep the pool alive.
     terminate_latch: CountLatch,
-}
-
-struct RegistryState {
-    job_injector: Deque<JobRef>,
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -104,16 +100,13 @@ impl Registry {
         let n_threads = builder.get_num_threads();
         let breadth_first = builder.get_breadth_first();
 
-        let inj_worker = Deque::new();
-        let inj_stealer = inj_worker.stealer();
         let workers: Vec<_> = (0..n_threads).map(|_| Deque::new()).collect();
         let stealers: Vec<_> = workers.iter().map(|d| d.stealer()).collect();
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s)).collect(),
-            state: Mutex::new(RegistryState::new(inj_worker)),
             sleep: Sleep::new(),
-            job_uninjector: inj_stealer,
+            injected_jobs: SegQueue::new(),
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
@@ -172,6 +165,18 @@ impl Registry {
             } else {
                 (*worker_thread).registry.num_threads()
             }
+        }
+    }
+
+    /// Returns the current `WorkerThread` if it's part of this `Registry`.
+    pub fn current_thread(&self) -> Option<&WorkerThread> {
+        unsafe {
+            if let Some(worker) = WorkerThread::current().as_ref() {
+                if worker.registry().id() == self.id() {
+                    return Some(worker);
+                }
+            }
+            None
         }
     }
 
@@ -297,39 +302,31 @@ impl Registry {
         log!(InjectJobs {
             count: injected_jobs.len()
         });
-        {
-            let state = self.state.lock().unwrap();
 
-            // It should not be possible for `state.terminate` to be true
-            // here. It is only set to true when the user creates (and
-            // drops) a `ThreadPool`; and, in that case, they cannot be
-            // calling `inject()` later, since they dropped their
-            // `ThreadPool`.
-            assert!(
-                !self.terminate_latch.probe(),
-                "inject() sees state.terminate as true"
-            );
+        // It should not be possible for `state.terminate` to be true
+        // here. It is only set to true when the user creates (and
+        // drops) a `ThreadPool`; and, in that case, they cannot be
+        // calling `inject()` later, since they dropped their
+        // `ThreadPool`.
+        assert!(
+            !self.terminate_latch.probe(),
+            "inject() sees state.terminate as true"
+        );
 
-            for &job_ref in injected_jobs {
-                state.job_injector.push(job_ref);
-            }
+        for &job_ref in injected_jobs {
+            self.injected_jobs.push(job_ref);
         }
         self.sleep.tickle(usize::MAX);
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
-        loop {
-            match self.job_uninjector.steal() {
-                Steal::Empty => return None,
-                Steal::Data(d) => {
-                    log!(UninjectedWork {
-                        worker: worker_index
-                    });
-                    return Some(d);
-                }
-                Steal::Retry => {}
-            }
+        let job = self.injected_jobs.try_pop();
+        if job.is_some() {
+            log!(UninjectedWork {
+                worker: worker_index
+            });
         }
+        job
     }
 
     /// If already in a worker-thread of this registry, just execute `op`.
@@ -437,14 +434,6 @@ impl Registry {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RegistryId {
     addr: usize,
-}
-
-impl RegistryState {
-    pub fn new(job_injector: Deque<JobRef>) -> RegistryState {
-        RegistryState {
-            job_injector: job_injector,
-        }
-    }
 }
 
 struct ThreadInfo {

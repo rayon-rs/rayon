@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::vec;
 use unwind;
 use ThreadPoolBuilder;
-use {scope, Scope};
+use {scope, scope_fifo, Scope};
 
 #[test]
 fn scope_empty() {
@@ -265,4 +265,54 @@ fn panic_propagate_still_execute_4() {
         Ok(_) => panic!("failed to propagate panic"),
         Err(_) => assert!(x, "panic in spawn tainted scope"),
     }
+}
+
+#[test]
+fn lifo_order() {
+    // In the absense of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
+    let builder = ThreadPoolBuilder::new().num_threads(1);
+    let pool = builder.build().unwrap();
+    pool.install(|| {
+        let vec = Mutex::new(vec![]);
+        scope(|scope| {
+            let vec = &vec;
+            for i in 0..10 {
+                scope.spawn(move |scope| {
+                    for j in 0..10 {
+                        scope.spawn(move |_| {
+                            vec.lock().unwrap().push(i * 10 + j);
+                        });
+                    }
+                });
+            }
+        });
+        let vec = vec.into_inner().unwrap();
+        let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
+        assert_eq!(vec, expected);
+    });
+}
+
+#[test]
+fn fifo_order() {
+    // In the absense of stealing, `scope_fifo()` runs its `spawn()` jobs in FIFO order.
+    let builder = ThreadPoolBuilder::new().num_threads(1);
+    let pool = builder.build().unwrap();
+    pool.install(|| {
+        let vec = Mutex::new(vec![]);
+        scope_fifo(|scope| {
+            let vec = &vec;
+            for i in 0..10 {
+                scope.spawn(move |scope| {
+                    for j in 0..10 {
+                        scope.spawn(move |_| {
+                            vec.lock().unwrap().push(i * 10 + j);
+                        });
+                    }
+                });
+            }
+        });
+        let vec = vec.into_inner().unwrap();
+        let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
+        assert_eq!(vec, expected);
+    });
 }

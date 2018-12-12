@@ -12,6 +12,7 @@ use std::sync::Arc;
 #[allow(deprecated)]
 use Configuration;
 use {scope, Scope};
+use {scope_fifo, ScopeFifo};
 use {ThreadPoolBuildError, ThreadPoolBuilder};
 
 mod internal;
@@ -236,6 +237,21 @@ impl ThreadPool {
         R: Send,
     {
         self.install(|| scope(op))
+    }
+
+    /// Creates a scope that executes within this thread-pool.
+    /// Spawns from the same thread are prioritized in relative FIFO order.
+    /// Equivalent to `self.install(|| scope_fifo(...))`.
+    ///
+    /// See also: [the `scope_fifo()` function][scope_fifo].
+    ///
+    /// [scope_fifo]: fn.scope_fifo.html
+    pub fn scope_fifo<'scope, OP, R>(&self, op: OP) -> R
+    where
+        OP: for<'s> FnOnce(&'s ScopeFifo<'scope>) -> R + 'scope + Send,
+        R: Send,
+    {
+        self.install(|| scope_fifo(op))
     }
 
     /// Spawns an asynchronous task in this thread-pool. This task will
