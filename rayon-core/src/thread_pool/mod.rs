@@ -276,7 +276,7 @@ impl ThreadPool {
         OP: FnOnce() + Send + 'static,
     {
         // We assert that `self.registry` has not terminated.
-        unsafe { spawn::spawn_in(op, &self.registry) }
+        unsafe { spawn::spawn_fifo_in(op, &self.registry) }
     }
 }
 
