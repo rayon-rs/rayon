@@ -268,7 +268,7 @@ fn panic_propagate_still_execute_4() {
 }
 
 macro_rules! test_order {
-    ($scope:ident) => {{
+    ($scope:ident => $spawn:ident) => {{
         let builder = ThreadPoolBuilder::new().num_threads(1);
         let pool = builder.build().unwrap();
         pool.install(|| {
@@ -276,9 +276,9 @@ macro_rules! test_order {
             $scope(|scope| {
                 let vec = &vec;
                 for i in 0..10 {
-                    scope.spawn(move |scope| {
+                    scope.$spawn(move |scope| {
                         for j in 0..10 {
-                            scope.spawn(move |_| {
+                            scope.$spawn(move |_| {
                                 vec.lock().unwrap().push(i * 10 + j);
                             });
                         }
@@ -293,21 +293,22 @@ macro_rules! test_order {
 #[test]
 fn lifo_order() {
     // In the absense of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
-    let vec = test_order!(scope);
+    let vec = test_order!(scope => spawn);
     let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
     assert_eq!(vec, expected);
 }
 
 #[test]
 fn fifo_order() {
-    // In the absense of stealing, `scope_fifo()` runs its `spawn()` jobs in FIFO order.
-    let vec = test_order!(scope_fifo);
+    // In the absense of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
+    let vec = test_order!(scope_fifo => spawn_fifo);
     let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
     assert_eq!(vec, expected);
 }
 
 macro_rules! test_nested_order {
-    ($outer_scope:ident, $inner_scope:ident) => {{
+    ($outer_scope:ident => $outer_spawn:ident,
+     $inner_scope:ident => $inner_spawn:ident) => {{
         let builder = ThreadPoolBuilder::new().num_threads(1);
         let pool = builder.build().unwrap();
         pool.install(|| {
@@ -315,10 +316,10 @@ macro_rules! test_nested_order {
             $outer_scope(|scope| {
                 let vec = &vec;
                 for i in 0..10 {
-                    scope.spawn(move |_| {
+                    scope.$outer_spawn(move |_| {
                         $inner_scope(|scope| {
                             for j in 0..10 {
-                                scope.spawn(move |_| {
+                                scope.$inner_spawn(move |_| {
                                     vec.lock().unwrap().push(i * 10 + j);
                                 });
                             }
@@ -334,15 +335,15 @@ macro_rules! test_nested_order {
 #[test]
 fn nested_lifo_order() {
     // In the absense of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
-    let vec = test_nested_order!(scope, scope);
+    let vec = test_nested_order!(scope => spawn, scope => spawn);
     let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
     assert_eq!(vec, expected);
 }
 
 #[test]
 fn nested_fifo_order() {
-    // In the absense of stealing, `scope_fifo()` runs its `spawn()` jobs in FIFO order.
-    let vec = test_nested_order!(scope_fifo, scope_fifo);
+    // In the absense of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
+    let vec = test_nested_order!(scope_fifo => spawn_fifo, scope_fifo => spawn_fifo);
     let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
     assert_eq!(vec, expected);
 }
@@ -350,7 +351,7 @@ fn nested_fifo_order() {
 #[test]
 fn nested_lifo_fifo_order() {
     // LIFO on the outside, FIFO on the inside
-    let vec = test_nested_order!(scope, scope_fifo);
+    let vec = test_nested_order!(scope => spawn, scope_fifo => spawn_fifo);
     let expected: Vec<i32> = (0..10)
         .rev()
         .flat_map(|i| (0..10).map(move |j| i * 10 + j))
@@ -361,7 +362,7 @@ fn nested_lifo_fifo_order() {
 #[test]
 fn nested_fifo_lifo_order() {
     // FIFO on the outside, LIFO on the inside
-    let vec = test_nested_order!(scope_fifo, scope);
+    let vec = test_nested_order!(scope_fifo => spawn_fifo, scope => spawn);
     let expected: Vec<i32> = (0..10)
         .flat_map(|i| (0..10).rev().map(move |j| i * 10 + j))
         .collect();
@@ -369,30 +370,31 @@ fn nested_fifo_lifo_order() {
 }
 
 macro_rules! spawn_push {
-    ($scope:ident, $vec:ident, $i:expr) => {{
-        $scope.spawn(move |_| $vec.lock().unwrap().push($i));
+    ($scope:ident . $spawn:ident, $vec:ident, $i:expr) => {{
+        $scope.$spawn(move |_| $vec.lock().unwrap().push($i));
     }};
 }
 
 /// Test spawns pushing a series of numbers, interleaved
 /// such that negative values are using an inner scope.
 macro_rules! test_mixed_order {
-    ($outer_scope:ident, $inner_scope:ident) => {{
+    ($outer_scope:ident => $outer_spawn:ident,
+     $inner_scope:ident => $inner_spawn:ident) => {{
         let builder = ThreadPoolBuilder::new().num_threads(1);
         let pool = builder.build().unwrap();
         pool.install(|| {
             let vec = Mutex::new(vec![]);
             $outer_scope(|outer_scope| {
                 let vec = &vec;
-                spawn_push!(outer_scope, vec, 0);
+                spawn_push!(outer_scope.$outer_spawn, vec, 0);
                 $inner_scope(|inner_scope| {
-                    spawn_push!(inner_scope, vec, -1);
-                    spawn_push!(outer_scope, vec, 1);
-                    spawn_push!(inner_scope, vec, -2);
-                    spawn_push!(outer_scope, vec, 2);
-                    spawn_push!(inner_scope, vec, -3);
+                    spawn_push!(inner_scope.$inner_spawn, vec, -1);
+                    spawn_push!(outer_scope.$outer_spawn, vec, 1);
+                    spawn_push!(inner_scope.$inner_spawn, vec, -2);
+                    spawn_push!(outer_scope.$outer_spawn, vec, 2);
+                    spawn_push!(inner_scope.$inner_spawn, vec, -3);
                 });
-                spawn_push!(outer_scope, vec, 3);
+                spawn_push!(outer_scope.$outer_spawn, vec, 3);
             });
             vec.into_inner().unwrap()
         })
@@ -403,14 +405,14 @@ macro_rules! test_mixed_order {
 fn mixed_lifo_order() {
     // NB: the end of the inner scope makes us execute some of the outer scope
     // before they've all been spawned, so they're not perfectly LIFO.
-    let vec = test_mixed_order!(scope, scope);
+    let vec = test_mixed_order!(scope => spawn, scope => spawn);
     let expected = vec![-3, 2, -2, 1, -1, 3, 0];
     assert_eq!(vec, expected);
 }
 
 #[test]
 fn mixed_fifo_order() {
-    let vec = test_mixed_order!(scope_fifo, scope_fifo);
+    let vec = test_mixed_order!(scope_fifo => spawn_fifo, scope_fifo => spawn_fifo);
     let expected = vec![-1, 0, -2, 1, -3, 2, 3];
     assert_eq!(vec, expected);
 }
@@ -419,14 +421,14 @@ fn mixed_fifo_order() {
 fn mixed_lifo_fifo_order() {
     // NB: the end of the inner scope makes us execute some of the outer scope
     // before they've all been spawned, so they're not perfectly LIFO.
-    let vec = test_mixed_order!(scope, scope_fifo);
+    let vec = test_mixed_order!(scope => spawn, scope_fifo => spawn_fifo);
     let expected = vec![-1, 2, -2, 1, -3, 3, 0];
     assert_eq!(vec, expected);
 }
 
 #[test]
 fn mixed_fifo_lifo_order() {
-    let vec = test_mixed_order!(scope_fifo, scope);
+    let vec = test_mixed_order!(scope_fifo => spawn_fifo, scope => spawn);
     let expected = vec![-3, 0, -2, 1, -1, 2, 3];
     assert_eq!(vec, expected);
 }

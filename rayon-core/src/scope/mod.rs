@@ -381,9 +381,7 @@ impl<'scope> ScopeFifo<'scope> {
     }
 
     /// TODO: like `Scope::spawn()` but FIFO
-    ///
-    /// TODO: should it be called `spawn_fifo()` like the global method?
-    pub fn spawn<BODY>(&self, body: BODY)
+    pub fn spawn_fifo<BODY>(&self, body: BODY)
     where
         BODY: FnOnce(&ScopeFifo<'scope>) + Send + 'scope,
     {
