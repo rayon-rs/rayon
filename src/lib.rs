@@ -108,10 +108,11 @@ mod par_either;
 mod compile_fail;
 
 pub use rayon_core::current_num_threads;
-pub use rayon_core::spawn;
 pub use rayon_core::FnContext;
 pub use rayon_core::ThreadPool;
 pub use rayon_core::ThreadPoolBuildError;
 pub use rayon_core::ThreadPoolBuilder;
 pub use rayon_core::{join, join_context};
 pub use rayon_core::{scope, Scope};
+pub use rayon_core::{scope_fifo, ScopeFifo};
+pub use rayon_core::{spawn, spawn_fifo};
