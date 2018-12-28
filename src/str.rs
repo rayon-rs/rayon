@@ -281,7 +281,7 @@ mod private {
     ///
     /// Implementing this trait is not permitted outside of `rayon`.
     pub trait Pattern: Sized + Sync + Send {
-        private_decl!{}
+        private_decl! {}
         fn find_in(&self, &str) -> Option<usize>;
         fn rfind_in(&self, &str) -> Option<usize>;
         fn is_suffix_of(&self, &str) -> bool;
@@ -299,7 +299,7 @@ mod private {
 use self::private::Pattern;
 
 impl Pattern for char {
-    private_impl!{}
+    private_impl! {}
 
     #[inline]
     fn find_in(&self, chars: &str) -> Option<usize> {
@@ -343,7 +343,7 @@ impl Pattern for char {
 }
 
 impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
-    private_impl!{}
+    private_impl! {}
 
     fn find_in(&self, chars: &str) -> Option<usize> {
         chars.find(self)
@@ -725,7 +725,8 @@ impl<'ch> ParallelIterator for Lines<'ch> {
                 } else {
                     line
                 }
-            }).drive_unindexed(consumer)
+            })
+            .drive_unindexed(consumer)
     }
 }
 

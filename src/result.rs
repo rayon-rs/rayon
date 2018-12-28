@@ -28,7 +28,7 @@ impl<T: Send, E> IntoParallelIterator for Result<T, E> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     IntoIter<T> => T,
     impl<T: Send>
 }
@@ -58,7 +58,7 @@ impl<'a, T: Sync, E> IntoParallelIterator for &'a Result<T, E> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
@@ -80,7 +80,7 @@ impl<'a, T: Send, E> IntoParallelIterator for &'a mut Result<T, E> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     IterMut<'a, T> => &'a mut T,
     impl<'a, T: Send + 'a>
 }
@@ -116,7 +116,8 @@ where
                     }
                     None
                 }
-            }).while_some()
+            })
+            .while_some()
             .collect();
 
         match saved_error.into_inner().unwrap() {

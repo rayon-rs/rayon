@@ -16,12 +16,12 @@ pub struct IntoIter<T: Hash + Eq + Send> {
     inner: vec::IntoIter<T>,
 }
 
-into_par_vec!{
+into_par_vec! {
     HashSet<T, S> => IntoIter<T>,
     impl<T: Hash + Eq + Send, S: BuildHasher>
 }
 
-delegate_iterator!{
+delegate_iterator! {
     IntoIter<T> => T,
     impl<T: Hash + Eq + Send>
 }
@@ -40,12 +40,12 @@ impl<'a, T: Hash + Eq + Sync> Clone for Iter<'a, T> {
     }
 }
 
-into_par_vec!{
+into_par_vec! {
     &'a HashSet<T, S> => Iter<'a, T>,
     impl<'a, T: Hash + Eq + Sync, S: BuildHasher>
 }
 
-delegate_iterator!{
+delegate_iterator! {
     Iter<'a, T> => &'a T,
     impl<'a, T: Hash + Eq + Sync + 'a>
 }

@@ -16,12 +16,12 @@ pub struct IntoIter<T: Send> {
     inner: vec::IntoIter<T>,
 }
 
-into_par_vec!{
+into_par_vec! {
     VecDeque<T> => IntoIter<T>,
     impl<T: Send>
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     IntoIter<T> => T,
     impl<T: Send>
 }
@@ -52,7 +52,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
@@ -75,7 +75,7 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     IterMut<'a, T> => &'a mut T,
     impl<'a, T: Send + 'a>
 }

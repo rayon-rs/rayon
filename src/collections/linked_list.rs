@@ -15,12 +15,12 @@ pub struct IntoIter<T: Send> {
     inner: vec::IntoIter<T>,
 }
 
-into_par_vec!{
+into_par_vec! {
     LinkedList<T> => IntoIter<T>,
     impl<T: Send>
 }
 
-delegate_iterator!{
+delegate_iterator! {
     IntoIter<T> => T,
     impl<T: Send>
 }
@@ -39,12 +39,12 @@ impl<'a, T: Sync> Clone for Iter<'a, T> {
     }
 }
 
-into_par_vec!{
+into_par_vec! {
     &'a LinkedList<T> => Iter<'a, T>,
     impl<'a, T: Sync>
 }
 
-delegate_iterator!{
+delegate_iterator! {
     Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
@@ -55,12 +55,12 @@ pub struct IterMut<'a, T: Send + 'a> {
     inner: vec::IntoIter<&'a mut T>,
 }
 
-into_par_vec!{
+into_par_vec! {
     &'a mut LinkedList<T> => IterMut<'a, T>,
     impl<'a, T: Send>
 }
 
-delegate_iterator!{
+delegate_iterator! {
     IterMut<'a, T> => &'a mut T,
     impl<'a, T: Send + 'a>
 }

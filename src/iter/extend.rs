@@ -19,11 +19,13 @@ where
         .fold(Vec::new, |mut vec, elem| {
             vec.push(elem);
             vec
-        }).map(|vec| {
+        })
+        .map(|vec| {
             let mut list = LinkedList::new();
             list.push_back(vec);
             list
-        }).reduce(LinkedList::new, |mut list1, mut list2| {
+        })
+        .reduce(LinkedList::new, |mut list1, mut list2| {
             list1.append(&mut list2);
             list1
         });
@@ -202,7 +204,8 @@ where
             .fold(LinkedList::new, |mut list, elem| {
                 list.push_back(elem);
                 list
-            }).reduce(LinkedList::new, |mut list1, mut list2| {
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
                 list1.append(&mut list2);
                 list1
             });
@@ -236,11 +239,13 @@ impl ParallelExtend<char> for String {
             .fold(String::new, |mut string, ch| {
                 string.push(ch);
                 string
-            }).map(|vec| {
+            })
+            .map(|vec| {
                 let mut list = LinkedList::new();
                 list.push_back(vec);
                 list
-            }).reduce(LinkedList::new, |mut list1, mut list2| {
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
                 list1.append(&mut list2);
                 list1
             });
@@ -293,11 +298,13 @@ impl<'a> ParallelExtend<Cow<'a, str>> for String {
             .fold(Vec::new, |mut vec, elem| {
                 vec.push(elem);
                 vec
-            }).map(|vec| {
+            })
+            .map(|vec| {
                 let mut list = LinkedList::new();
                 list.push_back(vec);
                 list
-            }).reduce(LinkedList::new, |mut list1, mut list2| {
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
                 list1.append(&mut list2);
                 list1
             });

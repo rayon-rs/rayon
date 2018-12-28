@@ -16,7 +16,8 @@ macro_rules! make_tests {
                             let mut result: [u32; $n] = [0; $n];
                             result[0] = x;
                             result
-                        }).take(10_000_000)
+                        })
+                        .take(10_000_000)
                         .collect()
                 };
             }
@@ -72,12 +73,10 @@ macro_rules! make_tests {
             #[bench]
             fn parallel_find_common(b: &mut Bencher) {
                 b.iter(|| {
-                    assert!(
-                        HAYSTACK
-                            .par_iter()
-                            .find_any(|&&x| x[0] % 1000 == 999)
-                            .is_some()
-                    )
+                    assert!(HAYSTACK
+                        .par_iter()
+                        .find_any(|&&x| x[0] % 1000 == 999)
+                        .is_some())
                 });
             }
 

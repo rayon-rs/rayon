@@ -106,7 +106,8 @@ fn test_par_sort_stability() {
                     let n = thread_rng().gen_range::<usize>(0, 10);
                     counts[n] += 1;
                     (n, counts[n])
-                }).collect();
+                })
+                .collect();
 
             // Only sort on the first element, so an unstable sort
             // may mix up the counts.

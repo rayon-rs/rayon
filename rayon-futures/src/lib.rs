@@ -94,7 +94,8 @@ impl<T, E> RayonFuture<T, E> {
                 Async::Ready(v) => v,
                 Async::NotReady => panic!("probe() returned true but poll not ready"),
             })
-        }).unwrap_or_else(|| self.wait())
+        })
+        .unwrap_or_else(|| self.wait())
     }
 }
 
@@ -312,12 +313,14 @@ unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
     S: ScopeHandle<'scope>,
-{}
+{
+}
 unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
     S: ScopeHandle<'scope>,
-{}
+{
+}
 
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
 where
@@ -394,7 +397,8 @@ where
                                 STATE_EXECUTING_UNPARKED,
                                 Release,
                                 Relaxed,
-                            ).is_ok()
+                            )
+                            .is_ok()
                     } {
                         return;
                     }

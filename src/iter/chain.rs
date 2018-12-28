@@ -261,7 +261,8 @@ impl<A, B> ExactSizeIterator for ChainSeq<A, B>
 where
     A: ExactSizeIterator,
     B: ExactSizeIterator<Item = A::Item>,
-{}
+{
+}
 
 impl<A, B> DoubleEndedIterator for ChainSeq<A, B>
 where

@@ -92,7 +92,8 @@ macro_rules! test {
                     }
                     a.cmp(b)
                 })
-            }).join();
+            })
+            .join();
 
             // Check that the number of things dropped is exactly
             // what we expect (i.e. the contents of `v`).
@@ -139,7 +140,8 @@ fn sort_panic_safe() {
                         x: rng.gen_range(0, modulus),
                         id: id,
                         version: Cell::new(0),
-                    }).collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
 
                 if has_runs {
                     for c in &mut input {

@@ -29,7 +29,8 @@ where
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
                 .map(|n| 4000000 / (m * m + n * n))
                 .sum()
-        }).sum()
+        })
+        .sum()
 }
 
 /// Same as par_euclid, without tweaking split lengths
@@ -42,7 +43,8 @@ fn par_euclid_weightless() -> u32 {
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
                 .map(|n| 4000000 / (m * m + n * n))
                 .sum()
-        }).sum()
+        })
+        .sum()
 }
 
 /// Same as par_euclid, without using rayon.
@@ -53,7 +55,8 @@ fn euclid() -> u32 {
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
                 .map(|n| 4000000 / (m * m + n * n))
                 .fold(0, Add::add)
-        }).fold(0, Add::add)
+        })
+        .fold(0, Add::add)
 }
 
 #[bench]
