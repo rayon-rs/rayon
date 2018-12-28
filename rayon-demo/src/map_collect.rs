@@ -47,7 +47,8 @@ mod util {
                 vec.push(elem);
                 vec
             },
-        ).for_each(|vec| {
+        )
+        .for_each(|vec| {
             let mut guard = mutex.lock().unwrap();
             guard.extend(vec);
         });
@@ -79,7 +80,8 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).collect();
+            )
+            .collect();
         list.into_iter().fold(HashMap::new(), |mut map, vec| {
             map.extend(vec);
             map
@@ -100,7 +102,8 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).collect();
+            )
+            .collect();
 
         let len = list.iter().map(Vec::len).sum();
         list.into_iter()
@@ -124,11 +127,13 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).map(|vec| {
+            )
+            .map(|vec| {
                 let mut list = LinkedList::new();
                 list.push_back(vec);
                 list
-            }).reduce(LinkedList::new, |mut list1, mut list2| {
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
                 list1.append(&mut list2);
                 list1
             });
@@ -155,7 +160,8 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).map(|v| vec![v])
+            )
+            .map(|v| vec![v])
             .reduce(
                 || Vec::new(),
                 |mut left, mut right| {
@@ -185,7 +191,8 @@ mod util {
                 map.insert(k, v);
                 map
             },
-        ).reduce(
+        )
+        .reduce(
             || HashMap::new(),
             |mut map1, mut map2| {
                 if map1.len() > map2.len() {
@@ -212,7 +219,8 @@ mod util {
                 vec.push(elem);
                 vec
             },
-        ).map(HashMap::from_iter)
+        )
+        .map(HashMap::from_iter)
         .reduce(
             || HashMap::new(),
             |mut map1, map2| {

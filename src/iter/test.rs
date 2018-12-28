@@ -123,7 +123,8 @@ pub fn fold_map_reduce() {
                 v.push(e);
                 v
             },
-        ).map(|v| vec![v])
+        )
+        .map(|v| vec![v])
         .reduce_with(|mut v_a, v_b| {
             v_a.extend(v_b);
             v_a
@@ -174,7 +175,8 @@ pub fn fold_is_full() {
         .into_par_iter()
         .inspect(|_| {
             counter.fetch_add(1, Ordering::SeqCst);
-        }).fold(|| 0, |a, b| a + b)
+        })
+        .fold(|| 0, |a, b| a + b)
         .find_any(|_| true);
     assert!(a.is_some());
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
@@ -297,7 +299,8 @@ pub fn check_inspect() {
         .into_par_iter()
         .inspect(|&i| {
             a.fetch_add(i, Ordering::Relaxed);
-        }).sum();
+        })
+        .sum();
 
     assert_eq!(a.load(Ordering::Relaxed), b);
 }
@@ -453,7 +456,8 @@ pub fn check_cmp_short_circuit() {
         .par_iter()
         .inspect(|_| {
             counter.fetch_add(1, Ordering::SeqCst);
-        }).cmp(&b);
+        })
+        .cmp(&b);
     assert!(result == ::std::cmp::Ordering::Less);
     assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
 }
@@ -469,7 +473,8 @@ pub fn check_partial_cmp_short_circuit() {
         .par_iter()
         .inspect(|_| {
             counter.fetch_add(1, Ordering::SeqCst);
-        }).partial_cmp(&b);
+        })
+        .partial_cmp(&b);
     assert!(result == Some(::std::cmp::Ordering::Less));
     assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
 }
@@ -485,7 +490,8 @@ pub fn check_partial_cmp_nan_short_circuit() {
         .par_iter()
         .inspect(|_| {
             counter.fetch_add(1, Ordering::SeqCst);
-        }).partial_cmp(&b);
+        })
+        .partial_cmp(&b);
     assert!(result == None);
     assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
 }
@@ -1181,7 +1187,8 @@ pub fn check_chain() {
                 .chain(vec![5, 6, 7, 8, 9])
                 .chain(Some((10, 100)).into_par_iter().flat_map(|(a, b)| a..b))
                 .filter(|x| x & 1 == 1),
-        ).collect();
+        )
+        .collect();
     let other: Vec<i32> = (0..100).filter(|x| x & 1 == 1).collect();
     assert_eq!(res, other);
 
@@ -1302,7 +1309,8 @@ pub fn check_while_some() {
             } else {
                 None
             }
-        }).while_some()
+        })
+        .while_some()
         .max();
     assert!(value < Some(1024));
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
@@ -1553,7 +1561,8 @@ fn check_split() {
         } else {
             (start..end, None)
         }
-    }).flat_map(|range| range);
+    })
+    .flat_map(|range| range);
 
     assert_eq!(a.collect::<Vec<_>>(), b.collect::<Vec<_>>());
 }
@@ -1612,7 +1621,8 @@ fn check_fold_with() {
         .fold_with(sender, |s, i| {
             s.send(i).unwrap();
             s
-        }).count();
+        })
+        .count();
 
     let b: HashSet<_> = receiver.iter().collect();
     assert_eq!(a, b);

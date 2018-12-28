@@ -26,7 +26,8 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).collect();
+            )
+            .collect();
         list.into_iter().fold(Vec::new(), |mut vec, mut sub| {
             vec.append(&mut sub);
             vec
@@ -46,7 +47,8 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).collect();
+            )
+            .collect();
 
         let len = list.iter().map(Vec::len).sum();
         list.into_iter()
@@ -69,11 +71,13 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).map(|vec| {
+            )
+            .map(|vec| {
                 let mut list = LinkedList::new();
                 list.push_back(vec);
                 list
-            }).reduce(LinkedList::new, |mut list1, mut list2| {
+            })
+            .reduce(LinkedList::new, |mut list1, mut list2| {
                 list1.append(&mut list2);
                 list1
             });
@@ -99,7 +103,8 @@ mod util {
                     vec.push(elem);
                     vec
                 },
-            ).map(|v| vec![v])
+            )
+            .map(|v| vec![v])
             .reduce(
                 || Vec::new(),
                 |mut left, mut right| {
@@ -128,7 +133,8 @@ mod util {
                 vec.push(x);
                 vec
             },
-        ).reduce(
+        )
+        .reduce(
             || Vec::new(),
             |mut vec1, mut vec2| {
                 vec1.append(&mut vec2);

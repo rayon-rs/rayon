@@ -883,7 +883,8 @@ pub trait ParallelIterator: Sized + Send {
                 Some(a) => Some(op(a, b)),
                 None => Some(b),
             },
-        ).reduce(
+        )
+        .reduce(
             || None,
             |opt_a, opt_b| match (opt_a, opt_b) {
                 (Some(a), Some(b)) => Some(op(a, b)),
@@ -1551,10 +1552,8 @@ pub trait ParallelIterator: Sized + Send {
     }
 
     #[doc(hidden)]
-    #[deprecated(
-        note = "parallel `find` does not search in order -- use `find_any`, \\
-                `find_first`, or `find_last`"
-    )]
+    #[deprecated(note = "parallel `find` does not search in order -- use `find_any`, \\
+                         `find_first`, or `find_last`")]
     fn find<P>(self, predicate: P) -> Option<Self::Item>
     where
         P: Fn(&Self::Item) -> bool + Sync + Send,
@@ -2566,7 +2565,7 @@ mod private {
     ///
     /// Implementing this trait is not permitted outside of `rayon`.
     pub trait Try {
-        private_decl!{}
+        private_decl! {}
 
         type Ok;
         type Error;
@@ -2576,7 +2575,7 @@ mod private {
     }
 
     impl<T> Try for Option<T> {
-        private_impl!{}
+        private_impl! {}
 
         type Ok = T;
         type Error = ();
@@ -2593,7 +2592,7 @@ mod private {
     }
 
     impl<T, E> Try for Result<T, E> {
-        private_impl!{}
+        private_impl! {}
 
         type Ok = T;
         type Error = E;

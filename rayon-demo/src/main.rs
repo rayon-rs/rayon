@@ -52,7 +52,7 @@ extern crate time; // nbody, sieve // factorial
 #[macro_use]
 extern crate lazy_static; // find
 extern crate fixedbitset; // tsp
-extern crate regex;       // tsp
+extern crate regex; // tsp
 #[cfg(windows)]
 extern crate winapi; // life
 

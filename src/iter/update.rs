@@ -303,7 +303,8 @@ where
             .map(move |mut v| {
                 f(&mut v);
                 v
-            }).collect()
+            })
+            .collect()
     }
 }
 
@@ -311,7 +312,8 @@ impl<I, F> ExactSizeIterator for UpdateSeq<I, F>
 where
     I: ExactSizeIterator,
     F: FnMut(&mut I::Item),
-{}
+{
+}
 
 impl<I, F> DoubleEndedIterator for UpdateSeq<I, F>
 where

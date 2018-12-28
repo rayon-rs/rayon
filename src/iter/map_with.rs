@@ -226,7 +226,8 @@ where
     I: ExactSizeIterator,
     F: Fn(&mut U, I::Item) -> R + Sync,
     R: Send,
-{}
+{
+}
 
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
