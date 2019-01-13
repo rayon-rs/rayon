@@ -845,7 +845,7 @@ pub fn check_sum_filtermap_ints() {
     let seq_sum_evens = a
         .iter()
         .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
-        .fold(0.0, |a, b| a + b);
+        .sum();
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
 
