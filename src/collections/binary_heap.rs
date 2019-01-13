@@ -26,7 +26,7 @@ impl<T: Ord + Send> IntoParallelIterator for BinaryHeap<T> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     IntoIter<T> => T,
     impl<T: Ord + Send>
 }
@@ -45,12 +45,12 @@ impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
     }
 }
 
-into_par_vec!{
+into_par_vec! {
     &'a BinaryHeap<T> => Iter<'a, T>,
     impl<'a, T: Ord + Sync>
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
     impl<'a, T: Ord + Sync + 'a>
 }

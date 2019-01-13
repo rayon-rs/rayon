@@ -40,7 +40,8 @@ fn quick_sort_splitter(b: &mut test::Bencher) {
                 } else {
                     (vec, None)
                 }
-            }).for_each(super::quick_sort::<Sequential, u32>)
+            })
+            .for_each(super::quick_sort::<Sequential, u32>)
         },
         b,
     );

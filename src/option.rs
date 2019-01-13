@@ -108,7 +108,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
     impl<'a, T: Sync + 'a>
 }
@@ -138,7 +138,7 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut Option<T> {
     }
 }
 
-delegate_indexed_iterator!{
+delegate_indexed_iterator! {
     IterMut<'a, T> => &'a mut T,
     impl<'a, T: Send + 'a>
 }
@@ -187,7 +187,8 @@ where
                 if item.is_none() {
                     found_none.store(true, Ordering::Relaxed);
                 }
-            }).while_some()
+            })
+            .while_some()
             .collect();
 
         if found_none.load(Ordering::Relaxed) {

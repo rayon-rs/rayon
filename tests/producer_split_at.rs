@@ -162,20 +162,23 @@ fn slice_iter_mut() {
 #[test]
 fn slice_chunks() {
     let s: Vec<_> = (0..10).collect();
-    let v: Vec<_> = s.chunks(2).collect();
-    check(&v, || s.par_chunks(2));
+    for len in 1..s.len() + 2 {
+        let v: Vec<_> = s.chunks(len).collect();
+        check(&v, || s.par_chunks(len));
+    }
 }
 
 #[test]
 fn slice_chunks_mut() {
     let mut s: Vec<_> = (0..10).collect();
     let mut v: Vec<_> = s.clone();
-    let expected: Vec<_> = v.chunks_mut(2).collect();
-
-    map_triples(expected.len() + 1, |i, j, k| {
-        Split::forward(s.par_chunks_mut(2), i, j, k, &expected);
-        Split::reverse(s.par_chunks_mut(2), i, j, k, &expected);
-    });
+    for len in 1..s.len() + 2 {
+        let expected: Vec<_> = v.chunks_mut(len).collect();
+        map_triples(expected.len() + 1, |i, j, k| {
+            Split::forward(s.par_chunks_mut(len), i, j, k, &expected);
+            Split::reverse(s.par_chunks_mut(len), i, j, k, &expected);
+        });
+    }
 }
 
 #[test]

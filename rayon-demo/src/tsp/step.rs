@@ -81,7 +81,8 @@ fn compute_lower_bound(
             } else {
                 Weight::max()
             }
-        }).collect();
+        })
+        .collect();
 
     for i in graph.all_nodes().filter(|&i| !prev_visited.contains(i)) {
         for j in graph.all_nodes().filter(|&j| !visited.contains(j)) {

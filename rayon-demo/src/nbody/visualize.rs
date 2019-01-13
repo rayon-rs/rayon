@@ -130,7 +130,8 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                 rng.gen_range(0.5, 1.0),
             ],
             world_position: [0.0, 0.0, 0.0],
-        }).collect();
+        })
+        .collect();
 
     let mut instance_buffer = VertexBuffer::dynamic(&display, &instances).unwrap();
 
@@ -182,7 +183,8 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                 &program,
                 &uniform! { matrix: view_proj },
                 &params,
-            ).unwrap();
+            )
+            .unwrap();
         target.finish().unwrap();
 
         let mut done = false;

@@ -681,7 +681,8 @@ where
                     let buf = (buf as *mut T).offset(l as isize);
                     (l, r, mergesort(chunk, buf, &is_less))
                 }
-            }).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
             .into_iter()
             .peekable()
     };
@@ -729,11 +730,9 @@ mod tests {
     fn test_split_for_merge() {
         fn check(left: &[u32], right: &[u32]) {
             let (l, r) = split_for_merge(left, right, &|&a, &b| a < b);
-            assert!(
-                left[..l]
-                    .iter()
-                    .all(|&x| right[r..].iter().all(|&y| x <= y))
-            );
+            assert!(left[..l]
+                .iter()
+                .all(|&x| right[r..].iter().all(|&y| x <= y)));
             assert!(right[..r].iter().all(|&x| left[l..].iter().all(|&y| x < y)));
         }
 

@@ -88,7 +88,8 @@ fn fibonacci_split_recursive(b: &mut test::Bencher) {
             } else {
                 (n - 2, Some(n - 1))
             }
-        }).map(fib_recursive)
+        })
+        .map(fib_recursive)
         .sum()
     }
 
@@ -107,7 +108,8 @@ fn fibonacci_split_iterative(b: &mut test::Bencher) {
             } else {
                 (n - 2, Some(n - 1))
             }
-        }).map(fib_iterative)
+        })
+        .map(fib_iterative)
         .sum()
     }
 

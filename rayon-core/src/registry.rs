@@ -648,7 +648,8 @@ impl WorkerThread {
                         Steal::Retry => {}
                     }
                 }
-            }).next()
+            })
+            .next()
     }
 }
 

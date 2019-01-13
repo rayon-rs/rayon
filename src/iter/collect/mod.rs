@@ -142,11 +142,13 @@ where
                     .fold(Vec::new, |mut vec, elem| {
                         vec.push(elem);
                         vec
-                    }).map(|vec| {
+                    })
+                    .map(|vec| {
                         let mut list = LinkedList::new();
                         list.push_back(vec);
                         list
-                    }).reduce(LinkedList::new, |mut list1, mut list2| {
+                    })
+                    .reduce(LinkedList::new, |mut list1, mut list2| {
                         list1.append(&mut list2);
                         list1
                     });

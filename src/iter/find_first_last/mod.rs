@@ -215,11 +215,12 @@ impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
             MatchPosition::Rightmost => false,
         };
 
-        found_best_in_range || better_position(
-            self.best_found.load(Ordering::Relaxed),
-            self.boundary,
-            self.match_position,
-        )
+        found_best_in_range
+            || better_position(
+                self.best_found.load(Ordering::Relaxed),
+                self.boundary,
+                self.match_position,
+            )
     }
 }
 
