@@ -339,9 +339,11 @@ impl ThreadPoolBuilder {
     /// guaranteed.
     ///
     /// This `breadth_first()` method is now deprecated per [RFC #1],
-    /// and in the future its effect may be removed.
+    /// and in the future its effect may be removed. Consider using
+    /// [`scope_fifo()`] for a similar effect.
     ///
-    /// [RFC #1]: https://github.com/rayon-rs/rfcs/pull/1
+    /// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+    /// [`scope_fifo()`]: fn.scope_fifo.html
     #[deprecated(note = "use `scope_fifo` and `spawn_fifo` for similar effect")]
     pub fn breadth_first(mut self) -> Self {
         self.breadth_first = true;
