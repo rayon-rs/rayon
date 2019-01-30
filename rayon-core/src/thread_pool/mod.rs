@@ -270,7 +270,14 @@ impl ThreadPool {
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
 
-    /// TODO: like `spawn`, but FIFO
+    /// Spawns an asynchronous task in this thread-pool. This task will
+    /// run in the implicit, global scope, which means that it may outlast
+    /// the current stack frame -- therefore, it cannot capture any references
+    /// onto the stack (you will likely need a `move` closure).
+    ///
+    /// See also: [the `spawn_fifo()` function defined on scopes][spawn_fifo].
+    ///
+    /// [spawn_fifo]: struct.ScopeFifo.html#method.spawn_fifo
     pub fn spawn_fifo<OP>(&self, op: OP)
     where
         OP: FnOnce() + Send + 'static,
