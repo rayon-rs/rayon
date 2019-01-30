@@ -24,6 +24,17 @@ use unwind;
 /// by a mutex, or some such thing). If you want to compute a result,
 /// consider `spawn_future()`.
 ///
+/// There is no guaranteed order of execution for spawns, given that
+/// other threads may steal tasks at any time. However, they are
+/// generally prioritized in a LIFO order on the thread from which
+/// they were spawned. Other threads always steal from the other end of
+/// the deque, like FIFO order.  The idea is that "recent" tasks are
+/// most likely to be fresh in the local CPU's cache, while other
+/// threads can steal older "stale" tasks.  For an alternate approach,
+/// consider [`spawn_fifo()`] instead.
+///
+/// [`spawn_fifo()`]: fn.spawn_fifo.html
+///
 /// # Panic handling
 ///
 /// If this closure should panic, the resulting panic will be
@@ -98,7 +109,32 @@ where
     .as_job_ref()
 }
 
-/// TODO: like `spawn`, but FIFO
+/// Fires off a task into the Rayon threadpool in the "static" or
+/// "global" scope.  Just like a standard thread, this task is not
+/// tied to the current stack frame, and hence it cannot hold any
+/// references other than those with `'static` lifetime. If you want
+/// to spawn a task that references stack data, use [the `scope_fifo()`
+/// function](fn.scope_fifo.html) to create a scope.
+///
+/// The behavior is essentially the same as [the `spawn`
+/// function](fn.spawn.html), except that calls from the same thread
+/// will be prioritized in FIFO order. This is similar to the now-
+/// deprecated [`breadth_first`] option, except the effect is isolated
+/// to relative `spawn_fifo` calls, not all threadpool tasks.
+///
+/// For more details on this design, see Rayon [RFC #1].
+///
+/// [`breadth_first`]: struct.ThreadPoolBuilder.html#method.breadth_first
+/// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+///
+/// # Panic handling
+///
+/// If this closure should panic, the resulting panic will be
+/// propagated to the panic handler registered in the `ThreadPoolBuilder`,
+/// if any.  See [`ThreadPoolBuilder::panic_handler()`][ph] for more
+/// details.
+///
+/// [ph]: struct.ThreadPoolBuilder.html#method.panic_handler
 pub fn spawn_fifo<F>(func: F)
 where
     F: FnOnce() + Send + 'static,
