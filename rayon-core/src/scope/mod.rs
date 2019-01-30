@@ -473,7 +473,20 @@ impl<'scope> ScopeFifo<'scope> {
         }
     }
 
-    /// TODO: like `Scope::spawn()` but FIFO
+    /// Spawns a job into the fork-join scope `self`. This job will
+    /// execute sometime before the fork-join scope completes.  The
+    /// job is specified as a closure, and this closure receives its
+    /// own reference to the scope `self` as argument. This can be
+    /// used to inject new jobs into `self`.
+    ///
+    /// # See also
+    ///
+    /// This method is akin to [`Scope::spawn()`], but with a FIFO
+    /// priority.  The [`scope_fifo` function] has more details about
+    /// this distinction.
+    ///
+    /// [`Scope::spawn()`]: struct.Scope.html#method.spawn
+    /// [`scope_fifo` function]: fn.scope.html
     pub fn spawn_fifo<BODY>(&self, body: BODY)
     where
         BODY: FnOnce(&ScopeFifo<'scope>) + Send + 'scope,
