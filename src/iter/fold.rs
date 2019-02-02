@@ -141,6 +141,14 @@ where
         }
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>
+    {
+        self.item = iter.into_iter().fold(self.item, self.fold_op);
+        self
+    }
+
     fn complete(self) -> C::Result {
         self.base.consume(self.item).complete()
     }

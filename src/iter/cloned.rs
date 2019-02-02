@@ -205,6 +205,14 @@ where
         }
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = &'a T>
+    {
+        self.base = self.base.consume_iter(iter.into_iter().cloned());
+        self
+    }
+
     fn complete(self) -> F::Result {
         self.base.complete()
     }

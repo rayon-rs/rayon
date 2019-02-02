@@ -136,6 +136,15 @@ where
         }
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>
+    {
+        self.base = self.base.consume_iter(iter.into_iter().filter(self.filter_op));
+        self
+    }
+
+
     fn complete(self) -> Self::Result {
         self.base.complete()
     }

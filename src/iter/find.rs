@@ -86,6 +86,16 @@ where
         self
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where I: IntoIterator<Item = T>
+    {
+        self.item = iter.into_iter().find(self.find_op);
+        if self.item.is_some() {
+            self.found.store(true, Ordering::Relaxed)
+        }
+        self
+    }
+
     fn complete(self) -> Self::Result {
         self.item
     }
