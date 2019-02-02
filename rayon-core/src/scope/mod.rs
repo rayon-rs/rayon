@@ -135,7 +135,7 @@ struct ScopeBase<'scope> {
 ///             });
 ///         });
 ///     });
-///     s.spawn(|s| { // task 2
+///     s.spawn(|s| { // task s.2
 ///     });
 ///     // point mid
 /// });
@@ -322,7 +322,7 @@ where
 ///             });
 ///         });
 ///     });
-///     s.spawn_fifo(|s| { // task 2
+///     s.spawn_fifo(|s| { // task s.2
 ///     });
 ///     // point mid
 /// });
