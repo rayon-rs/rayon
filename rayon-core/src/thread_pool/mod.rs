@@ -12,6 +12,7 @@ use std::sync::Arc;
 #[allow(deprecated)]
 use Configuration;
 use {scope, Scope};
+use {scope_fifo, ScopeFifo};
 use {ThreadPoolBuildError, ThreadPoolBuilder};
 
 mod internal;
@@ -238,6 +239,21 @@ impl ThreadPool {
         self.install(|| scope(op))
     }
 
+    /// Creates a scope that executes within this thread-pool.
+    /// Spawns from the same thread are prioritized in relative FIFO order.
+    /// Equivalent to `self.install(|| scope_fifo(...))`.
+    ///
+    /// See also: [the `scope_fifo()` function][scope_fifo].
+    ///
+    /// [scope_fifo]: fn.scope_fifo.html
+    pub fn scope_fifo<'scope, OP, R>(&self, op: OP) -> R
+    where
+        OP: for<'s> FnOnce(&'s ScopeFifo<'scope>) -> R + 'scope + Send,
+        R: Send,
+    {
+        self.install(|| scope_fifo(op))
+    }
+
     /// Spawns an asynchronous task in this thread-pool. This task will
     /// run in the implicit, global scope, which means that it may outlast
     /// the current stack frame -- therefore, it cannot capture any references
@@ -252,6 +268,22 @@ impl ThreadPool {
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_in(op, &self.registry) }
+    }
+
+    /// Spawns an asynchronous task in this thread-pool. This task will
+    /// run in the implicit, global scope, which means that it may outlast
+    /// the current stack frame -- therefore, it cannot capture any references
+    /// onto the stack (you will likely need a `move` closure).
+    ///
+    /// See also: [the `spawn_fifo()` function defined on scopes][spawn_fifo].
+    ///
+    /// [spawn_fifo]: struct.ScopeFifo.html#method.spawn_fifo
+    pub fn spawn_fifo<OP>(&self, op: OP)
+    where
+        OP: FnOnce() + Send + 'static,
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { spawn::spawn_fifo_in(op, &self.registry) }
     }
 }
 

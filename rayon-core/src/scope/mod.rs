@@ -4,7 +4,7 @@
 //! [`scope()`]: fn.scope.html
 //! [`join()`]: ../join/join.fn.html
 
-use job::HeapJob;
+use job::{HeapJob, JobFifo};
 use latch::{CountLatch, Latch};
 use log::Event::*;
 use registry::{in_worker, Registry, WorkerThread};
@@ -21,10 +21,25 @@ mod internal;
 #[cfg(test)]
 mod test;
 
-///Represents a fork-join scope which can be used to spawn any number of tasks. See [`scope()`] for more information.
+/// Represents a fork-join scope which can be used to spawn any number of tasks.
+/// See [`scope()`] for more information.
 ///
 ///[`scope()`]: fn.scope.html
 pub struct Scope<'scope> {
+    base: ScopeBase<'scope>,
+}
+
+/// Represents a fork-join scope which can be used to spawn any number of tasks.
+/// Those spawned from the same thread are prioritized in relative FIFO order.
+/// See [`scope_fifo()`] for more information.
+///
+///[`scope_fifo()`]: fn.scope_fifo.html
+pub struct ScopeFifo<'scope> {
+    base: ScopeBase<'scope>,
+    fifos: Vec<JobFifo>,
+}
+
+struct ScopeBase<'scope> {
     /// thread where `scope()` was executed (note that individual jobs
     /// may be executing on different worker threads, though they
     /// should always be within the same pool of threads)
@@ -120,7 +135,7 @@ pub struct Scope<'scope> {
 ///             });
 ///         });
 ///     });
-///     s.spawn(|s| { // task 2
+///     s.spawn(|s| { // task s.2
 ///     });
 ///     // point mid
 /// });
@@ -133,17 +148,18 @@ pub struct Scope<'scope> {
 /// | (start)
 /// |
 /// | (scope `s` created)
-/// +--------------------+ (task s.1)
-/// +-------+ (task s.2) |
-/// |       |            +---+ (task s.1.1)
-/// |       |            |   |
-/// |       |            |   | (scope `t` created)
-/// |       |            |   +----------------+ (task t.1)
-/// |       |            |   +---+ (task t.2) |
-/// | (mid) |            |   |   |            |
-/// :       |            |   + <-+------------+ (scope `t` ends)
-/// :       |            |   |
-/// |<------+------------+---+ (scope `s` ends)
+/// +-----------------------------------------------+ (task s.2)
+/// +-------+ (task s.1)                            |
+/// |       |                                       |
+/// |       +---+ (task s.1.1)                      |
+/// |       |   |                                   |
+/// |       |   | (scope `t` created)               |
+/// |       |   +----------------+ (task t.2)       |
+/// |       |   +---+ (task t.1) |                  |
+/// | (mid) |   |   |            |                  |
+/// :       |   + <-+------------+ (scope `t` ends) |
+/// :       |   |                                   |
+/// |<------+---+-----------------------------------+ (scope `s` ends)
 /// |
 /// | (end)
 /// ```
@@ -155,6 +171,19 @@ pub struct Scope<'scope> {
 /// scope is created (such as `t`), the things spawned into that scope
 /// will be joined before that scope returns, which in turn occurs
 /// before the creating task (task `s.1.1` in this case) finishes.
+///
+/// There is no guaranteed order of execution for spawns in a scope,
+/// given that other threads may steal tasks at any time. However, they
+/// are generally prioritized in a LIFO order on the thread from which
+/// they were spawned. So in this example, absent any stealing, we can
+/// expect `s.2` to execute before `s.1`, and `t.2` before `t.1`. Other
+/// threads always steal from the other end of the deque, like FIFO
+/// order.  The idea is that "recent" tasks are most likely to be fresh
+/// in the local CPU's cache, while other threads can steal older
+/// "stale" tasks.  For an alternate approach, consider
+/// [`scope_fifo()`] instead.
+///
+/// [`scope_fifo()`]: fn.scope_fifo.html
 ///
 /// # Accessing stack data
 ///
@@ -262,22 +291,109 @@ where
     R: Send,
 {
     in_worker(|owner_thread, _| {
-        unsafe {
-            let scope: Scope<'scope> = Scope {
-                owner_thread_index: owner_thread.index(),
-                registry: owner_thread.registry().clone(),
-                panic: AtomicPtr::new(ptr::null_mut()),
-                job_completed_latch: CountLatch::new(),
-                marker: PhantomData,
-            };
-            let result = scope.execute_job_closure(op);
-            scope.steal_till_jobs_complete(owner_thread);
-            result.unwrap() // only None if `op` panicked, and that would have been propagated
-        }
+        let scope = Scope::<'scope>::new(owner_thread);
+        unsafe { scope.base.complete(owner_thread, || op(&scope)) }
+    })
+}
+
+/// Create a "fork-join" scope `s` with FIFO order, and invokes the
+/// closure with a reference to `s`. This closure can then spawn
+/// asynchronous tasks into `s`. Those tasks may run asynchronously with
+/// respect to the closure; they may themselves spawn additional tasks
+/// into `s`. When the closure returns, it will block until all tasks
+/// that have been spawned into `s` complete.
+///
+/// # Task execution
+///
+/// Tasks in a `scope_fifo()` run similarly to [`scope()`], but there's a
+/// difference in the order of execution. Consider a similar example:
+///
+/// [`scope()`]: fn.scope.html
+///
+/// ```rust
+/// # use rayon_core as rayon;
+/// // point start
+/// rayon::scope_fifo(|s| {
+///     s.spawn_fifo(|s| { // task s.1
+///         s.spawn_fifo(|s| { // task s.1.1
+///             rayon::scope_fifo(|t| {
+///                 t.spawn_fifo(|_| ()); // task t.1
+///                 t.spawn_fifo(|_| ()); // task t.2
+///             });
+///         });
+///     });
+///     s.spawn_fifo(|s| { // task s.2
+///     });
+///     // point mid
+/// });
+/// // point end
+/// ```
+///
+/// The various tasks that are run will execute roughly like so:
+///
+/// ```notrust
+/// | (start)
+/// |
+/// | (FIFO scope `s` created)
+/// +--------------------+ (task s.1)
+/// +-------+ (task s.2) |
+/// |       |            +---+ (task s.1.1)
+/// |       |            |   |
+/// |       |            |   | (FIFO scope `t` created)
+/// |       |            |   +----------------+ (task t.1)
+/// |       |            |   +---+ (task t.2) |
+/// | (mid) |            |   |   |            |
+/// :       |            |   + <-+------------+ (scope `t` ends)
+/// :       |            |   |
+/// |<------+------------+---+ (scope `s` ends)
+/// |
+/// | (end)
+/// ```
+///
+/// Under `scope_fifo()`, the spawns are prioritized in a FIFO order on
+/// the thread from which they were spawned, as opposed to `scope()`'s
+/// LIFO.  So in this example, we can expect `s.1` to execute before
+/// `s.2`, and `t.1` before `t.2`. Other threads also steal tasks in
+/// FIFO order, as usual. Overall, this has roughly the same order as
+/// the now-deprecated [`breadth_first`] option, except the effect is
+/// isolated to a particular scope. If spawns are intermingled from any
+/// combination of `scope()` and `scope_fifo()`, or from different
+/// threads, their order is only specified with respect to spawns in the
+/// same scope and thread.
+///
+/// For more details on this design, see Rayon [RFC #1].
+///
+/// [`breadth_first`]: struct.ThreadPoolBuilder.html#method.breadth_first
+/// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+///
+/// # Panics
+///
+/// If a panic occurs, either in the closure given to `scope_fifo()` or
+/// in any of the spawned jobs, that panic will be propagated and the
+/// call to `scope_fifo()` will panic. If multiple panics occurs, it is
+/// non-deterministic which of their panic values will propagate.
+/// Regardless, once a task is spawned using `scope.spawn_fifo()`, it
+/// will execute, even if the spawning task should later panic.
+/// `scope_fifo()` returns once all spawned jobs have completed, and any
+/// panics are propagated at that point.
+pub fn scope_fifo<'scope, OP, R>(op: OP) -> R
+where
+    OP: for<'s> FnOnce(&'s ScopeFifo<'scope>) -> R + 'scope + Send,
+    R: Send,
+{
+    in_worker(|owner_thread, _| {
+        let scope = ScopeFifo::<'scope>::new(owner_thread);
+        unsafe { scope.base.complete(owner_thread, || op(&scope)) }
     })
 }
 
 impl<'scope> Scope<'scope> {
+    fn new(owner_thread: &WorkerThread) -> Self {
+        Scope {
+            base: ScopeBase::new(owner_thread),
+        }
+    }
+
     /// Spawns a job into the fork-join scope `self`. This job will
     /// execute sometime before the fork-join scope completes.  The
     /// job is specified as a closure, and this closure receives its
@@ -334,15 +450,94 @@ impl<'scope> Scope<'scope> {
     where
         BODY: FnOnce(&Scope<'scope>) + Send + 'scope,
     {
+        self.base.increment();
         unsafe {
-            self.job_completed_latch.increment();
-            let job_ref = Box::new(HeapJob::new(move || self.execute_job(body))).as_job_ref();
+            let job_ref = Box::new(HeapJob::new(move || {
+                self.base.execute_job(move || body(self))
+            }))
+            .as_job_ref();
 
-            // Since `Scope` implements `Sync`, we can't be sure
-            // that we're still in a thread of this pool, so we
-            // can't just push to the local worker thread.
-            self.registry.inject_or_push(job_ref);
+            // Since `Scope` implements `Sync`, we can't be sure that we're still in a
+            // thread of this pool, so we can't just push to the local worker thread.
+            self.base.registry.inject_or_push(job_ref);
         }
+    }
+}
+
+impl<'scope> ScopeFifo<'scope> {
+    fn new(owner_thread: &WorkerThread) -> Self {
+        let num_threads = owner_thread.registry().num_threads();
+        ScopeFifo {
+            base: ScopeBase::new(owner_thread),
+            fifos: (0..num_threads).map(|_| JobFifo::new()).collect(),
+        }
+    }
+
+    /// Spawns a job into the fork-join scope `self`. This job will
+    /// execute sometime before the fork-join scope completes.  The
+    /// job is specified as a closure, and this closure receives its
+    /// own reference to the scope `self` as argument. This can be
+    /// used to inject new jobs into `self`.
+    ///
+    /// # See also
+    ///
+    /// This method is akin to [`Scope::spawn()`], but with a FIFO
+    /// priority.  The [`scope_fifo` function] has more details about
+    /// this distinction.
+    ///
+    /// [`Scope::spawn()`]: struct.Scope.html#method.spawn
+    /// [`scope_fifo` function]: fn.scope.html
+    pub fn spawn_fifo<BODY>(&self, body: BODY)
+    where
+        BODY: FnOnce(&ScopeFifo<'scope>) + Send + 'scope,
+    {
+        self.base.increment();
+        unsafe {
+            let job_ref = Box::new(HeapJob::new(move || {
+                self.base.execute_job(move || body(self))
+            }))
+            .as_job_ref();
+
+            // If we're in the pool, use our scope's private fifo for this thread to execute
+            // in a locally-FIFO order.  Otherwise, just use the pool's global injector.
+            match self.base.registry.current_thread() {
+                Some(worker) => {
+                    let fifo = &self.fifos[worker.index()];
+                    worker.push(fifo.push(job_ref));
+                }
+                None => self.base.registry.inject(&[job_ref]),
+            }
+        }
+    }
+}
+
+impl<'scope> ScopeBase<'scope> {
+    /// Create the base of a new scope for the given worker thread
+    fn new(owner_thread: &WorkerThread) -> Self {
+        ScopeBase {
+            owner_thread_index: owner_thread.index(),
+            registry: owner_thread.registry().clone(),
+            panic: AtomicPtr::new(ptr::null_mut()),
+            job_completed_latch: CountLatch::new(),
+            marker: PhantomData,
+        }
+    }
+
+    fn increment(&self) {
+        self.job_completed_latch.increment();
+    }
+
+    /// Executes `func` as a job, either aborting or executing as
+    /// appropriate.
+    ///
+    /// Unsafe because it must be executed on a worker thread.
+    unsafe fn complete<FUNC, R>(&self, owner_thread: &WorkerThread, func: FUNC) -> R
+    where
+        FUNC: FnOnce() -> R,
+    {
+        let result = self.execute_job_closure(func);
+        self.steal_till_jobs_complete(owner_thread);
+        result.unwrap() // only None if `op` panicked, and that would have been propagated
     }
 
     /// Executes `func` as a job, either aborting or executing as
@@ -351,7 +546,7 @@ impl<'scope> Scope<'scope> {
     /// Unsafe because it must be executed on a worker thread.
     unsafe fn execute_job<FUNC>(&self, func: FUNC)
     where
-        FUNC: FnOnce(&Scope<'scope>) + 'scope,
+        FUNC: FnOnce(),
     {
         let _: Option<()> = self.execute_job_closure(func);
     }
@@ -363,9 +558,9 @@ impl<'scope> Scope<'scope> {
     /// Unsafe because this must be executed on a worker thread.
     unsafe fn execute_job_closure<FUNC, R>(&self, func: FUNC) -> Option<R>
     where
-        FUNC: FnOnce(&Scope<'scope>) -> R + 'scope,
+        FUNC: FnOnce() -> R,
     {
-        match unwind::halt_unwinding(move || func(self)) {
+        match unwind::halt_unwinding(func) {
             Ok(r) => {
                 self.job_completed_ok();
                 Some(r)
@@ -431,10 +626,22 @@ impl<'scope> Scope<'scope> {
 impl<'scope> fmt::Debug for Scope<'scope> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Scope")
-            .field("pool_id", &self.registry.id())
-            .field("owner_thread_index", &self.owner_thread_index)
-            .field("panic", &self.panic)
-            .field("job_completed_latch", &self.job_completed_latch)
+            .field("pool_id", &self.base.registry.id())
+            .field("owner_thread_index", &self.base.owner_thread_index)
+            .field("panic", &self.base.panic)
+            .field("job_completed_latch", &self.base.job_completed_latch)
+            .finish()
+    }
+}
+
+impl<'scope> fmt::Debug for ScopeFifo<'scope> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ScopeFifo")
+            .field("num_fifos", &self.fifos.len())
+            .field("pool_id", &self.base.registry.id())
+            .field("owner_thread_index", &self.base.owner_thread_index)
+            .field("panic", &self.base.panic)
+            .field("job_completed_latch", &self.base.job_completed_latch)
             .finish()
     }
 }

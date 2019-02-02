@@ -1,7 +1,8 @@
 #![cfg(test)]
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 
 use join;
 use thread_pool::ThreadPool;
@@ -204,4 +205,68 @@ fn mutual_install_sleepy() {
 fn check_thread_pool_new() {
     let pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
     assert_eq!(pool.current_num_threads(), 22);
+}
+
+macro_rules! test_scope_order {
+    ($scope:ident => $spawn:ident) => {{
+        let builder = ThreadPoolBuilder::new().num_threads(1);
+        let pool = builder.build().unwrap();
+        pool.install(|| {
+            let vec = Mutex::new(vec![]);
+            pool.$scope(|scope| {
+                let vec = &vec;
+                for i in 0..10 {
+                    scope.$spawn(move |_| {
+                        vec.lock().unwrap().push(i);
+                    });
+                }
+            });
+            vec.into_inner().unwrap()
+        })
+    }};
+}
+
+#[test]
+fn scope_lifo_order() {
+    let vec = test_scope_order!(scope => spawn);
+    let expected: Vec<i32> = (0..10).rev().collect(); // LIFO -> reversed
+    assert_eq!(vec, expected);
+}
+
+#[test]
+fn scope_fifo_order() {
+    let vec = test_scope_order!(scope_fifo => spawn_fifo);
+    let expected: Vec<i32> = (0..10).collect(); // FIFO -> natural order
+    assert_eq!(vec, expected);
+}
+
+macro_rules! test_spawn_order {
+    ($spawn:ident) => {{
+        let builder = ThreadPoolBuilder::new().num_threads(1);
+        let pool = &builder.build().unwrap();
+        let (tx, rx) = channel();
+        pool.install(move || {
+            for i in 0..10 {
+                let tx = tx.clone();
+                pool.$spawn(move || {
+                    tx.send(i).unwrap();
+                });
+            }
+        });
+        rx.iter().collect::<Vec<i32>>()
+    }};
+}
+
+#[test]
+fn spawn_lifo_order() {
+    let vec = test_spawn_order!(spawn);
+    let expected: Vec<i32> = (0..10).rev().collect(); // LIFO -> reversed
+    assert_eq!(vec, expected);
+}
+
+#[test]
+fn spawn_fifo_order() {
+    let vec = test_spawn_order!(spawn_fifo);
+    let expected: Vec<i32> = (0..10).collect(); // FIFO -> natural order
+    assert_eq!(vec, expected);
 }

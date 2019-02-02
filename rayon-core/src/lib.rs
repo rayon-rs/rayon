@@ -31,6 +31,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
+extern crate crossbeam;
 extern crate crossbeam_deque;
 #[macro_use]
 extern crate lazy_static;
@@ -61,7 +62,8 @@ mod test;
 pub mod internal;
 pub use join::{join, join_context};
 pub use scope::{scope, Scope};
-pub use spawn::spawn;
+pub use scope::{scope_fifo, ScopeFifo};
+pub use spawn::{spawn, spawn_fifo};
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::ThreadPool;
@@ -314,16 +316,17 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Suggest to worker threads that they execute spawned jobs in a
-    /// "breadth-first" fashion. Typically, when a worker thread is
-    /// idle or blocked, it will attempt to execute the job from the
-    /// *top* of its local deque of work (i.e., the job most recently
-    /// spawned). If this flag is set to true, however, workers will
-    /// prefer to execute in a *breadth-first* fashion -- that is,
-    /// they will search for jobs at the *bottom* of their local
-    /// deque. (At present, workers *always* steal from the bottom of
-    /// other worker's deques, regardless of the setting of this
-    /// flag.)
+    /// **(DEPRECATED)** Suggest to worker threads that they execute
+    /// spawned jobs in a "breadth-first" fashion.
+    ///
+    /// Typically, when a worker thread is idle or blocked, it will
+    /// attempt to execute the job from the *top* of its local deque of
+    /// work (i.e., the job most recently spawned). If this flag is set
+    /// to true, however, workers will prefer to execute in a
+    /// *breadth-first* fashion -- that is, they will search for jobs at
+    /// the *bottom* of their local deque. (At present, workers *always*
+    /// steal from the bottom of other worker's deques, regardless of
+    /// the setting of this flag.)
     ///
     /// If you think of the tasks as a tree, where a parent task
     /// spawns its children in the tree, then this flag loosely
@@ -334,6 +337,14 @@ impl ThreadPoolBuilder {
     /// execution is highly dynamic and the precise order in which
     /// independent tasks are executed is not intended to be
     /// guaranteed.
+    ///
+    /// This `breadth_first()` method is now deprecated per [RFC #1],
+    /// and in the future its effect may be removed. Consider using
+    /// [`scope_fifo()`] for a similar effect.
+    ///
+    /// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+    /// [`scope_fifo()`]: fn.scope_fifo.html
+    #[deprecated(note = "use `scope_fifo` and `spawn_fifo` for similar effect")]
     pub fn breadth_first(mut self) -> Self {
         self.breadth_first = true;
         self

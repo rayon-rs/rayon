@@ -1,3 +1,4 @@
+use crossbeam::sync::SegQueue;
 use latch::Latch;
 use std::any::Any;
 use std::cell::UnsafeCell;
@@ -177,5 +178,37 @@ impl<T> JobResult<T> {
             JobResult::Ok(x) => x,
             JobResult::Panic(x) => unwind::resume_unwinding(x),
         }
+    }
+}
+
+/// Indirect queue to provide FIFO job priority.
+pub struct JobFifo {
+    inner: SegQueue<JobRef>,
+}
+
+impl JobFifo {
+    pub fn new() -> Self {
+        JobFifo {
+            inner: SegQueue::new(),
+        }
+    }
+
+    pub unsafe fn push(&self, job_ref: JobRef) -> JobRef {
+        // A little indirection ensures that spawns are always prioritized in FIFO order.  The
+        // jobs in a thread's deque may be popped from the back (LIFO) or stolen from the front
+        // (FIFO), but either way they will end up popping from the front of this queue.
+        self.inner.push(job_ref);
+        JobRef::new(self)
+    }
+}
+
+impl Job for JobFifo {
+    unsafe fn execute(this: *const Self) {
+        // We "execute" a queue by executing its first job, FIFO.
+        (*this)
+            .inner
+            .try_pop()
+            .expect("job in fifo queue")
+            .execute()
     }
 }
