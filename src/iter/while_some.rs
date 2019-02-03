@@ -122,6 +122,26 @@ where
         self
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where I: IntoIterator<Item = Option<T>>
+    {
+        let full = self.full;
+        self.base = self.base.consume_iter(
+            iter.into_iter()
+                .take_while(|x| {
+                    match *x {
+                        Some(_) => !full.load(Ordering::Relaxed),
+                        None => {
+                            full.store(true, Ordering::Relaxed);
+                            false
+                        }
+                    }
+                })
+                .map(|x| x.unwrap())
+        );
+        self
+    }
+
     fn complete(self) -> C::Result {
         self.base.complete()
     }
