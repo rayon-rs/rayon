@@ -1,7 +1,7 @@
 use super::plumbing::*;
 use super::*;
 use std::cell::Cell;
-use std::iter::Fuse;
+use std::iter::{self, Fuse};
 
 /// `Intersperse` is an iterator that inserts a particular item between each
 /// item of the adapted iterator.  This struct is created by the
@@ -380,6 +380,30 @@ where
         }
         self.base = self.base.consume(item);
         self
+    }
+
+    fn consume_iter<I>(self, iter: I) -> Self
+    where I: IntoIterator<Item = T>
+    {
+        let mut clone_first = self.clone_first;
+        let between_item = self.item;
+        let base = self.base.consume_iter(
+            iter.into_iter()
+                .flat_map(|item| {
+                    let first = if clone_first {
+                        Some(between_item.clone())
+                    } else {
+                        clone_first = true;
+                        None
+                    };
+                    first.into_iter().chain(iter::once(item))
+                })
+        );
+        IntersperseFolder {
+            base: base,
+            item: between_item,
+            clone_first: clone_first,
+        }
     }
 
     fn complete(self) -> C::Result {
