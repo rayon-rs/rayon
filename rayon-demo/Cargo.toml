@@ -6,13 +6,14 @@ publish = false
 
 [dependencies]
 rayon = { path = "../" }
-cgmath = "0.16"
+cgmath = "0.17"
 docopt = "1"
 fixedbitset = "0.1.5"
-glium = "0.21"
+glium = "0.23"
 lazy_static = "1"
 odds = "0.3"
-rand = "0.5"
+rand = "0.6"
+rand_xorshift = "0.1"
 regex = "1"
 serde = "1"
 serde_derive = "1"

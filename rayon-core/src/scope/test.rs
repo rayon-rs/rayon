@@ -1,4 +1,5 @@
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, SeedableRng};
+use rand_xorshift::XorShiftRng;
 use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};

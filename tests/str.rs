@@ -1,8 +1,10 @@
 extern crate rand;
+extern crate rand_xorshift;
 extern crate rayon;
 
 use rand::distributions::Standard;
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, SeedableRng};
+use rand_xorshift::XorShiftRng;
 use rayon::prelude::*;
 
 fn seeded_rng() -> XorShiftRng {
