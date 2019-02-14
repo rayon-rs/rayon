@@ -89,7 +89,11 @@ where
     fn consume_iter<I>(mut self, iter: I) -> Self
     where I: IntoIterator<Item = T>
     {
-        self.item = iter.into_iter().find(self.find_op);
+        self.item = iter
+            .into_iter()
+            // stop iterating if another thread has found something
+            .take_while(|_| !self.full())
+            .find(self.find_op);
         if self.item.is_some() {
             self.found.store(true, Ordering::Relaxed)
         }

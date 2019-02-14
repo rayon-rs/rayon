@@ -141,12 +141,18 @@ where
         }
     }
 
-    fn consume_iter<I>(mut self, iter: I) -> Self
+    fn consume_iter<I>(self, iter: I) -> Self
     where
         I: IntoIterator<Item = T>
     {
-        self.item = iter.into_iter().fold(self.item, self.fold_op);
-        self
+        let base = self.base;
+        let item = iter
+            .into_iter()
+            // stop iterating if another thread has finished
+            .take_while(|_| !base.full())
+            .fold(self.item, self.fold_op);
+
+        FoldFolder { base: base, item: item, fold_op: self.fold_op }
     }
 
     fn complete(self) -> C::Result {

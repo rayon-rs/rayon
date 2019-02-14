@@ -136,14 +136,9 @@ where
         }
     }
 
-    fn consume_iter<I>(mut self, iter: I) -> Self
-    where
-        I: IntoIterator<Item = T>
-    {
-        self.base = self.base.consume_iter(iter.into_iter().filter(self.filter_op));
-        self
-    }
-
+    // This cannot easily specialize `consume_iter` to be better than
+    // the default, because that requires checking `self.base.full()`
+    // during a call to `self.base.consume_iter()`. (#632)
 
     fn complete(self) -> Self::Result {
         self.base.complete()
