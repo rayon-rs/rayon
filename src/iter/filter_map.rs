@@ -140,6 +140,10 @@ where
         }
     }
 
+    // This cannot easily specialize `consume_iter` to be better than
+    // the default, because that requires checking `self.base.full()`
+    // during a call to `self.base.consume_iter()`. (#632)
+
     fn complete(self) -> C::Result {
         self.base.complete()
     }

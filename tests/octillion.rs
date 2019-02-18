@@ -42,27 +42,65 @@ fn find_first_octillion_flat() {
     assert_eq!(x, Some(0));
 }
 
-#[test]
-fn find_last_octillion() {
+fn two_threads<F: Send + FnOnce() -> R, R: Send>(f: F) -> R {
     // FIXME: If we don't use at least two threads, then we end up walking
     // through the entire iterator sequentially, without the benefit of any
     // short-circuiting.  We probably don't want testing to wait that long. ;)
-    // It would be nice if `find_last` could prioritize the later splits,
-    // basically flipping the `join` args, without needing indexed `rev`.
-    // (or could we have an unindexed `rev`?)
     let builder = rayon::ThreadPoolBuilder::new().num_threads(2);
     let pool = builder.build().unwrap();
 
-    let x = pool.install(|| octillion().find_last(|_| true));
+    pool.install(f)
+}
+
+#[test]
+fn find_last_octillion() {
+    // It would be nice if `find_last` could prioritize the later splits,
+    // basically flipping the `join` args, without needing indexed `rev`.
+    // (or could we have an unindexed `rev`?)
+    let x = two_threads(|| octillion().find_last(|_| true));
     assert_eq!(x, Some(OCTILLION - 1));
 }
 
 #[test]
 fn find_last_octillion_flat() {
-    // FIXME: Ditto, need two threads.
-    let builder = rayon::ThreadPoolBuilder::new().num_threads(2);
-    let pool = builder.build().unwrap();
-
-    let x = pool.install(|| octillion_flat().find_last(|_| true));
+    let x = two_threads(|| octillion_flat().find_last(|_| true));
     assert_eq!(x, Some(OCTILLION - 1));
+}
+
+#[test]
+fn find_any_octillion() {
+    let x = two_threads(|| octillion().find_any(|x| *x > OCTILLION / 2));
+    assert!(x.is_some());
+}
+
+#[test]
+fn find_any_octillion_flat() {
+    let x = two_threads(|| octillion_flat().find_any(|x| *x > OCTILLION / 2));
+    assert!(x.is_some());
+}
+
+#[test]
+fn filter_find_any_octillion() {
+    let x = two_threads(|| {
+        octillion()
+            .filter(|x| *x > OCTILLION / 2)
+            .find_any(|_| true)
+    });
+    assert!(x.is_some());
+}
+
+#[test]
+fn filter_find_any_octillion_flat() {
+    let x = two_threads(|| {
+        octillion_flat()
+            .filter(|x| *x > OCTILLION / 2)
+            .find_any(|_| true)
+    });
+    assert!(x.is_some());
+}
+
+#[test]
+fn fold_find_any_octillion_flat() {
+    let x = two_threads(|| octillion_flat().fold(|| (), |_, _| ()).find_any(|_| true));
+    assert!(x.is_some());
 }

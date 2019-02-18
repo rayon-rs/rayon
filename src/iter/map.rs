@@ -247,6 +247,14 @@ where
         }
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        self.base = self.base.consume_iter(iter.into_iter().map(self.map_op));
+        self
+    }
+
     fn complete(self) -> C::Result {
         self.base.complete()
     }

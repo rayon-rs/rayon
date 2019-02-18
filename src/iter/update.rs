@@ -245,6 +245,18 @@ where
         }
     }
 
+    fn consume_iter<I>(mut self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let update_op = self.update_op;
+        self.base = self.base.consume_iter(iter.into_iter().map(|mut item| {
+            update_op(&mut item);
+            item
+        }));
+        self
+    }
+
     fn complete(self) -> C::Result {
         self.base.complete()
     }
