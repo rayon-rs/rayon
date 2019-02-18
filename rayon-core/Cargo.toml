@@ -19,10 +19,12 @@ num_cpus = "1.2"
 lazy_static = "1"
 crossbeam-deque = "0.6.3"
 crossbeam-queue = "0.1.2"
+crossbeam-utils = "0.6.5"
 
 [dev-dependencies]
 rand = "0.6"
 rand_xorshift = "0.1"
+scoped-tls = "1.0"
 
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"
@@ -49,3 +51,7 @@ path = "tests/scope_join.rs"
 [[test]]
 name = "simple_panic"
 path = "tests/simple_panic.rs"
+
+[[test]]
+name = "scoped_threadpool"
+path = "tests/scoped_threadpool.rs"

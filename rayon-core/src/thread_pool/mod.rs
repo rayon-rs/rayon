@@ -8,12 +8,13 @@ use registry::{Registry, WorkerThread};
 use spawn;
 use std::error::Error;
 use std::fmt;
+use std::io;
 use std::sync::Arc;
 #[allow(deprecated)]
 use Configuration;
 use {scope, Scope};
 use {scope_fifo, ScopeFifo};
-use {ThreadPoolBuildError, ThreadPoolBuilder};
+use {ThreadBuilder, ThreadPoolBuildError, ThreadPoolBuilder};
 
 mod internal;
 mod test;
@@ -63,6 +64,14 @@ impl ThreadPool {
 
     pub(super) fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
         let registry = Registry::new(builder)?;
+        Ok(ThreadPool { registry })
+    }
+
+    pub(super) fn build_spawn(
+        builder: ThreadPoolBuilder,
+        spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
+    ) -> Result<ThreadPool, ThreadPoolBuildError> {
+        let registry = Registry::spawn(builder, spawn)?;
         Ok(ThreadPool { registry })
     }
 

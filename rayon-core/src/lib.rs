@@ -64,6 +64,7 @@ mod test;
 #[cfg(rayon_unstable)]
 pub mod internal;
 pub use join::{join, join_context};
+pub use registry::ThreadBuilder;
 pub use scope::{scope, Scope};
 pub use scope::{scope_fifo, ScopeFifo};
 pub use spawn::{spawn, spawn_fifo};
@@ -185,6 +186,21 @@ impl ThreadPoolBuilder {
         ThreadPool::build(self)
     }
 
+    /// Create a new `ThreadPool` initialized using this configuration and a
+    /// custom function for spawning threads.
+    ///
+    /// Note that the threads will not exit until after the pool is dropped. It
+    /// is up to the caller to wait for thread termination if that is important
+    /// for any invariants. For instance, threads created in `crossbeam::scope`
+    /// will be joined before that scope returns, and this will block indefinitely
+    /// if the pool is leaked.
+    pub fn spawn(
+        self,
+        spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
+    ) -> Result<ThreadPool, ThreadPoolBuildError> {
+        ThreadPool::build_spawn(self, spawn)
+    }
+
     /// Initializes the global thread pool. This initialization is
     /// **optional**.  If you do not call this function, the thread pool
     /// will be automatically initialized with the default
@@ -204,6 +220,21 @@ impl ThreadPoolBuilder {
     /// is the first initialization of the thread pool.
     pub fn build_global(self) -> Result<(), ThreadPoolBuildError> {
         let registry = registry::init_global_registry(self)?;
+        registry.wait_until_primed();
+        Ok(())
+    }
+
+    /// Initializes the global thread pool using a custom function for spawning
+    /// threads.
+    ///
+    /// Note that the global thread pool doesn't terminate until the entire process
+    /// exits! If this is used with something like `crossbeam::scope` that tries to
+    /// join threads, that will block indefinitely.
+    pub fn spawn_global(
+        self,
+        spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
+    ) -> Result<(), ThreadPoolBuildError> {
+        let registry = registry::spawn_global_registry(self, spawn)?;
         registry.wait_until_primed();
         Ok(())
     }
