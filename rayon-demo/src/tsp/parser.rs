@@ -80,7 +80,7 @@ pub fn parse_tsp_data(text: &str) -> Result<Graph, String> {
             return Err(format!(
                 "line {}: never found DIMENSION header",
                 data.line_num
-            ))
+            ));
         }
     };
     let mut graph = Graph::new(num_nodes);
@@ -105,7 +105,7 @@ pub fn parse_tsp_data(text: &str) -> Result<Graph, String> {
                     "line {}: never found coordinate for node {}",
                     data.line_num,
                     i.index()
-                ))
+                ));
             }
         };
         for j in graph.all_nodes().filter(|&j| j != i) {
@@ -116,7 +116,7 @@ pub fn parse_tsp_data(text: &str) -> Result<Graph, String> {
                         "line {}: never found coordinate for node {}",
                         data.line_num,
                         j.index()
-                    ))
+                    ));
                 }
             };
 
