@@ -81,13 +81,21 @@ fn find_any_octillion_flat() {
 
 #[test]
 fn filter_find_any_octillion() {
-    let x = two_threads(|| octillion().filter(|x| *x > OCTILLION / 2).find_any(|_| true));
+    let x = two_threads(|| {
+        octillion()
+            .filter(|x| *x > OCTILLION / 2)
+            .find_any(|_| true)
+    });
     assert!(x.is_some());
 }
 
 #[test]
 fn filter_find_any_octillion_flat() {
-    let x = two_threads(|| octillion_flat().filter(|x| *x > OCTILLION / 2).find_any(|_| true));
+    let x = two_threads(|| {
+        octillion_flat()
+            .filter(|x| *x > OCTILLION / 2)
+            .find_any(|_| true)
+    });
     assert!(x.is_some());
 }
 

@@ -87,7 +87,8 @@ where
     }
 
     fn consume_iter<I>(mut self, iter: I) -> Self
-    where I: IntoIterator<Item = T>
+    where
+        I: IntoIterator<Item = T>,
     {
         self.item = iter
             .into_iter()

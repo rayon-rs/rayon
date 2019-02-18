@@ -143,7 +143,7 @@ where
 
     fn consume_iter<I>(self, iter: I) -> Self
     where
-        I: IntoIterator<Item = T>
+        I: IntoIterator<Item = T>,
     {
         let base = self.base;
         let item = iter
@@ -152,7 +152,11 @@ where
             .take_while(|_| !base.full())
             .fold(self.item, self.fold_op);
 
-        FoldFolder { base: base, item: item, fold_op: self.fold_op }
+        FoldFolder {
+            base: base,
+            item: item,
+            fold_op: self.fold_op,
+        }
     }
 
     fn complete(self) -> C::Result {
