@@ -743,9 +743,9 @@ mod tests {
         let mut rng = thread_rng();
 
         for _ in 0..100 {
-            let limit = rng.gen_range::<u32>(1, 21);
-            let left_len = rng.gen_range::<usize>(0, 20);
-            let right_len = rng.gen_range::<usize>(0, 20);
+            let limit: u32 = rng.gen_range(1, 21);
+            let left_len: usize = rng.gen_range(0, 20);
+            let right_len: usize = rng.gen_range(0, 20);
 
             let mut left = rng
                 .sample_iter(&Uniform::new(0, limit))

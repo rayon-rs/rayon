@@ -40,6 +40,8 @@ extern crate num_cpus;
 
 #[cfg(test)]
 extern crate rand;
+#[cfg(test)]
+extern crate rand_xorshift;
 
 #[macro_use]
 mod log;

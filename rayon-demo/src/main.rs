@@ -48,6 +48,7 @@ extern crate libc; // life
 extern crate num;
 extern crate odds; // sieve
 extern crate rand; // nbody
+extern crate rand_xorshift; // nbody
 extern crate time; // nbody, sieve // factorial
 #[macro_use]
 extern crate lazy_static; // find
@@ -109,8 +110,9 @@ fn main() {
     }
 }
 
-fn seeded_rng() -> rand::XorShiftRng {
-    use rand::{SeedableRng, XorShiftRng};
+fn seeded_rng() -> rand_xorshift::XorShiftRng {
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
     (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
     XorShiftRng::from_seed(seed)

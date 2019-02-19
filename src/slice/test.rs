@@ -3,6 +3,7 @@
 use super::ParallelSliceMut;
 use rand::distributions::Uniform;
 use rand::{thread_rng, Rng};
+use rand::seq::SliceRandom;
 use std::cmp::Ordering::{Equal, Greater, Less};
 
 macro_rules! sort {
@@ -69,7 +70,7 @@ macro_rules! sort {
             // Sort using a completely random comparison function.
             // This will reorder the elements *somehow*, but won't panic.
             let mut v: Vec<_> = (0..100).collect();
-            v.$f(|_, _| *thread_rng().choose(&[Less, Equal, Greater]).unwrap());
+            v.$f(|_, _| *[Less, Equal, Greater].choose(&mut thread_rng()).unwrap());
             v.$f(|a, b| a.cmp(b));
             for i in 0..v.len() {
                 assert_eq!(v[i], i);
@@ -101,9 +102,10 @@ fn test_par_sort_stability() {
             // the second item represents which occurrence of that
             // number this element is, i.e. the second elements
             // will occur in sorted order.
+            let mut rng = thread_rng();
             let mut v: Vec<_> = (0..len)
                 .map(|_| {
-                    let n = thread_rng().gen_range::<usize>(0, 10);
+                    let n: usize = rng.gen_range(0, 10);
                     counts[n] += 1;
                     (n, counts[n])
                 })

@@ -83,6 +83,8 @@ extern crate rayon_core;
 
 #[cfg(test)]
 extern crate rand;
+#[cfg(test)]
+extern crate rand_xorshift;
 
 #[macro_use]
 mod delegate;

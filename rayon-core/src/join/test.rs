@@ -2,7 +2,8 @@
 
 use join::*;
 use rand::distributions::Standard;
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, SeedableRng};
+use rand_xorshift::XorShiftRng;
 use unwind;
 use ThreadPoolBuilder;
 

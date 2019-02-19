@@ -80,7 +80,7 @@ implement_vertex!(Instance, color, world_position);
 pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
     let mut events_loop = EventsLoop::new();
     let window = WindowBuilder::new()
-        .with_dimensions(800, 600)
+        .with_dimensions((800, 600).into())
         .with_title("nbody demo".to_string());
     let context = ContextBuilder::new().with_depth_buffer(24);
     let display = Display::new(window, context, &events_loop).unwrap();
@@ -191,7 +191,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
         events_loop.poll_events(|event| {
             if let Event::WindowEvent { event, .. } = event {
                 match event {
-                    WindowEvent::Closed => done = true,
+                    WindowEvent::CloseRequested => done = true,
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let ElementState::Pressed = input.state {
                             match input.virtual_keycode {

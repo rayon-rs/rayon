@@ -140,7 +140,7 @@ such as string characters.
 ## What on earth is `ProducerCallback`?
 
 We saw that when you call a parallel action method like
-`par_iter.reduce()`, that will creating a "reducing" consumer and then
+`par_iter.reduce()`, that will create a "reducing" consumer and then
 invoke `par_iter.drive_unindexed()` (or `par_iter.drive()`) as
 appropriate. This may create yet more consumers as we proceed up the
 parallel iterator chain. But at some point we're going to get to the
