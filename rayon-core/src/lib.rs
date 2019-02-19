@@ -34,6 +34,7 @@ use std::str::FromStr;
 
 extern crate crossbeam_deque;
 extern crate crossbeam_queue;
+extern crate crossbeam_utils;
 #[cfg(any(debug_assertions, rayon_unstable))]
 #[macro_use]
 extern crate lazy_static;
@@ -184,6 +185,37 @@ impl ThreadPoolBuilder {
     /// Create a new `ThreadPool` initialized using this configuration.
     pub fn build(self) -> Result<ThreadPool, ThreadPoolBuildError> {
         ThreadPool::build(self)
+    }
+
+    /// Create a scoped `ThreadPool` initialized using this configuration.
+    ///
+    /// The threads in this pool will start by calling `wrapper`, which should
+    /// do initialization and continue by calling `ThreadBuilder::run()`.
+    pub fn build_scoped<W, F, R>(self, wrapper: W, with_pool: F) -> Result<R, ThreadPoolBuildError>
+    where
+        W: Fn(ThreadBuilder) + Sync, // expected to call `run()`
+        F: FnOnce(&ThreadPool) -> R,
+    {
+        let result = crossbeam_utils::thread::scope(|scope| {
+            let wrapper = &wrapper;
+            let pool = self.spawn(|thread| {
+                let mut builder = scope.builder();
+                if let Some(name) = thread.name() {
+                    builder = builder.name(name.to_string());
+                }
+                if let Some(size) = thread.stack_size() {
+                    builder = builder.stack_size(size);
+                }
+                builder.spawn(move |_| wrapper(thread))?;
+                Ok(())
+            })?;
+            Ok(with_pool(&pool))
+        });
+
+        match result {
+            Ok(result) => result,
+            Err(err) => unwind::resume_unwinding(err),
+        }
     }
 
     /// Create a new `ThreadPool` initialized using this configuration and a
