@@ -10,9 +10,12 @@ use std::cell::Cell;
 use std::cmp::{self, Ordering};
 use std::panic;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
+use std::sync::atomic::AtomicUsize;
+#[allow(deprecated)]
+use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::thread;
 
+#[allow(deprecated)]
 static VERSIONS: AtomicUsize = ATOMIC_USIZE_INIT;
 
 lazy_static! {

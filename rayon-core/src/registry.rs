@@ -13,7 +13,9 @@ use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::mem;
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
+#[allow(deprecated)]
+use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::{Arc, Once, ONCE_INIT};
 use std::thread;
 use std::usize;
@@ -748,6 +750,7 @@ impl XorShift64Star {
         let mut seed = 0;
         while seed == 0 {
             let mut hasher = DefaultHasher::new();
+            #[allow(deprecated)]
             static COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
             hasher.write_usize(COUNTER.fetch_add(1, Ordering::Relaxed));
             seed = hasher.finish();
