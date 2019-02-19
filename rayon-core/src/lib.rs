@@ -155,7 +155,6 @@ pub struct ThreadPoolBuilder {
 ///
 /// [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
 #[deprecated(note = "Use `ThreadPoolBuilder`")]
-#[derive(Default)]
 pub struct Configuration {
     builder: ThreadPoolBuilder,
 }
@@ -536,6 +535,15 @@ impl fmt::Debug for ThreadPoolBuilder {
             .field("exit_handler", &exit_handler)
             .field("breadth_first", &breadth_first)
             .finish()
+    }
+}
+
+#[allow(deprecated)]
+impl Default for Configuration {
+    fn default() -> Self {
+        Configuration {
+            builder: Default::default(),
+        }
     }
 }
 
