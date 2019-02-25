@@ -2,8 +2,8 @@
 
 use super::ParallelSliceMut;
 use rand::distributions::Uniform;
-use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
+use rand::{thread_rng, Rng};
 use std::cmp::Ordering::{Equal, Greater, Less};
 
 macro_rules! sort {

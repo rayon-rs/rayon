@@ -9,8 +9,8 @@ use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::{self, Ordering};
 use std::panic;
-use std::sync::atomic::Ordering::Relaxed;
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::Relaxed;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::thread;
