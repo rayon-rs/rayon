@@ -15,6 +15,19 @@ fn force_stack_overflow(depth: u32) {
     }
 }
 
+#[cfg(unix)]
+fn overflow_code() -> Option<i32> {
+    None
+}
+
+#[cfg(windows)]
+fn overflow_code() -> Option<i32> {
+    use std::os::windows::process::ExitStatusExt;
+    use std::process::ExitStatus;
+
+    ExitStatus::from_raw(0xc00000fd /*STATUS_STACK_OVERFLOW*/).code()
+}
+
 fn main() {
     if env::args().len() == 1 {
         // first check that the recursivecall actually causes a stack overflow, and does not get optimized away
@@ -24,11 +37,8 @@ fn main() {
                 .status()
                 .unwrap();
 
-            #[cfg(windows)]
-            assert_eq!(status.code(), Some(0xc00000fd /*STATUS_STACK_OVERFLOW*/));
-
-            #[cfg(unix)]
-            assert_eq!(status.code(), None);
+            #[cfg(any(unix, windows))]
+            assert_eq!(status.code(), overflow_code());
 
             #[cfg(target_os = "linux")]
             assert!(
