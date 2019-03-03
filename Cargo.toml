@@ -19,7 +19,7 @@ members = ["rayon-demo", "rayon-core", "rayon-futures"]
 exclude = ["ci"]
 
 [dependencies]
-rayon-core = { version = "1.4", path = "rayon-core" }
+rayon-core = { version = "1.4.1", path = "rayon-core" }
 crossbeam-deque = "0.2.0"
 
 # This is a public dependency!
