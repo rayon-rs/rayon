@@ -268,6 +268,12 @@ fn map_init() {
 }
 
 #[test]
+fn panic_fuse() {
+    let v: Vec<_> = (0..10).collect();
+    check(&v, || (0..10).into_par_iter().panic_fuse());
+}
+
+#[test]
 fn rev() {
     let v: Vec<_> = (0..10).rev().collect();
     check(&v, || (0..10).into_par_iter().rev());
