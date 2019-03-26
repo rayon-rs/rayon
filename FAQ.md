@@ -40,7 +40,7 @@ is an homage to that work.
 
 ## What should I do if I use `Rc`, `Cell`, `RefCell` or other non-Send-and-Sync types?
 
-There a number of non-threadsafe types in the Rust standard library,
+There are a number of non-threadsafe types in the Rust standard library,
 and if your code is using them, you will not be able to combine it
 with Rayon. Similarly, even if you don't have such types, but you try
 to have multiple closures mutating the same state, you will get
