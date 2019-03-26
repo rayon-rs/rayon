@@ -92,6 +92,11 @@ fn debug_range() {
 }
 
 #[test]
+fn debug_range_inclusive() {
+    check((0..=10).into_par_iter());
+}
+
+#[test]
 fn debug_str() {
     let s = "a b c d\ne f g";
     check(s.par_chars());

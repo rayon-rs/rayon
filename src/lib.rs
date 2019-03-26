@@ -106,6 +106,7 @@ pub mod iter;
 pub mod option;
 pub mod prelude;
 pub mod range;
+pub mod range_inclusive;
 pub mod result;
 pub mod slice;
 pub mod str;

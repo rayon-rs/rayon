@@ -9,6 +9,11 @@ fn octillion() -> rayon::range::Iter<u128> {
     (0..OCTILLION).into_par_iter()
 }
 
+/// Produce a parallel iterator for 0u128..=10²⁷
+fn octillion_inclusive() -> rayon::range_inclusive::Iter<u128> {
+    (0..=OCTILLION).into_par_iter()
+}
+
 /// Produce a parallel iterator for 0u128..10²⁷ using `flat_map`
 fn octillion_flat() -> impl ParallelIterator<Item = u128> {
     (0u32..1_000_000_000)
@@ -37,6 +42,12 @@ fn find_first_octillion() {
 }
 
 #[test]
+fn find_first_octillion_inclusive() {
+    let x = octillion_inclusive().find_first(|_| true);
+    assert_eq!(x, Some(0));
+}
+
+#[test]
 fn find_first_octillion_flat() {
     let x = octillion_flat().find_first(|_| true);
     assert_eq!(x, Some(0));
@@ -59,6 +70,12 @@ fn find_last_octillion() {
     // (or could we have an unindexed `rev`?)
     let x = two_threads(|| octillion().find_last(|_| true));
     assert_eq!(x, Some(OCTILLION - 1));
+}
+
+#[test]
+fn find_last_octillion_inclusive() {
+    let x = two_threads(|| octillion_inclusive().find_last(|_| true));
+    assert_eq!(x, Some(OCTILLION));
 }
 
 #[test]

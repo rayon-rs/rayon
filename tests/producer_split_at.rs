@@ -135,6 +135,12 @@ fn range() {
 }
 
 #[test]
+fn range_inclusive() {
+    let v: Vec<_> = (0u16..=10).collect();
+    check(&v, || 0u16..=10);
+}
+
+#[test]
 fn repeatn() {
     let v: Vec<_> = std::iter::repeat(1).take(5).collect();
     check(&v, || rayon::iter::repeatn(1, 5));
