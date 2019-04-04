@@ -1,5 +1,6 @@
 use super::plumbing::*;
 
+#[derive(Clone)]
 pub struct NoopConsumer;
 
 impl NoopConsumer {
@@ -24,6 +25,20 @@ impl<T> Consumer<T> for NoopConsumer {
     fn full(&self) -> bool {
         false
     }
+}
+
+impl<T> MapFolder<T> for NoopConsumer
+where
+    T: Send,
+{
+    type Output = T;
+    type Result = ();
+
+    fn consume(self, item: T) -> (Self, T) {
+        (self, item)
+    }
+
+    fn complete(self) {}
 }
 
 impl<T> Folder<T> for NoopConsumer {
@@ -58,6 +73,7 @@ impl<T> UnindexedConsumer<T> for NoopConsumer {
     }
 }
 
+#[derive(Clone)]
 pub struct NoopReducer;
 
 impl Reducer<()> for NoopReducer {

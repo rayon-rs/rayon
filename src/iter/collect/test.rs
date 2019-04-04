@@ -15,7 +15,7 @@ use iter::plumbing::*;
 fn produce_too_many_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 2);
-    let consumer = collect.as_consumer();
+    let consumer = collect.as_noop_consumer();
     let mut folder = consumer.into_folder();
     folder = folder.consume(22);
     folder = folder.consume(23);
@@ -29,7 +29,7 @@ fn produce_too_many_items() {
 fn produce_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 5);
-    let consumer = collect.as_consumer();
+    let consumer = collect.as_noop_consumer();
     let mut folder = consumer.into_folder();
     folder = folder.consume(22);
     folder = folder.consume(23);
@@ -43,7 +43,7 @@ fn left_produces_items_with_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -62,7 +62,7 @@ fn right_produces_items_with_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -80,7 +80,7 @@ fn produces_items_with_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 2);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let mut folder = consumer.into_folder();
         folder = folder.consume(22);
         folder = folder.consume(23);
@@ -96,7 +96,7 @@ fn left_produces_too_many_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -115,7 +115,7 @@ fn right_produces_too_many_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -134,7 +134,7 @@ fn left_produces_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -154,7 +154,7 @@ fn right_produces_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
     {
-        let consumer = collect.as_consumer();
+        let consumer = collect.as_noop_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();

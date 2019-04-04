@@ -1,3 +1,5 @@
+use super::noop::*;
+use super::plumbing::*;
 use super::{IndexedParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
 use std::collections::LinkedList;
 use std::slice;
@@ -9,6 +11,30 @@ use super::unzip::unzip_indexed;
 
 mod test;
 
+/// Collects the results of the exact iterator into the specified vector
+/// and fold-reduce over references to the items of that vector.
+///
+/// This is not directly public, but called by
+/// `IndexedParallelIterator::collect_into_vec_and_fold_reduce`.
+pub fn mapfold_collect_into_vec<'c, I, T, F, R>(
+    pi: I,
+    v: &'c mut Vec<T>,
+    map_folder: F,
+    reducer: R,
+) -> F::Result
+where
+    I: IndexedParallelIterator,
+    T: Send + 'c,
+    F: Clone + MapFolder<I::Item, Output = T> + Send,
+    R: Clone + Reducer<F::Result> + Send,
+{
+    v.truncate(0); // clear any old data
+    let mut collect = Collect::new(v, pi.len());
+    let result = pi.drive(collect.as_consumer(map_folder, reducer));
+    collect.complete();
+    result
+}
+
 /// Collects the results of the exact iterator into the specified vector.
 ///
 /// This is not directly public, but called by `IndexedParallelIterator::collect_into_vec`.
@@ -17,10 +43,7 @@ where
     I: IndexedParallelIterator<Item = T>,
     T: Send,
 {
-    v.truncate(0); // clear any old data
-    let mut collect = Collect::new(v, pi.len());
-    pi.drive(collect.as_consumer());
-    collect.complete();
+    mapfold_collect_into_vec(pi, v, NoopConsumer, NoopReducer)
 }
 
 /// Collects the results of the iterator into the specified vector.
@@ -40,7 +63,7 @@ where
     T: Send,
 {
     let mut collect = Collect::new(v, len);
-    pi.drive_unindexed(collect.as_consumer());
+    pi.drive_unindexed(collect.as_noop_consumer());
     collect.complete();
 }
 
@@ -61,7 +84,7 @@ where
     let mut left = Collect::new(left, len);
     let mut right = Collect::new(right, len);
 
-    unzip_indexed(pi, left.as_consumer(), right.as_consumer());
+    unzip_indexed(pi, left.as_noop_consumer(), right.as_noop_consumer());
 
     left.complete();
     right.complete();
@@ -83,8 +106,20 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         }
     }
 
+    fn as_noop_consumer(&mut self) -> CollectConsumer<T, T, NoopConsumer, NoopReducer> {
+        self.as_consumer(NoopConsumer, NoopReducer)
+    }
+
     /// Create a consumer on a slice of our memory.
-    fn as_consumer(&mut self) -> CollectConsumer<T> {
+    fn as_consumer<'a, U, F, R>(
+        &'a mut self,
+        map_folder: F,
+        reducer: R,
+    ) -> CollectConsumer<'a, T, U, F, R>
+    where
+        F: MapFolder<U, Output = T>,
+        R: Reducer<F::Result>,
+    {
         // Reserve the new space.
         self.vec.reserve(self.len);
 
@@ -92,7 +127,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         let start = self.vec.len();
         let mut slice = &mut self.vec[start..];
         slice = unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr(), self.len) };
-        CollectConsumer::new(&self.writes, slice)
+        CollectConsumer::new(&self.writes, slice, map_folder, reducer)
     }
 
     /// Update the final vector length.

@@ -1974,6 +1974,75 @@ pub trait IndexedParallelIterator: ParallelIterator {
         collect::collect_into_vec(self, target);
     }
 
+    /// Map-folds the results of this iterator into the specified vector.
+    /// The final folding result is returned from the function. The vector
+    /// is always truncated before execution begins. If possible, reusing
+    /// the vector across calls can lead to better performance since it
+    /// reuses the same backing buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use rayon::iter::plumbing::{MapFolder, Reducer};
+    ///
+    /// // any prior data will be truncated
+    /// let mut vec = vec![1, 2, 3];
+    ///
+    /// #[derive(Clone)]
+    /// struct NegativeFolder(Vec<isize>);
+    ///
+    /// impl MapFolder<isize> for NegativeFolder {
+    ///     type Output = usize;
+    ///     type Result = Vec<isize>;
+    ///
+    ///     fn consume(mut self, item: isize) -> (Self, Self::Output) {
+    ///         if item >= 0 {
+    ///             (self, item as usize)
+    ///         } else {
+    ///             self.0.push(item);
+    ///             (self, 0)
+    ///         }
+    ///     }
+    ///
+    ///     fn complete(self) -> Vec<isize> {
+    ///         self.0
+    ///     }
+    /// }
+    ///
+    /// #[derive(Clone)]
+    /// struct NegativeReducer;
+    ///
+    /// impl Reducer<Vec<isize>> for NegativeReducer {
+    ///     fn reduce(self, mut left: Vec<isize>, mut right: Vec<isize>) -> Vec<isize> {
+    ///         left.append(&mut right);
+    ///         left
+    ///     }
+    /// }
+    ///
+    /// let negative_numbers =
+    ///     [4, -7, 18, 25, -9].par_iter().cloned().mapfold_collect_into_vec(
+    ///         &mut vec,
+    ///         NegativeFolder(vec![]),
+    ///         NegativeReducer
+    ///     );
+    ///
+    /// assert_eq!(vec, [4, 0, 18, 25, 0]);
+    /// assert_eq!(negative_numbers, [-7, -9]);
+    /// ```
+    fn mapfold_collect_into_vec<F, R>(
+        self,
+        target: &mut Vec<F::Output>,
+        map_folder: F,
+        reducer: R,
+    ) -> F::Result
+    where
+        F: Clone + MapFolder<Self::Item> + Send,
+        R: Clone + Reducer<F::Result> + Send,
+    {
+        collect::mapfold_collect_into_vec(self, target, map_folder, reducer)
+    }
+
     /// Unzips the results of the iterator into the specified
     /// vectors. The vectors are always truncated before execution
     /// begins. If possible, reusing the vectors across calls can lead
