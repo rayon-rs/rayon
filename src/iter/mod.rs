@@ -1984,63 +1984,45 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// use rayon::iter::plumbing::{MapFolder, Reducer};
     ///
     /// // any prior data will be truncated
-    /// let mut vec = vec![1, 2, 3];
+    /// let mut vec: Vec<usize> = vec![1, 2, 3];
     ///
-    /// #[derive(Clone)]
-    /// struct NegativeFolder(Vec<isize>);
-    ///
-    /// impl MapFolder<isize> for NegativeFolder {
-    ///     type Output = usize;
-    ///     type Result = Vec<isize>;
-    ///
-    ///     fn consume(mut self, item: isize) -> (Self, Self::Output) {
-    ///         if item >= 0 {
-    ///             (self, item as usize)
-    ///         } else {
-    ///             self.0.push(item);
-    ///             (self, 0)
-    ///         }
-    ///     }
-    ///
-    ///     fn complete(self) -> Vec<isize> {
-    ///         self.0
-    ///     }
-    /// }
-    ///
-    /// #[derive(Clone)]
-    /// struct NegativeReducer;
-    ///
-    /// impl Reducer<Vec<isize>> for NegativeReducer {
-    ///     fn reduce(self, mut left: Vec<isize>, mut right: Vec<isize>) -> Vec<isize> {
-    ///         left.append(&mut right);
-    ///         left
-    ///     }
-    /// }
-    ///
-    /// let negative_numbers =
+    /// let negative_numbers: Vec<isize> =
     ///     [4, -7, 18, 25, -9].par_iter().cloned().map_collect_fold_reduce_into_vec_with(
     ///         &mut vec,
-    ///         NegativeFolder(vec![]),
-    ///         NegativeReducer
+    ///         vec![],
+    ///         |mut result, item| {
+    ///             if item >= 0 {
+    ///                 (result, item as usize)
+    ///             } else {
+    ///                 result.push(item);
+    ///                 (result, 0)
+    ///             }
+    ///         },
+    ///         |mut left, mut right| {
+    ///             left.append(&mut right);
+    ///             left
+    ///         }
     ///     );
     ///
     /// assert_eq!(vec, [4, 0, 18, 25, 0]);
     /// assert_eq!(negative_numbers, [-7, -9]);
     /// ```
-    fn map_collect_fold_reduce_into_vec_with<F, R>(
+    fn map_collect_fold_reduce_into_vec_with<'c, T, U, F, R>(
         self,
-        target: &mut Vec<F::Output>,
-        map_folder: F,
-        reducer: R,
-    ) -> F::Result
+        target: &mut Vec<T>,
+        init: U,
+        mapfold_op: F,
+        reduce_op: R,
+    ) -> U
     where
-        F: Clone + MapFolder<Self::Item> + Send,
-        R: Clone + Reducer<F::Result> + Send,
+        T: Send + 'c,
+        U: Clone + Send,
+        F: Fn(U, Self::Item) -> (U, T) + Sync + Send,
+        R: Fn(U, U) -> U + Sync + Send,
     {
-        collect::map_collect_fold_reduce_into_vec_with(self, target, map_folder, reducer)
+        collect::map_collect_fold_reduce_into_vec_with(self, target, init, mapfold_op, reduce_op)
     }
 
     /// Unzips the results of the iterator into the specified

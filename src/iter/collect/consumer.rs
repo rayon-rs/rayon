@@ -1,5 +1,6 @@
 use super::super::noop::*;
 use super::super::plumbing::*;
+use super::MapFolder;
 use std::marker::PhantomData;
 use std::ptr;
 use std::slice;

@@ -11,12 +11,90 @@ use super::unzip::unzip_indexed;
 
 mod test;
 
-/// Collects the results of the exact iterator into the specified vector
-/// and fold-reduce over references to the items of that vector.
-///
+/// The `MapFolder` trait represents a "map fold" operation, where the "map"
+/// part is encoded by the `consume` method taking `Self::Item` and returning
+/// `T`, and where the "fold" part is encoded by `map` taking `&mut self` and
+/// the `complete` method returning `Self::Result`.
+pub trait MapFolder<Item>: Sized {
+    /// The output returned when consuming an item.
+    type Output: Send;
+
+    /// The type of result that will ultimately be produced by the map folder.
+    type Result: Send;
+
+    /// Consume an item.
+    fn consume(self, item: Item) -> (Self, Self::Output);
+
+    /// Finish consuming items, produce final result.
+    fn complete(self) -> Self::Result;
+}
+
 /// This is not directly public, but called by
-/// `IndexedParallelIterator::collect_into_vec_and_fold_reduce`.
-pub fn map_collect_fold_reduce_into_vec_with<'c, I, T, F, R>(
+/// `IndexedParallelIterator::map_collect_fold_reduce_into_vec_with`.
+pub fn map_collect_fold_reduce_into_vec_with<'c, I, T, U, F, R>(
+    pi: I,
+    v: &'c mut Vec<T>,
+    init: U,
+    mapfold_op: F,
+    reduce_op: R,
+) -> U
+where
+    I: IndexedParallelIterator,
+    T: Send + 'c,
+    U: Clone + Send,
+    F: Fn(U, I::Item) -> (U, T) + Sync + Send,
+    R: Fn(U, U) -> U + Sync + Send,
+{
+    #[derive(Clone)]
+    struct MapFoldCallback<U, F> {
+        result: U,
+        mapfold_op: F,
+    }
+
+    impl<'a, I, T, U, F> MapFolder<I> for MapFoldCallback<U, F>
+    where
+        T: Send,
+        U: Send,
+        F: Fn(U, I) -> (U, T) + Send,
+    {
+        type Output = T;
+        type Result = U;
+
+        fn consume(self, item: I) -> (Self, Self::Output) {
+            let MapFoldCallback { result, mapfold_op } = self;
+            let (result, output) = mapfold_op(result, item);
+            (MapFoldCallback { result, mapfold_op }, output)
+        }
+
+        fn complete(self) -> Self::Result {
+            self.result
+        }
+    }
+
+    #[derive(Clone)]
+    struct ReducerCallback<R>(R);
+
+    impl<U, R> Reducer<U> for ReducerCallback<R>
+    where
+        R: FnOnce(U, U) -> U,
+    {
+        fn reduce(self, left: U, right: U) -> U {
+            (self.0)(left, right)
+        }
+    }
+
+    map_collect_fold_reduce_into_vec(
+        pi,
+        v,
+        MapFoldCallback {
+            result: init,
+            mapfold_op: &mapfold_op,
+        },
+        ReducerCallback(&reduce_op),
+    )
+}
+
+fn map_collect_fold_reduce_into_vec<'c, I, T, F, R>(
     pi: I,
     v: &'c mut Vec<T>,
     map_folder: F,
@@ -43,7 +121,7 @@ where
     I: IndexedParallelIterator<Item = T>,
     T: Send,
 {
-    map_collect_fold_reduce_into_vec_with(pi, v, NoopConsumer, NoopReducer)
+    map_collect_fold_reduce_into_vec(pi, v, NoopConsumer, NoopReducer)
 }
 
 /// Collects the results of the iterator into the specified vector.

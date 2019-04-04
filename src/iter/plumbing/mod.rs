@@ -192,24 +192,6 @@ pub trait Folder<Item>: Sized {
     fn full(&self) -> bool;
 }
 
-/// The `MapFolder` trait represents a "map fold" operation, where the "map"
-/// part is encoded by the `consume` method taking `Self::Item` and returning
-/// `T`, and where the "fold" part is encoded by `map` taking `&mut self` and
-/// the `complete` method returning `Self::Result`.
-pub trait MapFolder<Item>: Sized {
-    /// The output returned when consuming an item.
-    type Output: Send;
-
-    /// The type of result that will ultimately be produced by the map folder.
-    type Result: Send;
-
-    /// Consume an item.
-    fn consume(self, item: Item) -> (Self, Self::Output);
-
-    /// Finish consuming items, produce final result.
-    fn complete(self) -> Self::Result;
-}
-
 /// The reducer is the final step of a `Consumer` -- after a consumer
 /// has been split into two parts, and each of those parts has been
 /// fully processed, we are left with two results. The reducer is then

@@ -1,3 +1,4 @@
+use super::collect::MapFolder;
 use super::plumbing::*;
 
 #[derive(Clone)]
