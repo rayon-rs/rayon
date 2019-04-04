@@ -2021,7 +2021,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// }
     ///
     /// let negative_numbers =
-    ///     [4, -7, 18, 25, -9].par_iter().cloned().mapfold_collect_into_vec(
+    ///     [4, -7, 18, 25, -9].par_iter().cloned().map_collect_fold_reduce_into_vec_with(
     ///         &mut vec,
     ///         NegativeFolder(vec![]),
     ///         NegativeReducer
@@ -2030,7 +2030,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(vec, [4, 0, 18, 25, 0]);
     /// assert_eq!(negative_numbers, [-7, -9]);
     /// ```
-    fn mapfold_collect_into_vec<F, R>(
+    fn map_collect_fold_reduce_into_vec_with<F, R>(
         self,
         target: &mut Vec<F::Output>,
         map_folder: F,
@@ -2040,7 +2040,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         F: Clone + MapFolder<Self::Item> + Send,
         R: Clone + Reducer<F::Result> + Send,
     {
-        collect::mapfold_collect_into_vec(self, target, map_folder, reducer)
+        collect::map_collect_fold_reduce_into_vec_with(self, target, map_folder, reducer)
     }
 
     /// Unzips the results of the iterator into the specified

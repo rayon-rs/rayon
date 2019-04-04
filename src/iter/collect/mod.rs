@@ -16,7 +16,7 @@ mod test;
 ///
 /// This is not directly public, but called by
 /// `IndexedParallelIterator::collect_into_vec_and_fold_reduce`.
-pub fn mapfold_collect_into_vec<'c, I, T, F, R>(
+pub fn map_collect_fold_reduce_into_vec_with<'c, I, T, F, R>(
     pi: I,
     v: &'c mut Vec<T>,
     map_folder: F,
@@ -43,7 +43,7 @@ where
     I: IndexedParallelIterator<Item = T>,
     T: Send,
 {
-    mapfold_collect_into_vec(pi, v, NoopConsumer, NoopReducer)
+    map_collect_fold_reduce_into_vec_with(pi, v, NoopConsumer, NoopReducer)
 }
 
 /// Collects the results of the iterator into the specified vector.
