@@ -1,7 +1,6 @@
 use super::{IndexedParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
 use std::collections::LinkedList;
 use std::slice;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod consumer;
 use self::consumer::CollectConsumer;
@@ -19,8 +18,10 @@ where
 {
     v.truncate(0); // clear any old data
     let mut collect = Collect::new(v, pi.len());
-    pi.drive(collect.as_consumer());
-    collect.complete();
+    let writes = pi.drive(collect.as_consumer());
+    unsafe {
+        collect.complete(writes);
+    }
 }
 
 /// Collects the results of the iterator into the specified vector.
@@ -40,8 +41,10 @@ where
     T: Send,
 {
     let mut collect = Collect::new(v, len);
-    pi.drive_unindexed(collect.as_consumer());
-    collect.complete();
+    let writes = pi.drive_unindexed(collect.as_consumer());
+    unsafe {
+        collect.complete(writes);
+    }
 }
 
 /// Unzips the results of the exact iterator into the specified vectors.
@@ -61,15 +64,16 @@ where
     let mut left = Collect::new(left, len);
     let mut right = Collect::new(right, len);
 
-    unzip_indexed(pi, left.as_consumer(), right.as_consumer());
+    let (left_writes, right_writes) = unzip_indexed(pi, left.as_consumer(), right.as_consumer());
 
-    left.complete();
-    right.complete();
+    unsafe {
+        left.complete(left_writes);
+        right.complete(right_writes);
+    }
 }
 
 /// Manage the collection vector.
 struct Collect<'c, T: Send + 'c> {
-    writes: AtomicUsize,
     vec: &'c mut Vec<T>,
     len: usize,
 }
@@ -77,7 +81,6 @@ struct Collect<'c, T: Send + 'c> {
 impl<'c, T: Send + 'c> Collect<'c, T> {
     fn new(vec: &'c mut Vec<T>, len: usize) -> Self {
         Collect {
-            writes: AtomicUsize::new(0),
             vec: vec,
             len: len,
         }
@@ -92,29 +95,26 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         let start = self.vec.len();
         let mut slice = &mut self.vec[start..];
         slice = unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr(), self.len) };
-        CollectConsumer::new(&self.writes, slice)
+        CollectConsumer::new(slice)
     }
 
     /// Update the final vector length.
-    fn complete(self) {
-        unsafe {
-            // Here, we assert that `v` is fully initialized. This is
-            // checked by the following assert, which counts how many
-            // total writes occurred. Since we know that the consumer
-            // cannot have escaped from `drive` (by parametricity,
-            // essentially), we know that any stores that will happen,
-            // have happened. Unless some code is buggy, that means we
-            // should have seen `len` total writes.
-            let actual_writes = self.writes.load(Ordering::Relaxed);
-            assert!(
-                actual_writes == self.len,
-                "expected {} total writes, but got {}",
-                self.len,
-                actual_writes
-            );
-            let new_len = self.vec.len() + self.len;
-            self.vec.set_len(new_len);
-        }
+    unsafe fn complete(self, actual_writes: usize) {
+        // Here, we assert that `v` is fully initialized. This is
+        // checked by the following assert, which counts how many
+        // total writes occurred. Since we know that the consumer
+        // cannot have escaped from `drive` (by parametricity,
+        // essentially), we know that any stores that will happen,
+        // have happened. Unless some code is buggy, that means we
+        // should have seen `len` total writes.
+        assert!(
+            actual_writes == self.len,
+            "expected {} total writes, but got {}",
+            self.len,
+            actual_writes
+        );
+        let new_len = self.vec.len() + self.len;
+        self.vec.set_len(new_len);
     }
 }
 

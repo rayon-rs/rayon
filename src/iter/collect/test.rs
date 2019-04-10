@@ -42,16 +42,18 @@ fn produce_fewer_items() {
 fn left_produces_items_with_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-    {
+    let right_writes = {
         let consumer = collect.as_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
         right_folder = right_folder.consume(2).consume(3);
-        right_folder.complete();
+        right_folder.complete()
+    };
+    unsafe {
+        collect.complete(right_writes);
     }
-    collect.complete();
 }
 
 // Complete is not called by the right consumer. Hence,the
@@ -61,16 +63,18 @@ fn left_produces_items_with_no_complete() {
 fn right_produces_items_with_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-    {
+    let left_writes = {
         let consumer = collect.as_consumer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
         right_folder = right_folder.consume(2).consume(3);
-        left_folder.complete();
+        left_folder.complete()
+    };
+    unsafe {
+        collect.complete(left_writes);
     }
-    collect.complete();
 }
 
 // Complete is not called by the consumer. Hence,the collection vector is not fully initialized.
@@ -79,13 +83,16 @@ fn right_produces_items_with_no_complete() {
 fn produces_items_with_no_complete() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 2);
-    {
+    let writes = {
         let consumer = collect.as_consumer();
         let mut folder = consumer.into_folder();
         folder = folder.consume(22);
         folder = folder.consume(23);
+        0
+    };
+    unsafe {
+        collect.complete(writes);
     }
-    collect.complete();
 }
 
 // The left consumer produces too many items while the right
@@ -95,16 +102,18 @@ fn produces_items_with_no_complete() {
 fn left_produces_too_many_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-    {
+    let writes = {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, _) = consumer.split_at(2);
+        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1).consume(2);
         right_folder = right_folder.consume(2).consume(3);
-        right_folder.complete();
+        reducer.reduce(left_folder.complete(), right_folder.complete())
+    };
+    unsafe {
+        collect.complete(writes);
     }
-    collect.complete();
 }
 
 // The right consumer produces too many items while the left
@@ -114,16 +123,18 @@ fn left_produces_too_many_items() {
 fn right_produces_too_many_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-    {
+    let writes = {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, _) = consumer.split_at(2);
+        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
         right_folder = right_folder.consume(2).consume(3).consume(4);
-        left_folder.complete();
+        reducer.reduce(left_folder.complete(), right_folder.complete())
+    };
+    unsafe {
+        collect.complete(writes);
     }
-    collect.complete();
 }
 
 // The left consumer produces fewer items while the right
@@ -133,17 +144,18 @@ fn right_produces_too_many_items() {
 fn left_produces_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-    {
+    let writes = {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, _) = consumer.split_at(2);
+        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0);
         right_folder = right_folder.consume(2).consume(3);
-        left_folder.complete();
-        right_folder.complete();
+        reducer.reduce(left_folder.complete(), right_folder.complete())
+    };
+    unsafe {
+        collect.complete(writes);
     }
-    collect.complete();
 }
 
 // The right consumer produces fewer items while the left
@@ -153,15 +165,16 @@ fn left_produces_fewer_items() {
 fn right_produces_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
-    {
+    let writes = {
         let consumer = collect.as_consumer();
-        let (left_consumer, right_consumer, _) = consumer.split_at(2);
+        let (left_consumer, right_consumer, reducer) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
         left_folder = left_folder.consume(0).consume(1);
         right_folder = right_folder.consume(2);
-        left_folder.complete();
-        right_folder.complete();
+        reducer.reduce(left_folder.complete(), right_folder.complete())
+    };
+    unsafe {
+        collect.complete(writes);
     }
-    collect.complete();
 }

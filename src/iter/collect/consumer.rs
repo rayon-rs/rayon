@@ -1,21 +1,18 @@
-use super::super::noop::*;
 use super::super::plumbing::*;
 use std::ptr;
 use std::slice;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct CollectConsumer<'c, T: Send + 'c> {
     /// Tracks how many items we successfully wrote. Used to guarantee
     /// safety in the face of panics or buggy parallel iterators.
-    writes: &'c AtomicUsize,
+    writes: usize,
 
     /// A slice covering the target memory, not yet initialized!
     target: &'c mut [T],
 }
 
 pub struct CollectFolder<'c, T: Send + 'c> {
-    global_writes: &'c AtomicUsize,
-    local_writes: usize,
+    writes: usize,
 
     /// An iterator over the *uninitialized* target memory.
     target: slice::IterMut<'c, T>,
@@ -24,9 +21,9 @@ pub struct CollectFolder<'c, T: Send + 'c> {
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without dropping anything.
-    pub fn new(writes: &'c AtomicUsize, target: &'c mut [T]) -> CollectConsumer<'c, T> {
+    pub fn new(target: &'c mut [T]) -> CollectConsumer<'c, T> {
         CollectConsumer {
-            writes: writes,
+            writes: 0,
             target: target,
         }
     }
@@ -34,10 +31,10 @@ impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
 
 impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
     type Folder = CollectFolder<'c, T>;
-    type Reducer = NoopReducer;
-    type Result = ();
+    type Reducer = CollectReducer;
+    type Result = usize;
 
-    fn split_at(self, index: usize) -> (Self, Self, NoopReducer) {
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
         // instances Read in the fields from `self` and then
         // forget `self`, since it has been legitimately consumed
         // (and not dropped during unwinding).
@@ -47,16 +44,15 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
         // memory range given to each consumer is disjoint.
         let (left, right) = target.split_at_mut(index);
         (
-            CollectConsumer::new(writes, left),
-            CollectConsumer::new(writes, right),
-            NoopReducer,
+            CollectConsumer { writes: writes, target: left },
+            CollectConsumer::new(right),
+            CollectReducer,
         )
     }
 
     fn into_folder(self) -> CollectFolder<'c, T> {
         CollectFolder {
-            global_writes: self.writes,
-            local_writes: 0,
+            writes: self.writes,
             target: self.target.into_iter(),
         }
     }
@@ -67,7 +63,7 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
 }
 
 impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
-    type Result = ();
+    type Result = usize;
 
     fn consume(mut self, item: T) -> CollectFolder<'c, T> {
         // Compute target pointer and write to it. Safe because the iterator
@@ -80,16 +76,15 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
             ptr::write(head, item);
         }
 
-        self.local_writes += 1;
+        self.writes += 1;
         self
     }
 
-    fn complete(self) {
+    fn complete(self) -> usize {
         assert!(self.target.len() == 0, "too few values pushed to consumer");
 
         // track total values written
-        self.global_writes
-            .fetch_add(self.local_writes, Ordering::Relaxed);
+        self.writes
     }
 
     fn full(&self) -> bool {
@@ -103,7 +98,16 @@ impl<'c, T: Send + 'c> UnindexedConsumer<T> for CollectConsumer<'c, T> {
     fn split_off_left(&self) -> Self {
         unreachable!("CollectConsumer must be indexed!")
     }
+
     fn to_reducer(&self) -> Self::Reducer {
-        NoopReducer
+        CollectReducer
+    }
+}
+
+pub struct CollectReducer;
+
+impl Reducer<usize> for CollectReducer {
+    fn reduce(self, left: usize, right: usize) -> usize {
+        left + right
     }
 }
