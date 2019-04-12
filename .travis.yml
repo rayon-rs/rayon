@@ -18,7 +18,9 @@ matrix:
       script: cargo build
       before_script:
         # lazy_static 1.1 requires Rust 1.21+, so downgrade it.
+        # (and docopt 1.1 requires lazy_static 1.3)
         - cargo generate-lockfile
+        - cargo update -p docopt --precise 1.0.2
         - cargo update -p lazy_static --precise 1.0.2
 
     - rust: stable
