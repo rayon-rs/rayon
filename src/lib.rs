@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/rayon/1.0")]
+#![doc(html_root_url = "https://docs.rs/rayon/1.1")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 

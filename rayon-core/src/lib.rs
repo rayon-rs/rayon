@@ -19,7 +19,7 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
-#![doc(html_root_url = "https://docs.rs/rayon-core/1.4")]
+#![doc(html_root_url = "https://docs.rs/rayon-core/1.5")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
