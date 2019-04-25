@@ -2176,11 +2176,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
         Self::Item: PartialOrd<I::Item>,
     {
         let other = other.into_par_iter();
-        let ord_len = self.len().cmp(&other.len());
+        let ord_len = Some(self.len().cmp(&other.len()));
         self.zip(other)
             .map(|(x, y)| PartialOrd::partial_cmp(&x, &y))
             .find_first(|&ord| ord != Some(Ordering::Equal))
-            .unwrap_or(Some(ord_len))
+            .unwrap_or(ord_len)
     }
 
     /// Determines if the elements of this `ParallelIterator`

@@ -46,7 +46,7 @@ pub trait ParallelSlice<T: Sync> {
     {
         Split {
             slice: self.as_parallel_slice(),
-            separator: separator,
+            separator,
         }
     }
 
@@ -62,7 +62,7 @@ pub trait ParallelSlice<T: Sync> {
     /// ```
     fn par_windows(&self, window_size: usize) -> Windows<T> {
         Windows {
-            window_size: window_size,
+            window_size,
             slice: self.as_parallel_slice(),
         }
     }
@@ -84,7 +84,7 @@ pub trait ParallelSlice<T: Sync> {
     fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks {
-            chunk_size: chunk_size,
+            chunk_size,
             slice: self.as_parallel_slice(),
         }
     }
@@ -121,7 +121,7 @@ pub trait ParallelSliceMut<T: Send> {
     {
         SplitMut {
             slice: self.as_parallel_slice_mut(),
-            separator: separator,
+            separator,
         }
     }
 
@@ -144,7 +144,7 @@ pub trait ParallelSliceMut<T: Send> {
     fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksMut {
-            chunk_size: chunk_size,
+            chunk_size,
             slice: self.as_parallel_slice_mut(),
         }
     }
@@ -497,7 +497,7 @@ impl<'data, T: 'data + Sync> Producer for IterProducer<'data, T> {
     type IntoIter = ::std::slice::Iter<'data, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.slice.into_iter()
+        self.slice.iter()
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
@@ -718,7 +718,7 @@ impl<'data, T: 'data + Send> Producer for IterMutProducer<'data, T> {
     type IntoIter = ::std::slice::IterMut<'data, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.slice.into_iter()
+        self.slice.iter_mut()
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {

@@ -21,7 +21,7 @@ where
     I: ParallelIterator<Item = PI>,
     PI: IntoParallelIterator + Send,
 {
-    Flatten { base: base }
+    Flatten { base }
 }
 
 impl<I, PI> ParallelIterator for Flatten<I>

@@ -69,11 +69,11 @@ struct FindConsumer<'p, P: 'p> {
 impl<'p, P> FindConsumer<'p, P> {
     fn new(find_op: &'p P, match_position: MatchPosition, best_found: &'p AtomicUsize) -> Self {
         FindConsumer {
-            find_op: find_op,
+            find_op,
             lower_bound: Cell::new(0),
             upper_bound: usize::max_value(),
-            match_position: match_position,
-            best_found: best_found,
+            match_position,
+            best_found,
         }
     }
 

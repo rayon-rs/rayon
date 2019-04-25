@@ -28,10 +28,7 @@ pub fn new<I, P>(base: I, filter_op: P) -> Filter<I, P>
 where
     I: ParallelIterator,
 {
-    Filter {
-        base: base,
-        filter_op: filter_op,
-    }
+    Filter { base, filter_op }
 }
 
 impl<I, P> ParallelIterator for Filter<I, P>
@@ -60,10 +57,7 @@ struct FilterConsumer<'p, C, P: 'p> {
 
 impl<'p, C, P> FilterConsumer<'p, C, P> {
     fn new(base: C, filter_op: &'p P) -> Self {
-        FilterConsumer {
-            base: base,
-            filter_op: filter_op,
-        }
+        FilterConsumer { base, filter_op }
     }
 }
 
@@ -127,10 +121,7 @@ where
         let filter_op = self.filter_op;
         if filter_op(&item) {
             let base = self.base.consume(item);
-            FilterFolder {
-                base: base,
-                filter_op: filter_op,
-            }
+            FilterFolder { base, filter_op }
         } else {
             self
         }

@@ -21,10 +21,7 @@ pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
 where
     I: IndexedParallelIterator,
 {
-    MinLen {
-        base: base,
-        min: min,
-    }
+    MinLen { base, min }
 }
 
 impl<I> ParallelIterator for MinLen<I>
@@ -62,7 +59,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             min: self.min,
         });
 
@@ -81,7 +78,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MinLenProducer {
-                    base: base,
+                    base,
                     min: self.min,
                 };
                 self.callback.callback(producer)
@@ -158,10 +155,7 @@ pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
 where
     I: IndexedParallelIterator,
 {
-    MaxLen {
-        base: base,
-        max: max,
-    }
+    MaxLen { base, max }
 }
 
 impl<I> ParallelIterator for MaxLen<I>
@@ -199,7 +193,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             max: self.max,
         });
 
@@ -218,7 +212,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MaxLenProducer {
-                    base: base,
+                    base,
                     max: self.max,
                 };
                 self.callback.callback(producer)

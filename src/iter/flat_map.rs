@@ -28,10 +28,7 @@ pub fn new<I, F>(base: I, map_op: F) -> FlatMap<I, F>
 where
     I: ParallelIterator,
 {
-    FlatMap {
-        base: base,
-        map_op: map_op,
-    }
+    FlatMap { base, map_op }
 }
 
 impl<I, F, PI> ParallelIterator for FlatMap<I, F>
@@ -64,10 +61,7 @@ struct FlatMapConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> FlatMapConsumer<'f, C, F> {
     fn new(base: C, map_op: &'f F) -> Self {
-        FlatMapConsumer {
-            base: base,
-            map_op: map_op,
-        }
+        FlatMapConsumer { base, map_op }
     }
 }
 
@@ -149,8 +143,8 @@ where
 
         FlatMapFolder {
             base: self.base,
-            map_op: map_op,
-            previous: previous,
+            map_op,
+            previous,
         }
     }
 

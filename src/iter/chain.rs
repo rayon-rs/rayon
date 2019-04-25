@@ -28,7 +28,7 @@ where
     A: ParallelIterator,
     B: ParallelIterator<Item = A::Item>,
 {
-    Chain { a: a, b: b }
+    Chain { a, b }
 }
 
 impl<A, B> ParallelIterator for Chain<A, B>
@@ -92,8 +92,8 @@ where
     {
         let a_len = self.a.len();
         return self.a.with_producer(CallbackA {
-            callback: callback,
-            a_len: a_len,
+            callback,
+            a_len,
             b: self.b,
         });
 
@@ -114,11 +114,11 @@ where
             where
                 A: Producer<Item = B::Item>,
             {
-                return self.b.with_producer(CallbackB {
+                self.b.with_producer(CallbackB {
                     callback: self.callback,
                     a_len: self.a_len,
-                    a_producer: a_producer,
-                });
+                    a_producer,
+                })
             }
         }
 
@@ -164,11 +164,7 @@ where
     B: Producer<Item = A::Item>,
 {
     fn new(a_len: usize, a: A, b: B) -> Self {
-        ChainProducer {
-            a_len: a_len,
-            a: a,
-            b: b,
-        }
+        ChainProducer { a_len, a, b }
     }
 }
 

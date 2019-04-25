@@ -48,12 +48,9 @@ impl JobRef {
         let fn_ptr: unsafe fn(*const T) = <T as Job>::execute;
 
         // erase types:
-        let fn_ptr: unsafe fn(*const ()) = mem::transmute(fn_ptr);
-        let pointer = data as *const ();
-
         JobRef {
-            pointer: pointer,
-            execute_fn: fn_ptr,
+            pointer: data as *const (),
+            execute_fn: mem::transmute(fn_ptr),
         }
     }
 
@@ -86,7 +83,7 @@ where
 {
     pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
         StackJob {
-            latch: latch,
+            latch,
             func: UnsafeCell::new(Some(func)),
             result: UnsafeCell::new(JobResult::None),
         }

@@ -405,7 +405,7 @@ impl Configuration {
 
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn build(self) -> Result<ThreadPool, Box<Error + 'static>> {
-        self.builder.build().map_err(|e| e.into())
+        self.builder.build().map_err(Box::from)
     }
 
     /// Deprecated in favor of `ThreadPoolBuilder::thread_name`.
@@ -470,7 +470,7 @@ impl Configuration {
 
 impl ThreadPoolBuildError {
     fn new(kind: ErrorKind) -> ThreadPoolBuildError {
-        ThreadPoolBuildError { kind: kind }
+        ThreadPoolBuildError { kind }
     }
 }
 
@@ -498,7 +498,7 @@ impl fmt::Display for ThreadPoolBuildError {
 #[deprecated(note = "use `ThreadPoolBuilder::build_global`")]
 #[allow(deprecated)]
 pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
-    config.into_builder().build_global().map_err(|e| e.into())
+    config.into_builder().build_global().map_err(Box::from)
 }
 
 impl fmt::Debug for ThreadPoolBuilder {
@@ -567,7 +567,7 @@ impl FnContext {
     #[inline]
     fn new(migrated: bool) -> Self {
         FnContext {
-            migrated: migrated,
+            migrated,
             _marker: PhantomData,
         }
     }

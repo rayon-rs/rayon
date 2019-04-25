@@ -13,9 +13,9 @@ where
     U: Try + Send,
 {
     TryFold {
-        base: base,
-        identity: identity,
-        fold_op: fold_op,
+        base,
+        identity,
+        fold_op,
         marker: PhantomData,
     }
 }
@@ -142,10 +142,7 @@ where
     fn consume(self, item: T) -> Self {
         let fold_op = self.fold_op;
         let result = self.result.and_then(|acc| fold_op(acc, item).into_result());
-        TryFoldFolder {
-            result: result,
-            ..self
-        }
+        TryFoldFolder { result, ..self }
     }
 
     fn complete(self) -> C::Result {
@@ -171,9 +168,9 @@ where
     U::Ok: Clone + Send,
 {
     TryFoldWith {
-        base: base,
-        item: item,
-        fold_op: fold_op,
+        base,
+        item,
+        fold_op,
     }
 }
 

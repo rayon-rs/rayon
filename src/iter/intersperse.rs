@@ -28,10 +28,7 @@ where
     I: ParallelIterator,
     I::Item: Clone,
 {
-    Intersperse {
-        base: base,
-        item: item,
-    }
+    Intersperse { base, item }
 }
 
 impl<I> ParallelIterator for Intersperse<I>
@@ -86,9 +83,9 @@ where
     {
         let len = self.len();
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             item: self.item,
-            len: len,
+            len,
         });
 
         struct Callback<CB, T> {
@@ -131,9 +128,9 @@ where
 {
     fn new(base: P, item: P::Item, len: usize) -> Self {
         IntersperseProducer {
-            base: base,
-            item: item,
-            len: len,
+            base,
+            item,
+            len,
             clone_first: false,
         }
     }
@@ -292,8 +289,8 @@ where
 {
     fn new(base: C, item: T) -> Self {
         IntersperseConsumer {
-            base: base,
-            item: item,
+            base,
+            item,
             clone_first: false.into(),
         }
     }
@@ -398,9 +395,9 @@ where
             first.into_iter().chain(iter::once(item))
         }));
         IntersperseFolder {
-            base: base,
+            base,
             item: between_item,
-            clone_first: clone_first,
+            clone_first,
         }
     }
 

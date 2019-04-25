@@ -167,7 +167,7 @@ impl<'a, L: Latch> TickleLatch<'a, L> {
     pub fn new(latch: L, sleep: &'a Sleep) -> Self {
         TickleLatch {
             inner: latch,
-            sleep: sleep,
+            sleep,
         }
     }
 }

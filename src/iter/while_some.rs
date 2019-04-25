@@ -22,7 +22,7 @@ pub fn new<I>(base: I) -> WhileSome<I>
 where
     I: ParallelIterator,
 {
-    WhileSome { base: base }
+    WhileSome { base }
 }
 
 impl<I, T> ParallelIterator for WhileSome<I>
@@ -136,7 +136,7 @@ where
                         false
                     }
                 })
-                .map(|x| x.unwrap()),
+                .map(Option::unwrap),
         );
         self
     }

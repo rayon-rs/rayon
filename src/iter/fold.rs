@@ -11,9 +11,9 @@ where
     U: Send,
 {
     Fold {
-        base: base,
-        identity: identity,
-        fold_op: fold_op,
+        base,
+        identity,
+        fold_op,
     }
 }
 
@@ -137,7 +137,7 @@ where
         FoldFolder {
             base: self.base,
             fold_op: self.fold_op,
-            item: item,
+            item,
         }
     }
 
@@ -153,8 +153,8 @@ where
             .fold(self.item, self.fold_op);
 
         FoldFolder {
-            base: base,
-            item: item,
+            base,
+            item,
             fold_op: self.fold_op,
         }
     }
@@ -177,9 +177,9 @@ where
     U: Send + Clone,
 {
     FoldWith {
-        base: base,
-        item: item,
-        fold_op: fold_op,
+        base,
+        item,
+        fold_op,
     }
 }
 

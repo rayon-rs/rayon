@@ -175,7 +175,7 @@ where
     F: Fn(&T, &T) -> bool,
 {
     for i in 1..v.len() {
-        shift_tail(&mut v[..i + 1], is_less);
+        shift_tail(&mut v[..=i], is_less);
     }
 }
 
@@ -259,7 +259,7 @@ where
     let mut offsets_l: [u8; BLOCK] = unsafe { mem::uninitialized() };
 
     // The current block on the right side (from `r.offset(-block_r)` to `r`).
-    let mut r = unsafe { l.offset(v.len() as isize) };
+    let mut r = unsafe { l.add(v.len()) };
     let mut block_r = BLOCK;
     let mut start_r = ptr::null_mut();
     let mut end_r = ptr::null_mut();
@@ -367,7 +367,7 @@ where
 
         if start_l == end_l {
             // All out-of-order elements in the left block were moved. Move to the next block.
-            l = unsafe { l.offset(block_l as isize) };
+            l = unsafe { l.add(block_l) };
         }
 
         if start_r == end_r {
@@ -543,7 +543,7 @@ fn break_patterns<T>(v: &mut [T]) {
             if mem::size_of::<usize>() <= 4 {
                 gen_u32() as usize
             } else {
-                (((gen_u32() as u64) << 32) | (gen_u32() as u64)) as usize
+                ((u64::from(gen_u32()) << 32) | u64::from(gen_u32())) as usize
             }
         };
 

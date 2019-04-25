@@ -30,10 +30,7 @@ pub fn new<I, F>(base: I, update_op: F) -> Update<I, F>
 where
     I: ParallelIterator,
 {
-    Update {
-        base: base,
-        update_op: update_op,
-    }
+    Update { base, update_op }
 }
 
 impl<I, F> ParallelIterator for Update<I, F>
@@ -78,7 +75,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             update_op: self.update_op,
         });
 
@@ -99,7 +96,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = UpdateProducer {
-                    base: base,
+                    base,
                     update_op: &self.update_op,
                 };
                 self.callback.callback(producer)
@@ -173,10 +170,7 @@ struct UpdateConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> UpdateConsumer<'f, C, F> {
     fn new(base: C, update_op: &'f F) -> Self {
-        UpdateConsumer {
-            base: base,
-            update_op: update_op,
-        }
+        UpdateConsumer { base, update_op }
     }
 }
 

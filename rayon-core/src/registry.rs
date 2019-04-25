@@ -13,6 +13,7 @@ use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::mem;
+use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -113,7 +114,7 @@ impl Registry {
             .unzip();
 
         let registry = Arc::new(Registry {
-            thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s)).collect(),
+            thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
             sleep: Sleep::new(),
             injected_jobs: SegQueue::new(),
             terminate_latch: CountLatch::new(),
@@ -462,7 +463,7 @@ impl ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
-            stealer: stealer,
+            stealer,
         }
     }
 }
@@ -491,8 +492,7 @@ pub struct WorkerThread {
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
-    static WORKER_THREAD_STATE: Cell<*const WorkerThread> =
-        Cell::new(0 as *const WorkerThread)
+    static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
 }
 
 impl WorkerThread {
@@ -501,7 +501,7 @@ impl WorkerThread {
     /// anywhere on the current thread.
     #[inline]
     pub fn current() -> *const WorkerThread {
-        WORKER_THREAD_STATE.with(|t| t.get())
+        WORKER_THREAD_STATE.with(Cell::get)
     }
 
     /// Sets `self` as the worker thread index for the current thread.
@@ -654,9 +654,9 @@ impl WorkerThread {
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
-        worker: worker,
+        worker,
         fifo: JobFifo::new(),
-        index: index,
+        index,
         rng: XorShift64Star::new(),
         registry: registry.clone(),
     };

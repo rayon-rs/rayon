@@ -27,7 +27,7 @@ pub fn new<I>(i: I, size: usize) -> Chunks<I>
 where
     I: IndexedParallelIterator,
 {
-    Chunks { i: i, size: size }
+    Chunks { i, size }
 }
 
 impl<I> ParallelIterator for Chunks<I>
@@ -70,8 +70,8 @@ where
         let len = self.i.len();
         return self.i.with_producer(Callback {
             size: self.size,
-            len: len,
-            callback: callback,
+            len,
+            callback,
         });
 
         struct Callback<CB> {
@@ -93,7 +93,7 @@ where
                 self.callback.callback(ChunkProducer {
                     chunk_size: self.size,
                     len: self.len,
-                    base: base,
+                    base,
                 })
             }
         }

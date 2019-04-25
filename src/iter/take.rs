@@ -22,7 +22,7 @@ where
     I: IndexedParallelIterator,
 {
     let n = min(base.len(), n);
-    Take { base: base, n: n }
+    Take { base, n }
 }
 
 impl<I> ParallelIterator for Take<I>
@@ -60,7 +60,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             n: self.n,
         });
 

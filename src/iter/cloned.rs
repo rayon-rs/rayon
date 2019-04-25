@@ -22,7 +22,7 @@ pub fn new<I>(base: I) -> Cloned<I>
 where
     I: ParallelIterator,
 {
-    Cloned { base: base }
+    Cloned { base }
 }
 
 impl<'a, T, I> ParallelIterator for Cloned<I>
@@ -66,7 +66,7 @@ where
     where
         CB: ProducerCallback<Self::Item>,
     {
-        return self.base.with_producer(Callback { callback: callback });
+        return self.base.with_producer(Callback { callback });
 
         struct Callback<CB> {
             callback: CB,
@@ -83,7 +83,7 @@ where
             where
                 P: Producer<Item = &'a T>,
             {
-                let producer = ClonedProducer { base: base };
+                let producer = ClonedProducer { base };
                 self.callback.callback(producer)
             }
         }
@@ -141,7 +141,7 @@ struct ClonedConsumer<C> {
 
 impl<C> ClonedConsumer<C> {
     fn new(base: C) -> Self {
-        ClonedConsumer { base: base }
+        ClonedConsumer { base }
     }
 }
 

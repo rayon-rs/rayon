@@ -33,8 +33,8 @@ where
     pub fn new(data: V, separator: &'p P) -> Self {
         SplitProducer {
             tail: data.length(),
-            data: data,
-            separator: separator,
+            data,
+            separator,
         }
     }
 

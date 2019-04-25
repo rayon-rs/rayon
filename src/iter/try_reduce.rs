@@ -110,10 +110,7 @@ where
         if result.is_err() {
             self.full.store(true, Ordering::Relaxed)
         }
-        TryReduceFolder {
-            result: result,
-            ..self
-        }
+        TryReduceFolder { result, ..self }
     }
 
     fn complete(self) -> T {

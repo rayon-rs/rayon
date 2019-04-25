@@ -8,7 +8,7 @@ where
     F: Fn(T) + Sync,
     T: Send,
 {
-    let consumer = ForEachConsumer { op: op };
+    let consumer = ForEachConsumer { op };
     pi.drive_unindexed(consumer)
 }
 

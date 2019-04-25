@@ -30,10 +30,7 @@ pub fn new<I, P>(base: I, filter_op: P) -> FilterMap<I, P>
 where
     I: ParallelIterator,
 {
-    FilterMap {
-        base: base,
-        filter_op: filter_op,
-    }
+    FilterMap { base, filter_op }
 }
 
 impl<I, P, R> ParallelIterator for FilterMap<I, P>
@@ -63,10 +60,7 @@ struct FilterMapConsumer<'p, C, P: 'p> {
 
 impl<'p, C, P: 'p> FilterMapConsumer<'p, C, P> {
     fn new(base: C, filter_op: &'p P) -> Self {
-        FilterMapConsumer {
-            base: base,
-            filter_op: filter_op,
-        }
+        FilterMapConsumer { base, filter_op }
     }
 }
 
@@ -91,7 +85,7 @@ where
     fn into_folder(self) -> Self::Folder {
         let base = self.base.into_folder();
         FilterMapFolder {
-            base: base,
+            base,
             filter_op: self.filter_op,
         }
     }
@@ -131,10 +125,7 @@ where
         let filter_op = self.filter_op;
         if let Some(mapped_item) = filter_op(item) {
             let base = self.base.consume(mapped_item);
-            FilterMapFolder {
-                base: base,
-                filter_op: filter_op,
-            }
+            FilterMapFolder { base, filter_op }
         } else {
             self
         }

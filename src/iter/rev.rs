@@ -20,7 +20,7 @@ pub fn new<I>(base: I) -> Rev<I>
 where
     I: IndexedParallelIterator,
 {
-    Rev { base: base }
+    Rev { base }
 }
 
 impl<I> ParallelIterator for Rev<I>
@@ -58,10 +58,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         let len = self.base.len();
-        return self.base.with_producer(Callback {
-            callback: callback,
-            len: len,
-        });
+        return self.base.with_producer(Callback { callback, len });
 
         struct Callback<CB> {
             callback: CB,
@@ -78,7 +75,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = RevProducer {
-                    base: base,
+                    base,
                     len: self.len,
                 };
                 self.callback.callback(producer)

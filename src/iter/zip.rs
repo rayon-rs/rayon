@@ -24,7 +24,7 @@ where
     A: IndexedParallelIterator,
     B: IndexedParallelIterator,
 {
-    Zip { a: a, b: b }
+    Zip { a, b }
 }
 
 impl<A, B> ParallelIterator for Zip<A, B>
@@ -67,7 +67,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.a.with_producer(CallbackA {
-            callback: callback,
+            callback,
             b: self.b,
         });
 
@@ -87,10 +87,10 @@ where
             where
                 A: Producer<Item = ITEM>,
             {
-                return self.b.with_producer(CallbackB {
-                    a_producer: a_producer,
+                self.b.with_producer(CallbackB {
+                    a_producer,
                     callback: self.callback,
-                });
+                })
             }
         }
 

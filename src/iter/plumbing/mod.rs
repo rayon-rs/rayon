@@ -354,10 +354,7 @@ where
     C: Consumer<I::Item>,
 {
     let len = par_iter.len();
-    return par_iter.with_producer(Callback {
-        len: len,
-        consumer: consumer,
-    });
+    return par_iter.with_producer(Callback { len, consumer });
 
     struct Callback<C> {
         len: usize,

@@ -22,7 +22,7 @@ pub fn new<I>(base: I) -> Enumerate<I>
 where
     I: IndexedParallelIterator,
 {
-    Enumerate { base: base }
+    Enumerate { base }
 }
 
 impl<I> ParallelIterator for Enumerate<I>
@@ -59,7 +59,7 @@ where
     where
         CB: ProducerCallback<Self::Item>,
     {
-        return self.base.with_producer(Callback { callback: callback });
+        return self.base.with_producer(Callback { callback });
 
         struct Callback<CB> {
             callback: CB,
@@ -74,10 +74,7 @@ where
             where
                 P: Producer<Item = I>,
             {
-                let producer = EnumerateProducer {
-                    base: base,
-                    offset: 0,
-                };
+                let producer = EnumerateProducer { base, offset: 0 };
                 self.callback.callback(producer)
             }
         }

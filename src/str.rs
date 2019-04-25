@@ -233,7 +233,7 @@ pub trait ParallelString {
     fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<P> {
         Matches {
             chars: self.as_parallel_string(),
-            pattern: pattern,
+            pattern,
         }
     }
 
@@ -255,7 +255,7 @@ pub trait ParallelString {
     fn par_match_indices<P: Pattern>(&self, pattern: P) -> MatchIndices<P> {
         MatchIndices {
             chars: self.as_parallel_string(),
-            pattern: pattern,
+            pattern,
         }
     }
 }
@@ -582,10 +582,7 @@ pub struct Split<'ch, P: Pattern> {
 
 impl<'ch, P: Pattern> Split<'ch, P> {
     fn new(chars: &'ch str, separator: P) -> Self {
-        Split {
-            chars: chars,
-            separator: separator,
-        }
+        Split { chars, separator }
     }
 }
 
@@ -651,10 +648,7 @@ struct SplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
 
 impl<'ch, P: Pattern> SplitTerminator<'ch, P> {
     fn new(chars: &'ch str, terminator: P) -> Self {
-        SplitTerminator {
-            chars: chars,
-            terminator: terminator,
-        }
+        SplitTerminator { chars, terminator }
     }
 }
 
@@ -690,7 +684,7 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
             self.skip_last = false;
             SplitTerminatorProducer {
                 splitter: right,
-                skip_last: skip_last,
+                skip_last,
             }
         });
         (self, right)

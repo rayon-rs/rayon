@@ -78,8 +78,8 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     fn new(vec: &'c mut Vec<T>, len: usize) -> Self {
         Collect {
             writes: AtomicUsize::new(0),
-            vec: vec,
-            len: len,
+            vec,
+            len,
         }
     }
 

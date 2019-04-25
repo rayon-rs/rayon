@@ -31,7 +31,7 @@ impl ThreadPoolScopeHandle {
     /// Caller asserts that the registry has not yet terminated.
     unsafe fn new(registry: Arc<Registry>) -> Self {
         registry.increment_terminate_count();
-        ThreadPoolScopeHandle { registry: registry }
+        ThreadPoolScopeHandle { registry }
     }
 }
 

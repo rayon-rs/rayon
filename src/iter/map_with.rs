@@ -33,11 +33,7 @@ pub fn new<I, T, F>(base: I, item: T, map_op: F) -> MapWith<I, T, F>
 where
     I: ParallelIterator,
 {
-    MapWith {
-        base: base,
-        item: item,
-        map_op: map_op,
-    }
+    MapWith { base, item, map_op }
 }
 
 impl<I, T, F, R> ParallelIterator for MapWith<I, T, F>
@@ -86,7 +82,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             item: self.item,
             map_op: self.map_op,
         });
@@ -111,7 +107,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MapWithProducer {
-                    base: base,
+                    base,
                     item: self.item,
                     map_op: &self.map_op,
                 };
@@ -240,11 +236,7 @@ struct MapWithConsumer<'f, C, U, F: 'f> {
 
 impl<'f, C, U, F> MapWithConsumer<'f, C, U, F> {
     fn new(base: C, item: U, map_op: &'f F) -> Self {
-        MapWithConsumer {
-            base: base,
-            item: item,
-            map_op: map_op,
-        }
+        MapWithConsumer { base, item, map_op }
     }
 }
 
@@ -367,11 +359,7 @@ pub fn new_init<I, INIT, F>(base: I, init: INIT, map_op: F) -> MapInit<I, INIT, 
 where
     I: ParallelIterator,
 {
-    MapInit {
-        base: base,
-        init: init,
-        map_op: map_op,
-    }
+    MapInit { base, init, map_op }
 }
 
 impl<I, INIT, T, F, R> ParallelIterator for MapInit<I, INIT, F>
@@ -420,7 +408,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             init: self.init,
             map_op: self.map_op,
         });
@@ -445,7 +433,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MapInitProducer {
-                    base: base,
+                    base,
                     init: &self.init,
                     map_op: &self.map_op,
                 };
@@ -528,11 +516,7 @@ struct MapInitConsumer<'f, C, INIT: 'f, F: 'f> {
 
 impl<'f, C, INIT, F> MapInitConsumer<'f, C, INIT, F> {
     fn new(base: C, init: &'f INIT, map_op: &'f F) -> Self {
-        MapInitConsumer {
-            base: base,
-            init: init,
-            map_op: map_op,
-        }
+        MapInitConsumer { base, init, map_op }
     }
 }
 

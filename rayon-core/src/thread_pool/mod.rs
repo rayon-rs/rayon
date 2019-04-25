@@ -55,7 +55,7 @@ pub struct ThreadPool {
 
 pub fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
     let registry = try!(Registry::new(builder));
-    Ok(ThreadPool { registry: registry })
+    Ok(ThreadPool { registry })
 }
 
 impl ThreadPool {
@@ -63,7 +63,7 @@ impl ThreadPool {
     #[allow(deprecated)]
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
-        build(configuration.into_builder()).map_err(|e| e.into())
+        build(configuration.into_builder()).map_err(Box::from)
     }
 
     /// Returns a handle to the global thread pool. This is the pool
@@ -166,13 +166,11 @@ impl ThreadPool {
     #[inline]
     pub fn current_thread_index(&self) -> Option<usize> {
         unsafe {
-            let curr = WorkerThread::current();
-            if curr.is_null() {
-                None
-            } else if (*curr).registry().id() != self.registry.id() {
-                None
+            let curr = WorkerThread::current().as_ref()?;
+            if curr.registry().id() == self.registry.id() {
+                Some(curr.index())
             } else {
-                Some((*curr).index())
+                None
             }
         }
     }
@@ -201,13 +199,11 @@ impl ThreadPool {
     #[inline]
     pub fn current_thread_has_pending_tasks(&self) -> Option<bool> {
         unsafe {
-            let curr = WorkerThread::current();
-            if curr.is_null() {
-                None
-            } else if (*curr).registry().id() != self.registry.id() {
-                None
-            } else {
+            let curr = WorkerThread::current().as_ref()?;
+            if curr.registry().id() == self.registry.id() {
                 Some(!(*curr).local_deque_is_empty())
+            } else {
+                None
             }
         }
     }

@@ -50,11 +50,7 @@ where
     // We have no idea what the consumers will look like for these
     // collections' `par_extend`, but we can intercept them in our own
     // `drive_unindexed`.  Start with the left side, type `A`:
-    let iter = UnzipA {
-        base: pi,
-        op: op,
-        b: b,
-    };
+    let iter = UnzipA { base: pi, op, b };
     a.par_extend(iter);
 }
 
@@ -86,8 +82,8 @@ where
 {
     let consumer = UnzipConsumer {
         op: &Unzip,
-        left: left,
-        right: right,
+        left,
+        right,
     };
     pi.drive(consumer)
 }
@@ -123,12 +119,7 @@ where
     B: Default + Send + ParallelExtend<I::Item>,
     P: Fn(&I::Item) -> bool + Sync + Send,
 {
-    execute(
-        pi,
-        Partition {
-            predicate: predicate,
-        },
-    )
+    execute(pi, Partition { predicate })
 }
 
 /// An `UnzipOp` that routes items depending on a predicate function.
@@ -170,12 +161,7 @@ where
     L: Send,
     R: Send,
 {
-    execute(
-        pi,
-        PartitionMap {
-            predicate: predicate,
-        },
-    )
+    execute(pi, PartitionMap { predicate })
 }
 
 /// An `UnzipOp` that routes items depending on how they are mapped `Either`.
@@ -390,8 +376,8 @@ where
         let (left, right) = self.op.consume(item, self.left, self.right);
         UnzipFolder {
             op: self.op,
-            left: left,
-            right: right,
+            left,
+            right,
         }
     }
 

@@ -19,10 +19,7 @@ struct FindConsumer<'p, P: 'p> {
 
 impl<'p, P> FindConsumer<'p, P> {
     fn new(find_op: &'p P, found: &'p AtomicBool) -> Self {
-        FindConsumer {
-            find_op: find_op,
-            found: found,
-        }
+        FindConsumer { find_op, found }
     }
 }
 

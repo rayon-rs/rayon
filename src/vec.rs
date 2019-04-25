@@ -66,7 +66,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
             let mut slice = self.vec.as_mut_slice();
             slice = std::slice::from_raw_parts_mut(slice.as_mut_ptr(), len);
 
-            callback.callback(VecProducer { slice: slice })
+            callback.callback(VecProducer { slice })
         }
     }
 }

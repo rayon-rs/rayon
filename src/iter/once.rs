@@ -22,7 +22,7 @@ use iter::*;
 /// assert_eq!(pi.position_any(|x| x < 0), Some(1234));
 /// ```
 pub fn once<T: Send>(item: T) -> Once<T> {
-    Once { item: item }
+    Once { item }
 }
 
 /// Iterator adaptor for [the `once()` function](fn.once.html).

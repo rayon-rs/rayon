@@ -30,10 +30,7 @@ pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
 where
     I: ParallelIterator,
 {
-    Map {
-        base: base,
-        map_op: map_op,
-    }
+    Map { base, map_op }
 }
 
 impl<I, F, R> ParallelIterator for Map<I, F>
@@ -80,7 +77,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             map_op: self.map_op,
         });
 
@@ -102,7 +99,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MapProducer {
-                    base: base,
+                    base,
                     map_op: &self.map_op,
                 };
                 self.callback.callback(producer)
@@ -174,10 +171,7 @@ struct MapConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> MapConsumer<'f, C, F> {
     fn new(base: C, map_op: &'f F) -> Self {
-        MapConsumer {
-            base: base,
-            map_op: map_op,
-        }
+        MapConsumer { base, map_op }
     }
 }
 
