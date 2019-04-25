@@ -13,6 +13,7 @@ readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
+# Some dependencies may not be their latest version, in order to support older rustc.
 [dependencies]
 num_cpus = "1.2"
 libc = "0.2.16"
