@@ -1,5 +1,5 @@
-use crossbeam::sync::SegQueue;
 use crossbeam_deque::{self as deque, Pop, Steal, Stealer, Worker};
+use crossbeam_queue::SegQueue;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
 #[cfg(rayon_unstable)]
@@ -327,7 +327,7 @@ impl Registry {
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
-        let job = self.injected_jobs.try_pop();
+        let job = self.injected_jobs.pop().ok();
         if job.is_some() {
             log!(UninjectedWork {
                 worker: worker_index

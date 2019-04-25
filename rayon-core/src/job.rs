@@ -1,4 +1,4 @@
-use crossbeam::sync::SegQueue;
+use crossbeam_queue::SegQueue;
 use latch::Latch;
 use std::any::Any;
 use std::cell::UnsafeCell;
@@ -205,10 +205,6 @@ impl JobFifo {
 impl Job for JobFifo {
     unsafe fn execute(this: *const Self) {
         // We "execute" a queue by executing its first job, FIFO.
-        (*this)
-            .inner
-            .try_pop()
-            .expect("job in fifo queue")
-            .execute()
+        (*this).inner.pop().expect("job in fifo queue").execute()
     }
 }

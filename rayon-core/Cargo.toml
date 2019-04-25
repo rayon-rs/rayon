@@ -18,10 +18,7 @@ num_cpus = "1.2"
 libc = "0.2.16"
 lazy_static = "1"
 crossbeam-deque = "0.6.3"
-
-# Also held back for rustc compatibility
-[dependencies.crossbeam]
-version = "0.3.0"
+crossbeam-queue = "0.1.2"
 
 [dev-dependencies]
 rand = "0.6"
