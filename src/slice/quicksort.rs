@@ -372,7 +372,7 @@ where
 
         if start_r == end_r {
             // All out-of-order elements in the right block were moved. Move to the previous block.
-            r = unsafe { r.offset(-(block_r as isize)) };
+            r = unsafe { r.sub(block_r) };
         }
 
         if is_done {
