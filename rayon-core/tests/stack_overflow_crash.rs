@@ -1,3 +1,5 @@
+#[cfg(unix)]
+extern crate libc;
 extern crate rayon_core;
 
 use rayon_core::ThreadPoolBuilder;
@@ -12,6 +14,19 @@ fn force_stack_overflow(depth: u32) {
     let _buffer = [0u8; 1024 * 1024];
     if depth > 0 {
         force_stack_overflow(depth - 1);
+    }
+}
+
+#[cfg(unix)]
+fn disable_core() {
+    unsafe {
+        libc::setrlimit(
+            libc::RLIMIT_CORE,
+            &libc::rlimit {
+                rlim_cur: 0,
+                rlim_max: 0,
+            },
+        );
     }
 }
 
@@ -63,6 +78,8 @@ fn main() {
             .build()
             .unwrap();
         pool.install(|| {
+            #[cfg(unix)]
+            disable_core();
             force_stack_overflow(32);
         });
     }
