@@ -716,7 +716,7 @@ where
     // All chunks are properly sorted.
     // Now we just have to merge them together.
     unsafe {
-        recurse(v.as_mut_ptr(), buf as *mut T, &chunks, false, &is_less);
+        recurse(v.as_mut_ptr(), buf, &chunks, false, &is_less);
     }
 }
 
