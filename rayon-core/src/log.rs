@@ -8,9 +8,11 @@
 //! replacement of the now deprecated `RAYON_RS_LOG` environment
 //! variable, which is still supported for backwards compatibility.
 
+#[cfg(debug_assertions)]
 use std::env;
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[cfg_attr(not(debug_assertions), allow(dead_code))]
 pub(super) enum Event {
     Tickle {
         worker: usize,
@@ -87,19 +89,28 @@ pub(super) enum Event {
     },
 }
 
-pub(super) const DUMP_LOGS: bool = cfg!(debug_assertions);
-
+#[cfg(debug_assertions)]
 lazy_static! {
     pub(super) static ref LOG_ENV: bool =
         env::var("RAYON_LOG").is_ok() || env::var("RAYON_RS_LOG").is_ok();
 }
 
+#[cfg(debug_assertions)]
 macro_rules! log {
     ($event:expr) => {
-        if ::log::DUMP_LOGS {
-            if *::log::LOG_ENV {
-                println!("{:?}", $event);
-            }
+        if *$crate::log::LOG_ENV {
+            eprintln!("{:?}", $event);
+        }
+    };
+}
+
+#[cfg(not(debug_assertions))]
+macro_rules! log {
+    ($event:expr) => {
+        if false {
+            // Expand `$event` so it still appears used, but without
+            // any of the formatting code to be optimized away.
+            $event;
         }
     };
 }

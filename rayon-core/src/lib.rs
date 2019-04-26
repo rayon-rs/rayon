@@ -34,6 +34,7 @@ use std::str::FromStr;
 
 extern crate crossbeam_deque;
 extern crate crossbeam_queue;
+#[cfg(any(debug_assertions, rayon_unstable))]
 #[macro_use]
 extern crate lazy_static;
 extern crate num_cpus;
