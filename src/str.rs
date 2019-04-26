@@ -282,16 +282,16 @@ mod private {
     /// Implementing this trait is not permitted outside of `rayon`.
     pub trait Pattern: Sized + Sync + Send {
         private_decl! {}
-        fn find_in(&self, &str) -> Option<usize>;
-        fn rfind_in(&self, &str) -> Option<usize>;
-        fn is_suffix_of(&self, &str) -> bool;
-        fn fold_splits<'ch, F>(&self, &'ch str, folder: F, skip_last: bool) -> F
+        fn find_in(&self, haystack: &str) -> Option<usize>;
+        fn rfind_in(&self, haystack: &str) -> Option<usize>;
+        fn is_suffix_of(&self, haystack: &str) -> bool;
+        fn fold_splits<'ch, F>(&self, haystack: &'ch str, folder: F, skip_last: bool) -> F
         where
             F: Folder<&'ch str>;
-        fn fold_matches<'ch, F>(&self, &'ch str, folder: F) -> F
+        fn fold_matches<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
         where
             F: Folder<&'ch str>;
-        fn fold_match_indices<'ch, F>(&self, &'ch str, folder: F, base: usize) -> F
+        fn fold_match_indices<'ch, F>(&self, haystack: &'ch str, folder: F, base: usize) -> F
         where
             F: Folder<(usize, &'ch str)>;
     }
