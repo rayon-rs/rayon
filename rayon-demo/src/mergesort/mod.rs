@@ -1,7 +1,7 @@
 use rand::distributions::Standard;
 use rand::Rng;
 
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: mergesort bench [--size N]
        mergesort --help
 
@@ -213,7 +213,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
     }
     let (a, b) = v.split_at_mut(mid);
     let (left, right) = rayon::join(|| is_sorted(a), || is_sorted(b));
-    return left && right;
+    left && right
 }
 
 fn default_vec(n: usize) -> Vec<u32> {
@@ -227,13 +227,13 @@ fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {
     let start = Instant::now();
     f(&mut v[..]);
     let dur = Instant::now() - start;
-    let nanos = dur.subsec_nanos() as u64 + dur.as_secs() * 1_000_000_000u64;
+    let nanos = u64::from(dur.subsec_nanos()) + dur.as_secs() * 1_000_000_000u64;
     println!("{}: sorted {} ints: {} s", name, n, nanos as f32 / 1e9f32);
 
     // Check correctness
     assert!(is_sorted(&mut v[..]));
 
-    return nanos;
+    nanos
 }
 
 pub fn main(args: &[String]) {

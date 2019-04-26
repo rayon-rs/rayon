@@ -15,7 +15,7 @@ pub struct Graph {
 impl Graph {
     pub fn new(num_nodes: usize) -> Graph {
         Graph {
-            num_nodes: num_nodes,
+            num_nodes,
             weights: iter::repeat(Weight::max())
                 .take(num_nodes * num_nodes)
                 .collect(),
@@ -58,9 +58,9 @@ impl Graph {
     pub fn edges<'a>(&'a self, source: Node) -> impl Iterator<Item = Edge> + 'a {
         self.all_nodes().filter_map(move |target| {
             self.edge_weight(source, target).map(|weight| Edge {
-                source: source,
-                target: target,
-                weight: weight,
+                source,
+                target,
+                weight,
             })
         })
     }
@@ -73,10 +73,10 @@ pub struct Node {
 
 impl Node {
     pub fn new(index: usize) -> Node {
-        Node { index: index }
+        Node { index }
     }
 
-    pub fn index(&self) -> usize {
+    pub fn index(self) -> usize {
         self.index
     }
 }

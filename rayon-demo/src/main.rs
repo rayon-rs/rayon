@@ -60,7 +60,7 @@ extern crate winapi; // life
 #[cfg(test)]
 extern crate test;
 
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: rayon-demo bench
        rayon-demo <demo-name> [ options ]
        rayon-demo --help

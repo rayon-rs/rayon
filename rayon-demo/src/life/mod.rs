@@ -1,4 +1,4 @@
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: life bench [--size N] [--gens N]
        life play [--size N] [--gens N] [--fps N]
        life --help
@@ -68,8 +68,8 @@ impl Board {
             board: new_board,
             born: Arc::new(born),
             survive: Arc::new(survive),
-            rows: rows,
-            cols: cols,
+            rows,
+            cols,
         }
     }
 

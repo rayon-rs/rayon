@@ -76,9 +76,9 @@ impl NBodyBenchmark {
                 };
 
                 Body {
-                    position: position,
-                    velocity: velocity,
-                    velocity2: velocity2,
+                    position,
+                    velocity,
+                    velocity2,
                 }
             })
             .collect();

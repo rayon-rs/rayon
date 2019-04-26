@@ -1,4 +1,4 @@
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: sieve bench
        sieve --help
 
@@ -48,28 +48,28 @@ const CHUNK_SIZE: usize = 100_000;
 
 // Number of Primes < 10^n
 // https://oeis.org/A006880
-const NUM_PRIMES: &'static [usize] = &[
+const NUM_PRIMES: &[usize] = &[
     0,  // primes in 0..10^0
     4,  // primes in 0..10^1
     25, // etc
     168,
-    1229,
-    9592,
-    78498,
-    664579,
-    5761455,
-    50847534,
-    455052511,
-    4118054813,
-    37607912018,
-    346065536839,
-    3204941750802,
-    29844570422669,
-    279238341033925,
-    2623557157654233,
-    24739954287740860,
-    234057667276344607,
-    2220819602560918840,
+    1_229,
+    9_592,
+    78_498,
+    664_579,
+    5_761_455,
+    50_847_534,
+    455_052_511,
+    4_118_054_813,
+    37_607_912_018,
+    346_065_536_839,
+    3_204_941_750_802,
+    29_844_570_422_669,
+    279_238_341_033_925,
+    2_623_557_157_654_233,
+    24_739_954_287_740_860,
+    234_057_667_276_344_607,
+    2_220_819_602_560_918_840,
 ];
 
 // For all of these sieves, sieve[i]==true -> 2*i+1 is prime
@@ -149,7 +149,7 @@ fn update_chunk(low: &[bool], chunk: &mut [bool], base: usize) {
 
             let pm = if pp < base {
                 // p² is too small - find the first odd multiple that's in range
-                ((base + p - 1) / p | 1) * p
+                (((base + p - 1) / p) | 1) * p
             } else {
                 pp
             };

@@ -29,8 +29,8 @@ pub struct TourId {
 impl<'s> SolverCx<'s> {
     pub fn new(graph: &'s Graph, seq_threshold: usize) -> Self {
         SolverCx {
-            graph: graph,
-            seq_threshold: seq_threshold,
+            graph,
+            seq_threshold,
             priority_queue: Mutex::new(BinaryHeap::new()),
             tour_counter: AtomicUsize::new(0),
             min_tour_weight: AtomicUsize::new(usize::MAX),
@@ -47,12 +47,12 @@ impl<'s> SolverCx<'s> {
             .get_mut()
             .unwrap()
             .push(Arc::new(TourPrefix {
-                id: id,
-                node: node,
+                id,
+                node,
                 len: 1,
                 prefix_weight: Weight::zero(),
                 priority: Weight::max().to_priority(),
-                visited: visited,
+                visited,
                 previous: None,
             }));
 
@@ -80,8 +80,7 @@ impl<'s> SolverCx<'s> {
 
     pub fn dequeue(&self) -> Option<Arc<TourPrefix>> {
         let mut priority_queue = self.priority_queue.lock().unwrap();
-        let element = priority_queue.pop();
-        element
+        priority_queue.pop()
     }
 
     pub fn min_tour_weight(&self) -> Weight {
@@ -91,12 +90,12 @@ impl<'s> SolverCx<'s> {
         Weight::new(self.min_tour_weight.load(Ordering::Relaxed))
     }
 
-    pub fn add_complete_tour(&self, tour: &Vec<Node>, weight: Weight) {
+    pub fn add_complete_tour(&self, tour: &[Node], weight: Weight) {
         if weight < self.min_tour_weight() {
             let mut min_tour = self.min_tour.lock().unwrap();
             if min_tour.is_none() || weight < self.min_tour_weight() {
                 // this is a new minimum!
-                *min_tour = Some(tour.clone());
+                *min_tour = Some(tour.to_vec());
                 self.min_tour_weight
                     .store(weight.to_usize(), Ordering::Relaxed);
             }
