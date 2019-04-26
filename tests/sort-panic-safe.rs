@@ -11,12 +11,9 @@ use std::cmp::{self, Ordering};
 use std::panic;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
-#[allow(deprecated)]
-use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::thread;
 
-#[allow(deprecated)]
-static VERSIONS: AtomicUsize = ATOMIC_USIZE_INIT;
+static VERSIONS: AtomicUsize = AtomicUsize::new(0);
 
 lazy_static! {
     static ref DROP_COUNTS: Vec<AtomicUsize> = (0..20_000).map(|_| AtomicUsize::new(0)).collect();
