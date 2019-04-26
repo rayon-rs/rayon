@@ -202,7 +202,7 @@ impl ThreadPoolBuilder {
     /// will return an error. An `Ok` result indicates that this
     /// is the first initialization of the thread pool.
     pub fn build_global(self) -> Result<(), ThreadPoolBuildError> {
-        let registry = try!(registry::init_global_registry(self));
+        let registry = registry::init_global_registry(self)?;
         registry.wait_until_primed();
         Ok(())
     }
@@ -235,7 +235,8 @@ impl ThreadPoolBuilder {
 
     /// Get the thread name for the thread with the given index.
     fn get_thread_name(&mut self, index: usize) -> Option<String> {
-        self.get_thread_name.as_mut().map(|c| c(index))
+        let f = self.get_thread_name.as_mut()?;
+        Some(f(index))
     }
 
     /// Set a closure which takes a thread index and returns

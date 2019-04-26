@@ -163,20 +163,16 @@ where
     type Item = Vec<P::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.inner.take() {
-            Some(producer) => {
-                if self.len > self.chunk_size {
-                    let (left, right) = producer.split_at(self.chunk_size);
-                    self.inner = Some(right);
-                    self.len -= self.chunk_size;
-                    Some(left.into_iter().collect())
-                } else {
-                    debug_assert!(self.len > 0);
-                    self.len = 0;
-                    Some(producer.into_iter().collect())
-                }
-            }
-            _ => None,
+        let producer = self.inner.take()?;
+        if self.len > self.chunk_size {
+            let (left, right) = producer.split_at(self.chunk_size);
+            self.inner = Some(right);
+            self.len -= self.chunk_size;
+            Some(left.into_iter().collect())
+        } else {
+            debug_assert!(self.len > 0);
+            self.len = 0;
+            Some(producer.into_iter().collect())
         }
     }
 
@@ -201,24 +197,20 @@ where
     P: Producer,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        match self.inner.take() {
-            Some(producer) => {
-                if self.len > self.chunk_size {
-                    let mut size = self.len % self.chunk_size;
-                    if size == 0 {
-                        size = self.chunk_size;
-                    }
-                    let (left, right) = producer.split_at(self.len - size);
-                    self.inner = Some(left);
-                    self.len -= size;
-                    Some(right.into_iter().collect())
-                } else {
-                    debug_assert!(self.len > 0);
-                    self.len = 0;
-                    Some(producer.into_iter().collect())
-                }
+        let producer = self.inner.take()?;
+        if self.len > self.chunk_size {
+            let mut size = self.len % self.chunk_size;
+            if size == 0 {
+                size = self.chunk_size;
             }
-            _ => None,
+            let (left, right) = producer.split_at(self.len - size);
+            self.inner = Some(left);
+            self.len -= size;
+            Some(right.into_iter().collect())
+        } else {
+            debug_assert!(self.len > 0);
+            self.len = 0;
+            Some(producer.into_iter().collect())
         }
     }
 }

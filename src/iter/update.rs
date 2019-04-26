@@ -276,12 +276,9 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(mut v) = self.base.next() {
-            (self.update_op)(&mut v);
-            Some(v)
-        } else {
-            None
-        }
+        let mut v = self.base.next()?;
+        (self.update_op)(&mut v);
+        Some(v)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -327,11 +324,8 @@ where
     F: FnMut(&mut I::Item),
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some(mut v) = self.base.next_back() {
-            (self.update_op)(&mut v);
-            Some(v)
-        } else {
-            None
-        }
+        let mut v = self.base.next_back()?;
+        (self.update_op)(&mut v);
+        Some(v)
     }
 }

@@ -121,7 +121,8 @@ where
     }
 
     fn complete(self) -> Option<T> {
-        self.opt_result.map(|result| match result {
+        let result = self.opt_result?;
+        Some(match result {
             Ok(ok) => T::from_ok(ok),
             Err(error) => T::from_error(error),
         })

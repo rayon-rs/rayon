@@ -1350,9 +1350,8 @@ pub trait ParallelIterator: Sized + Send {
         K: Ord + Send,
         F: Sync + Send + Fn(&Self::Item) -> K,
     {
-        self.map(|x| (f(&x), x))
-            .min_by(|a, b| (a.0).cmp(&b.0))
-            .map(|(_, x)| x)
+        let (_, x) = self.map(|x| (f(&x), x)).min_by(|a, b| (a.0).cmp(&b.0))?;
+        Some(x)
     }
 
     /// Computes the maximum of all the items in the iterator. If the
@@ -1434,9 +1433,8 @@ pub trait ParallelIterator: Sized + Send {
         K: Ord + Send,
         F: Sync + Send + Fn(&Self::Item) -> K,
     {
-        self.map(|x| (f(&x), x))
-            .max_by(|a, b| (a.0).cmp(&b.0))
-            .map(|(_, x)| x)
+        let (_, x) = self.map(|x| (f(&x), x)).max_by(|a, b| (a.0).cmp(&b.0))?;
+        Some(x)
     }
 
     /// Takes two iterators and creates a new iterator over both.
@@ -2329,10 +2327,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     where
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
-        self.map(predicate)
-            .enumerate()
-            .find_any(|&(_, p)| p)
-            .map(|(i, _)| i)
+        let (i, _) = self.map(predicate).enumerate().find_any(|&(_, p)| p)?;
+        Some(i)
     }
 
     /// Searches for the sequentially **first** item in the parallel iterator
@@ -2363,10 +2359,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     where
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
-        self.map(predicate)
-            .enumerate()
-            .find_first(|&(_, p)| p)
-            .map(|(i, _)| i)
+        let (i, _) = self.map(predicate).enumerate().find_first(|&(_, p)| p)?;
+        Some(i)
     }
 
     /// Searches for the sequentially **last** item in the parallel iterator
@@ -2397,10 +2391,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     where
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
-        self.map(predicate)
-            .enumerate()
-            .find_last(|&(_, p)| p)
-            .map(|(i, _)| i)
+        let (i, _) = self.map(predicate).enumerate().find_last(|&(_, p)| p)?;
+        Some(i)
     }
 
     #[doc(hidden)]

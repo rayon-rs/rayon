@@ -194,9 +194,8 @@ where
     type Item = R;
 
     fn next(&mut self) -> Option<R> {
-        self.base
-            .next()
-            .map(|item| (self.map_op)(&mut self.item, item))
+        let item = self.base.next()?;
+        Some((self.map_op)(&mut self.item, item))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -211,9 +210,8 @@ where
     R: Send,
 {
     fn next_back(&mut self) -> Option<R> {
-        self.base
-            .next_back()
-            .map(|item| (self.map_op)(&mut self.item, item))
+        let item = self.base.next_back()?;
+        Some((self.map_op)(&mut self.item, item))
     }
 }
 

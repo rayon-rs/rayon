@@ -60,15 +60,8 @@ pub fn if_in_worker_thread<F, R>(if_true: F) -> Option<R>
 where
     F: FnOnce(&WorkerThread) -> R,
 {
-    let worker_thread = registry::WorkerThread::current();
-    if worker_thread.is_null() {
-        None
-    } else {
-        unsafe {
-            let wt = WorkerThread {
-                thread: &*worker_thread,
-            };
-            Some(if_true(&wt))
-        }
+    unsafe {
+        let thread = registry::WorkerThread::current().as_ref()?;
+        Some(if_true(&WorkerThread { thread }))
     }
 }

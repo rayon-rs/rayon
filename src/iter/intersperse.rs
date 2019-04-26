@@ -47,10 +47,9 @@ where
     }
 
     fn opt_len(&self) -> Option<usize> {
-        match self.base.opt_len() {
-            None => None,
-            Some(0) => Some(0),
-            Some(len) => len.checked_add(len - 1),
+        match self.base.opt_len()? {
+            0 => Some(0),
+            len => len.checked_add(len - 1),
         }
     }
 }

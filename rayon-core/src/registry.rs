@@ -74,7 +74,8 @@ pub fn init_global_registry(
         called = true;
     });
     if called {
-        init_result.map(|()| &**global_registry())
+        init_result?;
+        Ok(&**global_registry())
     } else {
         Err(ThreadPoolBuildError::new(
             ErrorKind::GlobalPoolAlreadyInitialized,
@@ -87,7 +88,9 @@ pub fn init_global_registry(
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
 unsafe fn init_registry(builder: ThreadPoolBuilder) -> Result<(), ThreadPoolBuildError> {
-    Registry::new(builder).map(|registry| THE_REGISTRY = Some(leak(registry)))
+    let registry = Registry::new(builder)?;
+    THE_REGISTRY = Some(leak(registry));
+    Ok(())
 }
 
 struct Terminator<'a>(&'a Arc<Registry>);
@@ -179,12 +182,12 @@ impl Registry {
     /// Returns the current `WorkerThread` if it's part of this `Registry`.
     pub fn current_thread(&self) -> Option<&WorkerThread> {
         unsafe {
-            if let Some(worker) = WorkerThread::current().as_ref() {
-                if worker.registry().id() == self.id() {
-                    return Some(worker);
-                }
+            let worker = WorkerThread::current().as_ref()?;
+            if worker.registry().id() == self.id() {
+                Some(worker)
+            } else {
+                None
             }
-            None
         }
     }
 
