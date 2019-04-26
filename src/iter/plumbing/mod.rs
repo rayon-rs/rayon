@@ -269,7 +269,7 @@ impl Splitter {
     }
 
     #[inline]
-    fn try(&mut self, stolen: bool) -> bool {
+    fn try_split(&mut self, stolen: bool) -> bool {
         let Splitter { splits } = *self;
 
         if stolen {
@@ -331,9 +331,9 @@ impl LengthSplitter {
     }
 
     #[inline]
-    fn try(&mut self, len: usize, stolen: bool) -> bool {
+    fn try_split(&mut self, len: usize, stolen: bool) -> bool {
         // If splitting wouldn't make us too small, try the inner splitter.
-        len / 2 >= self.min && self.inner.try(stolen)
+        len / 2 >= self.min && self.inner.try_split(stolen)
     }
 }
 
@@ -409,7 +409,7 @@ where
     {
         if consumer.full() {
             consumer.into_folder().complete()
-        } else if splitter.try(len, migrated) {
+        } else if splitter.try_split(len, migrated) {
             let mid = len / 2;
             let (left_producer, right_producer) = producer.split_at(mid);
             let (left_consumer, right_consumer, reducer) = consumer.split_at(mid);
@@ -464,7 +464,7 @@ where
 {
     if consumer.full() {
         consumer.into_folder().complete()
-    } else if splitter.try(migrated) {
+    } else if splitter.try_split(migrated) {
         match producer.split() {
             (left_producer, Some(right_producer)) => {
                 let (reducer, left_consumer, right_consumer) =
