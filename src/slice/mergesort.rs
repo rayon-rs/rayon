@@ -218,7 +218,7 @@ where
     impl<T> Drop for MergeHole<T> {
         fn drop(&mut self) {
             // `T` is not a zero-sized type, so it's okay to divide by its size.
-            let len = (self.end as usize - self.start as usize) / mem::size_of::<T>();
+            let len = (self.end as usize - self.start as usize) / size_of::<T>();
             unsafe {
                 ptr::copy_nonoverlapping(self.start, self.dest, len);
             }
@@ -521,7 +521,7 @@ where
 
     impl<T> Drop for State<T> {
         fn drop(&mut self) {
-            let size = mem::size_of::<T>();
+            let size = size_of::<T>();
             let left_len = (self.left_end as usize - self.left_start as usize) / size;
             let right_len = (self.right_end as usize - self.right_start as usize) / size;
 
