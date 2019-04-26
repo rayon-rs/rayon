@@ -81,9 +81,9 @@ macro_rules! sort {
             [(); 10].$f(|a, b| a.cmp(b));
             [(); 100].$f(|a, b| a.cmp(b));
 
-            let mut v = [0xDEADBEEFu64];
+            let mut v = [0xDEAD_BEEFu64];
             v.$f(|a, b| a.cmp(b));
-            assert!(v == [0xDEADBEEF]);
+            assert!(v == [0xDEAD_BEEF]);
         }
     };
 }

@@ -113,7 +113,7 @@ fn check_len<I: ExactSizeIterator>(iter: &I, len: usize) {
 #[test]
 fn empty() {
     let v = vec![42];
-    check(&v[..0], || rayon::iter::empty());
+    check(&v[..0], rayon::iter::empty);
 }
 
 #[test]

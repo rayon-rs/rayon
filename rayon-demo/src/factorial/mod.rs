@@ -10,7 +10,7 @@ const N: u32 = 9999;
 
 /// Compute the Factorial using a plain iterator.
 fn factorial(n: u32) -> BigUint {
-    (1..n + 1).map(BigUint::from).fold(BigUint::one(), Mul::mul)
+    (1..=n).map(BigUint::from).fold(BigUint::one(), Mul::mul)
 }
 
 #[bench]

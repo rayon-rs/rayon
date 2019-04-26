@@ -41,13 +41,10 @@ mod util {
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
         let mutex = Mutex::new(HashMap::new());
-        pi.fold(
-            || Vec::new(),
-            |mut vec, elem| {
-                vec.push(elem);
-                vec
-            },
-        )
+        pi.fold(Vec::new, |mut vec, elem| {
+            vec.push(elem);
+            vec
+        })
         .for_each(|vec| {
             let mut guard = mutex.lock().unwrap();
             guard.extend(vec);
@@ -74,13 +71,10 @@ mod util {
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
         let list: LinkedList<Vec<(_, _)>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .collect();
         list.into_iter().fold(HashMap::new(), |mut map, vec| {
             map.extend(vec);
@@ -96,13 +90,10 @@ mod util {
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
         let list: LinkedList<Vec<(_, _)>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .collect();
 
         let len = list.iter().map(Vec::len).sum();
@@ -121,13 +112,10 @@ mod util {
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
         let list: LinkedList<Vec<(_, _)>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .map(|vec| {
                 let mut list = LinkedList::new();
                 list.push_back(vec);
@@ -154,21 +142,15 @@ mod util {
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
         let vecs: Vec<Vec<(_, _)>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .map(|v| vec![v])
-            .reduce(
-                || Vec::new(),
-                |mut left, mut right| {
-                    left.append(&mut right);
-                    left
-                },
-            );
+            .reduce(Vec::new, |mut left, mut right| {
+                left.append(&mut right);
+                left
+            });
 
         let len = vecs.iter().map(Vec::len).sum();
         vecs.into_iter()
@@ -185,25 +167,19 @@ mod util {
         V: Send,
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
-        pi.fold(
-            || HashMap::new(),
-            |mut map, (k, v)| {
-                map.insert(k, v);
-                map
-            },
-        )
-        .reduce(
-            || HashMap::new(),
-            |mut map1, mut map2| {
-                if map1.len() > map2.len() {
-                    map1.extend(map2);
-                    map1
-                } else {
-                    map2.extend(map1);
-                    map2
-                }
-            },
-        )
+        pi.fold(HashMap::new, |mut map, (k, v)| {
+            map.insert(k, v);
+            map
+        })
+        .reduce(HashMap::new, |mut map1, mut map2| {
+            if map1.len() > map2.len() {
+                map1.extend(map2);
+                map1
+            } else {
+                map2.extend(map1);
+                map2
+            }
+        })
     }
 
     /// Fold into vecs and then reduce them together as hashmaps.
@@ -213,21 +189,15 @@ mod util {
         V: Send,
         PI: ParallelIterator<Item = (K, V)> + Send,
     {
-        pi.fold(
-            || Vec::new(),
-            |mut vec, elem| {
-                vec.push(elem);
-                vec
-            },
-        )
+        pi.fold(Vec::new, |mut vec, elem| {
+            vec.push(elem);
+            vec
+        })
         .map(HashMap::from_iter)
-        .reduce(
-            || HashMap::new(),
-            |mut map1, map2| {
-                map1.extend(map2);
-                map1
-            },
-        )
+        .reduce(HashMap::new, |mut map1, map2| {
+            map1.extend(map2);
+            map1
+        })
     }
 }
 

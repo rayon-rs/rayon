@@ -17,7 +17,7 @@ extern crate rayon;
 extern crate test;
 
 const N: u32 = 32;
-const FN: u32 = 2178309;
+const FN: u32 = 2_178_309;
 
 fn fib_iterative(n: u32) -> u32 {
     let mut a = 0;

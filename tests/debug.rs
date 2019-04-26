@@ -121,8 +121,8 @@ fn debug_adaptors() {
     check(v.par_iter().cloned());
     check(v.par_iter().enumerate());
     check(v.par_iter().filter(|_| true));
-    check(v.par_iter().filter_map(|x| Some(x)));
-    check(v.par_iter().flat_map(|x| Some(x)));
+    check(v.par_iter().filter_map(Some));
+    check(v.par_iter().flat_map(Some));
     check(v.par_iter().map(Some).flatten());
     check(v.par_iter().fold(|| 0, |x, _| x));
     check(v.par_iter().fold_with(0, |x, _| x));

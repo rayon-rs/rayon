@@ -8,7 +8,7 @@ use docopt::Docopt;
 use std::io;
 use std::process;
 
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: cpu_monitor [options] <scenario>
        cpu_monitor --help
 
@@ -76,7 +76,7 @@ fn tasks_ended(args: &Args) {
 }
 
 fn task_stall_root(args: &Args) {
-    rayon::join(|| task(args), || wait_for_user());
+    rayon::join(|| task(args), wait_for_user);
 }
 
 fn task_stall_scope(args: &Args) {

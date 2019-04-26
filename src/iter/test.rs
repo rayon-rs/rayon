@@ -82,7 +82,7 @@ fn check_map_indexed() {
 fn map_sum() {
     let a: Vec<i32> = (0..1024).collect();
     let r1: i32 = a.par_iter().map(|&i| i + 1).sum();
-    let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
+    let r2 = a.iter().map(|&i| i + 1).sum();
     assert_eq!(r1, r2);
 }
 
@@ -90,7 +90,7 @@ fn map_sum() {
 fn map_reduce() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter().map(|&i| i + 1).reduce(|| 0, |i, j| i + j);
-    let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
+    let r2 = a.iter().map(|&i| i + 1).sum();
     assert_eq!(r1, r2);
 }
 
@@ -98,7 +98,7 @@ fn map_reduce() {
 fn map_reduce_with() {
     let a: Vec<i32> = (0..1024).collect();
     let r1 = a.par_iter().map(|&i| i + 1).reduce_with(|i, j| i + j);
-    let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
+    let r2 = a.iter().map(|&i| i + 1).sum();
     assert_eq!(r1, Some(r2));
 }
 
@@ -827,24 +827,20 @@ fn check_zip_eq_range() {
 fn check_sum_filtered_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let par_sum_evens: i32 = a.par_iter().filter(|&x| (x & 1) == 0).sum();
-    let seq_sum_evens = a
-        .iter()
-        .filter(|&x| (x & 1) == 0)
-        .map(|&x| x)
-        .fold(0, |a, b| a + b);
+    let seq_sum_evens = a.iter().filter(|&x| (x & 1) == 0).sum();
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
 
 #[test]
 fn check_sum_filtermap_ints() {
     let a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let par_sum_evens: f32 = a
+    let par_sum_evens: u32 = a
         .par_iter()
-        .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
+        .filter_map(|&x| if (x & 1) == 0 { Some(x as u32) } else { None })
         .sum();
     let seq_sum_evens = a
         .iter()
-        .filter_map(|&x| if (x & 1) == 0 { Some(x as f32) } else { None })
+        .filter_map(|&x| if (x & 1) == 0 { Some(x as u32) } else { None })
         .sum();
     assert_eq!(par_sum_evens, seq_sum_evens);
 }
@@ -862,7 +858,7 @@ fn check_flat_map_nested_ranges() {
     let w = (0_i32..10)
         .flat_map(|i| (0_i32..10).map(move |j| (i, j)))
         .map(|(i, j)| i * j)
-        .fold(0, |i, j| i + j);
+        .sum();
 
     assert_eq!(v, w);
 }
@@ -946,25 +942,13 @@ fn check_slice_split_mut() {
 #[test]
 fn check_chunks() {
     let a: Vec<i32> = vec![1, 5, 10, 4, 100, 3, 1000, 2, 10000, 1];
-    let par_sum_product_pairs: i32 = a
-        .par_chunks(2)
-        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
-        .sum();
-    let seq_sum_product_pairs = a
-        .chunks(2)
-        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
-        .fold(0, |i, j| i + j);
+    let par_sum_product_pairs: i32 = a.par_chunks(2).map(|c| c.iter().product::<i32>()).sum();
+    let seq_sum_product_pairs = a.chunks(2).map(|c| c.iter().product::<i32>()).sum();
     assert_eq!(par_sum_product_pairs, 12345);
     assert_eq!(par_sum_product_pairs, seq_sum_product_pairs);
 
-    let par_sum_product_triples: i32 = a
-        .par_chunks(3)
-        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
-        .sum();
-    let seq_sum_product_triples = a
-        .chunks(3)
-        .map(|c| c.iter().map(|&x| x).fold(1, |i, j| i * j))
-        .fold(0, |i, j| i + j);
+    let par_sum_product_triples: i32 = a.par_chunks(3).map(|c| c.iter().product::<i32>()).sum();
+    let seq_sum_product_triples = a.chunks(3).map(|c| c.iter().product::<i32>()).sum();
     assert_eq!(par_sum_product_triples, 5_0 + 12_00 + 2_000_0000 + 1);
     assert_eq!(par_sum_product_triples, seq_sum_product_triples);
 }
@@ -973,21 +957,15 @@ fn check_chunks() {
 fn check_chunks_mut() {
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
-    a.par_chunks_mut(2)
-        .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
-    b.chunks_mut(2)
-        .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
-        .count();
+    a.par_chunks_mut(2).for_each(|c| c[0] = c.iter().sum());
+    b.chunks_mut(2).for_each(|c| c[0] = c.iter().sum());
     assert_eq!(a, &[3, 2, 7, 4, 11, 6, 15, 8, 19, 10]);
     assert_eq!(a, b);
 
     let mut a: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut b: Vec<i32> = a.clone();
-    a.par_chunks_mut(3)
-        .for_each(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j));
-    b.chunks_mut(3)
-        .map(|c| c[0] = c.iter().map(|&x| x).fold(0, |i, j| i + j))
-        .count();
+    a.par_chunks_mut(3).for_each(|c| c[0] = c.iter().sum());
+    b.chunks_mut(3).for_each(|c| c[0] = c.iter().sum());
     assert_eq!(a, &[6, 2, 3, 15, 5, 6, 24, 8, 9, 10]);
     assert_eq!(a, b);
 }
@@ -1494,18 +1472,15 @@ fn par_iter_collect_cows() {
     assert_eq!(a, b);
 
     // Collects `String` into a `String`
-    let a: Cow<'_, str> = s.split_whitespace().map(|s| s.to_owned()).collect();
-    let b: Cow<'_, str> = s.par_split_whitespace().map(|s| s.to_owned()).collect();
+    let a: Cow<'_, str> = s.split_whitespace().map(str::to_owned).collect();
+    let b: Cow<'_, str> = s.par_split_whitespace().map(str::to_owned).collect();
     assert_eq!(a, b);
 }
 
 #[test]
 fn par_iter_unindexed_flat_map() {
-    let b: Vec<i64> = (0_i64..1024)
-        .into_par_iter()
-        .flat_map(|i| Some(i))
-        .collect();
-    let c: Vec<i64> = (0_i64..1024).flat_map(|i| Some(i)).collect();
+    let b: Vec<i64> = (0_i64..1024).into_par_iter().flat_map(Some).collect();
+    let c: Vec<i64> = (0_i64..1024).flat_map(Some).collect();
     assert_eq!(b, c);
 }
 
@@ -1513,7 +1488,7 @@ fn par_iter_unindexed_flat_map() {
 fn min_max() {
     let mut rng = seeded_rng();
     let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
-    for i in 0..a.len() + 1 {
+    for i in 0..=a.len() {
         let slice = &a[..i];
         assert_eq!(slice.par_iter().min(), slice.iter().min());
         assert_eq!(slice.par_iter().max(), slice.iter().max());
@@ -1526,7 +1501,7 @@ fn min_max_by() {
     // Make sure there are duplicate keys, for testing sort stability
     let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
     let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
-    for i in 0..a.len() + 1 {
+    for i in 0..=a.len() {
         let slice = &a[..i];
         assert_eq!(
             slice.par_iter().min_by(|x, y| x.0.cmp(&y.0)),
@@ -1545,7 +1520,7 @@ fn min_max_by_key() {
     // Make sure there are duplicate keys, for testing sort stability
     let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
     let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
-    for i in 0..a.len() + 1 {
+    for i in 0..=a.len() {
         let slice = &a[..i];
         assert_eq!(
             slice.par_iter().min_by_key(|x| x.0),
@@ -1576,7 +1551,7 @@ fn scope_mix() {
         s.spawn(move |_| {
             let a: Vec<i32> = (0..1024).collect();
             let r1 = a.par_iter().map(|&i| i + 1).reduce_with(|i, j| i + j);
-            let r2 = a.iter().map(|&i| i + 1).fold(0, |a, b| a + b);
+            let r2 = a.iter().map(|&i| i + 1).sum();
             assert_eq!(r1.unwrap(), r2);
         });
     });
@@ -1633,7 +1608,7 @@ fn check_lengths() {
         );
     }
 
-    let lengths = [0, 1, 10, 100, 1000, 10000, 100000, 1000000, usize::MAX];
+    let lengths = [0, 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, usize::MAX];
     for &min in &lengths {
         for &max in &lengths {
             check(min, max);
@@ -1811,7 +1786,7 @@ fn check_unzip() {
         .into_par_iter()
         .filter_map(|i| Some((i, i * i)))
         .unzip();
-    let (c, d): (Vec<_>, Vec<_>) = (0..1024).filter_map(|i| Some((i, i * i))).unzip();
+    let (c, d): (Vec<_>, Vec<_>) = (0..1024).map(|i| (i, i * i)).unzip();
     assert_eq!(a, c);
     assert_eq!(b, d);
 }

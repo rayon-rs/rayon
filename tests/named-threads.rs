@@ -16,7 +16,7 @@ fn named_threads() {
 
     let thread_names = (0..N)
         .into_par_iter()
-        .flat_map(|_| ::std::thread::current().name().map(|s| s.to_owned()))
+        .flat_map(|_| ::std::thread::current().name().map(str::to_owned))
         .collect::<HashSet<String>>();
 
     let all_contains_name = thread_names

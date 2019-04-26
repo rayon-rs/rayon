@@ -68,14 +68,11 @@ fn sleeper_stop() {
 }
 
 /// Create a start/exit handler that increments an atomic counter.
-fn count_handler() -> (Arc<AtomicUsize>, Box<::StartHandler>) {
+fn count_handler() -> (Arc<AtomicUsize>, impl Fn(usize)) {
     let count = Arc::new(AtomicUsize::new(0));
-    (
-        count.clone(),
-        Box::new(move |_| {
-            count.fetch_add(1, Ordering::SeqCst);
-        }),
-    )
+    (count.clone(), move |_| {
+        count.fetch_add(1, Ordering::SeqCst);
+    })
 }
 
 /// Wait until a counter is no longer shared, then return its value.
@@ -109,8 +106,8 @@ fn failed_thread_stack() {
     let builder = ThreadPoolBuilder::new()
         .num_threads(10)
         .stack_size(stack_size)
-        .start_handler(move |i| start_handler(i))
-        .exit_handler(move |i| exit_handler(i));
+        .start_handler(start_handler)
+        .exit_handler(exit_handler);
 
     let pool = builder.build();
     assert!(pool.is_err(), "thread stack should have failed!");
@@ -128,8 +125,8 @@ fn panic_thread_name() {
     let (exit_count, exit_handler) = count_handler();
     let builder = ThreadPoolBuilder::new()
         .num_threads(10)
-        .start_handler(move |i| start_handler(i))
-        .exit_handler(move |i| exit_handler(i))
+        .start_handler(start_handler)
+        .exit_handler(exit_handler)
         .thread_name(|i| {
             if i >= 5 {
                 panic!();
