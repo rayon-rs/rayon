@@ -171,7 +171,7 @@ impl<T: Send> Producer for OptionProducer<T> {
 ///
 /// If any item is `None`, then all previous items collected are discarded,
 /// and it returns only `None`.
-impl<'a, C, T> FromParallelIterator<Option<T>> for Option<C>
+impl<C, T> FromParallelIterator<Option<T>> for Option<C>
 where
     C: FromParallelIterator<T>,
     T: Send,

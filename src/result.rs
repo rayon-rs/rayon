@@ -90,7 +90,7 @@ delegate_indexed_iterator! {
 /// If any item is `Err`, then all previous `Ok` items collected are
 /// discarded, and it returns that error.  If there are multiple errors, the
 /// one returned is not deterministic.
-impl<'a, C, T, E> FromParallelIterator<Result<T, E>> for Result<C, E>
+impl<C, T, E> FromParallelIterator<Result<T, E>> for Result<C, E>
 where
     C: FromParallelIterator<T>,
     T: Send,
