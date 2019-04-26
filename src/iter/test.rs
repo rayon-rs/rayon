@@ -58,7 +58,6 @@ pub fn execute_unindexed_range() {
     assert_eq!(b, c);
 }
 
-#[cfg(has_i128)]
 #[test]
 pub fn execute_pseudo_indexed_range() {
     use std::i128::MAX;
