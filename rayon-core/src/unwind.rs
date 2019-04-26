@@ -3,8 +3,6 @@
 //! accidental panics in the rayon code itself.
 
 use std::any::Any;
-use std::io::prelude::*;
-use std::io::stderr;
 use std::panic::{self, AssertUnwindSafe};
 use std::thread;
 
@@ -25,22 +23,9 @@ pub fn resume_unwinding(payload: Box<Any + Send>) -> ! {
 
 pub struct AbortIfPanic;
 
-fn aborting() {
-    let _ = writeln!(&mut stderr(), "Rayon: detected unexpected panic; aborting");
-}
-
 impl Drop for AbortIfPanic {
-    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
     fn drop(&mut self) {
-        aborting();
-        ::std::process::abort(); // stable in rust 1.17
-    }
-
-    #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
-    fn drop(&mut self) {
-        aborting();
-        unsafe {
-            ::libc::abort(); // used for compat before 1.17
-        }
+        eprintln!("Rayon: detected unexpected panic; aborting");
+        ::std::process::abort();
     }
 }
