@@ -37,7 +37,7 @@ pub struct TryFold<I, U, ID, F> {
 }
 
 impl<U, I: ParallelIterator + Debug, ID, F> Debug for TryFold<I, U, ID, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TryFold").field("base", &self.base).finish()
     }
 }
@@ -195,7 +195,7 @@ impl<I: ParallelIterator + Debug, U: Try, F> Debug for TryFoldWith<I, U, F>
 where
     U::Ok: Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TryFoldWith")
             .field("base", &self.base)
             .field("item", &self.item)

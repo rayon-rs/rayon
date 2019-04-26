@@ -122,7 +122,7 @@ pub struct Split<D, S> {
 }
 
 impl<D: Debug, S> Debug for Split<D, S> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Split").field("data", &self.data).finish()
     }
 }

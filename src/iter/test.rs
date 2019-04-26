@@ -1479,23 +1479,23 @@ fn par_iter_collect_cows() {
     let s = "Fearless Concurrency with Rust";
 
     // Collects `i32` into a `Vec`
-    let a: Cow<[i32]> = (0..1024).collect();
-    let b: Cow<[i32]> = a.par_iter().cloned().collect();
+    let a: Cow<'_, [i32]> = (0..1024).collect();
+    let b: Cow<'_, [i32]> = a.par_iter().cloned().collect();
     assert_eq!(a, b);
 
     // Collects `char` into a `String`
-    let a: Cow<str> = s.chars().collect();
-    let b: Cow<str> = s.par_chars().collect();
+    let a: Cow<'_, str> = s.chars().collect();
+    let b: Cow<'_, str> = s.par_chars().collect();
     assert_eq!(a, b);
 
     // Collects `str` into a `String`
-    let a: Cow<str> = s.split_whitespace().collect();
-    let b: Cow<str> = s.par_split_whitespace().collect();
+    let a: Cow<'_, str> = s.split_whitespace().collect();
+    let b: Cow<'_, str> = s.par_split_whitespace().collect();
     assert_eq!(a, b);
 
     // Collects `String` into a `String`
-    let a: Cow<str> = s.split_whitespace().map(|s| s.to_owned()).collect();
-    let b: Cow<str> = s.par_split_whitespace().map(|s| s.to_owned()).collect();
+    let a: Cow<'_, str> = s.split_whitespace().map(|s| s.to_owned()).collect();
+    let b: Cow<'_, str> = s.par_split_whitespace().map(|s| s.to_owned()).collect();
     assert_eq!(a, b);
 }
 

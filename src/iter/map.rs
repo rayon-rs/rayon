@@ -18,7 +18,7 @@ pub struct Map<I: ParallelIterator, F> {
 }
 
 impl<I: ParallelIterator + Debug, F> Debug for Map<I, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Map").field("base", &self.base).finish()
     }
 }

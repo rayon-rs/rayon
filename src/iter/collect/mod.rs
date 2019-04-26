@@ -84,7 +84,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     }
 
     /// Create a consumer on a slice of our memory.
-    fn as_consumer(&mut self) -> CollectConsumer<T> {
+    fn as_consumer(&mut self) -> CollectConsumer<'_, T> {
         // Reserve the new space.
         self.vec.reserve(self.len);
 

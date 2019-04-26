@@ -40,7 +40,7 @@ pub trait ParallelSlice<T: Sync> {
     ///     .min();
     /// assert_eq!(Some(&1), smallest);
     /// ```
-    fn par_split<P>(&self, separator: P) -> Split<T, P>
+    fn par_split<P>(&self, separator: P) -> Split<'_, T, P>
     where
         P: Fn(&T) -> bool + Sync + Send,
     {
@@ -60,7 +60,7 @@ pub trait ParallelSlice<T: Sync> {
     /// let windows: Vec<_> = [1, 2, 3].par_windows(2).collect();
     /// assert_eq!(vec![[1, 2], [2, 3]], windows);
     /// ```
-    fn par_windows(&self, window_size: usize) -> Windows<T> {
+    fn par_windows(&self, window_size: usize) -> Windows<'_, T> {
         Windows {
             window_size,
             slice: self.as_parallel_slice(),
@@ -81,7 +81,7 @@ pub trait ParallelSlice<T: Sync> {
     /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_chunks(2).collect();
     /// assert_eq!(chunks, vec![&[1, 2][..], &[3, 4], &[5]]);
     /// ```
-    fn par_chunks(&self, chunk_size: usize) -> Chunks<T> {
+    fn par_chunks(&self, chunk_size: usize) -> Chunks<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks {
             chunk_size,
@@ -115,7 +115,7 @@ pub trait ParallelSliceMut<T: Send> {
     ///      .for_each(|slice| slice.reverse());
     /// assert_eq!(array, [3, 2, 1, 0, 8, 4, 2, 0, 9, 6, 3]);
     /// ```
-    fn par_split_mut<P>(&mut self, separator: P) -> SplitMut<T, P>
+    fn par_split_mut<P>(&mut self, separator: P) -> SplitMut<'_, T, P>
     where
         P: Fn(&T) -> bool + Sync + Send,
     {
@@ -141,7 +141,7 @@ pub trait ParallelSliceMut<T: Send> {
     ///      .for_each(|slice| slice.reverse());
     /// assert_eq!(array, [2, 1, 4, 3, 5]);
     /// ```
-    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksMut {
             chunk_size,
@@ -820,7 +820,7 @@ impl<'data, T, P: Clone> Clone for Split<'data, T, P> {
 }
 
 impl<'data, T: Debug, P> Debug for Split<'data, T, P> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Split").field("slice", &self.slice).finish()
     }
 }
@@ -887,7 +887,7 @@ pub struct SplitMut<'data, T: 'data, P> {
 }
 
 impl<'data, T: Debug, P> Debug for SplitMut<'data, T, P> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SplitMut")
             .field("slice", &self.slice)
             .finish()

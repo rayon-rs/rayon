@@ -18,7 +18,7 @@ pub struct MapWith<I: ParallelIterator, T, F> {
 }
 
 impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapWith")
             .field("base", &self.base)
             .field("item", &self.item)
@@ -345,7 +345,7 @@ pub struct MapInit<I: ParallelIterator, INIT, F> {
 }
 
 impl<I: ParallelIterator + Debug, INIT, F> Debug for MapInit<I, INIT, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapInit").field("base", &self.base).finish()
     }
 }

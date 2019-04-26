@@ -40,7 +40,7 @@ impl<T: Send> Clone for Empty<T> {
 }
 
 impl<T: Send> fmt::Debug for Empty<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Empty")
     }
 }

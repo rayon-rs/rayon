@@ -33,7 +33,7 @@ pub struct Fold<I, ID, F> {
 }
 
 impl<I: ParallelIterator + Debug, ID, F> Debug for Fold<I, ID, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Fold").field("base", &self.base).finish()
     }
 }
@@ -201,7 +201,7 @@ pub struct FoldWith<I, U, F> {
 }
 
 impl<I: ParallelIterator + Debug, U: Debug, F> Debug for FoldWith<I, U, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FoldWith")
             .field("base", &self.base)
             .field("item", &self.item)

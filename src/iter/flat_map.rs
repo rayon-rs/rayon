@@ -16,7 +16,7 @@ pub struct FlatMap<I: ParallelIterator, F> {
 }
 
 impl<I: ParallelIterator + Debug, F> Debug for FlatMap<I, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FlatMap").field("base", &self.base).finish()
     }
 }

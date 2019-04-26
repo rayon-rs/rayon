@@ -70,7 +70,7 @@ pub trait ParallelString {
     /// let max = "hello".par_chars().max_by_key(|c| *c as i32);
     /// assert_eq!(Some('o'), max);
     /// ```
-    fn par_chars(&self) -> Chars {
+    fn par_chars(&self) -> Chars<'_> {
         Chars {
             chars: self.as_parallel_string(),
         }
@@ -85,7 +85,7 @@ pub trait ParallelString {
     /// let min = "hello".par_char_indices().min_by_key(|&(_i, c)| c as i32);
     /// assert_eq!(Some((1, 'e')), min);
     /// ```
-    fn par_char_indices(&self) -> CharIndices {
+    fn par_char_indices(&self) -> CharIndices<'_> {
         CharIndices {
             chars: self.as_parallel_string(),
         }
@@ -105,7 +105,7 @@ pub trait ParallelString {
     /// let max = "hello".par_bytes().max();
     /// assert_eq!(Some(b'o'), max);
     /// ```
-    fn par_bytes(&self) -> Bytes {
+    fn par_bytes(&self) -> Bytes<'_> {
         Bytes {
             chars: self.as_parallel_string(),
         }
@@ -129,7 +129,7 @@ pub trait ParallelString {
     /// let utf16_len = text.par_encode_utf16().count();
     /// assert!(utf16_len <= utf8_len);
     /// ```
-    fn par_encode_utf16(&self) -> EncodeUtf16 {
+    fn par_encode_utf16(&self) -> EncodeUtf16<'_> {
         EncodeUtf16 {
             chars: self.as_parallel_string(),
         }
@@ -151,7 +151,7 @@ pub trait ParallelString {
     ///    .sum();
     /// assert_eq!(10, total);
     /// ```
-    fn par_split<P: Pattern>(&self, separator: P) -> Split<P> {
+    fn par_split<P: Pattern>(&self, separator: P) -> Split<'_, P> {
         Split::new(self.as_parallel_string(), separator)
     }
 
@@ -172,7 +172,7 @@ pub trait ParallelString {
     ///     .collect();
     /// assert_eq!(vec!["", "", "1 + 3", " * 2"], parts);
     /// ```
-    fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<P> {
+    fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<'_, P> {
         SplitTerminator::new(self.as_parallel_string(), terminator)
     }
 
@@ -191,7 +191,7 @@ pub trait ParallelString {
     ///     .collect();
     /// assert_eq!(vec![11, 7], lengths);
     /// ```
-    fn par_lines(&self) -> Lines {
+    fn par_lines(&self) -> Lines<'_> {
         Lines(self.as_parallel_string())
     }
 
@@ -210,7 +210,7 @@ pub trait ParallelString {
     ///     .max_by_key(|word| word.len());
     /// assert_eq!(Some("longest"), longest);
     /// ```
-    fn par_split_whitespace(&self) -> SplitWhitespace {
+    fn par_split_whitespace(&self) -> SplitWhitespace<'_> {
         SplitWhitespace(self.as_parallel_string())
     }
 
@@ -230,7 +230,7 @@ pub trait ParallelString {
     ///    .sum();
     /// assert_eq!(10, total);
     /// ```
-    fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<P> {
+    fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<'_, P> {
         Matches {
             chars: self.as_parallel_string(),
             pattern,
@@ -252,7 +252,7 @@ pub trait ParallelString {
     ///    .collect();
     /// assert_eq!(digits, vec![(0, "1"), (3, "2"), (14, "3"), (17, "4")]);
     /// ```
-    fn par_match_indices<P: Pattern>(&self, pattern: P) -> MatchIndices<P> {
+    fn par_match_indices<P: Pattern>(&self, pattern: P) -> MatchIndices<'_, P> {
         MatchIndices {
             chars: self.as_parallel_string(),
             pattern,

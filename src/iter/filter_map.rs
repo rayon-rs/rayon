@@ -16,7 +16,7 @@ pub struct FilterMap<I: ParallelIterator, P> {
 }
 
 impl<I: ParallelIterator + Debug, P> Debug for FilterMap<I, P> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FilterMap")
             .field("base", &self.base)
             .finish()

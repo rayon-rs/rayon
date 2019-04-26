@@ -624,7 +624,7 @@ impl<'scope> ScopeBase<'scope> {
 }
 
 impl<'scope> fmt::Debug for Scope<'scope> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Scope")
             .field("pool_id", &self.base.registry.id())
             .field("owner_thread_index", &self.base.owner_thread_index)
