@@ -15,17 +15,16 @@ pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
     zip: Zip<A, B>,
 }
 
-/// Create a new `ZipEq` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-#[inline]
-pub fn new<A, B>(a: A, b: B) -> ZipEq<A, B>
+impl<A, B> ZipEq<A, B>
 where
     A: IndexedParallelIterator,
     B: IndexedParallelIterator,
 {
-    ZipEq {
-        zip: super::zip::new(a, b),
+    /// Create a new `ZipEq` iterator.
+    pub(super) fn new(a: A, b: B) -> Self {
+        ZipEq {
+            zip: super::Zip::new(a, b),
+        }
     }
 }
 

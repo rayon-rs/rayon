@@ -621,7 +621,7 @@ unsafe fn recurse<T, F>(
 ///
 /// The algorithm is stable, allocates memory, and `O(n log n)` worst-case.
 /// The allocated temporary buffer is of the same length as is `v`.
-pub fn par_mergesort<T, F>(v: &mut [T], is_less: F)
+pub(super) fn par_mergesort<T, F>(v: &mut [T], is_less: F)
 where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,

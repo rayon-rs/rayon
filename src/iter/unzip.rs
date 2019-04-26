@@ -57,8 +57,8 @@ where
 /// Unzips the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
 ///
-/// This is not directly public, but called by `ParallelIterator::unzip`.
-pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
+/// This is called by `ParallelIterator::unzip`.
+pub(super) fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
 where
     I: ParallelIterator<Item = (A, B)>,
     FromA: Default + Send + ParallelExtend<A>,
@@ -71,8 +71,8 @@ where
 
 /// Unzip an `IndexedParallelIterator` into two arbitrary `Consumer`s.
 ///
-/// This is not directly public, but called by `super::collect::unzip_into_vecs`.
-pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
+/// This is called by `super::collect::unzip_into_vecs`.
+pub(super) fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
 where
     I: IndexedParallelIterator<Item = (A, B)>,
     CA: Consumer<A>,
@@ -111,8 +111,8 @@ impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
 /// Partitions the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
 ///
-/// This is not directly public, but called by `ParallelIterator::partition`.
-pub fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
+/// This is called by `ParallelIterator::partition`.
+pub(super) fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
 where
     I: ParallelIterator,
     A: Default + Send + ParallelExtend<I::Item>,
@@ -151,8 +151,8 @@ where
 /// Partitions and maps the items of a parallel iterator into a pair of
 /// arbitrary `ParallelExtend` containers.
 ///
-/// This is not directly public, but called by `ParallelIterator::partition_map`.
-pub fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
+/// This called by `ParallelIterator::partition_map`.
+pub(super) fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
 where
     I: ParallelIterator,
     A: Default + Send + ParallelExtend<L>,

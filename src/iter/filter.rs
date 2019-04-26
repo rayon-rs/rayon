@@ -21,14 +21,14 @@ impl<I: ParallelIterator + Debug, P> Debug for Filter<I, P> {
     }
 }
 
-/// Create a new `Filter` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, P>(base: I, filter_op: P) -> Filter<I, P>
+impl<I, P> Filter<I, P>
 where
     I: ParallelIterator,
 {
-    Filter { base, filter_op }
+    /// Create a new `Filter` iterator.
+    pub(super) fn new(base: I, filter_op: P) -> Self {
+        Filter { base, filter_op }
+    }
 }
 
 impl<I, P> ParallelIterator for Filter<I, P>

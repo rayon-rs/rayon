@@ -5,18 +5,20 @@ use super::private::Try;
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 
-pub fn try_fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> TryFold<I, U, ID, F>
+impl<U, I, ID, F> TryFold<I, U, ID, F>
 where
     I: ParallelIterator,
     F: Fn(U::Ok, I::Item) -> U + Sync + Send,
     ID: Fn() -> U::Ok + Sync + Send,
     U: Try + Send,
 {
-    TryFold {
-        base,
-        identity,
-        fold_op,
-        marker: PhantomData,
+    pub(super) fn new(base: I, identity: ID, fold_op: F) -> Self {
+        TryFold {
+            base,
+            identity,
+            fold_op,
+            marker: PhantomData,
+        }
     }
 }
 
@@ -160,17 +162,19 @@ where
 
 // ///////////////////////////////////////////////////////////////////////////
 
-pub fn try_fold_with<U, I, F>(base: I, item: U::Ok, fold_op: F) -> TryFoldWith<I, U, F>
+impl<U, I, F> TryFoldWith<I, U, F>
 where
     I: ParallelIterator,
     F: Fn(U::Ok, I::Item) -> U + Sync,
     U: Try + Send,
     U::Ok: Clone + Send,
 {
-    TryFoldWith {
-        base,
-        item,
-        fold_op,
+    pub(super) fn new(base: I, item: U::Ok, fold_op: F) -> Self {
+        TryFoldWith {
+            base,
+            item,
+            fold_op,
+        }
     }
 }
 

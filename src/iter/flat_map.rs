@@ -21,14 +21,11 @@ impl<I: ParallelIterator + Debug, F> Debug for FlatMap<I, F> {
     }
 }
 
-/// Create a new `FlatMap` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, map_op: F) -> FlatMap<I, F>
-where
-    I: ParallelIterator,
-{
-    FlatMap { base, map_op }
+impl<I: ParallelIterator, F> FlatMap<I, F> {
+    /// Create a new `FlatMap` iterator.
+    pub(super) fn new(base: I, map_op: F) -> Self {
+        FlatMap { base, map_op }
+    }
 }
 
 impl<I, F, PI> ParallelIterator for FlatMap<I, F>

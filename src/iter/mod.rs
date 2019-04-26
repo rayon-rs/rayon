@@ -556,7 +556,7 @@ pub trait ParallelIterator: Sized + Send {
         F: Fn(Self::Item) -> R + Sync + Send,
         R: Send,
     {
-        map::new(self, map_op)
+        Map::new(self, map_op)
     }
 
     /// Applies `map_op` to the given `init` value with each item of this
@@ -594,7 +594,7 @@ pub trait ParallelIterator: Sized + Send {
         T: Send + Clone,
         R: Send,
     {
-        map_with::new(self, init, map_op)
+        MapWith::new(self, init, map_op)
     }
 
     /// Applies `map_op` to a value returned by `init` with each item of this
@@ -634,7 +634,7 @@ pub trait ParallelIterator: Sized + Send {
         INIT: Fn() -> T + Sync + Send,
         R: Send,
     {
-        map_with::new_init(self, init, map_op)
+        MapInit::new(self, init, map_op)
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
@@ -660,7 +660,7 @@ pub trait ParallelIterator: Sized + Send {
         T: 'a + Clone + Send,
         Self: ParallelIterator<Item = &'a T>,
     {
-        cloned::new(self)
+        Cloned::new(self)
     }
 
     /// Applies `inspect_op` to a reference to each item of this iterator,
@@ -696,7 +696,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         OP: Fn(&Self::Item) + Sync + Send,
     {
-        inspect::new(self, inspect_op)
+        Inspect::new(self, inspect_op)
     }
 
     /// Mutates each item of this iterator before yielding it.
@@ -716,7 +716,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         F: Fn(&mut Self::Item) + Sync + Send,
     {
-        update::new(self, update_op)
+        Update::new(self, update_op)
     }
 
     /// Applies `filter_op` to each item of this iterator, producing a new
@@ -737,7 +737,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         P: Fn(&Self::Item) -> bool + Sync + Send,
     {
-        filter::new(self, filter_op)
+        Filter::new(self, filter_op)
     }
 
     /// Applies `filter_op` to each item of this iterator to get an `Option`,
@@ -763,7 +763,7 @@ pub trait ParallelIterator: Sized + Send {
         P: Fn(Self::Item) -> Option<R> + Sync + Send,
         R: Send,
     {
-        filter_map::new(self, filter_op)
+        FilterMap::new(self, filter_op)
     }
 
     /// Applies `map_op` to each item of this iterator to get nested iterators,
@@ -787,7 +787,7 @@ pub trait ParallelIterator: Sized + Send {
         F: Fn(Self::Item) -> PI + Sync + Send,
         PI: IntoParallelIterator,
     {
-        flat_map::new(self, map_op)
+        FlatMap::new(self, map_op)
     }
 
     /// An adaptor that flattens iterable `Item`s into one large iterator
@@ -806,7 +806,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         Self::Item: IntoParallelIterator,
     {
-        flatten::new(self)
+        Flatten::new(self)
     }
 
     /// Reduces the items in the iterator into one item using `op`.
@@ -1116,7 +1116,7 @@ pub trait ParallelIterator: Sized + Send {
         ID: Fn() -> T + Sync + Send,
         T: Send,
     {
-        fold::fold(self, identity, fold_op)
+        Fold::new(self, identity, fold_op)
     }
 
     /// Applies `fold_op` to the given `init` value with each item of this
@@ -1143,7 +1143,7 @@ pub trait ParallelIterator: Sized + Send {
         F: Fn(T, Self::Item) -> T + Sync + Send,
         T: Send + Clone,
     {
-        fold::fold_with(self, init, fold_op)
+        FoldWith::new(self, init, fold_op)
     }
 
     /// Perform a fallible parallel fold.
@@ -1177,7 +1177,7 @@ pub trait ParallelIterator: Sized + Send {
         ID: Fn() -> T + Sync + Send,
         R: Try<Ok = T> + Send,
     {
-        try_fold::try_fold(self, identity, fold_op)
+        TryFold::new(self, identity, fold_op)
     }
 
     /// Perform a fallible parallel fold with a cloneable `init` value.
@@ -1204,7 +1204,7 @@ pub trait ParallelIterator: Sized + Send {
         R: Try<Ok = T> + Send,
         T: Clone + Send,
     {
-        try_fold::try_fold_with(self, init, fold_op)
+        TryFoldWith::new(self, init, fold_op)
     }
 
     /// Sums up the items in the iterator.
@@ -1457,7 +1457,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         C: IntoParallelIterator<Item = Self::Item>,
     {
-        chain::new(self, chain.into_par_iter())
+        Chain::new(self, chain.into_par_iter())
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -1725,7 +1725,7 @@ pub trait ParallelIterator: Sized + Send {
         Self: ParallelIterator<Item = Option<T>>,
         T: Send,
     {
-        while_some::new(self)
+        WhileSome::new(self)
     }
 
     /// Create a fresh collection containing all the element produced
@@ -1897,7 +1897,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         Self::Item: Clone,
     {
-        intersperse::new(self, element)
+        Intersperse::new(self, element)
     }
 
     /// Internal method used to define the behavior of this parallel
@@ -2025,7 +2025,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         Z: IntoParallelIterator,
         Z::Iter: IndexedParallelIterator,
     {
-        zip::new(self, zip_op.into_par_iter())
+        Zip::new(self, zip_op.into_par_iter())
     }
 
     /// The same as `Zip`, but requires that both iterators have the same length.
@@ -2054,7 +2054,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     {
         let zip_op_iter = zip_op.into_par_iter();
         assert_eq!(self.len(), zip_op_iter.len());
-        zip_eq::new(self, zip_op_iter)
+        ZipEq::new(self, zip_op_iter)
     }
 
     /// Interleave elements of this iterator and the other given
@@ -2076,7 +2076,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         I: IntoParallelIterator<Item = Self::Item>,
         I::Iter: IndexedParallelIterator<Item = Self::Item>,
     {
-        interleave::new(self, other.into_par_iter())
+        Interleave::new(self, other.into_par_iter())
     }
 
     /// Interleave elements of this iterator and the other given
@@ -2095,7 +2095,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         I: IntoParallelIterator<Item = Self::Item>,
         I::Iter: IndexedParallelIterator<Item = Self::Item>,
     {
-        interleave_shortest::new(self, other.into_par_iter())
+        InterleaveShortest::new(self, other.into_par_iter())
     }
 
     /// Split an iterator up into fixed-size chunks.
@@ -2120,7 +2120,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn chunks(self, chunk_size: usize) -> Chunks<Self> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
-        chunks::new(self, chunk_size)
+        Chunks::new(self, chunk_size)
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
@@ -2266,7 +2266,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(result, [(0, 'a'), (1, 'b'), (2, 'c')]);
     /// ```
     fn enumerate(self) -> Enumerate<Self> {
-        enumerate::new(self)
+        Enumerate::new(self)
     }
 
     /// Creates an iterator that skips the first `n` elements.
@@ -2284,7 +2284,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(result, [95, 96, 97, 98, 99]);
     /// ```
     fn skip(self, n: usize) -> Skip<Self> {
-        skip::new(self, n)
+        Skip::new(self, n)
     }
 
     /// Creates an iterator that yields the first `n` elements.
@@ -2302,7 +2302,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(result, [0, 1, 2, 3, 4]);
     /// ```
     fn take(self, n: usize) -> Take<Self> {
-        take::new(self, n)
+        Take::new(self, n)
     }
 
     /// Searches for **some** item in the parallel iterator that
@@ -2423,7 +2423,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(result, [4, 3, 2, 1, 0]);
     /// ```
     fn rev(self) -> Rev<Self> {
-        rev::new(self)
+        Rev::new(self)
     }
 
     /// Sets the minimum length of iterators desired to process in each
@@ -2449,7 +2449,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert!(min >= 1234);
     /// ```
     fn with_min_len(self, min: usize) -> MinLen<Self> {
-        len::new_min_len(self, min)
+        MinLen::new(self, min)
     }
 
     /// Sets the maximum length of iterators desired to process in each
@@ -2477,7 +2477,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert!(max <= 1234);
     /// ```
     fn with_max_len(self, max: usize) -> MaxLen<Self> {
-        len::new_max_len(self, max)
+        MaxLen::new(self, max)
     }
 
     /// Produces an exact count of how many items this iterator will

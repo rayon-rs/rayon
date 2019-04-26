@@ -22,6 +22,7 @@
 #![doc(html_root_url = "https://docs.rs/rayon-core/1.5")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
+#![deny(unreachable_pub)]
 
 use std::any::Any;
 use std::env;
@@ -180,7 +181,7 @@ impl ThreadPoolBuilder {
 
     /// Create a new `ThreadPool` initialized using this configuration.
     pub fn build(self) -> Result<ThreadPool, ThreadPoolBuildError> {
-        thread_pool::build(self)
+        ThreadPool::build(self)
     }
 
     /// Initializes the global thread pool. This initialization is

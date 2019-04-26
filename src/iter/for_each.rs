@@ -2,7 +2,7 @@ use super::noop::*;
 use super::plumbing::*;
 use super::ParallelIterator;
 
-pub fn for_each<I, F, T>(pi: I, op: &F)
+pub(super) fn for_each<I, F, T>(pi: I, op: &F)
 where
     I: ParallelIterator<Item = T>,
     F: Fn(T) + Sync,

@@ -69,9 +69,7 @@ where
 /// Spawn an asynchronous job in `registry.`
 ///
 /// Unsafe because `registry` must not yet have terminated.
-///
-/// Not a public API, but used elsewhere in Rayon.
-pub unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
+pub(super) unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
 where
     F: FnOnce() + Send + 'static,
 {
@@ -146,9 +144,7 @@ where
 /// Spawn an asynchronous FIFO job in `registry.`
 ///
 /// Unsafe because `registry` must not yet have terminated.
-///
-/// Not a public API, but used elsewhere in Rayon.
-pub unsafe fn spawn_fifo_in<F>(func: F, registry: &Arc<Registry>)
+pub(super) unsafe fn spawn_fifo_in<F>(func: F, registry: &Arc<Registry>)
 where
     F: FnOnce() + Send + 'static,
 {

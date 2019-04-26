@@ -2,7 +2,7 @@ use super::plumbing::*;
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
+pub(super) fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
 where
     I: ParallelIterator,
     P: Fn(&I::Item) -> bool + Sync,

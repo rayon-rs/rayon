@@ -3,17 +3,19 @@ use super::*;
 
 use std::fmt::{self, Debug};
 
-pub fn fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> Fold<I, ID, F>
+impl<U, I, ID, F> Fold<I, ID, F>
 where
     I: ParallelIterator,
     F: Fn(U, I::Item) -> U + Sync + Send,
     ID: Fn() -> U + Sync + Send,
     U: Send,
 {
-    Fold {
-        base,
-        identity,
-        fold_op,
+    pub(super) fn new(base: I, identity: ID, fold_op: F) -> Self {
+        Fold {
+            base,
+            identity,
+            fold_op,
+        }
     }
 }
 
@@ -170,16 +172,18 @@ where
 
 // ///////////////////////////////////////////////////////////////////////////
 
-pub fn fold_with<U, I, F>(base: I, item: U, fold_op: F) -> FoldWith<I, U, F>
+impl<U, I, F> FoldWith<I, U, F>
 where
     I: ParallelIterator,
     F: Fn(U, I::Item) -> U + Sync + Send,
     U: Send + Clone,
 {
-    FoldWith {
-        base,
-        item,
-        fold_op,
+    pub(super) fn new(base: I, item: U, fold_op: F) -> Self {
+        FoldWith {
+            base,
+            item,
+            fold_op,
+        }
     }
 }
 

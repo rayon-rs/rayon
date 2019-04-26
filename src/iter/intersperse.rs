@@ -20,15 +20,15 @@ where
     item: I::Item,
 }
 
-/// Create a new `Intersperse` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I, item: I::Item) -> Intersperse<I>
+impl<I> Intersperse<I>
 where
     I: ParallelIterator,
     I::Item: Clone,
 {
-    Intersperse { base, item }
+    /// Create a new `Intersperse` iterator
+    pub(super) fn new(base: I, item: I::Item) -> Self {
+        Intersperse { base, item }
+    }
 }
 
 impl<I> ParallelIterator for Intersperse<I>

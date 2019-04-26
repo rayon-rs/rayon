@@ -23,14 +23,14 @@ impl<I: ParallelIterator + Debug, F> Debug for Update<I, F> {
     }
 }
 
-/// Create a new `Update` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, update_op: F) -> Update<I, F>
+impl<I, F> Update<I, F>
 where
     I: ParallelIterator,
 {
-    Update { base, update_op }
+    /// Create a new `Update` iterator.
+    pub(super) fn new(base: I, update_op: F) -> Self {
+        Update { base, update_op }
+    }
 }
 
 impl<I, F> ParallelIterator for Update<I, F>

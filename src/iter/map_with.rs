@@ -26,14 +26,14 @@ impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
     }
 }
 
-/// Create a new `MapWith` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, T, F>(base: I, item: T, map_op: F) -> MapWith<I, T, F>
+impl<I, T, F> MapWith<I, T, F>
 where
     I: ParallelIterator,
 {
-    MapWith { base, item, map_op }
+    /// Create a new `MapWith` iterator.
+    pub(super) fn new(base: I, item: T, map_op: F) -> Self {
+        MapWith { base, item, map_op }
+    }
 }
 
 impl<I, T, F, R> ParallelIterator for MapWith<I, T, F>
@@ -350,14 +350,14 @@ impl<I: ParallelIterator + Debug, INIT, F> Debug for MapInit<I, INIT, F> {
     }
 }
 
-/// Create a new `MapInit` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_init<I, INIT, F>(base: I, init: INIT, map_op: F) -> MapInit<I, INIT, F>
+impl<I, INIT, F> MapInit<I, INIT, F>
 where
     I: ParallelIterator,
 {
-    MapInit { base, init, map_op }
+    /// Create a new `MapInit` iterator.
+    pub(super) fn new(base: I, init: INIT, map_op: F) -> Self {
+        MapInit { base, init, map_op }
+    }
 }
 
 impl<I, INIT, T, F, R> ParallelIterator for MapInit<I, INIT, F>

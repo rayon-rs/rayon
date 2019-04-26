@@ -15,15 +15,15 @@ pub struct Skip<I> {
     n: usize,
 }
 
-/// Create a new `Skip` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I, n: usize) -> Skip<I>
+impl<I> Skip<I>
 where
     I: IndexedParallelIterator,
 {
-    let n = min(base.len(), n);
-    Skip { base, n }
+    /// Create a new `Skip` iterator.
+    pub(super) fn new(base: I, n: usize) -> Self {
+        let n = min(base.len(), n);
+        Skip { base, n }
+    }
 }
 
 impl<I> ParallelIterator for Skip<I>

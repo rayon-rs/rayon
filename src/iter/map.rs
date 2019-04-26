@@ -23,14 +23,14 @@ impl<I: ParallelIterator + Debug, F> Debug for Map<I, F> {
     }
 }
 
-/// Create a new `Map` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
+impl<I, F> Map<I, F>
 where
     I: ParallelIterator,
 {
-    Map { base, map_op }
+    /// Create a new `Map` iterator.
+    pub(super) fn new(base: I, map_op: F) -> Self {
+        Map { base, map_op }
+    }
 }
 
 impl<I, F, R> ParallelIterator for Map<I, F>

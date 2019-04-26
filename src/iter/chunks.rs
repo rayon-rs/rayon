@@ -20,14 +20,14 @@ where
     i: I,
 }
 
-/// Create a new `Chunks` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(i: I, size: usize) -> Chunks<I>
+impl<I> Chunks<I>
 where
     I: IndexedParallelIterator,
 {
-    Chunks { i, size }
+    /// Create a new `Chunks` iterator
+    pub(super) fn new(i: I, size: usize) -> Self {
+        Chunks { i, size }
+    }
 }
 
 impl<I> ParallelIterator for Chunks<I>

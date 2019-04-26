@@ -11,7 +11,7 @@
 use std::env;
 
 #[derive(Debug)]
-pub enum Event {
+pub(super) enum Event {
     Tickle {
         worker: usize,
         old_state: usize,
@@ -87,10 +87,10 @@ pub enum Event {
     },
 }
 
-pub const DUMP_LOGS: bool = cfg!(debug_assertions);
+pub(super) const DUMP_LOGS: bool = cfg!(debug_assertions);
 
 lazy_static! {
-    pub static ref LOG_ENV: bool =
+    pub(super) static ref LOG_ENV: bool =
         env::var("RAYON_LOG").is_ok() || env::var("RAYON_RS_LOG").is_ok();
 }
 

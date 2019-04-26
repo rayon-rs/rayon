@@ -14,15 +14,15 @@ pub struct Take<I> {
     n: usize,
 }
 
-/// Create a new `Take` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I, n: usize) -> Take<I>
+impl<I> Take<I>
 where
     I: IndexedParallelIterator,
 {
-    let n = min(base.len(), n);
-    Take { base, n }
+    /// Create a new `Take` iterator.
+    pub(super) fn new(base: I, n: usize) -> Self {
+        let n = min(base.len(), n);
+        Take { base, n }
+    }
 }
 
 impl<I> ParallelIterator for Take<I>

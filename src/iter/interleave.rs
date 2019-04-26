@@ -20,15 +20,15 @@ where
     j: J,
 }
 
-/// Create a new `Interleave` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, J>(i: I, j: J) -> Interleave<I, J>
+impl<I, J> Interleave<I, J>
 where
     I: IndexedParallelIterator,
     J: IndexedParallelIterator<Item = I::Item>,
 {
-    Interleave { i, j }
+    /// Create a new `Interleave` iterator
+    pub(super) fn new(i: I, j: J) -> Self {
+        Interleave { i, j }
+    }
 }
 
 impl<I, J> ParallelIterator for Interleave<I, J>
@@ -140,7 +140,7 @@ where
     }
 }
 
-pub struct InterleaveProducer<I, J>
+struct InterleaveProducer<I, J>
 where
     I: Producer,
     J: Producer<Item = I::Item>,
@@ -247,7 +247,7 @@ where
 /// ExactSizeIterator.
 ///
 /// This iterator is fused.
-pub struct InterleaveSeq<I, J> {
+struct InterleaveSeq<I, J> {
     i: Fuse<I>,
     j: Fuse<J>,
 

@@ -14,14 +14,14 @@ pub struct MinLen<I: IndexedParallelIterator> {
     min: usize,
 }
 
-/// Create a new `MinLen` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
+impl<I> MinLen<I>
 where
     I: IndexedParallelIterator,
 {
-    MinLen { base, min }
+    /// Create a new `MinLen` iterator.
+    pub(super) fn new(base: I, min: usize) -> Self {
+        MinLen { base, min }
+    }
 }
 
 impl<I> ParallelIterator for MinLen<I>
@@ -148,14 +148,14 @@ pub struct MaxLen<I: IndexedParallelIterator> {
     max: usize,
 }
 
-/// Create a new `MaxLen` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
+impl<I> MaxLen<I>
 where
     I: IndexedParallelIterator,
 {
-    MaxLen { base, max }
+    /// Create a new `MaxLen` iterator.
+    pub(super) fn new(base: I, max: usize) -> Self {
+        MaxLen { base, max }
+    }
 }
 
 impl<I> ParallelIterator for MaxLen<I>

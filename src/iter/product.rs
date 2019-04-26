@@ -4,7 +4,7 @@ use super::ParallelIterator;
 use std::iter::{self, Product};
 use std::marker::PhantomData;
 
-pub fn product<PI, P>(pi: PI) -> P
+pub(super) fn product<PI, P>(pi: PI) -> P
 where
     PI: ParallelIterator,
     P: Send + Product<PI::Item> + Product,

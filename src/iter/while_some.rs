@@ -15,14 +15,14 @@ pub struct WhileSome<I: ParallelIterator> {
     base: I,
 }
 
-/// Create a new `WhileSome` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I) -> WhileSome<I>
+impl<I> WhileSome<I>
 where
     I: ParallelIterator,
 {
-    WhileSome { base }
+    /// Create a new `WhileSome` iterator.
+    pub(super) fn new(base: I) -> Self {
+        WhileSome { base }
+    }
 }
 
 impl<I, T> ParallelIterator for WhileSome<I>

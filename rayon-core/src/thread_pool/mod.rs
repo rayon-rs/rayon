@@ -53,17 +53,17 @@ pub struct ThreadPool {
     registry: Arc<Registry>,
 }
 
-pub fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
-    let registry = Registry::new(builder)?;
-    Ok(ThreadPool { registry })
-}
-
 impl ThreadPool {
     #[deprecated(note = "Use `ThreadPoolBuilder::build`")]
     #[allow(deprecated)]
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
-        build(configuration.into_builder()).map_err(Box::from)
+        Self::build(configuration.into_builder()).map_err(Box::from)
+    }
+
+    pub(super) fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+        let registry = Registry::new(builder)?;
+        Ok(ThreadPool { registry })
     }
 
     /// Returns a handle to the global thread pool. This is the pool

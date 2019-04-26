@@ -20,15 +20,15 @@ where
     b: B,
 }
 
-/// Create a new `Chain` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<A, B>(a: A, b: B) -> Chain<A, B>
+impl<A, B> Chain<A, B>
 where
     A: ParallelIterator,
     B: ParallelIterator<Item = A::Item>,
 {
-    Chain { a, b }
+    /// Create a new `Chain` iterator.
+    pub(super) fn new(a: A, b: B) -> Self {
+        Chain { a, b }
+    }
 }
 
 impl<A, B> ParallelIterator for Chain<A, B>

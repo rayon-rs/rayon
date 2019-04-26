@@ -11,8 +11,8 @@ mod test;
 
 /// Collects the results of the exact iterator into the specified vector.
 ///
-/// This is not directly public, but called by `IndexedParallelIterator::collect_into_vec`.
-pub fn collect_into_vec<I, T>(pi: I, v: &mut Vec<T>)
+/// This is called by `IndexedParallelIterator::collect_into_vec`.
+pub(super) fn collect_into_vec<I, T>(pi: I, v: &mut Vec<T>)
 where
     I: IndexedParallelIterator<Item = T>,
     T: Send,
@@ -46,8 +46,8 @@ where
 
 /// Unzips the results of the exact iterator into the specified vectors.
 ///
-/// This is not directly public, but called by `IndexedParallelIterator::unzip_into_vecs`.
-pub fn unzip_into_vecs<I, A, B>(pi: I, left: &mut Vec<A>, right: &mut Vec<B>)
+/// This is called by `IndexedParallelIterator::unzip_into_vecs`.
+pub(super) fn unzip_into_vecs<I, A, B>(pi: I, left: &mut Vec<A>, right: &mut Vec<B>)
 where
     I: IndexedParallelIterator<Item = (A, B)>,
     A: Send,

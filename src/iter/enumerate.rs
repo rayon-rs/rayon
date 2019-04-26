@@ -15,14 +15,14 @@ pub struct Enumerate<I: IndexedParallelIterator> {
     base: I,
 }
 
-/// Create a new `Enumerate` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I) -> Enumerate<I>
+impl<I> Enumerate<I>
 where
     I: IndexedParallelIterator,
 {
-    Enumerate { base }
+    /// Create a new `Enumerate` iterator.
+    pub(super) fn new(base: I) -> Self {
+        Enumerate { base }
+    }
 }
 
 impl<I> ParallelIterator for Enumerate<I>

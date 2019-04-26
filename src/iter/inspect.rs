@@ -24,14 +24,14 @@ impl<I: ParallelIterator + Debug, F> Debug for Inspect<I, F> {
     }
 }
 
-/// Create a new `Inspect` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, inspect_op: F) -> Inspect<I, F>
+impl<I, F> Inspect<I, F>
 where
     I: ParallelIterator,
 {
-    Inspect { base, inspect_op }
+    /// Create a new `Inspect` iterator.
+    pub(super) fn new(base: I, inspect_op: F) -> Self {
+        Inspect { base, inspect_op }
+    }
 }
 
 impl<I, F> ParallelIterator for Inspect<I, F>

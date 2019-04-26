@@ -13,14 +13,14 @@ pub struct Rev<I: IndexedParallelIterator> {
     base: I,
 }
 
-/// Create a new `Rev` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I) -> Rev<I>
+impl<I> Rev<I>
 where
     I: IndexedParallelIterator,
 {
-    Rev { base }
+    /// Create a new `Rev` iterator.
+    pub(super) fn new(base: I) -> Self {
+        Rev { base }
+    }
 }
 
 impl<I> ParallelIterator for Rev<I>

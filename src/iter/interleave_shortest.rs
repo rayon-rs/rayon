@@ -20,24 +20,24 @@ where
     interleave: Interleave<Take<I>, Take<J>>,
 }
 
-/// Create a new `InterleaveShortest` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, J>(i: I, j: J) -> InterleaveShortest<I, J>
+impl<I, J> InterleaveShortest<I, J>
 where
     I: IndexedParallelIterator,
     J: IndexedParallelIterator<Item = I::Item>,
 {
-    InterleaveShortest {
-        interleave: if i.len() <= j.len() {
-            // take equal lengths from both iterators
-            let n = i.len();
-            i.take(n).interleave(j.take(n))
-        } else {
-            // take one extra item from the first iterator
-            let n = j.len();
-            i.take(n + 1).interleave(j.take(n))
-        },
+    /// Create a new `InterleaveShortest` iterator
+    pub(super) fn new(i: I, j: J) -> Self {
+        InterleaveShortest {
+            interleave: if i.len() <= j.len() {
+                // take equal lengths from both iterators
+                let n = i.len();
+                i.take(n).interleave(j.take(n))
+            } else {
+                // take one extra item from the first iterator
+                let n = j.len();
+                i.take(n + 1).interleave(j.take(n))
+            },
+        }
     }
 }
 

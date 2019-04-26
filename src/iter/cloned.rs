@@ -15,14 +15,14 @@ pub struct Cloned<I: ParallelIterator> {
     base: I,
 }
 
-/// Create a new `Cloned` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I) -> Cloned<I>
+impl<I> Cloned<I>
 where
     I: ParallelIterator,
 {
-    Cloned { base }
+    /// Create a new `Cloned` iterator.
+    pub(super) fn new(base: I) -> Self {
+        Cloned { base }
+    }
 }
 
 impl<'a, T, I> ParallelIterator for Cloned<I>

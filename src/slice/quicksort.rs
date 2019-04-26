@@ -743,7 +743,7 @@ where
 /// Sorts `v` using pattern-defeating quicksort in parallel.
 ///
 /// The algorithm is unstable, in-place, and `O(n log n)` worst-case.
-pub fn par_quicksort<T, F>(v: &mut [T], is_less: F)
+pub(super) fn par_quicksort<T, F>(v: &mut [T], is_less: F)
 where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,

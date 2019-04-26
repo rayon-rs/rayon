@@ -5,7 +5,7 @@ use std::cell::UnsafeCell;
 use std::mem;
 use unwind;
 
-pub enum JobResult<T> {
+pub(super) enum JobResult<T> {
     None,
     Ok(T),
     Panic(Box<Any + Send>),
@@ -16,7 +16,7 @@ pub enum JobResult<T> {
 /// arranged in a deque, so that thieves can take from the top of the
 /// deque while the main worker manages the bottom of the deque. This
 /// deque is managed by the `thread_pool` module.
-pub trait Job {
+pub(super) trait Job {
     /// Unsafe: this may be called from a different thread than the one
     /// which scheduled the job, so the implementer must ensure the
     /// appropriate traits are met, whether `Send`, `Sync`, or both.
@@ -30,7 +30,7 @@ pub trait Job {
 /// true type is something like `*const StackJob<...>`, but we hide
 /// it. We also carry the "execute fn" from the `Job` trait.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct JobRef {
+pub(super) struct JobRef {
     pointer: *const (),
     execute_fn: unsafe fn(*const ()),
 }
@@ -41,7 +41,7 @@ unsafe impl Sync for JobRef {}
 impl JobRef {
     /// Unsafe: caller asserts that `data` will remain valid until the
     /// job is executed.
-    pub unsafe fn new<T>(data: *const T) -> JobRef
+    pub(super) unsafe fn new<T>(data: *const T) -> JobRef
     where
         T: Job,
     {
@@ -55,7 +55,7 @@ impl JobRef {
     }
 
     #[inline]
-    pub unsafe fn execute(&self) {
+    pub(super) unsafe fn execute(&self) {
         (self.execute_fn)(self.pointer)
     }
 }
@@ -64,13 +64,13 @@ impl JobRef {
 /// executes it need not free any heap data, the cleanup occurs when
 /// the stack frame is later popped.  The function parameter indicates
 /// `true` if the job was stolen -- executed on a different thread.
-pub struct StackJob<L, F, R>
+pub(super) struct StackJob<L, F, R>
 where
     L: Latch + Sync,
     F: FnOnce(bool) -> R + Send,
     R: Send,
 {
-    pub latch: L,
+    pub(super) latch: L,
     func: UnsafeCell<Option<F>>,
     result: UnsafeCell<JobResult<R>>,
 }
@@ -81,7 +81,7 @@ where
     F: FnOnce(bool) -> R + Send,
     R: Send,
 {
-    pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
+    pub(super) fn new(func: F, latch: L) -> StackJob<L, F, R> {
         StackJob {
             latch,
             func: UnsafeCell::new(Some(func)),
@@ -89,15 +89,15 @@ where
         }
     }
 
-    pub unsafe fn as_job_ref(&self) -> JobRef {
+    pub(super) unsafe fn as_job_ref(&self) -> JobRef {
         JobRef::new(self)
     }
 
-    pub unsafe fn run_inline(self, stolen: bool) -> R {
+    pub(super) unsafe fn run_inline(self, stolen: bool) -> R {
         self.func.into_inner().unwrap()(stolen)
     }
 
-    pub unsafe fn into_result(self) -> R {
+    pub(super) unsafe fn into_result(self) -> R {
         self.result.into_inner().into_return_value()
     }
 }
@@ -127,7 +127,7 @@ where
 /// signal that the job executed.
 ///
 /// (Probably `StackJob` should be refactored in a similar fashion.)
-pub struct HeapJob<BODY>
+pub(super) struct HeapJob<BODY>
 where
     BODY: FnOnce() + Send,
 {
@@ -138,7 +138,7 @@ impl<BODY> HeapJob<BODY>
 where
     BODY: FnOnce() + Send,
 {
-    pub fn new(func: BODY) -> Self {
+    pub(super) fn new(func: BODY) -> Self {
         HeapJob {
             job: UnsafeCell::new(Some(func)),
         }
@@ -147,7 +147,7 @@ where
     /// Creates a `JobRef` from this job -- note that this hides all
     /// lifetimes, so it is up to you to ensure that this JobRef
     /// doesn't outlive any data that it closes over.
-    pub unsafe fn as_job_ref(self: Box<Self>) -> JobRef {
+    pub(super) unsafe fn as_job_ref(self: Box<Self>) -> JobRef {
         let this: *const Self = mem::transmute(self);
         JobRef::new(this)
     }
@@ -169,7 +169,7 @@ impl<T> JobResult<T> {
     /// its JobResult is populated) into its return value.
     ///
     /// NB. This will panic if the job panicked.
-    pub fn into_return_value(self) -> T {
+    pub(super) fn into_return_value(self) -> T {
         match self {
             JobResult::None => unreachable!(),
             JobResult::Ok(x) => x,
@@ -179,18 +179,18 @@ impl<T> JobResult<T> {
 }
 
 /// Indirect queue to provide FIFO job priority.
-pub struct JobFifo {
+pub(super) struct JobFifo {
     inner: SegQueue<JobRef>,
 }
 
 impl JobFifo {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         JobFifo {
             inner: SegQueue::new(),
         }
     }
 
-    pub unsafe fn push(&self, job_ref: JobRef) -> JobRef {
+    pub(super) unsafe fn push(&self, job_ref: JobRef) -> JobRef {
         // A little indirection ensures that spawns are always prioritized in FIFO order.  The
         // jobs in a thread's deque may be popped from the back (LIFO) or stolen from the front
         // (FIFO), but either way they will end up popping from the front of this queue.

@@ -4,7 +4,7 @@ use super::ParallelIterator;
 use super::private::Try;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub fn try_reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
+pub(super) fn try_reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
 where
     PI: ParallelIterator<Item = T>,
     R: Fn(T::Ok, T::Ok) -> T + Sync,
