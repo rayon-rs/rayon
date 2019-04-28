@@ -85,6 +85,12 @@ extern crate rayon_core;
 extern crate rand;
 #[cfg(test)]
 extern crate rand_xorshift;
+#[cfg(test)]
+#[macro_use]
+extern crate doc_comment;
+
+#[cfg(test)]
+doctest!("../README.md");
 
 #[macro_use]
 mod delegate;

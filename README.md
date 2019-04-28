@@ -104,14 +104,14 @@ command to get a visualization of an nbody simulation. To see the
 effect of using Rayon, press `s` to run sequentially and `p` to run in
 parallel.
 
-```
+```text
 > cd rayon-demo
 > cargo run --release -- nbody visualize
 ```
 
 For more information on demos, try:
 
-```
+```text
 > cd rayon-demo
 > cargo run --release -- --help
 ```
