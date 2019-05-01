@@ -25,15 +25,18 @@ fn produce_too_many_items() {
 /// Produces fewer items than promised. Does not do any
 /// splits at all.
 #[test]
-#[should_panic(expected = "too few values")]
+#[should_panic(expected = "expected 5 total writes, but got 2")]
 fn produce_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 5);
-    let consumer = collect.as_consumer();
-    let mut folder = consumer.into_folder();
-    folder = folder.consume(22);
-    folder = folder.consume(23);
-    folder.complete();
+    {
+        let consumer = collect.as_consumer();
+        let mut folder = consumer.into_folder();
+        folder = folder.consume(22);
+        folder = folder.consume(23);
+        folder.complete();
+    }
+    collect.complete();
 }
 
 // Complete is not called by the consumer.Hence,the collection vector is not fully initialized.
@@ -129,7 +132,7 @@ fn right_produces_too_many_items() {
 // The left consumer produces fewer items while the right
 // consumer produces correct number.
 #[test]
-#[should_panic(expected = "too few values")]
+#[should_panic(expected = "expected 4 total writes, but got 3")]
 fn left_produces_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);
@@ -149,7 +152,7 @@ fn left_produces_fewer_items() {
 // The right consumer produces fewer items while the left
 // consumer produces correct number.
 #[test]
-#[should_panic(expected = "too few values")]
+#[should_panic(expected = "expected 4 total writes, but got 3")]
 fn right_produces_fewer_items() {
     let mut v = vec![];
     let mut collect = Collect::new(&mut v, 4);

@@ -85,7 +85,8 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
     }
 
     fn complete(self) {
-        assert!(self.target.len() == 0, "too few values pushed to consumer");
+        // NB: We don't explicitly check that the local writes were complete,
+        // but `Collect::complete()` will assert the global write count.
 
         // track total values written
         self.global_writes
