@@ -1,4 +1,4 @@
-/*! ```compile_fail,E0501,E0382,E0597
+/*! ```compile_fail,E0382,E0501,E0503,E0716
 
 extern crate futures;
 extern crate rayon_core;
