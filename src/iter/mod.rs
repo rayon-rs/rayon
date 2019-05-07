@@ -155,6 +155,8 @@ mod sum;
 pub use self::cloned::Cloned;
 mod inspect;
 pub use self::inspect::Inspect;
+mod panic_fuse;
+pub use self::panic_fuse::PanicFuse;
 mod while_some;
 pub use self::while_some::WhileSome;
 mod extend;
@@ -1728,6 +1730,40 @@ pub trait ParallelIterator: Sized + Send {
         T: Send,
     {
         while_some::new(self)
+    }
+
+    /// Wraps an iterator with a fuse in case of panics, to halt all threads
+    /// as soon as possible.
+    ///
+    /// Panics within parallel iterators are always propagated to the caller,
+    /// but they don't always halt the rest of the iterator right away, due to
+    /// the internal semantics of [`join`]. This adaptor makes a greater effort
+    /// to stop processing other items sooner, with the cost of additional
+    /// synchronization overhead, which may also inhibit some optimizations.
+    ///
+    /// [`join`]: ../fn.join.html#panics
+    ///
+    /// # Examples
+    ///
+    /// If this code didn't use `panic_fuse()`, it would continue processing
+    /// many more items in other threads (with long sleep delays) before the
+    /// panic is finally propagated.
+    ///
+    /// ```should_panic
+    /// use rayon::prelude::*;
+    /// use std::{thread, time};
+    ///
+    /// (0..1_000_000)
+    ///     .into_par_iter()
+    ///     .panic_fuse()
+    ///     .for_each(|i| {
+    ///         // simulate some work
+    ///         thread::sleep(time::Duration::from_secs(1));
+    ///         assert!(i > 0); // oops!
+    ///     });
+    /// ```
+    fn panic_fuse(self) -> PanicFuse<Self> {
+        panic_fuse::new(self)
     }
 
     /// Create a fresh collection containing all the element produced

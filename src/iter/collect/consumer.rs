@@ -7,6 +7,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 pub struct CollectConsumer<'c, T: Send + 'c> {
     /// Tracks how many items we successfully wrote. Used to guarantee
     /// safety in the face of panics or buggy parallel iterators.
+    ///
+    /// In theory we could just produce this as a `CollectConsumer::Result`,
+    /// folding local counts and reducing by addition, but that requires a
+    /// certain amount of trust that the producer driving this will behave
+    /// itself. Since this count is important to the safety of marking the
+    /// memory initialized (`Vec::set_len`), we choose to keep it internal.
     writes: &'c AtomicUsize,
 
     /// A slice covering the target memory, not yet initialized!
@@ -85,7 +91,8 @@ impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
     }
 
     fn complete(self) {
-        assert!(self.target.len() == 0, "too few values pushed to consumer");
+        // NB: We don't explicitly check that the local writes were complete,
+        // but `Collect::complete()` will assert the global write count.
 
         // track total values written
         self.global_writes
