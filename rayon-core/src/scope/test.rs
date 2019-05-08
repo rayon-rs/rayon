@@ -75,14 +75,14 @@ struct Tree<T: Send> {
 }
 
 impl<T: Send> Tree<T> {
-    pub fn iter<'s>(&'s self) -> vec::IntoIter<&'s T> {
+    fn iter<'s>(&'s self) -> vec::IntoIter<&'s T> {
         once(&self.value)
-            .chain(self.children.iter().flat_map(|c| c.iter()))
+            .chain(self.children.iter().flat_map(Tree::iter))
             .collect::<Vec<_>>() // seems like it shouldn't be needed... but prevents overflow
             .into_iter()
     }
 
-    pub fn update<OP>(&mut self, op: OP)
+    fn update<OP>(&mut self, op: OP)
     where
         OP: Fn(&mut T) + Sync,
         T: Send,
@@ -127,7 +127,7 @@ fn random_tree1(depth: usize, rng: &mut XorShiftRng) -> Tree<u32> {
 
     Tree {
         value: rng.gen_range(0, 1_000_000),
-        children: children,
+        children,
     }
 }
 

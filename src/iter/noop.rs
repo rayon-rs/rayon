@@ -1,9 +1,9 @@
 use super::plumbing::*;
 
-pub struct NoopConsumer;
+pub(super) struct NoopConsumer;
 
 impl NoopConsumer {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         NoopConsumer
     }
 }
@@ -58,7 +58,7 @@ impl<T> UnindexedConsumer<T> for NoopConsumer {
     }
 }
 
-pub struct NoopReducer;
+pub(super) struct NoopReducer;
 
 impl Reducer<()> for NoopReducer {
     fn reduce(self, _left: (), _right: ()) {}

@@ -1,6 +1,6 @@
 [package]
 name = "rayon-core"
-version = "1.4.1" # reminder to update html_root_url attribute
+version = "1.5.0" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
@@ -13,23 +13,19 @@ readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
+# Some dependencies may not be their latest version, in order to support older rustc.
 [dependencies]
 num_cpus = "1.2"
-libc = "0.2.16"
 lazy_static = "1"
-
-# This is deliberately not the latest version, because we want
-# to support older rustc than crossbeam-deque 0.3+ does.
-[dependencies.crossbeam-deque]
-version = "0.2.0"
-
-# Also held back for rustc compatibility
-[dependencies.crossbeam]
-version = "0.3.0"
+crossbeam-deque = "0.6.3"
+crossbeam-queue = "0.1.2"
 
 [dev-dependencies]
 rand = "0.6"
 rand_xorshift = "0.1"
+
+[target.'cfg(unix)'.dev-dependencies]
+libc = "0.2"
 
 [[test]]
 name = "stack_overflow_crash"

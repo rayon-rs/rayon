@@ -151,7 +151,7 @@ impl<'text> Data<'text> {
         let mut lines = data.lines();
         let current_line = lines.next();
         Data {
-            current_line: current_line,
+            current_line,
             line_num: 1,
             next_lines: lines,
         }

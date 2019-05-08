@@ -20,15 +20,15 @@ where
     j: J,
 }
 
-/// Create a new `Interleave` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, J>(i: I, j: J) -> Interleave<I, J>
+impl<I, J> Interleave<I, J>
 where
     I: IndexedParallelIterator,
     J: IndexedParallelIterator<Item = I::Item>,
 {
-    Interleave { i: i, j: j }
+    /// Create a new `Interleave` iterator
+    pub(super) fn new(i: I, j: J) -> Self {
+        Interleave { i, j }
+    }
 }
 
 impl<I, J> ParallelIterator for Interleave<I, J>
@@ -72,9 +72,9 @@ where
     {
         let (i_len, j_len) = (self.i.len(), self.j.len());
         return self.i.with_producer(CallbackI {
-            callback: callback,
-            i_len: i_len,
-            j_len: j_len,
+            callback,
+            i_len,
+            j_len,
             i_next: false,
             j: self.j,
         });
@@ -99,7 +99,7 @@ where
                 I: Producer<Item = J::Item>,
             {
                 self.j.with_producer(CallbackJ {
-                    i_producer: i_producer,
+                    i_producer,
                     i_len: self.i_len,
                     j_len: self.j_len,
                     i_next: self.i_next,
@@ -140,7 +140,7 @@ where
     }
 }
 
-pub struct InterleaveProducer<I, J>
+struct InterleaveProducer<I, J>
 where
     I: Producer,
     J: Producer<Item = I::Item>,
@@ -159,11 +159,11 @@ where
 {
     fn new(i: I, j: J, i_len: usize, j_len: usize, i_next: bool) -> InterleaveProducer<I, J> {
         InterleaveProducer {
-            i: i,
-            j: j,
-            i_len: i_len,
-            j_len: j_len,
-            i_next: i_next,
+            i,
+            j,
+            i_len,
+            j_len,
+            i_next,
         }
     }
 }
@@ -247,7 +247,7 @@ where
 /// ExactSizeIterator.
 ///
 /// This iterator is fused.
-pub struct InterleaveSeq<I, J> {
+struct InterleaveSeq<I, J> {
     i: Fuse<I>,
     j: Fuse<J>,
 

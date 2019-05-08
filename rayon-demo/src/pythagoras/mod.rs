@@ -23,11 +23,11 @@ where
     FN: Fn(Iter<u32>) -> N + Sync,
     N: ParallelIterator<Item = u32>,
 {
-    map_m((1u32..2000).into_par_iter())
+    map_m((1u32..2_000).into_par_iter())
         .map(|m| -> u32 {
             map_n((1..m).into_par_iter())
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
-                .map(|n| 4000000 / (m * m + n * n))
+                .map(|n| 4_000_000 / (m * m + n * n))
                 .sum()
         })
         .sum()
@@ -35,13 +35,13 @@ where
 
 /// Same as par_euclid, without tweaking split lengths
 fn par_euclid_weightless() -> u32 {
-    (1u32..2000)
+    (1u32..2_000)
         .into_par_iter()
         .map(|m| -> u32 {
             (1..m)
                 .into_par_iter()
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
-                .map(|n| 4000000 / (m * m + n * n))
+                .map(|n| 4_000_000 / (m * m + n * n))
                 .sum()
         })
         .sum()
@@ -49,11 +49,11 @@ fn par_euclid_weightless() -> u32 {
 
 /// Same as par_euclid, without using rayon.
 fn euclid() -> u32 {
-    (1u32..2000)
+    (1u32..2_000)
         .map(|m| {
             (1..m)
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
-                .map(|n| 4000000 / (m * m + n * n))
+                .map(|n| 4_000_000 / (m * m + n * n))
                 .fold(0, Add::add)
         })
         .fold(0, Add::add)

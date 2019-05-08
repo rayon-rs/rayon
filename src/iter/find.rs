@@ -2,7 +2,7 @@ use super::plumbing::*;
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
+pub(super) fn find<I, P>(pi: I, find_op: P) -> Option<I::Item>
 where
     I: ParallelIterator,
     P: Fn(&I::Item) -> bool + Sync,
@@ -19,10 +19,7 @@ struct FindConsumer<'p, P: 'p> {
 
 impl<'p, P> FindConsumer<'p, P> {
     fn new(find_op: &'p P, found: &'p AtomicBool) -> Self {
-        FindConsumer {
-            find_op: find_op,
-            found: found,
-        }
+        FindConsumer { find_op, found }
     }
 }
 

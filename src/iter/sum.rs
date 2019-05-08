@@ -4,7 +4,7 @@ use super::ParallelIterator;
 use std::iter::{self, Sum};
 use std::marker::PhantomData;
 
-pub fn sum<PI, S>(pi: PI) -> S
+pub(super) fn sum<PI, S>(pi: PI) -> S
 where
     PI: ParallelIterator,
     S: Send + Sum<PI::Item> + Sum,

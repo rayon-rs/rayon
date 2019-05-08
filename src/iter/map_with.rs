@@ -18,7 +18,7 @@ pub struct MapWith<I: ParallelIterator, T, F> {
 }
 
 impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapWith")
             .field("base", &self.base)
             .field("item", &self.item)
@@ -26,17 +26,13 @@ impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
     }
 }
 
-/// Create a new `MapWith` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, T, F>(base: I, item: T, map_op: F) -> MapWith<I, T, F>
+impl<I, T, F> MapWith<I, T, F>
 where
     I: ParallelIterator,
 {
-    MapWith {
-        base: base,
-        item: item,
-        map_op: map_op,
+    /// Create a new `MapWith` iterator.
+    pub(super) fn new(base: I, item: T, map_op: F) -> Self {
+        MapWith { base, item, map_op }
     }
 }
 
@@ -86,7 +82,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             item: self.item,
             map_op: self.map_op,
         });
@@ -111,7 +107,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MapWithProducer {
-                    base: base,
+                    base,
                     item: self.item,
                     map_op: &self.map_op,
                 };
@@ -198,9 +194,8 @@ where
     type Item = R;
 
     fn next(&mut self) -> Option<R> {
-        self.base
-            .next()
-            .map(|item| (self.map_op)(&mut self.item, item))
+        let item = self.base.next()?;
+        Some((self.map_op)(&mut self.item, item))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -215,9 +210,8 @@ where
     R: Send,
 {
     fn next_back(&mut self) -> Option<R> {
-        self.base
-            .next_back()
-            .map(|item| (self.map_op)(&mut self.item, item))
+        let item = self.base.next_back()?;
+        Some((self.map_op)(&mut self.item, item))
     }
 }
 
@@ -240,11 +234,7 @@ struct MapWithConsumer<'f, C, U, F: 'f> {
 
 impl<'f, C, U, F> MapWithConsumer<'f, C, U, F> {
     fn new(base: C, item: U, map_op: &'f F) -> Self {
-        MapWithConsumer {
-            base: base,
-            item: item,
-            map_op: map_op,
-        }
+        MapWithConsumer { base, item, map_op }
     }
 }
 
@@ -355,22 +345,18 @@ pub struct MapInit<I: ParallelIterator, INIT, F> {
 }
 
 impl<I: ParallelIterator + Debug, INIT, F> Debug for MapInit<I, INIT, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapInit").field("base", &self.base).finish()
     }
 }
 
-/// Create a new `MapInit` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_init<I, INIT, F>(base: I, init: INIT, map_op: F) -> MapInit<I, INIT, F>
+impl<I, INIT, F> MapInit<I, INIT, F>
 where
     I: ParallelIterator,
 {
-    MapInit {
-        base: base,
-        init: init,
-        map_op: map_op,
+    /// Create a new `MapInit` iterator.
+    pub(super) fn new(base: I, init: INIT, map_op: F) -> Self {
+        MapInit { base, init, map_op }
     }
 }
 
@@ -420,7 +406,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             init: self.init,
             map_op: self.map_op,
         });
@@ -445,7 +431,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MapInitProducer {
-                    base: base,
+                    base,
                     init: &self.init,
                     map_op: &self.map_op,
                 };
@@ -528,11 +514,7 @@ struct MapInitConsumer<'f, C, INIT: 'f, F: 'f> {
 
 impl<'f, C, INIT, F> MapInitConsumer<'f, C, INIT, F> {
     fn new(base: C, init: &'f INIT, map_op: &'f F) -> Self {
-        MapInitConsumer {
-            base: base,
-            init: init,
-            map_op: map_op,
-        }
+        MapInitConsumer { base, init, map_op }
     }
 }
 

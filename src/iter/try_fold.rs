@@ -5,18 +5,20 @@ use super::private::Try;
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 
-pub fn try_fold<U, I, ID, F>(base: I, identity: ID, fold_op: F) -> TryFold<I, U, ID, F>
+impl<U, I, ID, F> TryFold<I, U, ID, F>
 where
     I: ParallelIterator,
     F: Fn(U::Ok, I::Item) -> U + Sync + Send,
     ID: Fn() -> U::Ok + Sync + Send,
     U: Try + Send,
 {
-    TryFold {
-        base: base,
-        identity: identity,
-        fold_op: fold_op,
-        marker: PhantomData,
+    pub(super) fn new(base: I, identity: ID, fold_op: F) -> Self {
+        TryFold {
+            base,
+            identity,
+            fold_op,
+            marker: PhantomData,
+        }
     }
 }
 
@@ -35,7 +37,7 @@ pub struct TryFold<I, U, ID, F> {
 }
 
 impl<U, I: ParallelIterator + Debug, ID, F> Debug for TryFold<I, U, ID, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TryFold").field("base", &self.base).finish()
     }
 }
@@ -142,10 +144,7 @@ where
     fn consume(self, item: T) -> Self {
         let fold_op = self.fold_op;
         let result = self.result.and_then(|acc| fold_op(acc, item).into_result());
-        TryFoldFolder {
-            result: result,
-            ..self
-        }
+        TryFoldFolder { result, ..self }
     }
 
     fn complete(self) -> C::Result {
@@ -163,17 +162,19 @@ where
 
 // ///////////////////////////////////////////////////////////////////////////
 
-pub fn try_fold_with<U, I, F>(base: I, item: U::Ok, fold_op: F) -> TryFoldWith<I, U, F>
+impl<U, I, F> TryFoldWith<I, U, F>
 where
     I: ParallelIterator,
     F: Fn(U::Ok, I::Item) -> U + Sync,
     U: Try + Send,
     U::Ok: Clone + Send,
 {
-    TryFoldWith {
-        base: base,
-        item: item,
-        fold_op: fold_op,
+    pub(super) fn new(base: I, item: U::Ok, fold_op: F) -> Self {
+        TryFoldWith {
+            base,
+            item,
+            fold_op,
+        }
     }
 }
 
@@ -194,7 +195,7 @@ impl<I: ParallelIterator + Debug, U: Try, F> Debug for TryFoldWith<I, U, F>
 where
     U::Ok: Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TryFoldWith")
             .field("base", &self.base)
             .field("item", &self.item)

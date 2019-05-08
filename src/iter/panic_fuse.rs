@@ -36,14 +36,14 @@ impl<'a> Fuse<'a> {
     }
 }
 
-/// Create a new `PanicFuse` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I) -> PanicFuse<I>
+impl<I> PanicFuse<I>
 where
     I: ParallelIterator,
 {
-    PanicFuse { base: base }
+    /// Create a new `PanicFuse` iterator.
+    pub(super) fn new(base: I) -> PanicFuse<I> {
+        PanicFuse { base }
+    }
 }
 
 impl<I> ParallelIterator for PanicFuse<I>
@@ -93,7 +93,7 @@ where
     where
         CB: ProducerCallback<Self::Item>,
     {
-        return self.base.with_producer(Callback { callback: callback });
+        return self.base.with_producer(Callback { callback });
 
         struct Callback<CB> {
             callback: CB,
@@ -111,7 +111,7 @@ where
             {
                 let panicked = AtomicBool::new(false);
                 let producer = PanicFuseProducer {
-                    base: base,
+                    base,
                     fuse: Fuse(&panicked),
                 };
                 self.callback.callback(producer)

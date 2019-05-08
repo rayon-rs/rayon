@@ -19,21 +19,18 @@ pub struct Inspect<I: ParallelIterator, F> {
 }
 
 impl<I: ParallelIterator + Debug, F> Debug for Inspect<I, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Inspect").field("base", &self.base).finish()
     }
 }
 
-/// Create a new `Inspect` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, inspect_op: F) -> Inspect<I, F>
+impl<I, F> Inspect<I, F>
 where
     I: ParallelIterator,
 {
-    Inspect {
-        base: base,
-        inspect_op: inspect_op,
+    /// Create a new `Inspect` iterator.
+    pub(super) fn new(base: I, inspect_op: F) -> Self {
+        Inspect { base, inspect_op }
     }
 }
 
@@ -79,7 +76,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             inspect_op: self.inspect_op,
         });
 
@@ -100,7 +97,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = InspectProducer {
-                    base: base,
+                    base,
                     inspect_op: &self.inspect_op,
                 };
                 self.callback.callback(producer)
@@ -172,10 +169,7 @@ struct InspectConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> InspectConsumer<'f, C, F> {
     fn new(base: C, inspect_op: &'f F) -> Self {
-        InspectConsumer {
-            base: base,
-            inspect_op: inspect_op,
-        }
+        InspectConsumer { base, inspect_op }
     }
 }
 

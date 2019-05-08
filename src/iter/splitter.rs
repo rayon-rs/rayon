@@ -108,10 +108,7 @@ where
     D: Send,
     S: Fn(D) -> (D, Option<D>) + Sync,
 {
-    Split {
-        data: data,
-        splitter: splitter,
-    }
+    Split { data, splitter }
 }
 
 /// `Split` is a parallel iterator using arbitrary data and a splitting function.
@@ -125,7 +122,7 @@ pub struct Split<D, S> {
 }
 
 impl<D: Debug, S> Debug for Split<D, S> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Split").field("data", &self.data).finish()
     }
 }
@@ -165,13 +162,7 @@ where
         let splitter = self.splitter;
         let (left, right) = splitter(self.data);
         self.data = left;
-        (
-            self,
-            right.map(|data| SplitProducer {
-                data: data,
-                splitter: splitter,
-            }),
-        )
+        (self, right.map(|data| SplitProducer { data, splitter }))
     }
 
     fn fold_with<F>(self, folder: F) -> F

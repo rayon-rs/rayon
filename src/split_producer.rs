@@ -5,7 +5,7 @@
 use iter::plumbing::{Folder, UnindexedProducer};
 
 /// Common producer for splitting on a predicate.
-pub struct SplitProducer<'p, P: 'p, V> {
+pub(super) struct SplitProducer<'p, P: 'p, V> {
     data: V,
     separator: &'p P,
 
@@ -14,7 +14,7 @@ pub struct SplitProducer<'p, P: 'p, V> {
 }
 
 /// Helper trait so `&str`, `&[T]`, and `&mut [T]` can share `SplitProducer`.
-pub trait Fissile<P>: Sized {
+pub(super) trait Fissile<P>: Sized {
     fn length(&self) -> usize;
     fn midpoint(&self, end: usize) -> usize;
     fn find(&self, separator: &P, start: usize, end: usize) -> Option<usize>;
@@ -30,17 +30,17 @@ impl<'p, P, V> SplitProducer<'p, P, V>
 where
     V: Fissile<P> + Send,
 {
-    pub fn new(data: V, separator: &'p P) -> Self {
+    pub(super) fn new(data: V, separator: &'p P) -> Self {
         SplitProducer {
             tail: data.length(),
-            data: data,
-            separator: separator,
+            data,
+            separator,
         }
     }
 
     /// Common `fold_with` implementation, integrating `SplitTerminator`'s
     /// need to sometimes skip its final empty item.
-    pub fn fold_with<F>(self, folder: F, skip_last: bool) -> F
+    pub(super) fn fold_with<F>(self, folder: F, skip_last: bool) -> F
     where
         F: Folder<V>,
     {

@@ -8,7 +8,7 @@ mod visualize;
 use self::nbody::NBodyBenchmark;
 use self::visualize::visualize_benchmarks;
 
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: nbody bench [--mode MODE --bodies N --ticks N]
        nbody visualize [--mode MODE --bodies N]
        nbody --help

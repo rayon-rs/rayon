@@ -4,7 +4,7 @@ use super::ParallelIterator;
 use super::private::Try;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub fn try_reduce_with<PI, R, T>(pi: PI, reduce_op: R) -> Option<T>
+pub(super) fn try_reduce_with<PI, R, T>(pi: PI, reduce_op: R) -> Option<T>
 where
     PI: ParallelIterator<Item = T>,
     R: Fn(T::Ok, T::Ok) -> T + Sync,
@@ -121,7 +121,8 @@ where
     }
 
     fn complete(self) -> Option<T> {
-        self.opt_result.map(|result| match result {
+        let result = self.opt_result?;
+        Some(match result {
             Ok(ok) => T::from_ok(ok),
             Err(error) => T::from_error(error),
         })

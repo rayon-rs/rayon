@@ -16,21 +16,15 @@ pub struct FlatMap<I: ParallelIterator, F> {
 }
 
 impl<I: ParallelIterator + Debug, F> Debug for FlatMap<I, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FlatMap").field("base", &self.base).finish()
     }
 }
 
-/// Create a new `FlatMap` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, map_op: F) -> FlatMap<I, F>
-where
-    I: ParallelIterator,
-{
-    FlatMap {
-        base: base,
-        map_op: map_op,
+impl<I: ParallelIterator, F> FlatMap<I, F> {
+    /// Create a new `FlatMap` iterator.
+    pub(super) fn new(base: I, map_op: F) -> Self {
+        FlatMap { base, map_op }
     }
 }
 
@@ -64,10 +58,7 @@ struct FlatMapConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> FlatMapConsumer<'f, C, F> {
     fn new(base: C, map_op: &'f F) -> Self {
-        FlatMapConsumer {
-            base: base,
-            map_op: map_op,
-        }
+        FlatMapConsumer { base, map_op }
     }
 }
 
@@ -149,8 +140,8 @@ where
 
         FlatMapFolder {
             base: self.base,
-            map_op: map_op,
-            previous: previous,
+            map_op,
+            previous,
         }
     }
 

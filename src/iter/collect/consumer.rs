@@ -4,7 +4,7 @@ use std::ptr;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-pub struct CollectConsumer<'c, T: Send + 'c> {
+pub(super) struct CollectConsumer<'c, T: Send + 'c> {
     /// Tracks how many items we successfully wrote. Used to guarantee
     /// safety in the face of panics or buggy parallel iterators.
     ///
@@ -19,7 +19,7 @@ pub struct CollectConsumer<'c, T: Send + 'c> {
     target: &'c mut [T],
 }
 
-pub struct CollectFolder<'c, T: Send + 'c> {
+pub(super) struct CollectFolder<'c, T: Send + 'c> {
     global_writes: &'c AtomicUsize,
     local_writes: usize,
 
@@ -30,11 +30,8 @@ pub struct CollectFolder<'c, T: Send + 'c> {
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without dropping anything.
-    pub fn new(writes: &'c AtomicUsize, target: &'c mut [T]) -> CollectConsumer<'c, T> {
-        CollectConsumer {
-            writes: writes,
-            target: target,
-        }
+    pub(super) fn new(writes: &'c AtomicUsize, target: &'c mut [T]) -> Self {
+        CollectConsumer { writes, target }
     }
 }
 
@@ -63,7 +60,7 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
         CollectFolder {
             global_writes: self.writes,
             local_writes: 0,
-            target: self.target.into_iter(),
+            target: self.target.iter_mut(),
         }
     }
 

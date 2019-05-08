@@ -134,8 +134,8 @@ where
 {
     let len = v.len();
     let v = v.as_mut_ptr();
-    let v_mid = v.offset(mid as isize);
-    let v_end = v.offset(len as isize);
+    let v_mid = v.add(mid);
+    let v_end = v.add(len);
 
     // The merge process first copies the shorter run into `buf`. Then it traces the newly copied
     // run and the longer run forwards (or backwards), comparing their next unconsumed elements and
@@ -161,7 +161,7 @@ where
         ptr::copy_nonoverlapping(v, buf, mid);
         hole = MergeHole {
             start: buf,
-            end: buf.offset(mid as isize),
+            end: buf.add(mid),
             dest: v,
         };
 
@@ -185,7 +185,7 @@ where
         ptr::copy_nonoverlapping(v_mid, buf, len - mid);
         hole = MergeHole {
             start: buf,
-            end: buf.offset((len - mid) as isize),
+            end: buf.add(len - mid),
             dest: v_mid,
         };
 
@@ -218,7 +218,7 @@ where
     impl<T> Drop for MergeHole<T> {
         fn drop(&mut self) {
             // `T` is not a zero-sized type, so it's okay to divide by its size.
-            let len = (self.end as usize - self.start as usize) / mem::size_of::<T>();
+            let len = (self.end as usize - self.start as usize) / size_of::<T>();
             unsafe {
                 ptr::copy_nonoverlapping(self.start, self.dest, len);
             }
@@ -355,7 +355,7 @@ where
 
         // Push this run onto the stack.
         runs.push(Run {
-            start: start,
+            start,
             len: end - start,
         });
         end = start;
@@ -469,10 +469,10 @@ where
     // remaining parts of `left` and `right` into `dest`.
     let mut s = State {
         left_start: left.as_mut_ptr(),
-        left_end: left.as_mut_ptr().offset(left_len as isize),
+        left_end: left.as_mut_ptr().add(left_len),
         right_start: right.as_mut_ptr(),
-        right_end: right.as_mut_ptr().offset(right_len as isize),
-        dest: dest,
+        right_end: right.as_mut_ptr().add(right_len),
+        dest,
     };
 
     if left_len == 0 || right_len == 0 || left_len + right_len < MAX_SEQUENTIAL {
@@ -500,7 +500,7 @@ where
 
         // Convert the pointers to `usize` because `*mut T` is not `Send`.
         let dest_l = dest as usize;
-        let dest_r = dest.offset((left_l.len() + right_l.len()) as isize) as usize;
+        let dest_r = dest.add(left_l.len() + right_l.len()) as usize;
         rayon_core::join(
             || par_merge(left_l, right_l, dest_l as *mut T, is_less),
             || par_merge(left_r, right_r, dest_r as *mut T, is_less),
@@ -521,14 +521,14 @@ where
 
     impl<T> Drop for State<T> {
         fn drop(&mut self) {
-            let size = mem::size_of::<T>();
+            let size = size_of::<T>();
             let left_len = (self.left_end as usize - self.left_start as usize) / size;
             let right_len = (self.right_end as usize - self.right_start as usize) / size;
 
             // Copy array `left`, followed by `right`.
             unsafe {
                 ptr::copy_nonoverlapping(self.left_start, self.dest, left_len);
-                self.dest = self.dest.offset(left_len as isize);
+                self.dest = self.dest.add(left_len);
                 ptr::copy_nonoverlapping(self.right_start, self.dest, right_len);
             }
         }
@@ -566,8 +566,8 @@ unsafe fn recurse<T, F>(
         if into_buf {
             // Copy the chunk from `v` into `buf`.
             let (start, end) = chunks[0];
-            let src = v.offset(start as isize);
-            let dest = buf.offset(start as isize);
+            let src = v.add(start);
+            let dest = buf.add(start);
             ptr::copy_nonoverlapping(src, dest, end - start);
         }
         return;
@@ -594,8 +594,8 @@ unsafe fn recurse<T, F>(
     // be executed, thus copying everything from `src` into `dest`. This way we ensure that all
     // chunks are in fact copied into `dest`, even if the merge process doesn't finish.
     let guard = CopyOnDrop {
-        src: src.offset(start as isize),
-        dest: dest.offset(start as isize),
+        src: src.add(start),
+        dest: dest.add(start),
         len: end - start,
     };
 
@@ -612,16 +612,16 @@ unsafe fn recurse<T, F>(
     mem::forget(guard);
 
     // Merge chunks `(start, mid)` and `(mid, end)` from `src` into `dest`.
-    let src_left = slice::from_raw_parts_mut(src.offset(start as isize), mid - start);
-    let src_right = slice::from_raw_parts_mut(src.offset(mid as isize), end - mid);
-    par_merge(src_left, src_right, dest.offset(start as isize), is_less);
+    let src_left = slice::from_raw_parts_mut(src.add(start), mid - start);
+    let src_right = slice::from_raw_parts_mut(src.add(mid), end - mid);
+    par_merge(src_left, src_right, dest.add(start), is_less);
 }
 
 /// Sorts `v` using merge sort in parallel.
 ///
 /// The algorithm is stable, allocates memory, and `O(n log n)` worst-case.
 /// The allocated temporary buffer is of the same length as is `v`.
-pub fn par_mergesort<T, F>(v: &mut [T], is_less: F)
+pub(super) fn par_mergesort<T, F>(v: &mut [T], is_less: F)
 where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,
@@ -678,7 +678,7 @@ where
                 let l = CHUNK_LENGTH * i;
                 let r = l + chunk.len();
                 unsafe {
-                    let buf = (buf as *mut T).offset(l as isize);
+                    let buf = (buf as *mut T).add(l);
                     (l, r, mergesort(chunk, buf, &is_less))
                 }
             })
@@ -716,7 +716,7 @@ where
     // All chunks are properly sorted.
     // Now we just have to merge them together.
     unsafe {
-        recurse(v.as_mut_ptr(), buf as *mut T, &chunks, false, &is_less);
+        recurse(v.as_mut_ptr(), buf, &chunks, false, &is_less);
     }
 }
 

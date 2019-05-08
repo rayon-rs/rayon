@@ -41,8 +41,8 @@ fn split_tour<'s>(scope: &Scope<'s>, solver: &'s SolverCx<'s>, element: Arc<Tour
                     priority: next_lower_bound.to_priority(),
                     node: next_node,
                     len: element.len + 1,
-                    prefix_weight: prefix_weight,
-                    visited: visited,
+                    prefix_weight,
+                    visited,
                     previous: Some(element.clone()),
                 });
                 solver.enqueue(next_tour);

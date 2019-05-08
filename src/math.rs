@@ -1,7 +1,7 @@
 /// Divide `n` by `divisor`, and round up to the nearest integer
 /// if not evenly divisable.
 #[inline]
-pub fn div_round_up(n: usize, divisor: usize) -> usize {
+pub(super) fn div_round_up(n: usize, divisor: usize) -> usize {
     debug_assert!(divisor != 0, "Division by zero!");
     if n == 0 {
         0

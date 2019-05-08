@@ -171,7 +171,7 @@ where
             }
         }
 
-        return (result_a, job_b.into_result());
+        (result_a, job_b.into_result())
     })
 }
 

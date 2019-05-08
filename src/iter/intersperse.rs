@@ -20,17 +20,14 @@ where
     item: I::Item,
 }
 
-/// Create a new `Intersperse` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(base: I, item: I::Item) -> Intersperse<I>
+impl<I> Intersperse<I>
 where
     I: ParallelIterator,
     I::Item: Clone,
 {
-    Intersperse {
-        base: base,
-        item: item,
+    /// Create a new `Intersperse` iterator
+    pub(super) fn new(base: I, item: I::Item) -> Self {
+        Intersperse { base, item }
     }
 }
 
@@ -50,10 +47,9 @@ where
     }
 
     fn opt_len(&self) -> Option<usize> {
-        match self.base.opt_len() {
-            None => None,
-            Some(0) => Some(0),
-            Some(len) => len.checked_add(len - 1),
+        match self.base.opt_len()? {
+            0 => Some(0),
+            len => len.checked_add(len - 1),
         }
     }
 }
@@ -86,9 +82,9 @@ where
     {
         let len = self.len();
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             item: self.item,
-            len: len,
+            len,
         });
 
         struct Callback<CB, T> {
@@ -131,9 +127,9 @@ where
 {
     fn new(base: P, item: P::Item, len: usize) -> Self {
         IntersperseProducer {
-            base: base,
-            item: item,
-            len: len,
+            base,
+            item,
+            len,
             clone_first: false,
         }
     }
@@ -292,8 +288,8 @@ where
 {
     fn new(base: C, item: T) -> Self {
         IntersperseConsumer {
-            base: base,
-            item: item,
+            base,
+            item,
             clone_first: false.into(),
         }
     }
@@ -398,9 +394,9 @@ where
             first.into_iter().chain(iter::once(item))
         }));
         IntersperseFolder {
-            base: base,
+            base,
             item: between_item,
-            clone_first: clone_first,
+            clone_first,
         }
     }
 

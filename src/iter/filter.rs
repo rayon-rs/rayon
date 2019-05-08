@@ -16,21 +16,18 @@ pub struct Filter<I: ParallelIterator, P> {
 }
 
 impl<I: ParallelIterator + Debug, P> Debug for Filter<I, P> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Filter").field("base", &self.base).finish()
     }
 }
 
-/// Create a new `Filter` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, P>(base: I, filter_op: P) -> Filter<I, P>
+impl<I, P> Filter<I, P>
 where
     I: ParallelIterator,
 {
-    Filter {
-        base: base,
-        filter_op: filter_op,
+    /// Create a new `Filter` iterator.
+    pub(super) fn new(base: I, filter_op: P) -> Self {
+        Filter { base, filter_op }
     }
 }
 
@@ -60,10 +57,7 @@ struct FilterConsumer<'p, C, P: 'p> {
 
 impl<'p, C, P> FilterConsumer<'p, C, P> {
     fn new(base: C, filter_op: &'p P) -> Self {
-        FilterConsumer {
-            base: base,
-            filter_op: filter_op,
-        }
+        FilterConsumer { base, filter_op }
     }
 }
 
@@ -127,10 +121,7 @@ where
         let filter_op = self.filter_op;
         if filter_op(&item) {
             let base = self.base.consume(item);
-            FilterFolder {
-                base: base,
-                filter_op: filter_op,
-            }
+            FilterFolder { base, filter_op }
         } else {
             self
         }

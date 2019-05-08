@@ -16,23 +16,17 @@ pub struct FilterMap<I: ParallelIterator, P> {
 }
 
 impl<I: ParallelIterator + Debug, P> Debug for FilterMap<I, P> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FilterMap")
             .field("base", &self.base)
             .finish()
     }
 }
 
-/// Create a new `FilterMap` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, P>(base: I, filter_op: P) -> FilterMap<I, P>
-where
-    I: ParallelIterator,
-{
-    FilterMap {
-        base: base,
-        filter_op: filter_op,
+impl<I: ParallelIterator, P> FilterMap<I, P> {
+    /// Create a new `FilterMap` iterator.
+    pub(super) fn new(base: I, filter_op: P) -> Self {
+        FilterMap { base, filter_op }
     }
 }
 
@@ -63,10 +57,7 @@ struct FilterMapConsumer<'p, C, P: 'p> {
 
 impl<'p, C, P: 'p> FilterMapConsumer<'p, C, P> {
     fn new(base: C, filter_op: &'p P) -> Self {
-        FilterMapConsumer {
-            base: base,
-            filter_op: filter_op,
-        }
+        FilterMapConsumer { base, filter_op }
     }
 }
 
@@ -91,7 +82,7 @@ where
     fn into_folder(self) -> Self::Folder {
         let base = self.base.into_folder();
         FilterMapFolder {
-            base: base,
+            base,
             filter_op: self.filter_op,
         }
     }
@@ -131,10 +122,7 @@ where
         let filter_op = self.filter_op;
         if let Some(mapped_item) = filter_op(item) {
             let base = self.base.consume(mapped_item);
-            FilterMapFolder {
-                base: base,
-                filter_op: filter_op,
-            }
+            FilterMapFolder { base, filter_op }
         } else {
             self
         }

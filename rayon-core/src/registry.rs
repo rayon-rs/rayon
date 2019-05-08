@@ -1,5 +1,5 @@
-use crossbeam::sync::SegQueue;
-use crossbeam_deque::{Deque, Steal, Stealer};
+use crossbeam_deque::{self as deque, Pop, Steal, Stealer, Worker};
+use crossbeam_queue::SegQueue;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
 #[cfg(rayon_unstable)]
@@ -13,6 +13,7 @@ use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::mem;
+use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -23,7 +24,7 @@ use unwind;
 use util::leak;
 use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
 
-pub struct Registry {
+pub(super) struct Registry {
     thread_infos: Vec<ThreadInfo>,
     sleep: Sleep,
     injected_jobs: SegQueue<JobRef>,
@@ -63,7 +64,7 @@ fn global_registry() -> &'static Arc<Registry> {
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given builder.
-pub fn init_global_registry(
+pub(super) fn init_global_registry(
     builder: ThreadPoolBuilder,
 ) -> Result<&'static Registry, ThreadPoolBuildError> {
     let mut called = false;
@@ -73,7 +74,8 @@ pub fn init_global_registry(
         called = true;
     });
     if called {
-        init_result.map(|()| &**global_registry())
+        init_result?;
+        Ok(&**global_registry())
     } else {
         Err(ThreadPoolBuildError::new(
             ErrorKind::GlobalPoolAlreadyInitialized,
@@ -86,7 +88,9 @@ pub fn init_global_registry(
 /// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
 /// an unsynchronized fashion.
 unsafe fn init_registry(builder: ThreadPoolBuilder) -> Result<(), ThreadPoolBuildError> {
-    Registry::new(builder).map(|registry| THE_REGISTRY = Some(leak(registry)))
+    let registry = Registry::new(builder)?;
+    THE_REGISTRY = Some(leak(registry));
+    Ok(())
 }
 
 struct Terminator<'a>(&'a Arc<Registry>);
@@ -98,15 +102,22 @@ impl<'a> Drop for Terminator<'a> {
 }
 
 impl Registry {
-    pub fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Registry>, ThreadPoolBuildError> {
+    pub(super) fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Self>, ThreadPoolBuildError> {
         let n_threads = builder.get_num_threads();
         let breadth_first = builder.get_breadth_first();
 
-        let workers: Vec<_> = (0..n_threads).map(|_| Deque::new()).collect();
-        let stealers: Vec<_> = workers.iter().map(|d| d.stealer()).collect();
+        let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads)
+            .map(|_| {
+                if breadth_first {
+                    deque::fifo()
+                } else {
+                    deque::lifo()
+                }
+            })
+            .unzip();
 
         let registry = Arc::new(Registry {
-            thread_infos: stealers.into_iter().map(|s| ThreadInfo::new(s)).collect(),
+            thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
             sleep: Sleep::new(),
             injected_jobs: SegQueue::new(),
             terminate_latch: CountLatch::new(),
@@ -127,9 +138,7 @@ impl Registry {
             if let Some(stack_size) = builder.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            if let Err(e) =
-                b.spawn(move || unsafe { main_loop(worker, registry, index, breadth_first) })
-            {
+            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index) }) {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)));
             }
         }
@@ -141,11 +150,11 @@ impl Registry {
     }
 
     #[cfg(rayon_unstable)]
-    pub fn global() -> Arc<Registry> {
+    pub(super) fn global() -> Arc<Registry> {
         global_registry().clone()
     }
 
-    pub fn current() -> Arc<Registry> {
+    pub(super) fn current() -> Arc<Registry> {
         unsafe {
             let worker_thread = WorkerThread::current();
             if worker_thread.is_null() {
@@ -159,7 +168,7 @@ impl Registry {
     /// Returns the number of threads in the current registry.  This
     /// is better than `Registry::current().num_threads()` because it
     /// avoids incrementing the `Arc`.
-    pub fn current_num_threads() -> usize {
+    pub(super) fn current_num_threads() -> usize {
         unsafe {
             let worker_thread = WorkerThread::current();
             if worker_thread.is_null() {
@@ -171,19 +180,19 @@ impl Registry {
     }
 
     /// Returns the current `WorkerThread` if it's part of this `Registry`.
-    pub fn current_thread(&self) -> Option<&WorkerThread> {
+    pub(super) fn current_thread(&self) -> Option<&WorkerThread> {
         unsafe {
-            if let Some(worker) = WorkerThread::current().as_ref() {
-                if worker.registry().id() == self.id() {
-                    return Some(worker);
-                }
+            let worker = WorkerThread::current().as_ref()?;
+            if worker.registry().id() == self.id() {
+                Some(worker)
+            } else {
+                None
             }
-            None
         }
     }
 
     /// Returns an opaque identifier for this registry.
-    pub fn id(&self) -> RegistryId {
+    pub(super) fn id(&self) -> RegistryId {
         // We can rely on `self` not to change since we only ever create
         // registries that are boxed up in an `Arc` (see `new()` above).
         RegistryId {
@@ -191,11 +200,11 @@ impl Registry {
         }
     }
 
-    pub fn num_threads(&self) -> usize {
+    pub(super) fn num_threads(&self) -> usize {
         self.thread_infos.len()
     }
 
-    pub fn handle_panic(&self, err: Box<Any + Send>) {
+    pub(super) fn handle_panic(&self, err: Box<Any + Send>) {
         match self.panic_handler {
             Some(ref handler) => {
                 // If the customizable panic handler itself panics,
@@ -215,7 +224,7 @@ impl Registry {
     /// meant to be used for benchmarking purposes, primarily, so that
     /// you can get more consistent numbers by having everything
     /// "ready to go".
-    pub fn wait_until_primed(&self) {
+    pub(super) fn wait_until_primed(&self) {
         for info in &self.thread_infos {
             info.primed.wait();
         }
@@ -224,7 +233,7 @@ impl Registry {
     /// Waits for the worker threads to stop. This is used for testing
     /// -- so we can check that termination actually works.
     #[cfg(test)]
-    pub fn wait_until_stopped(&self) {
+    pub(super) fn wait_until_stopped(&self) {
         for info in &self.thread_infos {
             info.stopped.wait();
         }
@@ -239,7 +248,7 @@ impl Registry {
     /// Push a job into the given `registry`. If we are running on a
     /// worker thread for the registry, this will push onto the
     /// deque. Else, it will inject from the outside (which is slower).
-    pub fn inject_or_push(&self, job_ref: JobRef) {
+    pub(super) fn inject_or_push(&self, job_ref: JobRef) {
         let worker_thread = WorkerThread::current();
         unsafe {
             if !worker_thread.is_null() && (*worker_thread).registry().id() == self.id() {
@@ -253,7 +262,7 @@ impl Registry {
     /// Unsafe: the caller must guarantee that `task` will stay valid
     /// until it executes.
     #[cfg(rayon_unstable)]
-    pub unsafe fn submit_task<T>(&self, task: Arc<T>)
+    pub(super) unsafe fn submit_task<T>(&self, task: Arc<T>)
     where
         T: Task,
     {
@@ -277,7 +286,7 @@ impl Registry {
                 unsafe { mem::transmute(arc) }
             }
 
-            pub fn into_task(this: Arc<TaskJob<T>>) -> Arc<T> {
+            fn into_task(this: Arc<TaskJob<T>>) -> Arc<T> {
                 // Same logic as `new()`
                 unsafe { mem::transmute(this) }
             }
@@ -300,7 +309,7 @@ impl Registry {
     /// Push a job into the "external jobs" queue; it will be taken by
     /// whatever worker has nothing to do. Use this is you know that
     /// you are not on a worker of this registry.
-    pub fn inject(&self, injected_jobs: &[JobRef]) {
+    pub(super) fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs {
             count: injected_jobs.len()
         });
@@ -322,7 +331,7 @@ impl Registry {
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
-        let job = self.injected_jobs.try_pop();
+        let job = self.injected_jobs.pop().ok();
         if job.is_some() {
             log!(UninjectedWork {
                 worker: worker_index
@@ -336,7 +345,7 @@ impl Registry {
     /// completes and return its return value. If `op` panics, that panic will
     /// be propagated as well.  The second argument indicates `true` if injection
     /// was performed, `false` if executed directly.
-    pub fn in_worker<OP, R>(&self, op: OP) -> R
+    pub(super) fn in_worker<OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
@@ -420,21 +429,21 @@ impl Registry {
     /// of any blocking scope. In that case, the job itself holds a
     /// terminate count and is responsible for invoking `terminate()`
     /// when finished.
-    pub fn increment_terminate_count(&self) {
+    pub(super) fn increment_terminate_count(&self) {
         self.terminate_latch.increment();
     }
 
     /// Signals that the thread-pool which owns this registry has been
     /// dropped. The worker threads will gradually terminate, once any
     /// extant work is completed.
-    pub fn terminate(&self) {
+    pub(super) fn terminate(&self) {
         self.terminate_latch.set();
         self.sleep.tickle(usize::MAX);
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RegistryId {
+pub(super) struct RegistryId {
     addr: usize,
 }
 
@@ -457,7 +466,7 @@ impl ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
-            stealer: stealer,
+            stealer,
         }
     }
 }
@@ -465,17 +474,14 @@ impl ThreadInfo {
 /// ////////////////////////////////////////////////////////////////////////
 /// WorkerThread identifiers
 
-pub struct WorkerThread {
+pub(super) struct WorkerThread {
     /// the "worker" half of our local deque
-    worker: Deque<JobRef>,
+    worker: Worker<JobRef>,
 
     /// local queue used for `spawn_fifo` indirection
     fifo: JobFifo,
 
     index: usize,
-
-    /// are these workers configured to steal breadth-first or not?
-    breadth_first: bool,
 
     /// A weak random number generator.
     rng: XorShift64Star,
@@ -489,8 +495,7 @@ pub struct WorkerThread {
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
-    static WORKER_THREAD_STATE: Cell<*const WorkerThread> =
-        Cell::new(0 as *const WorkerThread)
+    static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
 }
 
 impl WorkerThread {
@@ -498,8 +503,8 @@ impl WorkerThread {
     /// NULL if this is not a worker thread. This pointer is valid
     /// anywhere on the current thread.
     #[inline]
-    pub fn current() -> *const WorkerThread {
-        WORKER_THREAD_STATE.with(|t| t.get())
+    pub(super) fn current() -> *const WorkerThread {
+        WORKER_THREAD_STATE.with(Cell::get)
     }
 
     /// Sets `self` as the worker thread index for the current thread.
@@ -512,30 +517,30 @@ impl WorkerThread {
     }
 
     /// Returns the registry that owns this worker thread.
-    pub fn registry(&self) -> &Arc<Registry> {
+    pub(super) fn registry(&self) -> &Arc<Registry> {
         &self.registry
     }
 
     /// Our index amongst the worker threads (ranges from `0..self.num_threads()`).
     #[inline]
-    pub fn index(&self) -> usize {
+    pub(super) fn index(&self) -> usize {
         self.index
     }
 
     #[inline]
-    pub unsafe fn push(&self, job: JobRef) {
+    pub(super) unsafe fn push(&self, job: JobRef) {
         self.worker.push(job);
         self.registry.sleep.tickle(self.index);
     }
 
     #[inline]
-    pub unsafe fn push_fifo(&self, job: JobRef) {
+    pub(super) unsafe fn push_fifo(&self, job: JobRef) {
         self.push(self.fifo.push(job));
     }
 
     #[inline]
-    pub fn local_deque_is_empty(&self) -> bool {
-        self.worker.len() == 0
+    pub(super) fn local_deque_is_empty(&self) -> bool {
+        self.worker.is_empty()
     }
 
     /// Attempts to obtain a "local" job -- typically this means
@@ -543,16 +548,12 @@ impl WorkerThread {
     /// for breadth-first execution, it would mean dequeuing from the
     /// bottom.
     #[inline]
-    pub unsafe fn take_local_job(&self) -> Option<JobRef> {
-        if !self.breadth_first {
-            self.worker.pop()
-        } else {
-            loop {
-                match self.worker.steal() {
-                    Steal::Empty => return None,
-                    Steal::Data(d) => return Some(d),
-                    Steal::Retry => {}
-                }
+    pub(super) unsafe fn take_local_job(&self) -> Option<JobRef> {
+        loop {
+            match self.worker.pop() {
+                Pop::Empty => return None,
+                Pop::Data(d) => return Some(d),
+                Pop::Retry => {}
             }
         }
     }
@@ -560,7 +561,7 @@ impl WorkerThread {
     /// Wait until the latch is set. Try to keep busy by popping and
     /// stealing tasks as necessary.
     #[inline]
-    pub unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
+    pub(super) unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
         log!(WaitUntil { worker: self.index });
         if !latch.probe() {
             self.wait_until_cold(latch);
@@ -604,7 +605,7 @@ impl WorkerThread {
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
-    pub unsafe fn execute(&self, job: JobRef) {
+    pub(super) unsafe fn execute(&self, job: JobRef) {
         job.execute();
 
         // Subtle: executing this job will have `set()` some of its
@@ -620,7 +621,7 @@ impl WorkerThread {
     /// local work to do.
     unsafe fn steal(&self) -> Option<JobRef> {
         // we only steal when we don't have any work to do locally
-        debug_assert!(self.worker.pop().is_none());
+        debug_assert!(self.local_deque_is_empty());
 
         // otherwise, try to steal
         let num_threads = self.registry.thread_infos.len();
@@ -654,17 +655,11 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(
-    worker: Deque<JobRef>,
-    registry: Arc<Registry>,
-    index: usize,
-    breadth_first: bool,
-) {
+unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
     let worker_thread = WorkerThread {
-        worker: worker,
+        worker,
         fifo: JobFifo::new(),
-        breadth_first: breadth_first,
-        index: index,
+        index,
         rng: XorShift64Star::new(),
         registry: registry.clone(),
     };
@@ -718,7 +713,7 @@ unsafe fn main_loop(
 /// `op` completes and return its return value. If `op` panics, that
 /// panic will be propagated as well.  The second argument indicates
 /// `true` if injection was performed, `false` if executed directly.
-pub fn in_worker<OP, R>(op: OP) -> R
+pub(super) fn in_worker<OP, R>(op: OP) -> R
 where
     OP: FnOnce(&WorkerThread, bool) -> R + Send,
     R: Send,

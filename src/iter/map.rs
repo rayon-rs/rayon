@@ -18,21 +18,18 @@ pub struct Map<I: ParallelIterator, F> {
 }
 
 impl<I: ParallelIterator + Debug, F> Debug for Map<I, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Map").field("base", &self.base).finish()
     }
 }
 
-/// Create a new `Map` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, map_op: F) -> Map<I, F>
+impl<I, F> Map<I, F>
 where
     I: ParallelIterator,
 {
-    Map {
-        base: base,
-        map_op: map_op,
+    /// Create a new `Map` iterator.
+    pub(super) fn new(base: I, map_op: F) -> Self {
+        Map { base, map_op }
     }
 }
 
@@ -80,7 +77,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             map_op: self.map_op,
         });
 
@@ -102,7 +99,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MapProducer {
-                    base: base,
+                    base,
                     map_op: &self.map_op,
                 };
                 self.callback.callback(producer)
@@ -174,10 +171,7 @@ struct MapConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> MapConsumer<'f, C, F> {
     fn new(base: C, map_op: &'f F) -> Self {
-        MapConsumer {
-            base: base,
-            map_op: map_op,
-        }
+        MapConsumer { base, map_op }
     }
 }
 

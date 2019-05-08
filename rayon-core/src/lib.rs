@@ -19,9 +19,10 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
-#![doc(html_root_url = "https://docs.rs/rayon-core/1.4")]
+#![doc(html_root_url = "https://docs.rs/rayon-core/1.5")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
+#![deny(unreachable_pub)]
 
 use std::any::Any;
 use std::env;
@@ -31,11 +32,11 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-extern crate crossbeam;
 extern crate crossbeam_deque;
+extern crate crossbeam_queue;
+#[cfg(any(debug_assertions, rayon_unstable))]
 #[macro_use]
 extern crate lazy_static;
-extern crate libc;
 extern crate num_cpus;
 
 #[cfg(test)]
@@ -181,7 +182,7 @@ impl ThreadPoolBuilder {
 
     /// Create a new `ThreadPool` initialized using this configuration.
     pub fn build(self) -> Result<ThreadPool, ThreadPoolBuildError> {
-        thread_pool::build(self)
+        ThreadPool::build(self)
     }
 
     /// Initializes the global thread pool. This initialization is
@@ -202,7 +203,7 @@ impl ThreadPoolBuilder {
     /// will return an error. An `Ok` result indicates that this
     /// is the first initialization of the thread pool.
     pub fn build_global(self) -> Result<(), ThreadPoolBuildError> {
-        let registry = try!(registry::init_global_registry(self));
+        let registry = registry::init_global_registry(self)?;
         registry.wait_until_primed();
         Ok(())
     }
@@ -235,7 +236,8 @@ impl ThreadPoolBuilder {
 
     /// Get the thread name for the thread with the given index.
     fn get_thread_name(&mut self, index: usize) -> Option<String> {
-        self.get_thread_name.as_mut().map(|c| c(index))
+        let f = self.get_thread_name.as_mut()?;
+        Some(f(index))
     }
 
     /// Set a closure which takes a thread index and returns
@@ -405,7 +407,7 @@ impl Configuration {
 
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn build(self) -> Result<ThreadPool, Box<Error + 'static>> {
-        self.builder.build().map_err(|e| e.into())
+        self.builder.build().map_err(Box::from)
     }
 
     /// Deprecated in favor of `ThreadPoolBuilder::thread_name`.
@@ -470,7 +472,7 @@ impl Configuration {
 
 impl ThreadPoolBuildError {
     fn new(kind: ErrorKind) -> ThreadPoolBuildError {
-        ThreadPoolBuildError { kind: kind }
+        ThreadPoolBuildError { kind }
     }
 }
 
@@ -498,7 +500,7 @@ impl fmt::Display for ThreadPoolBuildError {
 #[deprecated(note = "use `ThreadPoolBuilder::build_global`")]
 #[allow(deprecated)]
 pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
-    config.into_builder().build_global().map_err(|e| e.into())
+    config.into_builder().build_global().map_err(Box::from)
 }
 
 impl fmt::Debug for ThreadPoolBuilder {
@@ -567,7 +569,7 @@ impl FnContext {
     #[inline]
     fn new(migrated: bool) -> Self {
         FnContext {
-            migrated: migrated,
+            migrated,
             _marker: PhantomData,
         }
     }

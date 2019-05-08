@@ -1,7 +1,7 @@
 use super::plumbing::*;
 use super::ParallelIterator;
 
-pub fn reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
+pub(super) fn reduce<PI, R, ID, T>(pi: PI, identity: ID, reduce_op: R) -> T
 where
     PI: ParallelIterator<Item = T>,
     R: Fn(T, T) -> T + Sync,

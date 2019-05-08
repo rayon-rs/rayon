@@ -1,4 +1,4 @@
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: matmul bench [--size N]
        matmul --help
 Parallel matrix multiplication.
@@ -54,7 +54,7 @@ struct SplayedBitsCounter {
 
 impl SplayedBitsCounter {
     fn new(max: usize) -> Self {
-        SplayedBitsCounter { value: 0, max: max }
+        SplayedBitsCounter { value: 0, max }
     }
 }
 
@@ -63,10 +63,10 @@ impl Iterator for SplayedBitsCounter {
 
     fn next(&mut self) -> Option<usize> {
         // Return only odd bits.
-        let prev = self.value & 0x55555555;
+        let prev = self.value & 0x5555_5555;
         if prev < self.max {
             // Set all even bits.
-            self.value |= 0xaaaaaaaa;
+            self.value |= 0xaaaa_aaaa;
             // Add one, carrying through even bits.
             self.value += 1;
             Some(prev)
@@ -101,9 +101,9 @@ pub fn seq_matmulz(a: &[f32], b: &[f32], dest: &mut [f32]) {
     // Multiply in morton order
     // D[i,j] = sum for all k A[i,k] * B[k,j]
     let n = dest.len();
-    for ij in 0..n {
-        let i = ij & 0xaaaaaaaa;
-        let j = ij & 0x55555555;
+    for (ij, d) in dest.iter_mut().enumerate() {
+        let i = ij & 0xaaaa_aaaa;
+        let j = ij & 0x5555_5555;
         let mut sum = 0.0;
         for k in SplayedBitsCounter::new(n) {
             // sum += a[i, k] * b[k, j];
@@ -113,14 +113,14 @@ pub fn seq_matmulz(a: &[f32], b: &[f32], dest: &mut [f32]) {
                 a.get_unchecked(i | k) * b.get_unchecked(k << 1 | j)
             };
         }
-        dest[ij] = sum;
+        *d = sum;
     }
 }
 
 const MULT_CHUNK: usize = 1 * 1024;
 const LINEAR_CHUNK: usize = 64 * 1024;
 
-fn quarter_chunks<'a>(v: &'a [f32]) -> (&'a [f32], &'a [f32], &'a [f32], &'a [f32]) {
+fn quarter_chunks(v: &[f32]) -> (&[f32], &[f32], &[f32], &[f32]) {
     let mid = v.len() / 2;
     let quarter = mid / 2;
     let (left, right) = v.split_at(mid);
@@ -129,9 +129,7 @@ fn quarter_chunks<'a>(v: &'a [f32]) -> (&'a [f32], &'a [f32], &'a [f32], &'a [f3
     (a, b, c, d)
 }
 
-fn quarter_chunks_mut<'a>(
-    v: &'a mut [f32],
-) -> (&'a mut [f32], &'a mut [f32], &'a mut [f32], &'a mut [f32]) {
+fn quarter_chunks_mut(v: &mut [f32]) -> (&mut [f32], &mut [f32], &mut [f32], &mut [f32]) {
     let mid = v.len() / 2;
     let quarter = mid / 2;
     let (left, right) = v.split_at_mut(mid);
@@ -390,7 +388,7 @@ fn timed_matmul<F: FnOnce(&[f32], &[f32], &mut [f32])>(size: usize, f: F, name: 
     let start = Instant::now();
     f(&a[..], &b[..], &mut dest[..]);
     let dur = Instant::now() - start;
-    let nanos = dur.subsec_nanos() as u64 + dur.as_secs() * 1_000_000_000u64;
+    let nanos = u64::from(dur.subsec_nanos()) + dur.as_secs() * 1_000_000_000u64;
     println!(
         "{}:\t{}x{} matrix: {} s",
         name,
@@ -398,7 +396,7 @@ fn timed_matmul<F: FnOnce(&[f32], &[f32], &mut [f32])>(size: usize, f: F, name: 
         size,
         nanos as f32 / 1e9f32
     );
-    return nanos;
+    nanos
 }
 
 pub fn main(args: &[String]) {

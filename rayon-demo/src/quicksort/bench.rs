@@ -13,7 +13,7 @@ fn bench_harness<F: FnMut(&mut [u32])>(mut f: F, b: &mut test::Bencher) {
         sort_vec = base_vec.clone();
         f(&mut sort_vec);
     });
-    assert!(super::is_sorted(&mut sort_vec));
+    assert!(super::is_sorted(&sort_vec));
 }
 
 #[bench]

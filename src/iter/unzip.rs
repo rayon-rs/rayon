@@ -50,19 +50,15 @@ where
     // We have no idea what the consumers will look like for these
     // collections' `par_extend`, but we can intercept them in our own
     // `drive_unindexed`.  Start with the left side, type `A`:
-    let iter = UnzipA {
-        base: pi,
-        op: op,
-        b: b,
-    };
+    let iter = UnzipA { base: pi, op, b };
     a.par_extend(iter);
 }
 
 /// Unzips the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
 ///
-/// This is not directly public, but called by `ParallelIterator::unzip`.
-pub fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
+/// This is called by `ParallelIterator::unzip`.
+pub(super) fn unzip<I, A, B, FromA, FromB>(pi: I) -> (FromA, FromB)
 where
     I: ParallelIterator<Item = (A, B)>,
     FromA: Default + Send + ParallelExtend<A>,
@@ -75,8 +71,8 @@ where
 
 /// Unzip an `IndexedParallelIterator` into two arbitrary `Consumer`s.
 ///
-/// This is not directly public, but called by `super::collect::unzip_into_vecs`.
-pub fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
+/// This is called by `super::collect::unzip_into_vecs`.
+pub(super) fn unzip_indexed<I, A, B, CA, CB>(pi: I, left: CA, right: CB) -> (CA::Result, CB::Result)
 where
     I: IndexedParallelIterator<Item = (A, B)>,
     CA: Consumer<A>,
@@ -86,8 +82,8 @@ where
 {
     let consumer = UnzipConsumer {
         op: &Unzip,
-        left: left,
-        right: right,
+        left,
+        right,
     };
     pi.drive(consumer)
 }
@@ -115,20 +111,15 @@ impl<A: Send, B: Send> UnzipOp<(A, B)> for Unzip {
 /// Partitions the items of a parallel iterator into a pair of arbitrary
 /// `ParallelExtend` containers.
 ///
-/// This is not directly public, but called by `ParallelIterator::partition`.
-pub fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
+/// This is called by `ParallelIterator::partition`.
+pub(super) fn partition<I, A, B, P>(pi: I, predicate: P) -> (A, B)
 where
     I: ParallelIterator,
     A: Default + Send + ParallelExtend<I::Item>,
     B: Default + Send + ParallelExtend<I::Item>,
     P: Fn(&I::Item) -> bool + Sync + Send,
 {
-    execute(
-        pi,
-        Partition {
-            predicate: predicate,
-        },
-    )
+    execute(pi, Partition { predicate })
 }
 
 /// An `UnzipOp` that routes items depending on a predicate function.
@@ -160,8 +151,8 @@ where
 /// Partitions and maps the items of a parallel iterator into a pair of
 /// arbitrary `ParallelExtend` containers.
 ///
-/// This is not directly public, but called by `ParallelIterator::partition_map`.
-pub fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
+/// This called by `ParallelIterator::partition_map`.
+pub(super) fn partition_map<I, A, B, P, L, R>(pi: I, predicate: P) -> (A, B)
 where
     I: ParallelIterator,
     A: Default + Send + ParallelExtend<L>,
@@ -170,12 +161,7 @@ where
     L: Send,
     R: Send,
 {
-    execute(
-        pi,
-        PartitionMap {
-            predicate: predicate,
-        },
-    )
+    execute(pi, PartitionMap { predicate })
 }
 
 /// An `UnzipOp` that routes items depending on how they are mapped `Either`.
@@ -390,8 +376,8 @@ where
         let (left, right) = self.op.consume(item, self.left, self.right);
         UnzipFolder {
             op: self.op,
-            left: left,
-            right: right,
+            left,
+            right,
         }
     }
 

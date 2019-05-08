@@ -11,12 +11,9 @@ use std::cmp::{self, Ordering};
 use std::panic;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
-#[allow(deprecated)]
-use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::thread;
 
-#[allow(deprecated)]
-static VERSIONS: AtomicUsize = ATOMIC_USIZE_INIT;
+static VERSIONS: AtomicUsize = AtomicUsize::new(0);
 
 lazy_static! {
     static ref DROP_COUNTS: Vec<AtomicUsize> = (0..20_000).map(|_| AtomicUsize::new(0)).collect();
@@ -128,7 +125,7 @@ thread_local!(static SILENCE_PANIC: Cell<bool> = Cell::new(false));
 fn sort_panic_safe() {
     let prev = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
-        if !SILENCE_PANIC.with(|s| s.get()) {
+        if !SILENCE_PANIC.with(Cell::get) {
             prev(info);
         }
     }));
@@ -141,7 +138,7 @@ fn sort_panic_safe() {
                 let mut input = (0..len)
                     .map(|id| DropCounter {
                         x: rng.gen_range(0, modulus),
-                        id: id,
+                        id,
                         version: Cell::new(0),
                     })
                     .collect::<Vec<_>>();

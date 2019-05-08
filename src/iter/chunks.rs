@@ -20,14 +20,14 @@ where
     i: I,
 }
 
-/// Create a new `Chunks` iterator
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I>(i: I, size: usize) -> Chunks<I>
+impl<I> Chunks<I>
 where
     I: IndexedParallelIterator,
 {
-    Chunks { i: i, size: size }
+    /// Create a new `Chunks` iterator
+    pub(super) fn new(i: I, size: usize) -> Self {
+        Chunks { i, size }
+    }
 }
 
 impl<I> ParallelIterator for Chunks<I>
@@ -70,8 +70,8 @@ where
         let len = self.i.len();
         return self.i.with_producer(Callback {
             size: self.size,
-            len: len,
-            callback: callback,
+            len,
+            callback,
         });
 
         struct Callback<CB> {
@@ -93,7 +93,7 @@ where
                 self.callback.callback(ChunkProducer {
                     chunk_size: self.size,
                     len: self.len,
-                    base: base,
+                    base,
                 })
             }
         }
@@ -163,20 +163,16 @@ where
     type Item = Vec<P::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.inner.take() {
-            Some(producer) => {
-                if self.len > self.chunk_size {
-                    let (left, right) = producer.split_at(self.chunk_size);
-                    self.inner = Some(right);
-                    self.len -= self.chunk_size;
-                    Some(left.into_iter().collect())
-                } else {
-                    debug_assert!(self.len > 0);
-                    self.len = 0;
-                    Some(producer.into_iter().collect())
-                }
-            }
-            _ => None,
+        let producer = self.inner.take()?;
+        if self.len > self.chunk_size {
+            let (left, right) = producer.split_at(self.chunk_size);
+            self.inner = Some(right);
+            self.len -= self.chunk_size;
+            Some(left.into_iter().collect())
+        } else {
+            debug_assert!(self.len > 0);
+            self.len = 0;
+            Some(producer.into_iter().collect())
         }
     }
 
@@ -201,24 +197,20 @@ where
     P: Producer,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        match self.inner.take() {
-            Some(producer) => {
-                if self.len > self.chunk_size {
-                    let mut size = self.len % self.chunk_size;
-                    if size == 0 {
-                        size = self.chunk_size;
-                    }
-                    let (left, right) = producer.split_at(self.len - size);
-                    self.inner = Some(left);
-                    self.len -= size;
-                    Some(right.into_iter().collect())
-                } else {
-                    debug_assert!(self.len > 0);
-                    self.len = 0;
-                    Some(producer.into_iter().collect())
-                }
+        let producer = self.inner.take()?;
+        if self.len > self.chunk_size {
+            let mut size = self.len % self.chunk_size;
+            if size == 0 {
+                size = self.chunk_size;
             }
-            _ => None,
+            let (left, right) = producer.split_at(self.len - size);
+            self.inner = Some(left);
+            self.len -= size;
+            Some(right.into_iter().collect())
+        } else {
+            debug_assert!(self.len > 0);
+            self.len = 0;
+            Some(producer.into_iter().collect())
         }
     }
 }

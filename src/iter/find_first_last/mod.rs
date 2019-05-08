@@ -38,7 +38,7 @@ fn better_position(pos1: usize, pos2: usize, mp: MatchPosition) -> bool {
     }
 }
 
-pub fn find_first<I, P>(pi: I, find_op: P) -> Option<I::Item>
+pub(super) fn find_first<I, P>(pi: I, find_op: P) -> Option<I::Item>
 where
     I: ParallelIterator,
     P: Fn(&I::Item) -> bool + Sync,
@@ -48,7 +48,7 @@ where
     pi.drive_unindexed(consumer)
 }
 
-pub fn find_last<I, P>(pi: I, find_op: P) -> Option<I::Item>
+pub(super) fn find_last<I, P>(pi: I, find_op: P) -> Option<I::Item>
 where
     I: ParallelIterator,
     P: Fn(&I::Item) -> bool + Sync,
@@ -69,11 +69,11 @@ struct FindConsumer<'p, P: 'p> {
 impl<'p, P> FindConsumer<'p, P> {
     fn new(find_op: &'p P, match_position: MatchPosition, best_found: &'p AtomicUsize) -> Self {
         FindConsumer {
-            find_op: find_op,
+            find_op,
             lower_bound: Cell::new(0),
             upper_bound: usize::max_value(),
-            match_position: match_position,
-            best_found: best_found,
+            match_position,
+            best_found,
         }
     }
 

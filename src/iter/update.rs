@@ -18,21 +18,18 @@ pub struct Update<I: ParallelIterator, F> {
 }
 
 impl<I: ParallelIterator + Debug, F> Debug for Update<I, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Update").field("base", &self.base).finish()
     }
 }
 
-/// Create a new `Update` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new<I, F>(base: I, update_op: F) -> Update<I, F>
+impl<I, F> Update<I, F>
 where
     I: ParallelIterator,
 {
-    Update {
-        base: base,
-        update_op: update_op,
+    /// Create a new `Update` iterator.
+    pub(super) fn new(base: I, update_op: F) -> Self {
+        Update { base, update_op }
     }
 }
 
@@ -78,7 +75,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             update_op: self.update_op,
         });
 
@@ -99,7 +96,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = UpdateProducer {
-                    base: base,
+                    base,
                     update_op: &self.update_op,
                 };
                 self.callback.callback(producer)
@@ -173,10 +170,7 @@ struct UpdateConsumer<'f, C, F: 'f> {
 
 impl<'f, C, F> UpdateConsumer<'f, C, F> {
     fn new(base: C, update_op: &'f F) -> Self {
-        UpdateConsumer {
-            base: base,
-            update_op: update_op,
-        }
+        UpdateConsumer { base, update_op }
     }
 }
 
@@ -282,12 +276,9 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(mut v) = self.base.next() {
-            (self.update_op)(&mut v);
-            Some(v)
-        } else {
-            None
-        }
+        let mut v = self.base.next()?;
+        (self.update_op)(&mut v);
+        Some(v)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -333,11 +324,8 @@ where
     F: FnMut(&mut I::Item),
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some(mut v) = self.base.next_back() {
-            (self.update_op)(&mut v);
-            Some(v)
-        } else {
-            None
-        }
+        let mut v = self.base.next_back()?;
+        (self.update_op)(&mut v);
+        Some(v)
     }
 }

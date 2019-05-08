@@ -14,16 +14,13 @@ pub struct MinLen<I: IndexedParallelIterator> {
     min: usize,
 }
 
-/// Create a new `MinLen` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_min_len<I>(base: I, min: usize) -> MinLen<I>
+impl<I> MinLen<I>
 where
     I: IndexedParallelIterator,
 {
-    MinLen {
-        base: base,
-        min: min,
+    /// Create a new `MinLen` iterator.
+    pub(super) fn new(base: I, min: usize) -> Self {
+        MinLen { base, min }
     }
 }
 
@@ -62,7 +59,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             min: self.min,
         });
 
@@ -81,7 +78,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MinLenProducer {
-                    base: base,
+                    base,
                     min: self.min,
                 };
                 self.callback.callback(producer)
@@ -151,16 +148,13 @@ pub struct MaxLen<I: IndexedParallelIterator> {
     max: usize,
 }
 
-/// Create a new `MaxLen` iterator.
-///
-/// NB: a free fn because it is NOT part of the end-user API.
-pub fn new_max_len<I>(base: I, max: usize) -> MaxLen<I>
+impl<I> MaxLen<I>
 where
     I: IndexedParallelIterator,
 {
-    MaxLen {
-        base: base,
-        max: max,
+    /// Create a new `MaxLen` iterator.
+    pub(super) fn new(base: I, max: usize) -> Self {
+        MaxLen { base, max }
     }
 }
 
@@ -199,7 +193,7 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         return self.base.with_producer(Callback {
-            callback: callback,
+            callback,
             max: self.max,
         });
 
@@ -218,7 +212,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = MaxLenProducer {
-                    base: base,
+                    base,
                     max: self.max,
                 };
                 self.callback.callback(producer)

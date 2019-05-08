@@ -53,17 +53,17 @@ pub struct ThreadPool {
     registry: Arc<Registry>,
 }
 
-pub fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
-    let registry = try!(Registry::new(builder));
-    Ok(ThreadPool { registry: registry })
-}
-
 impl ThreadPool {
     #[deprecated(note = "Use `ThreadPoolBuilder::build`")]
     #[allow(deprecated)]
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
-        build(configuration.into_builder()).map_err(|e| e.into())
+        Self::build(configuration.into_builder()).map_err(Box::from)
+    }
+
+    pub(super) fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+        let registry = Registry::new(builder)?;
+        Ok(ThreadPool { registry })
     }
 
     /// Returns a handle to the global thread pool. This is the pool
@@ -165,16 +165,8 @@ impl ThreadPool {
     /// [snt]: struct.ThreadPoolBuilder.html#method.num_threads
     #[inline]
     pub fn current_thread_index(&self) -> Option<usize> {
-        unsafe {
-            let curr = WorkerThread::current();
-            if curr.is_null() {
-                None
-            } else if (*curr).registry().id() != self.registry.id() {
-                None
-            } else {
-                Some((*curr).index())
-            }
-        }
+        let curr = self.registry.current_thread()?;
+        Some(curr.index())
     }
 
     /// Returns true if the current worker thread currently has "local
@@ -200,16 +192,8 @@ impl ThreadPool {
     /// [deque]: https://en.wikipedia.org/wiki/Double-ended_queue
     #[inline]
     pub fn current_thread_has_pending_tasks(&self) -> Option<bool> {
-        unsafe {
-            let curr = WorkerThread::current();
-            if curr.is_null() {
-                None
-            } else if (*curr).registry().id() != self.registry.id() {
-                None
-            } else {
-                Some(!(*curr).local_deque_is_empty())
-            }
-        }
+        let curr = self.registry.current_thread()?;
+        Some(!curr.local_deque_is_empty())
     }
 
     /// Execute `oper_a` and `oper_b` in the thread-pool and return
@@ -328,12 +312,8 @@ impl fmt::Debug for ThreadPool {
 #[inline]
 pub fn current_thread_index() -> Option<usize> {
     unsafe {
-        let curr = WorkerThread::current();
-        if curr.is_null() {
-            None
-        } else {
-            Some((*curr).index())
-        }
+        let curr = WorkerThread::current().as_ref()?;
+        Some(curr.index())
     }
 }
 
@@ -346,11 +326,7 @@ pub fn current_thread_index() -> Option<usize> {
 #[inline]
 pub fn current_thread_has_pending_tasks() -> Option<bool> {
     unsafe {
-        let curr = WorkerThread::current();
-        if curr.is_null() {
-            None
-        } else {
-            Some(!(*curr).local_deque_is_empty())
-        }
+        let curr = WorkerThread::current().as_ref()?;
+        Some(!curr.local_deque_is_empty())
     }
 }

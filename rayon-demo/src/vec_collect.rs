@@ -20,13 +20,10 @@ mod util {
         PI: ParallelIterator<Item = T> + Send,
     {
         let list: LinkedList<Vec<_>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .collect();
         list.into_iter().fold(Vec::new(), |mut vec, mut sub| {
             vec.append(&mut sub);
@@ -41,13 +38,10 @@ mod util {
         PI: ParallelIterator<Item = T> + Send,
     {
         let list: LinkedList<Vec<_>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .collect();
 
         let len = list.iter().map(Vec::len).sum();
@@ -65,13 +59,10 @@ mod util {
         PI: ParallelIterator<Item = T> + Send,
     {
         let list: LinkedList<Vec<_>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .map(|vec| {
                 let mut list = LinkedList::new();
                 list.push_back(vec);
@@ -97,21 +88,15 @@ mod util {
         PI: ParallelIterator<Item = T> + Send,
     {
         let vecs: Vec<Vec<_>> = pi
-            .fold(
-                || Vec::new(),
-                |mut vec, elem| {
-                    vec.push(elem);
-                    vec
-                },
-            )
+            .fold(Vec::new, |mut vec, elem| {
+                vec.push(elem);
+                vec
+            })
             .map(|v| vec![v])
-            .reduce(
-                || Vec::new(),
-                |mut left, mut right| {
-                    left.append(&mut right);
-                    left
-                },
-            );
+            .reduce(Vec::new, |mut left, mut right| {
+                left.append(&mut right);
+                left
+            });
 
         let len = vecs.iter().map(Vec::len).sum();
         vecs.into_iter()
@@ -127,20 +112,14 @@ mod util {
         T: Send,
         PI: ParallelIterator<Item = T> + Send,
     {
-        pi.fold(
-            || Vec::new(),
-            |mut vec, x| {
-                vec.push(x);
-                vec
-            },
-        )
-        .reduce(
-            || Vec::new(),
-            |mut vec1, mut vec2| {
-                vec1.append(&mut vec2);
-                vec1
-            },
-        )
+        pi.fold(Vec::new, |mut vec, x| {
+            vec.push(x);
+            vec
+        })
+        .reduce(Vec::new, |mut vec1, mut vec2| {
+            vec1.append(&mut vec2);
+            vec1
+        })
     }
 }
 
@@ -206,7 +185,7 @@ mod vec_i {
         (0_u32..N).into_par_iter()
     }
 
-    fn check(v: &Vec<u32>) {
+    fn check(v: &[u32]) {
         assert!(v.iter().cloned().eq(0..N));
     }
 
@@ -242,7 +221,7 @@ mod vec_i_filtered {
         (0_u32..N).into_par_iter().filter(|_| true)
     }
 
-    fn check(v: &Vec<u32>) {
+    fn check(v: &[u32]) {
         assert!(v.iter().cloned().eq(0..N));
     }
 

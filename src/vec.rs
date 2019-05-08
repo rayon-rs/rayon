@@ -66,7 +66,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
             let mut slice = self.vec.as_mut_slice();
             slice = std::slice::from_raw_parts_mut(slice.as_mut_ptr(), len);
 
-            callback.callback(VecProducer { slice: slice })
+            callback.callback(VecProducer { slice })
         }
     }
 }
@@ -116,7 +116,8 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        self.iter.next().map(|ptr| unsafe { std::ptr::read(ptr) })
+        let ptr = self.iter.next()?;
+        Some(unsafe { std::ptr::read(ptr) })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -127,9 +128,8 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
 
 impl<'data, T: 'data> DoubleEndedIterator for SliceDrain<'data, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next_back()
-            .map(|ptr| unsafe { std::ptr::read(ptr) })
+        let ptr = self.iter.next_back()?;
+        Some(unsafe { std::ptr::read(ptr) })
     }
 }
 

@@ -22,7 +22,7 @@ mod weight;
 use self::graph::{Graph, Node};
 use self::solver::SolverCx;
 
-const USAGE: &'static str = "
+const USAGE: &str = "
 Usage: tsp bench [--seq-threshold N] [--from N] <datafile>
 
 Parallel traveling salesman problem solver. Data input is expected to
@@ -91,7 +91,7 @@ fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), 
     println!("Total search time: {:?}", par_time);
     if let Some(path) = path {
         println!("Cheapest path cost: {}", weight.to_usize());
-        let mut output = format!("Cheapest path:");
+        let mut output = "Cheapest path:".to_string();
         for node in path {
             output.push_str(&format!(" {}", node.index()));
         }
