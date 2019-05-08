@@ -1,4 +1,4 @@
-/*! ```compile_fail,E0597
+/*! ```compile_fail,E0373
 
 fn bad_scope<F>(f: F)
     where F: FnOnce(&i32) + Send,
