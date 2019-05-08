@@ -1761,7 +1761,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     });
     /// ```
     fn panic_fuse(self) -> PanicFuse<Self> {
-        panic_fuse::new(self)
+        PanicFuse::new(self)
     }
 
     /// Create a fresh collection containing all the element produced
