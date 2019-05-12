@@ -154,6 +154,25 @@ pub struct ThreadPoolBuilder {
     breadth_first: bool,
 }
 
+/// An extended `ThreadPool`.
+#[derive(Debug)]
+pub struct ThreadPoolBuilderExt<B = DefaultBuild>
+where B: ThreadPoolBuild
+{
+    base: ThreadPoolBuilder,
+    build: B,
+}
+
+/// Internal trait used by `ThreadPoolBuilder` and
+/// `ThreadPoolBuilerExt`. Defines the operation that constructs the
+/// thread-pool. As a user of Rayon, you would never need to implement
+/// this trait yourself.
+pub trait ThreadPoolBuild {
+    /// Given a `ThreadPoolBuilder`, construct the actual thread-pool,
+    /// spawning all threads.
+    fn build_thread_pool(self, builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError>;
+}
+
 /// Contains the rayon thread pool configuration. Use [`ThreadPoolBuilder`] instead.
 ///
 /// [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
@@ -198,7 +217,7 @@ impl ThreadPoolBuilder {
     {
         let result = crossbeam_utils::thread::scope(|scope| {
             let wrapper = &wrapper;
-            let pool = self.spawn(|thread| {
+            let pool = self.spawn_seq(|thread| {
                 let mut builder = scope.builder();
                 if let Some(name) = thread.name() {
                     builder = builder.name(name.to_string());
@@ -208,7 +227,7 @@ impl ThreadPoolBuilder {
                 }
                 builder.spawn(move |_| wrapper(thread))?;
                 Ok(())
-            })?;
+            }).build()?;
             Ok(with_pool(&pool))
         });
 
@@ -216,6 +235,23 @@ impl ThreadPoolBuilder {
             Ok(result) => result,
             Err(err) => unwind::resume_unwinding(err),
         }
+    }
+
+    fn ext(self) -> ThreadPoolBuilderExt {
+        ThreadPoolBuilderExt {
+            base: self,
+            build: DefaultBuild,
+        }
+    }
+
+    /// XXX
+    pub fn spawn<F>(
+        self,
+        spawn: F,
+    ) -> ThreadPoolBuilderExt<CustomBuild<F>>
+    where F: Fn(ThreadBuilder) -> io::Result<()> + Send + Sync
+    {
+        self.ext().spawn(spawn)
     }
 
     /// Create a new `ThreadPool` initialized using this configuration and a
@@ -226,11 +262,13 @@ impl ThreadPoolBuilder {
     /// for any invariants. For instance, threads created in `crossbeam::scope`
     /// will be joined before that scope returns, and this will block indefinitely
     /// if the pool is leaked.
-    pub fn spawn(
+    pub fn spawn_seq<F>(
         self,
-        spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
-    ) -> Result<ThreadPool, ThreadPoolBuildError> {
-        ThreadPool::build_spawn(self, spawn)
+        spawn: F,
+    ) -> ThreadPoolBuilderExt<CustomSeqBuild<F>>
+    where F: FnMut(ThreadBuilder) -> io::Result<()>
+    {
+        self.ext().spawn_seq(spawn)
     }
 
     /// Initializes the global thread pool. This initialization is
@@ -456,6 +494,109 @@ impl ThreadPoolBuilder {
     {
         self.exit_handler = Some(Box::new(exit_handler));
         self
+    }
+}
+
+impl<B> ThreadPoolBuilderExt<B>
+where B: ThreadPoolBuild
+{
+    /// Create a new `ThreadPool` initialized using this configuration.
+    pub fn build(self) -> Result<ThreadPool, ThreadPoolBuildError> {
+        self.build.build_thread_pool(self.base)
+    }
+
+    /// Returns a new builder which will invoke `spawn` to create new
+    /// threads.
+    ///
+    /// This is the preferred function to use for custom spawning as
+    /// it permits Rayon to spawn the threads in parallel (though we
+    /// do not guarantee that we will do so).
+    pub fn spawn<F>(
+        self,
+        spawn: F,
+    ) -> ThreadPoolBuilderExt<CustomBuild<F>>
+    where F: Fn(ThreadBuilder) -> io::Result<()> + Send + Sync
+    {
+        ThreadPoolBuilderExt {
+            base: self.base,
+            build: CustomBuild::new(spawn),
+        }
+    }
+
+    /// Returns a new builder which will invoke `spawn` to create new
+    /// threads.
+    ///
+    /// This function guarantees that threads are spawned sequentially
+    /// one after the other. This is convenient for some settings.
+    pub fn spawn_seq<F>(
+        self,
+        spawn: F,
+    ) -> ThreadPoolBuilderExt<CustomSeqBuild<F>>
+    where F: FnMut(ThreadBuilder) -> io::Result<()>
+    {
+        ThreadPoolBuilderExt {
+            base: self.base,
+            build: CustomSeqBuild::new(spawn),
+        }
+    }
+}
+
+/// The default builder XXX
+#[derive(Debug)]
+pub struct DefaultBuild;
+
+impl ThreadPoolBuild for DefaultBuild
+{
+    fn build_thread_pool(self, builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+        ThreadPool::build(builder)
+    }
+}
+
+/// XXX
+#[derive(Debug)]
+pub struct CustomBuild<F>
+    where F: Fn(ThreadBuilder) -> io::Result<()> + Send + Sync
+{
+    spawn_fn: F,
+}
+
+impl<F> CustomBuild<F>
+    where F: Fn(ThreadBuilder) -> io::Result<()> + Send + Sync
+{
+    fn new(spawn_fn: F) -> Self {
+        CustomBuild { spawn_fn }
+    }
+}
+
+impl<F> ThreadPoolBuild for CustomBuild<F>
+    where F: Fn(ThreadBuilder) -> io::Result<()> + Send + Sync
+{
+    fn build_thread_pool(self, builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+        ThreadPool::build_spawn(builder, self.spawn_fn)
+    }
+}
+
+/// XXX
+#[derive(Debug)]
+pub struct CustomSeqBuild<F>
+    where F: FnMut(ThreadBuilder) -> io::Result<()>
+{
+    spawn_fn: F,
+}
+
+impl<F> CustomSeqBuild<F>
+    where F: FnMut(ThreadBuilder) -> io::Result<()>
+{
+    fn new(spawn_fn: F) -> Self {
+        CustomSeqBuild { spawn_fn }
+    }
+}
+
+impl<F> ThreadPoolBuild for CustomSeqBuild<F>
+    where F: FnMut(ThreadBuilder) -> io::Result<()>
+{
+    fn build_thread_pool(self, builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+        ThreadPool::build_spawn(builder, self.spawn_fn)
     }
 }
 

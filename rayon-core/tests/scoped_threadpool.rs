@@ -32,7 +32,7 @@ fn spawn_scoped_tls_threadpool() {
         LOCAL.with(|x| {
             thread::scope(|scope| {
                 let pool = ThreadPoolBuilder::new()
-                    .spawn(move |thread| {
+                    .spawn_seq(move |thread| {
                         scope
                             .builder()
                             .spawn(move |_| {
@@ -41,6 +41,7 @@ fn spawn_scoped_tls_threadpool() {
                             })
                             .map(|_| ())
                     })
+                    .build()
                     .expect("thread pool created");
 
                 // The pool matches our local value.
