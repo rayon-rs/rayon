@@ -14,7 +14,7 @@ use std::sync::Arc;
 use Configuration;
 use {scope, Scope};
 use {scope_fifo, ScopeFifo};
-use {ThreadBuilder, ThreadPoolBuildError, ThreadPoolBuilder};
+use {ThreadBuilder, ThreadPoolBuildError, ThreadPoolBuilderBase};
 
 mod internal;
 mod test;
@@ -59,16 +59,16 @@ impl ThreadPool {
     #[allow(deprecated)]
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn new(configuration: Configuration) -> Result<ThreadPool, Box<Error>> {
-        Self::build(configuration.into_builder()).map_err(Box::from)
+        configuration.into_builder().build().map_err(Box::from)
     }
 
-    pub(super) fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+    pub(super) fn build(builder: ThreadPoolBuilderBase) -> Result<ThreadPool, ThreadPoolBuildError> {
         let registry = Registry::new(builder)?;
         Ok(ThreadPool { registry })
     }
 
     pub(super) fn build_spawn(
-        builder: ThreadPoolBuilder,
+        builder: ThreadPoolBuilderBase,
         spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
     ) -> Result<ThreadPool, ThreadPoolBuildError> {
         let registry = Registry::spawn(builder, spawn)?;

@@ -24,7 +24,7 @@ use std::thread;
 use std::usize;
 use unwind;
 use util::leak;
-use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
+use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilderBase};
 
 /// Thread builder used for customization via `ThreadPoolBuilder::spawn`.
 pub struct ThreadBuilder {
@@ -103,7 +103,7 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// initialization has not already occurred, use the default
 /// configuration.
 fn global_registry() -> &'static Arc<Registry> {
-    set_global_registry(|| Registry::new(ThreadPoolBuilder::new()))
+    set_global_registry(|| Registry::new(ThreadPoolBuilderBase::default()))
         .or_else(|err| unsafe { THE_REGISTRY.ok_or(err) })
         .expect("The global thread pool has not been initialized.")
 }
@@ -111,7 +111,7 @@ fn global_registry() -> &'static Arc<Registry> {
 /// Starts the worker threads (if that has not already happened) with
 /// the given builder.
 pub(super) fn init_global_registry(
-    builder: ThreadPoolBuilder,
+    builder: ThreadPoolBuilderBase,
 ) -> Result<&'static Arc<Registry>, ThreadPoolBuildError> {
     set_global_registry(|| Registry::new(builder))
 }
@@ -119,7 +119,7 @@ pub(super) fn init_global_registry(
 /// Starts the worker threads (if that has not already happened) with
 /// the given builder.
 pub(super) fn spawn_global_registry(
-    builder: ThreadPoolBuilder,
+    builder: ThreadPoolBuilderBase,
     spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
 ) -> Result<&'static Arc<Registry>, ThreadPoolBuildError> {
     set_global_registry(|| Registry::spawn(builder, spawn))
@@ -155,7 +155,7 @@ impl<'a> Drop for Terminator<'a> {
 }
 
 impl Registry {
-    pub(super) fn new(builder: ThreadPoolBuilder) -> Result<Arc<Self>, ThreadPoolBuildError> {
+    pub(super) fn new(builder: ThreadPoolBuilderBase) -> Result<Arc<Self>, ThreadPoolBuildError> {
         Registry::spawn(builder, |thread| {
             let mut b = thread::Builder::new();
             if let Some(ref name) = thread.name {
@@ -170,7 +170,7 @@ impl Registry {
     }
 
     pub(super) fn spawn(
-        mut builder: ThreadPoolBuilder,
+        mut builder: ThreadPoolBuilderBase,
         mut spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
     ) -> Result<Arc<Self>, ThreadPoolBuildError> {
         let n_threads = builder.get_num_threads();
