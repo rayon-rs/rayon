@@ -84,6 +84,11 @@ fn clone_range() {
 }
 
 #[test]
+fn clone_range_inclusive() {
+    check((0..=1000).into_par_iter());
+}
+
+#[test]
 fn clone_str() {
     let s = include_str!("clones.rs");
     check(s.par_chars());
