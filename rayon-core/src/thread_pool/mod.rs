@@ -8,6 +8,7 @@ use registry::{Registry, WorkerThread};
 use spawn;
 use std::error::Error;
 use std::fmt;
+use std::marker::PhantomData;
 use std::sync::Arc;
 #[allow(deprecated)]
 use Configuration;
@@ -125,6 +126,50 @@ impl ThreadPool {
         R: Send,
     {
         self.registry.in_worker(|_, _| op())
+    }
+
+    /// Executes `op` within every thread in the threadpool. Any attempts to use
+    /// `join`, `scope`, or parallel iterators will then operate within that
+    /// threadpool.
+    ///
+    /// # Warning: thread-local data
+    ///
+    /// Because `op` is executing within the Rayon thread-pool,
+    /// thread-local data from the current thread will not be
+    /// accessible.
+    ///
+    /// # Panics
+    ///
+    /// If `op` should panic on one or more threads, exactly one panic
+    /// will be propagated, only after all threads have completed
+    /// (or panicked) their own `op`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///    # use rayon_core as rayon;
+    ///    use std::sync::atomic::{AtomicUsize, Ordering};
+    ///
+    ///    fn main() {
+    ///         let pool = rayon::ThreadPoolBuilder::new().num_threads(5).build().unwrap();
+    ///
+    ///         // The argument gives context, including the index of each thread.
+    ///         let v: Vec<usize> = pool.broadcast(|ctx| ctx.index() * ctx.index());
+    ///         assert_eq!(v, &[0, 1, 4, 9, 16]);
+    ///
+    ///         // The closure can reference the local stack
+    ///         let count = AtomicUsize::new(0);
+    ///         pool.broadcast(|_| count.fetch_add(1, Ordering::Relaxed));
+    ///         assert_eq!(count.into_inner(), 5);
+    ///    }
+    /// ```
+    pub fn broadcast<OP, R>(&self, op: OP) -> Vec<R>
+    where
+        OP: Fn(&BroadcastContext) -> R + Sync,
+        R: Send,
+    {
+        self.registry
+            .broadcast(|worker| op(&BroadcastContext::new(worker)))
     }
 
     /// Returns the (current) number of threads in the thread pool.
@@ -328,5 +373,66 @@ pub fn current_thread_has_pending_tasks() -> Option<bool> {
     unsafe {
         let curr = WorkerThread::current().as_ref()?;
         Some(!curr.local_deque_is_empty())
+    }
+}
+
+/// Executes `op` within every thread in the current threadpool. If this is
+/// called from a non-Rayon thread, it will execute in the global threadpool.
+/// Any attempts to use `join`, `scope`, or parallel iterators will then operate
+/// within that threadpool.
+///
+/// For more information, see the [`ThreadPool::broadcast()`][m] method.
+///
+/// [m]: struct.ThreadPool.html#method.broadcast
+pub fn broadcast<OP, R>(op: OP) -> Vec<R>
+where
+    OP: Fn(&BroadcastContext) -> R + Sync,
+    R: Send,
+{
+    Registry::current().broadcast(|worker| op(&BroadcastContext::new(worker)))
+}
+
+/// Provides context to a closure called by `broadcast`.
+pub struct BroadcastContext<'a> {
+    worker: &'a WorkerThread,
+
+    /// Make sure to prevent auto-traits like `Send` and `Sync`.
+    _marker: PhantomData<&'a mut Fn()>,
+}
+
+impl<'a> BroadcastContext<'a> {
+    fn new(worker: &WorkerThread) -> BroadcastContext {
+        BroadcastContext {
+            worker,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Our index amongst the broadcast threads (ranges from `0..self.num_threads()`).
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.worker.index()
+    }
+
+    /// The number of threads receiving the broadcast in the thread pool.
+    ///
+    /// # Future compatibility note
+    ///
+    /// Future versions of Rayon might vary the number of threads over time, but
+    /// this method will always return the number of threads which are actually
+    /// receiving your particular `broadcast` call.
+    #[inline]
+    pub fn num_threads(&self) -> usize {
+        self.worker.registry().num_threads()
+    }
+}
+
+impl<'a> fmt::Debug for BroadcastContext<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("BroadcastContext")
+            .field("index", &self.index())
+            .field("num_threads", &self.num_threads())
+            .field("pool_id", &self.worker.registry().id())
+            .finish()
     }
 }

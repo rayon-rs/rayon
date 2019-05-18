@@ -17,7 +17,7 @@ use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Once, ONCE_INIT};
+use std::sync::{Arc, Mutex, Once, ONCE_INIT};
 use std::thread;
 use std::usize;
 use unwind;
@@ -28,6 +28,7 @@ pub(super) struct Registry {
     thread_infos: Vec<ThreadInfo>,
     sleep: Sleep,
     injected_jobs: SegQueue<JobRef>,
+    broadcasts: Mutex<Vec<Worker<JobRef>>>,
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
@@ -116,10 +117,14 @@ impl Registry {
             })
             .unzip();
 
+        let (broadcasts, broadcast_stealers): (Vec<_>, Vec<_>) =
+            (0..n_threads).map(|_| deque::fifo()).unzip();
+
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
             sleep: Sleep::new(),
             injected_jobs: SegQueue::new(),
+            broadcasts: Mutex::new(broadcasts),
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
@@ -129,7 +134,7 @@ impl Registry {
         // If we return early or panic, make sure to terminate existing threads.
         let t1000 = Terminator(&registry);
 
-        for (index, worker) in workers.into_iter().enumerate() {
+        for (index, (worker, stealer)) in workers.into_iter().zip(broadcast_stealers).enumerate() {
             let registry = registry.clone();
             let mut b = thread::Builder::new();
             if let Some(name) = builder.get_thread_name(index) {
@@ -138,7 +143,8 @@ impl Registry {
             if let Some(stack_size) = builder.get_stack_size() {
                 b = b.stack_size(stack_size);
             }
-            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index) }) {
+            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, stealer, registry, index) })
+            {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)));
             }
         }
@@ -307,7 +313,7 @@ impl Registry {
     }
 
     /// Push a job into the "external jobs" queue; it will be taken by
-    /// whatever worker has nothing to do. Use this is you know that
+    /// whatever worker has nothing to do. Use this if you know that
     /// you are not on a worker of this registry.
     pub(super) fn inject(&self, injected_jobs: &[JobRef]) {
         log!(InjectJobs {
@@ -338,6 +344,99 @@ impl Registry {
             });
         }
         job
+    }
+
+    /// Push a job into each thread's own "external jobs" queue; it will be
+    /// executed only on that thread, when it has nothing else to do locally,
+    /// before it tries to steal other work.
+    ///
+    /// **Panics** if not given exactly as many jobs as there are threads.
+    pub(super) fn inject_all(&self, injected_jobs: &[JobRef]) {
+        assert_eq!(self.num_threads(), injected_jobs.len());
+        log!(BroadcastJobs {
+            count: injected_jobs.len()
+        });
+        {
+            let broadcasts = self.broadcasts.lock().unwrap();
+
+            // It should not be possible for `state.terminate` to be true
+            // here. It is only set to true when the user creates (and
+            // drops) a `ThreadPool`; and, in that case, they cannot be
+            // calling `inject_all()` later, since they dropped their
+            // `ThreadPool`.
+            assert!(
+                !self.terminate_latch.probe(),
+                "inject_all() sees state.terminate as true"
+            );
+
+            assert_eq!(broadcasts.len(), injected_jobs.len());
+            for (worker, &job_ref) in broadcasts.iter().zip(injected_jobs) {
+                worker.push(job_ref);
+            }
+        }
+        self.sleep.tickle(usize::MAX);
+    }
+
+    /// Execute `op` on every thread in the pool.  It will be executed on each
+    /// thread when they have nothing else to do locally, before they try to
+    /// steal work from other threads.  This function will not return until all
+    /// threads have completed the `op`.
+    pub(super) fn broadcast<OP, R>(&self, op: OP) -> Vec<R>
+    where
+        OP: Fn(&WorkerThread) -> R + Sync,
+        R: Send,
+    {
+        unsafe {
+            if let Some(current_thread) = WorkerThread::current().as_ref() {
+                if current_thread.registry().id() == self.id() {
+                    // broadcasting within in our own pool
+                    self.broadcast_jobs(op, SpinLatch::new, |latch| {
+                        current_thread.wait_until(latch)
+                    })
+                } else {
+                    // broadcasting from a different pool
+                    let sleep = &current_thread.registry().sleep;
+                    self.broadcast_jobs(
+                        op,
+                        || TickleLatch::new(SpinLatch::new(), sleep),
+                        |latch| current_thread.wait_until(latch),
+                    )
+                }
+            } else {
+                // broadcasting from outside any pool
+                self.broadcast_jobs(op, LockLatch::new, LockLatch::wait)
+            }
+        }
+    }
+
+    /// Common broadcast helper with different kinds of latches
+    unsafe fn broadcast_jobs<OP, R, L, New, Wait>(&self, op: OP, latch: New, wait: Wait) -> Vec<R>
+    where
+        OP: Fn(&WorkerThread) -> R + Sync,
+        R: Send,
+        L: Latch + Sync,
+        New: Fn() -> L,
+        Wait: Fn(&L),
+    {
+        let f = |injected| {
+            let worker_thread = WorkerThread::current();
+            assert!(injected && !worker_thread.is_null());
+            op(&*worker_thread)
+        };
+
+        let n_threads = self.thread_infos.len();
+        let jobs: Vec<_> = (0..n_threads).map(|_| StackJob::new(&f, latch())).collect();
+        let job_refs: Vec<_> = jobs.iter().map(|job| job.as_job_ref()).collect();
+
+        self.inject_all(&job_refs);
+
+        // Let all jobs have a chance to complete.
+        for job in &jobs {
+            wait(&job.latch);
+        }
+
+        // Collect the results, maybe propagating a panic.
+        jobs.into_iter().map(|job| job.into_result()).collect()
     }
 
     /// If already in a worker-thread of this registry, just execute `op`.
@@ -478,6 +577,9 @@ pub(super) struct WorkerThread {
     /// the "worker" half of our local deque
     worker: Worker<JobRef>,
 
+    /// the "stealer" half of the worker's broadcast deque
+    stealer: Stealer<JobRef>,
+
     /// local queue used for `spawn_fifo` indirection
     fifo: JobFifo,
 
@@ -551,9 +653,17 @@ impl WorkerThread {
     pub(super) unsafe fn take_local_job(&self) -> Option<JobRef> {
         loop {
             match self.worker.pop() {
-                Pop::Empty => return None,
+                Pop::Empty => break,
                 Pop::Data(d) => return Some(d),
                 Pop::Retry => {}
+            }
+        }
+
+        loop {
+            match self.stealer.steal() {
+                Steal::Empty => return None,
+                Steal::Data(d) => return Some(d),
+                Steal::Retry => {}
             }
         }
     }
@@ -655,9 +765,15 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
+unsafe fn main_loop(
+    worker: Worker<JobRef>,
+    stealer: Stealer<JobRef>,
+    registry: Arc<Registry>,
+    index: usize,
+) {
     let worker_thread = WorkerThread {
         worker,
+        stealer,
         fifo: JobFifo::new(),
         index,
         rng: XorShift64Star::new(),

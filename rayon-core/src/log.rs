@@ -60,6 +60,9 @@ pub(super) enum Event {
     InjectJobs {
         count: usize,
     },
+    BroadcastJobs {
+        count: usize,
+    },
     Join {
         worker: usize,
     },
