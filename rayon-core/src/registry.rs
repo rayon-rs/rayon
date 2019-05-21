@@ -26,7 +26,8 @@ use unwind;
 use util::leak;
 use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
 
-/// Thread builder used for customization via `ThreadPoolBuilder::spawn`.
+/// Thread builder used for customization via
+/// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
 pub struct ThreadBuilder {
     name: Option<String>,
     stack_size: Option<usize>,
@@ -66,6 +67,69 @@ impl fmt::Debug for ThreadBuilder {
             .field("name", &self.name)
             .field("stack_size", &self.stack_size)
             .finish()
+    }
+}
+
+/// Generalized trait for spawning a thread in the `Registry`.
+///
+/// This trait is pub-in-private -- E0445 forces us to make it public,
+/// but we don't actually want to expose these details in the API.
+pub trait ThreadSpawn {
+    private_decl! {}
+
+    /// Spawn a thread with the `ThreadBuilder` parameters, and then
+    /// call `ThreadBuilder::run()`.
+    fn spawn(&mut self, ThreadBuilder) -> io::Result<()>;
+}
+
+/// Spawns a thread in the "normal" way with `std::thread::Builder`.
+///
+/// This type is pub-in-private -- E0445 forces us to make it public,
+/// but we don't actually want to expose these details in the API.
+#[derive(Debug, Default)]
+pub struct DefaultSpawn;
+
+impl ThreadSpawn for DefaultSpawn {
+    private_impl! {}
+
+    fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()> {
+        let mut b = thread::Builder::new();
+        if let Some(name) = thread.name() {
+            b = b.name(name.to_owned());
+        }
+        if let Some(stack_size) = thread.stack_size() {
+            b = b.stack_size(stack_size);
+        }
+        b.spawn(|| thread.run())?;
+        Ok(())
+    }
+}
+
+/// Spawns a thread with a user's custom callback.
+///
+/// This type is pub-in-private -- E0445 forces us to make it public,
+/// but we don't actually want to expose these details in the API.
+#[derive(Debug)]
+pub struct CustomSpawn<F>(F);
+
+impl<F> CustomSpawn<F>
+where
+    F: FnMut(ThreadBuilder) -> io::Result<()>,
+{
+    pub(super) fn new(spawn: F) -> Self {
+        CustomSpawn(spawn)
+    }
+}
+
+impl<F> ThreadSpawn for CustomSpawn<F>
+where
+    F: FnMut(ThreadBuilder) -> io::Result<()>,
+{
+    private_impl! {}
+
+    #[inline]
+    fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()> {
+        (self.0)(thread)
     }
 }
 
@@ -110,19 +174,13 @@ fn global_registry() -> &'static Arc<Registry> {
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given builder.
-pub(super) fn init_global_registry(
-    builder: ThreadPoolBuilder,
-) -> Result<&'static Arc<Registry>, ThreadPoolBuildError> {
+pub(super) fn init_global_registry<S>(
+    builder: ThreadPoolBuilder<S>,
+) -> Result<&'static Arc<Registry>, ThreadPoolBuildError>
+where
+    S: ThreadSpawn,
+{
     set_global_registry(|| Registry::new(builder))
-}
-
-/// Starts the worker threads (if that has not already happened) with
-/// the given builder.
-pub(super) fn spawn_global_registry(
-    builder: ThreadPoolBuilder,
-    spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
-) -> Result<&'static Arc<Registry>, ThreadPoolBuildError> {
-    set_global_registry(|| Registry::spawn(builder, spawn))
 }
 
 /// Starts the worker threads (if that has not already happened)
@@ -155,24 +213,12 @@ impl<'a> Drop for Terminator<'a> {
 }
 
 impl Registry {
-    pub(super) fn new(builder: ThreadPoolBuilder) -> Result<Arc<Self>, ThreadPoolBuildError> {
-        Registry::spawn(builder, |thread| {
-            let mut b = thread::Builder::new();
-            if let Some(ref name) = thread.name {
-                b = b.name(name.clone());
-            }
-            if let Some(stack_size) = thread.stack_size {
-                b = b.stack_size(stack_size);
-            }
-            b.spawn(|| thread.run())?;
-            Ok(())
-        })
-    }
-
-    pub(super) fn spawn(
-        mut builder: ThreadPoolBuilder,
-        mut spawn: impl FnMut(ThreadBuilder) -> io::Result<()>,
-    ) -> Result<Arc<Self>, ThreadPoolBuildError> {
+    pub(super) fn new<S>(
+        mut builder: ThreadPoolBuilder<S>,
+    ) -> Result<Arc<Self>, ThreadPoolBuildError>
+    where
+        S: ThreadSpawn,
+    {
         let n_threads = builder.get_num_threads();
         let breadth_first = builder.get_breadth_first();
 
@@ -207,7 +253,7 @@ impl Registry {
                 worker,
                 index,
             };
-            if let Err(e) = spawn(thread) {
+            if let Err(e) = builder.get_spawn_handler().spawn(thread) {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)));
             }
         }

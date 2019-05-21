@@ -155,3 +155,8 @@ fn configuration() {
         .build()
         .unwrap();
 }
+
+#[test]
+fn default_pool() {
+    ThreadPoolBuilder::default().build().unwrap();
+}
