@@ -74,7 +74,7 @@ as:
 rayon = "1.0"
 ```
 
-and then add the following to to your `lib.rs`:
+and then add the following to your `lib.rs`:
 
 ```rust
 extern crate rayon;
