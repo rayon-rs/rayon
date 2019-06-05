@@ -1,3 +1,47 @@
+# Release rayon 1.1.0 / rayon-core 1.5.0 (2019-06-05)
+
+- FIFO spawns are now supported using the new `spawn_fifo()` and `scope_fifo()`
+  global functions, and their corresponding `ThreadPool` methods.
+  - Normally when tasks are queued on a thread, the most recent is processed
+    first (LIFO) while other threads will steal the oldest (FIFO). With FIFO
+    spawns, those tasks are processed locally in FIFO order too.
+  - Regular spawns and other tasks like `join` are not affected.
+  - The `breadth_first` configuration flag, which globally approximated this
+    effect, is now deprecated.
+  - For more design details, please see [RFC 1].
+- `ThreadPoolBuilder` can now take a custom `spawn_handler` to control how
+  threads will be created in the pool.
+  - `ThreadPoolBuilder::build_scoped()` uses this to create a scoped thread
+    pool, where the threads are able to use non-static data.
+  - This may also be used to support threading in exotic environments, like
+    WebAssembly, which don't support the normal `std::thread`.
+- `ParallelIterator` has 3 new methods: `find_map_any()`, `find_map_first()`,
+  and `find_map_last()`, like `Iterator::find_map()` with ordering constraints.
+- The new `ParallelIterator::panic_fuse()` makes a parallel iterator halt as soon
+  as possible if any of its threads panic. Otherwise, the panic state is not
+  usually noticed until the iterator joins its parallel tasks back together.
+- `IntoParallelIterator` is now implemented for integral `RangeInclusive`.
+- Several internal `Folder`s now have optimized `consume_iter` implementations.
+- `rayon_core::current_thread_index()` is now re-exported in `rayon`.
+- The minimum `rustc` is now 1.26, following the update policy defined in [RFC 3].
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @didroe
+- @GuillaumeGomez
+- @huonw
+- @janriemer
+- @kornelski
+- @seanchen1991
+- @yegeun542
+
+[RFC 1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+[RFC 3]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0003-minimum-rustc.md
+
+
 # Release rayon 1.0.3 (2018-11-02)
 
 - `ParallelExtend` is now implemented for tuple pairs, enabling nested
