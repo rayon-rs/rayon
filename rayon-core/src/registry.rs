@@ -613,6 +613,16 @@ thread_local! {
     static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
 }
 
+impl Drop for WorkerThread {
+    fn drop(&mut self) {
+        // Undo `set_current`
+        WORKER_THREAD_STATE.with(|t| {
+            assert!(t.get().eq(&(self as *const _)));
+            t.set(ptr::null());
+        });
+    }
+}
+
 impl WorkerThread {
     /// Gets the `WorkerThread` index for the current thread; returns
     /// NULL if this is not a worker thread. This pointer is valid
@@ -771,14 +781,14 @@ impl WorkerThread {
 /// ////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
-    let worker_thread = WorkerThread {
+    let worker_thread = &WorkerThread {
         worker,
         fifo: JobFifo::new(),
         index,
         rng: XorShift64Star::new(),
         registry: registry.clone(),
     };
-    WorkerThread::set_current(&worker_thread);
+    WorkerThread::set_current(worker_thread);
 
     // let registry know we are ready to do work
     registry.thread_infos[index].primed.set();
