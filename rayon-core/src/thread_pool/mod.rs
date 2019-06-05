@@ -4,7 +4,7 @@
 //! [`ThreadPool`]: struct.ThreadPool.html
 
 use join;
-use registry::{Registry, WorkerThread};
+use registry::{Registry, ThreadSpawn, WorkerThread};
 use spawn;
 use std::error::Error;
 use std::fmt;
@@ -61,7 +61,12 @@ impl ThreadPool {
         Self::build(configuration.into_builder()).map_err(Box::from)
     }
 
-    pub(super) fn build(builder: ThreadPoolBuilder) -> Result<ThreadPool, ThreadPoolBuildError> {
+    pub(super) fn build<S>(
+        builder: ThreadPoolBuilder<S>,
+    ) -> Result<ThreadPool, ThreadPoolBuildError>
+    where
+        S: ThreadSpawn,
+    {
         let registry = Registry::new(builder)?;
         Ok(ThreadPool { registry })
     }

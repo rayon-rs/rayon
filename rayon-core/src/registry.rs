@@ -11,7 +11,9 @@ use sleep::Sleep;
 use std::any::Any;
 use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt;
 use std::hash::Hasher;
+use std::io;
 use std::mem;
 use std::ptr;
 #[allow(deprecated)]
@@ -23,6 +25,113 @@ use std::usize;
 use unwind;
 use util::leak;
 use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
+
+/// Thread builder used for customization via
+/// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
+pub struct ThreadBuilder {
+    name: Option<String>,
+    stack_size: Option<usize>,
+    worker: Worker<JobRef>,
+    registry: Arc<Registry>,
+    index: usize,
+}
+
+impl ThreadBuilder {
+    /// Get the index of this thread in the pool, within `0..num_threads`.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Get the string that was specified by `ThreadPoolBuilder::name()`.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(String::as_str)
+    }
+
+    /// Get the value that was specified by `ThreadPoolBuilder::stack_size()`.
+    pub fn stack_size(&self) -> Option<usize> {
+        self.stack_size
+    }
+
+    /// Execute the main loop for this thread. This will not return until the
+    /// thread pool is dropped.
+    pub fn run(self) {
+        unsafe { main_loop(self.worker, self.registry, self.index) }
+    }
+}
+
+impl fmt::Debug for ThreadBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ThreadBuilder")
+            .field("pool", &self.registry.id())
+            .field("index", &self.index)
+            .field("name", &self.name)
+            .field("stack_size", &self.stack_size)
+            .finish()
+    }
+}
+
+/// Generalized trait for spawning a thread in the `Registry`.
+///
+/// This trait is pub-in-private -- E0445 forces us to make it public,
+/// but we don't actually want to expose these details in the API.
+pub trait ThreadSpawn {
+    private_decl! {}
+
+    /// Spawn a thread with the `ThreadBuilder` parameters, and then
+    /// call `ThreadBuilder::run()`.
+    fn spawn(&mut self, ThreadBuilder) -> io::Result<()>;
+}
+
+/// Spawns a thread in the "normal" way with `std::thread::Builder`.
+///
+/// This type is pub-in-private -- E0445 forces us to make it public,
+/// but we don't actually want to expose these details in the API.
+#[derive(Debug, Default)]
+pub struct DefaultSpawn;
+
+impl ThreadSpawn for DefaultSpawn {
+    private_impl! {}
+
+    fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()> {
+        let mut b = thread::Builder::new();
+        if let Some(name) = thread.name() {
+            b = b.name(name.to_owned());
+        }
+        if let Some(stack_size) = thread.stack_size() {
+            b = b.stack_size(stack_size);
+        }
+        b.spawn(|| thread.run())?;
+        Ok(())
+    }
+}
+
+/// Spawns a thread with a user's custom callback.
+///
+/// This type is pub-in-private -- E0445 forces us to make it public,
+/// but we don't actually want to expose these details in the API.
+#[derive(Debug)]
+pub struct CustomSpawn<F>(F);
+
+impl<F> CustomSpawn<F>
+where
+    F: FnMut(ThreadBuilder) -> io::Result<()>,
+{
+    pub(super) fn new(spawn: F) -> Self {
+        CustomSpawn(spawn)
+    }
+}
+
+impl<F> ThreadSpawn for CustomSpawn<F>
+where
+    F: FnMut(ThreadBuilder) -> io::Result<()>,
+{
+    private_impl! {}
+
+    #[inline]
+    fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()> {
+        (self.0)(thread)
+    }
+}
 
 pub(super) struct Registry {
     thread_infos: Vec<ThreadInfo>,
@@ -58,39 +167,41 @@ static THE_REGISTRY_SET: Once = ONCE_INIT;
 /// initialization has not already occurred, use the default
 /// configuration.
 fn global_registry() -> &'static Arc<Registry> {
-    THE_REGISTRY_SET.call_once(|| unsafe { init_registry(ThreadPoolBuilder::new()).unwrap() });
-    unsafe { THE_REGISTRY.expect("The global thread pool has not been initialized.") }
+    set_global_registry(|| Registry::new(ThreadPoolBuilder::new()))
+        .or_else(|err| unsafe { THE_REGISTRY.ok_or(err) })
+        .expect("The global thread pool has not been initialized.")
 }
 
 /// Starts the worker threads (if that has not already happened) with
 /// the given builder.
-pub(super) fn init_global_registry(
-    builder: ThreadPoolBuilder,
-) -> Result<&'static Registry, ThreadPoolBuildError> {
-    let mut called = false;
-    let mut init_result = Ok(());;
-    THE_REGISTRY_SET.call_once(|| unsafe {
-        init_result = init_registry(builder);
-        called = true;
-    });
-    if called {
-        init_result?;
-        Ok(&**global_registry())
-    } else {
-        Err(ThreadPoolBuildError::new(
-            ErrorKind::GlobalPoolAlreadyInitialized,
-        ))
-    }
+pub(super) fn init_global_registry<S>(
+    builder: ThreadPoolBuilder<S>,
+) -> Result<&'static Arc<Registry>, ThreadPoolBuildError>
+where
+    S: ThreadSpawn,
+{
+    set_global_registry(|| Registry::new(builder))
 }
 
-/// Initializes the global registry with the given builder.
-/// Meant to be called from within the `THE_REGISTRY_SET` once
-/// function. Declared `unsafe` because it writes to `THE_REGISTRY` in
-/// an unsynchronized fashion.
-unsafe fn init_registry(builder: ThreadPoolBuilder) -> Result<(), ThreadPoolBuildError> {
-    let registry = Registry::new(builder)?;
-    THE_REGISTRY = Some(leak(registry));
-    Ok(())
+/// Starts the worker threads (if that has not already happened)
+/// by creating a registry with the given callback.
+fn set_global_registry<F>(registry: F) -> Result<&'static Arc<Registry>, ThreadPoolBuildError>
+where
+    F: FnOnce() -> Result<Arc<Registry>, ThreadPoolBuildError>,
+{
+    let mut result = Err(ThreadPoolBuildError::new(
+        ErrorKind::GlobalPoolAlreadyInitialized,
+    ));
+    THE_REGISTRY_SET.call_once(|| {
+        result = registry().map(|registry| {
+            let registry = leak(registry);
+            unsafe {
+                THE_REGISTRY = Some(registry);
+            }
+            registry
+        });
+    });
+    result
 }
 
 struct Terminator<'a>(&'a Arc<Registry>);
@@ -102,7 +213,12 @@ impl<'a> Drop for Terminator<'a> {
 }
 
 impl Registry {
-    pub(super) fn new(mut builder: ThreadPoolBuilder) -> Result<Arc<Self>, ThreadPoolBuildError> {
+    pub(super) fn new<S>(
+        mut builder: ThreadPoolBuilder<S>,
+    ) -> Result<Arc<Self>, ThreadPoolBuildError>
+    where
+        S: ThreadSpawn,
+    {
         let n_threads = builder.get_num_threads();
         let breadth_first = builder.get_breadth_first();
 
@@ -130,15 +246,14 @@ impl Registry {
         let t1000 = Terminator(&registry);
 
         for (index, worker) in workers.into_iter().enumerate() {
-            let registry = registry.clone();
-            let mut b = thread::Builder::new();
-            if let Some(name) = builder.get_thread_name(index) {
-                b = b.name(name);
-            }
-            if let Some(stack_size) = builder.get_stack_size() {
-                b = b.stack_size(stack_size);
-            }
-            if let Err(e) = b.spawn(move || unsafe { main_loop(worker, registry, index) }) {
+            let thread = ThreadBuilder {
+                name: builder.get_thread_name(index),
+                stack_size: builder.get_stack_size(),
+                registry: registry.clone(),
+                worker,
+                index,
+            };
+            if let Err(e) = builder.get_spawn_handler().spawn(thread) {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)));
             }
         }
@@ -498,6 +613,16 @@ thread_local! {
     static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
 }
 
+impl Drop for WorkerThread {
+    fn drop(&mut self) {
+        // Undo `set_current`
+        WORKER_THREAD_STATE.with(|t| {
+            assert!(t.get().eq(&(self as *const _)));
+            t.set(ptr::null());
+        });
+    }
+}
+
 impl WorkerThread {
     /// Gets the `WorkerThread` index for the current thread; returns
     /// NULL if this is not a worker thread. This pointer is valid
@@ -656,14 +781,14 @@ impl WorkerThread {
 /// ////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usize) {
-    let worker_thread = WorkerThread {
+    let worker_thread = &WorkerThread {
         worker,
         fifo: JobFifo::new(),
         index,
         rng: XorShift64Star::new(),
         registry: registry.clone(),
     };
-    WorkerThread::set_current(&worker_thread);
+    WorkerThread::set_current(worker_thread);
 
     // let registry know we are ready to do work
     registry.thread_infos[index].primed.set();
