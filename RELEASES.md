@@ -1,4 +1,49 @@
-# Release rayon 1.0.3
+# Release rayon 1.1.0 / rayon-core 1.5.0 (2019-06-12)
+
+- FIFO spawns are now supported using the new `spawn_fifo()` and `scope_fifo()`
+  global functions, and their corresponding `ThreadPool` methods.
+  - Normally when tasks are queued on a thread, the most recent is processed
+    first (LIFO) while other threads will steal the oldest (FIFO). With FIFO
+    spawns, those tasks are processed locally in FIFO order too.
+  - Regular spawns and other tasks like `join` are not affected.
+  - The `breadth_first` configuration flag, which globally approximated this
+    effect, is now deprecated.
+  - For more design details, please see [RFC 1].
+- `ThreadPoolBuilder` can now take a custom `spawn_handler` to control how
+  threads will be created in the pool.
+  - `ThreadPoolBuilder::build_scoped()` uses this to create a scoped thread
+    pool, where the threads are able to use non-static data.
+  - This may also be used to support threading in exotic environments, like
+    WebAssembly, which don't support the normal `std::thread`.
+- `ParallelIterator` has 3 new methods: `find_map_any()`, `find_map_first()`,
+  and `find_map_last()`, like `Iterator::find_map()` with ordering constraints.
+- The new `ParallelIterator::panic_fuse()` makes a parallel iterator halt as soon
+  as possible if any of its threads panic. Otherwise, the panic state is not
+  usually noticed until the iterator joins its parallel tasks back together.
+- `IntoParallelIterator` is now implemented for integral `RangeInclusive`.
+- Several internal `Folder`s now have optimized `consume_iter` implementations.
+- `rayon_core::current_thread_index()` is now re-exported in `rayon`.
+- The minimum `rustc` is now 1.26, following the update policy defined in [RFC 3].
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @didroe
+- @GuillaumeGomez
+- @huonw
+- @janriemer
+- @kornelski
+- @nikomatsakis
+- @seanchen1991
+- @yegeun542
+
+[RFC 1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+[RFC 3]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0003-minimum-rustc.md
+
+
+# Release rayon 1.0.3 (2018-11-02)
 
 - `ParallelExtend` is now implemented for tuple pairs, enabling nested
   `unzip()` and `partition_map()` operations.  For instance, `(A, (B, C))`
@@ -22,7 +67,7 @@ Thanks to all of the contributors for this release!
 - @mdonoughe
 
 
-# Release rayon 1.0.2 / rayon-core 1.4.1
+# Release rayon 1.0.2 / rayon-core 1.4.1 (2018-07-17)
 
 - The `ParallelBridge` trait with method `par_bridge()` makes it possible to
   use any `Send`able `Iterator` in parallel!
@@ -58,7 +103,7 @@ Thanks to all of the contributors for this release!
 - @QuietMisdreavus
 
 
-# Release rayon 1.0.1
+# Release rayon 1.0.1 (2018-03-16)
 
 - Added more documentation for `rayon::iter::split()`.
 - Corrected links and typos in documentation.
@@ -73,7 +118,7 @@ Thanks to all of the contributors for this release!
 - @nikomatsakis
 
 
-# Release rayon 1.0.0 / rayon-core 1.4.0
+# Release rayon 1.0.0 / rayon-core 1.4.0 (2018-02-15)
 
 - `ParallelIterator` added the `update` method which applies a function to
   mutable references, inspired by `itertools`.
@@ -124,7 +169,7 @@ Thanks to all of the contributors for this release!
 - bors[bot]
 
 
-# Release rayon 0.9.0 / rayon-core 1.3.0 / rayon-futures 0.1.0
+# Release rayon 0.9.0 / rayon-core 1.3.0 / rayon-futures 0.1.0 (2017-11-09)
 
 - `Configuration` now has a `build` method.
 - `ParallelIterator` added `flatten` and `intersperse`, both inspired by
@@ -197,7 +242,7 @@ Thanks to all of the contributors for this release!
 - bors[bot]
 
 
-# Release rayon 0.8.2
+# Release rayon 0.8.2 (2017-06-28)
 
 - `ParallelSliceMut` now has six parallel sorting methods with the same
   variations as the standard library.
@@ -208,7 +253,8 @@ Thanks to all of the contributors for this release!
     perform unstable sorts with the same comparison options.
   - Thanks to @stjepang!
 
-# Release rayon 0.8.1 / rayon-core 1.2.0
+
+# Release rayon 0.8.1 / rayon-core 1.2.0 (2017-06-14)
 
 - The following core APIs are being stabilized:
   - `rayon::spawn()` -- spawns a task into the Rayon threadpool; as it
@@ -216,7 +262,7 @@ Thanks to all of the contributors for this release!
     scope), the task cannot capture anything from the current stack
     frame.
   - `ThreadPool::join()`, `ThreadPool::spawn()`, `ThreadPool::scope()`
-    -- convenience APIs for launching new work within a thread-pool. 
+    -- convenience APIs for launching new work within a thread-pool.
 - The various iterator adapters are now tagged with `#[must_use]`
 - Parallel iterators now offer a `for_each_with` adapter, similar to
   `map_with`.
@@ -232,7 +278,8 @@ Thanks to all of the contributors for this release!
   then your clients must also modify their environment, signaling
   their agreement to instability.
 
-# Release rayon 0.8.0 / rayon-core 1.1.0
+
+# Release rayon 0.8.0 / rayon-core 1.1.0 (2017-06-13)
 
 ## Rayon 0.8.0
 
@@ -295,13 +342,15 @@ Thanks to the following contributors:
 - @nikomatsakis
 - @stjepang
 
-# Release rayon 0.7.1 / rayon-core 1.0.2
+
+# Release rayon 0.7.1 / rayon-core 1.0.2 (2017-05-30)
 
 This release is a targeted performance fix for #343, an issue where
 rayon threads could sometimes enter into a spin loop where they would
 be unable to make progress until they are pre-empted.
 
-# Release rayon 0.7 / rayon-core 1.0
+
+# Release rayon 0.7 / rayon-core 1.0 (2017-04-06)
 
 This release marks the first step towards Rayon 1.0. **For best
 performance, it is important that all Rayon users update to at least
@@ -334,8 +383,8 @@ supported in some capacity.
   better performance for some parallel iterators.
 - Strings now support `par_split()` and `par_split_whitespace()`.
 - The `Configuration` API is expanded and simplified:
-    - `num_threads(0)` no longer triggers an error 
-    - you can now supply a closure to name the Rayon threads that get created 
+    - `num_threads(0)` no longer triggers an error
+    - you can now supply a closure to name the Rayon threads that get created
       by using `Configuration::thread_name`.
     - you can now inject code when Rayon threads start up and finish
     - you can now set a custom panic handler to handle panics in various odd situations
@@ -398,7 +447,8 @@ Thanks to the following people for their contributions to this release:
 - @schuster
 - @torkleyy
 
-# Release 0.6
+
+# Release 0.6 (2016-12-21)
 
 This release includes a lot of progress towards the goal of parity
 with the sequential iterator API, though there are still a few methods
@@ -422,7 +472,7 @@ API. Thanks @cuviper! Keep it up.
   We also support `min_by_key()` and `max_by_key()`. Thanks @tapeinosyne!
 - **Breaking change:** The `mul()` method is now renamed to `product()`,
   to match sequential iterators. Thanks @jonathandturner!
-- We now support parallel iterator over ranges on `u64` values. Thanks @cuviper!  
+- We now support parallel iterator over ranges on `u64` values. Thanks @cuviper!
 - We now offer a `par_chars()` method on strings for iterating over characters
   in parallel. Thanks @cuviper!
 - We now have new demos: a traveling salesman problem solver as well as matrix
@@ -440,7 +490,8 @@ API. Thanks @cuviper! Keep it up.
 - Exposed helper methods for accessing the current thread index.
   Thanks @bholley!
 
-# Release 0.5
+
+# Release 0.5 (2016-11-04)
 
 - **Breaking change:** The `reduce` method has been vastly
   simplified, and `reduce_with_identity` has been deprecated.
@@ -458,8 +509,9 @@ API. Thanks @cuviper! Keep it up.
 - We now build with older versions of rustc again (thanks @durango!),
   as we removed a stray semicolon from `thread_local!`.
 - Various improvements to the (unstable) `scope()` API implementation.
-    
-# Release 0.4.3
+
+
+# Release 0.4.3 (2016-10-25)
 
 - Parallel iterators now offer an adaptive weight scheme,
   which means that explicit weights should no longer
@@ -472,18 +524,20 @@ API. Thanks @cuviper! Keep it up.
   - You will need to supply the [cargo feature] `unstable`.
 - The various demos and benchmarks have been consolidated into one
   program, `rayon-demo`.
-- Optimizations in Rayon's inner workings. Thanks @emilio!  
+- Optimizations in Rayon's inner workings. Thanks @emilio!
 - Update `num_cpus` to 1.0. Thanks @jamwt!
 - Various internal cleanup in the implementation and typo fixes.
   Thanks @cuviper, @Eh2406, and @spacejam!
 
 [cargo feature]: http://doc.crates.io/manifest.html#the-features-section
 
-# Release 0.4.2
+
+# Release 0.4.2 (2016-09-15)
 
 - Updated crates.io metadata.
 
-# Release 0.4.1
+
+# Release 0.4.1 (2016-09-14)
 
 - New `chain` combinator for parallel iterators.
 - `Option`, `Result`, as well as many more collection types now have
@@ -493,7 +547,8 @@ API. Thanks @cuviper! Keep it up.
 
 Thanks to @cuviper, @edre, @jdanford, @frewsxcv for their contributions!
 
-# Release 0.4
+
+# Release 0.4 (2016-05-16)
 
 - Make use of latest versions of catch-panic and various fixes to panic propagation.
 - Add new prime sieve demo.
@@ -502,7 +557,8 @@ Thanks to @cuviper, @edre, @jdanford, @frewsxcv for their contributions!
 
 Thanks to @areilb1, @Amanieu, @SharplEr, and @cuviper for their contributions!
 
-# Release 0.3
+
+# Release 0.3 (2016-02-23)
 
 - Expanded `par_iter` APIs now available:
   - `into_par_iter` is now supported on vectors (taking ownership of the elements)
@@ -516,6 +572,7 @@ Thanks to @areilb1, @Amanieu, @SharplEr, and @cuviper for their contributions!
       use of the `+=` syntax
 
 Thanks to @bjz, @cuviper, @Amanieu, and @willi-kappler for their contributions!
+
 
 # Release 0.2 and earlier
 
