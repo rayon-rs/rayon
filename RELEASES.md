@@ -1,4 +1,4 @@
-# Release rayon 1.1.0 / rayon-core 1.5.0 (2019-06-05)
+# Release rayon 1.1.0 / rayon-core 1.5.0 (2019-06-12)
 
 - FIFO spawns are now supported using the new `spawn_fifo()` and `scope_fifo()`
   global functions, and their corresponding `ThreadPool` methods.
