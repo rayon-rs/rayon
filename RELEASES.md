@@ -35,6 +35,7 @@ Thanks to all of the contributors for this release!
 - @huonw
 - @janriemer
 - @kornelski
+- @nikomatsakis
 - @seanchen1991
 - @yegeun542
 
