@@ -1,4 +1,4 @@
-use crossbeam_deque::{self as deque, Pop, Steal, Stealer, Worker};
+use crossbeam_deque::{self as deque, Steal, Stealer, Worker};
 use crossbeam_queue::SegQueue;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
@@ -224,11 +224,14 @@ impl Registry {
 
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads)
             .map(|_| {
-                if breadth_first {
-                    deque::fifo()
+                let w = if breadth_first {
+                    deque::Worker::new_fifo()
                 } else {
-                    deque::lifo()
-                }
+                    deque::Worker::new_lifo()
+                };
+
+                let s = w.stealer();
+                (w, s)
             })
             .unzip();
 
@@ -674,13 +677,7 @@ impl WorkerThread {
     /// bottom.
     #[inline]
     pub(super) unsafe fn take_local_job(&self) -> Option<JobRef> {
-        loop {
-            match self.worker.pop() {
-                Pop::Empty => return None,
-                Pop::Data(d) => return Some(d),
-                Pop::Retry => {}
-            }
-        }
+        self.worker.pop()
     }
 
     /// Wait until the latch is set. Try to keep busy by popping and
@@ -763,7 +760,7 @@ impl WorkerThread {
                 loop {
                     match victim.stealer.steal() {
                         Steal::Empty => return None,
-                        Steal::Data(d) => {
+                        Steal::Success(d) => {
                             log!(StoleWork {
                                 worker: self.index,
                                 victim: victim_index
