@@ -124,6 +124,7 @@ fn debug_adaptors() {
     let v: Vec<_> = (0..10).collect();
     check(v.par_iter().chain(&v));
     check(v.par_iter().cloned());
+    check(v.par_iter().copied());
     check(v.par_iter().enumerate());
     check(v.par_iter().filter(|_| true));
     check(v.par_iter().filter_map(Some));

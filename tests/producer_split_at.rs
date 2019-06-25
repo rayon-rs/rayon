@@ -215,6 +215,12 @@ fn cloned() {
 }
 
 #[test]
+fn copied() {
+    let v: Vec<_> = (0..10).collect();
+    check(&v, || v.par_iter().copied());
+}
+
+#[test]
 fn enumerate() {
     let v: Vec<_> = (0..10).enumerate().collect();
     check(&v, || (0..10).into_par_iter().enumerate());
