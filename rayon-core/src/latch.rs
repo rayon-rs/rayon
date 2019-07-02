@@ -86,6 +86,11 @@ impl LockLatch {
         }
     }
 
+    /// Resets this lock latch so it can be reused again.
+    pub(super) fn reset(&mut self) {
+        *self.m.lock().unwrap() = false;
+    }
+
     /// Block until latch is set.
     pub(super) fn wait(&self) {
         let mut guard = self.m.lock().unwrap();

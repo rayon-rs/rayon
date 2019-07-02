@@ -15,6 +15,7 @@ use std::fmt;
 use std::hash::Hasher;
 use std::io;
 use std::mem;
+use std::ops::DerefMut;
 use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
@@ -486,21 +487,26 @@ impl Registry {
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
     {
-        let mut latch = LockLatch::new();
+        LOCK_LATCH.with(|l| {
+            // This should not panic since the latch is thread local and we are in the `cold` path.
+            // If `op` were to call another `ThreadPool::install` it would not end up here.
+            let mut latch = l.borrow_mut();
 
-        // This thread isn't a member of *any* thread pool, so just block.
-        debug_assert!(WorkerThread::current().is_null());
-        let job = StackJob::new(
-            |injected| {
-                let worker_thread = WorkerThread::current();
-                assert!(injected && !worker_thread.is_null());
-                op(&*worker_thread, true)
-            },
-            &mut latch,
-        );
-        self.inject(&[job.as_job_ref()]);
-        job.latch.wait();
-        job.into_result()
+            // This thread isn't a member of *any* thread pool, so just block.
+            debug_assert!(WorkerThread::current().is_null());
+            let job = StackJob::new(
+                |injected| {
+                    let worker_thread = WorkerThread::current();
+                    assert!(injected && !worker_thread.is_null());
+                    op(&*worker_thread, true)
+                },
+                latch.deref_mut(),
+            );
+            self.inject(&[job.as_job_ref()]);
+            job.latch.wait();
+            job.latch.reset(); // Makes sure we can use the same latch again next time.
+            job.into_result()
+        })
     }
 
     #[cold]
@@ -613,6 +619,8 @@ pub(super) struct WorkerThread {
 // for a RefCell<T> etc.
 thread_local! {
     static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
+
+    static LOCK_LATCH: RefCell<LockLatch> = RefCell::new(LockLatch::new());
 }
 
 impl Drop for WorkerThread {
