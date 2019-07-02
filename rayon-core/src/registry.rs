@@ -1,5 +1,4 @@
 use crossbeam_deque::{self as deque, Pop, Steal, Stealer, Worker};
-use crossbeam_queue::SegQueue;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
 #[cfg(rayon_unstable)]
@@ -7,6 +6,7 @@ use job::Job;
 use job::{JobFifo, JobRef, StackJob};
 use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
 use log::Event::*;
+use queue::AlmostQueue;
 use sleep::Sleep;
 use std::any::Any;
 use std::cell::Cell;
@@ -136,7 +136,7 @@ where
 pub(super) struct Registry {
     thread_infos: Vec<ThreadInfo>,
     sleep: Sleep,
-    injected_jobs: SegQueue<JobRef>,
+    injected_jobs: AlmostQueue<JobRef>,
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
@@ -235,7 +235,7 @@ impl Registry {
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
             sleep: Sleep::new(),
-            injected_jobs: SegQueue::new(),
+            injected_jobs: AlmostQueue::new(n_threads),
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),

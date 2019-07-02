@@ -53,6 +53,7 @@ mod private;
 mod job;
 mod join;
 mod latch;
+mod queue;
 mod registry;
 mod scope;
 mod sleep;
