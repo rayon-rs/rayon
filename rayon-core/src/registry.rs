@@ -9,7 +9,7 @@ use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
 use log::Event::*;
 use sleep::Sleep;
 use std::any::Any;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::Hasher;
@@ -486,6 +486,8 @@ impl Registry {
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
     {
+        let mut latch = LockLatch::new();
+
         // This thread isn't a member of *any* thread pool, so just block.
         debug_assert!(WorkerThread::current().is_null());
         let job = StackJob::new(
@@ -494,7 +496,7 @@ impl Registry {
                 assert!(injected && !worker_thread.is_null());
                 op(&*worker_thread, true)
             },
-            LockLatch::new(),
+            &mut latch,
         );
         self.inject(&[job.as_job_ref()]);
         job.latch.wait();
@@ -510,17 +512,17 @@ impl Registry {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
-        let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
+        let mut latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
         let job = StackJob::new(
             |injected| {
                 let worker_thread = WorkerThread::current();
                 assert!(injected && !worker_thread.is_null());
                 op(&*worker_thread, true)
             },
-            latch,
+            &mut latch,
         );
         self.inject(&[job.as_job_ref()]);
-        current_thread.wait_until(&job.latch);
+        current_thread.wait_until(job.latch);
         job.into_result()
     }
 

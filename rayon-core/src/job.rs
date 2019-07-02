@@ -64,24 +64,24 @@ impl JobRef {
 /// executes it need not free any heap data, the cleanup occurs when
 /// the stack frame is later popped.  The function parameter indicates
 /// `true` if the job was stolen -- executed on a different thread.
-pub(super) struct StackJob<L, F, R>
+pub(super) struct StackJob<'a, L, F, R>
 where
     L: Latch + Sync,
     F: FnOnce(bool) -> R + Send,
     R: Send,
 {
-    pub(super) latch: L,
+    pub(super) latch: &'a mut L,
     func: UnsafeCell<Option<F>>,
     result: UnsafeCell<JobResult<R>>,
 }
 
-impl<L, F, R> StackJob<L, F, R>
+impl<'a, L, F, R> StackJob<'a, L, F, R>
 where
     L: Latch + Sync,
     F: FnOnce(bool) -> R + Send,
     R: Send,
 {
-    pub(super) fn new(func: F, latch: L) -> StackJob<L, F, R> {
+    pub(super) fn new(func: F, latch: &'a mut L) -> StackJob<'a, L, F, R> {
         StackJob {
             latch,
             func: UnsafeCell::new(Some(func)),
@@ -102,7 +102,7 @@ where
     }
 }
 
-impl<L, F, R> Job for StackJob<L, F, R>
+impl<'a, L, F, R> Job for StackJob<'a, L, F, R>
 where
     L: Latch + Sync,
     F: FnOnce(bool) -> R + Send,
