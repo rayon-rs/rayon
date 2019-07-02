@@ -4,9 +4,9 @@ use crossbeam_queue::{ArrayQueue, PopError, SegQueue};
 ///
 /// This structure is useful if you want a possibly unbounded queue, and are willing to trade
 /// strict ordering for predictable allocations up to a certain point. In particular, if you
-/// load fewer than `cap` elements, this structure will not allocate.
+/// load fewer than `cap` elements, this structure will not allocate during `push()` or `pop()`.
 ///
-/// Also, up to a load of `cap` the structure will behave like a regular, but pre-allocated queue.
+/// Also, up to a load of `cap` the structure will behave like a regular, pre-allocated queue.
 /// Beyond that, the ordering of elements might be random until the load falls below `cap` again.
 pub(super) struct AlmostQueue<T> {
     unbounded: SegQueue<T>,
