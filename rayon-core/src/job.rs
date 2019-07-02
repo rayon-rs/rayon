@@ -64,7 +64,7 @@ impl JobRef {
 /// executes it need not free any heap data, the cleanup occurs when
 /// the stack frame is later popped.  The function parameter indicates
 /// `true` if the job was stolen -- executed on a different thread.
-pub(super) struct StackJob<'a, L, F, R>
+pub(super) struct StackJob<'a, L: 'a, F, R>
 where
     L: Latch + Sync,
     F: FnOnce(bool) -> R + Send,
