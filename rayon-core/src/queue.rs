@@ -38,7 +38,7 @@ impl<T> AlmostQueue<T> {
         if unbounded.is_ok() {
             unbounded
         } else {
-            // We only return unbounded elements if we are sure there are no unbounded elements left.
+            // We only return bounded elements if we are sure there are no unbounded elements left.
             self.bounded.pop()
         }
     }
