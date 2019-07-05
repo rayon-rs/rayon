@@ -100,23 +100,27 @@ where
     where
         I: IntoParallelIterator<Item = Result<T, E>>,
     {
-        let saved_error = Mutex::new(None);
-        let collection = par_iter
-            .into_par_iter()
-            .map(|item| match item {
+        fn ok<T, E>(saved: &Mutex<Option<E>>) -> impl Fn(Result<T, E>) -> Option<T> + '_ {
+            move |item| match item {
                 Ok(item) => Some(item),
                 Err(error) => {
                     // We don't need a blocking `lock()`, as anybody
                     // else holding the lock will also be writing
                     // `Some(error)`, and then ours is irrelevant.
-                    if let Ok(mut guard) = saved_error.try_lock() {
+                    if let Ok(mut guard) = saved.try_lock() {
                         if guard.is_none() {
                             *guard = Some(error);
                         }
                     }
                     None
                 }
-            })
+            }
+        }
+
+        let saved_error = Mutex::new(None);
+        let collection = par_iter
+            .into_par_iter()
+            .map(ok(&saved_error))
             .while_some()
             .collect();
 
