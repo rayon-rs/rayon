@@ -15,8 +15,7 @@ fn gen_descending(len: usize) -> Vec<u64> {
 }
 
 fn gen_random(len: usize) -> Vec<u64> {
-    let mut rng = ::seeded_rng();
-    rng.sample_iter(&Standard).take(len).collect()
+    ::seeded_rng().sample_iter(&Standard).take(len).collect()
 }
 
 fn gen_mostly_ascending(len: usize) -> Vec<u64> {
@@ -44,7 +43,7 @@ fn gen_mostly_descending(len: usize) -> Vec<u64> {
 }
 
 fn gen_strings(len: usize) -> Vec<String> {
-    let mut rng = ::seeded_rng();
+    let rng = &mut ::seeded_rng();
     let len_dist = Uniform::new(1, 21);
     let mut v = vec![];
     for _ in 0..len {
@@ -55,8 +54,8 @@ fn gen_strings(len: usize) -> Vec<String> {
 }
 
 fn gen_big_random(len: usize) -> Vec<[u64; 16]> {
-    let mut rng = ::seeded_rng();
-    rng.sample_iter(&Standard)
+    ::seeded_rng()
+        .sample_iter(&Standard)
         .map(|x| [x; 16])
         .take(len)
         .collect()
