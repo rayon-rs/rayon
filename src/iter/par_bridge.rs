@@ -79,7 +79,8 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let split_count = AtomicUsize::new(current_num_threads());
-        let (worker, stealer) = deque::fifo();
+        let worker = deque::Worker::new_fifo();
+        let stealer = worker.stealer();
         let done = AtomicBool::new(false);
         let iter = Mutex::new((self.iter, worker));
 
@@ -149,7 +150,7 @@ where
     {
         loop {
             match self.items.steal() {
-                Steal::Data(it) => {
+                Steal::Success(it) => {
                     folder = folder.consume(it);
                     if folder.full() {
                         return folder;
