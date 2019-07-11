@@ -102,15 +102,18 @@ where
 {
     type Result = T;
 
-    fn consume(self, item: T) -> Self {
+    fn consume(mut self, item: T) -> Self {
         let reduce_op = self.reduce_op;
-        let result = self
-            .result
-            .and_then(|left| reduce_op(left, item.into_result()?).into_result());
-        if result.is_err() {
+        if let Ok(left) = self.result {
+            self.result = match item.into_result() {
+                Ok(right) => reduce_op(left, right).into_result(),
+                Err(error) => Err(error),
+            };
+        }
+        if self.result.is_err() {
             self.full.store(true, Ordering::Relaxed)
         }
-        TryReduceFolder { result, ..self }
+        self
     }
 
     fn complete(self) -> T {

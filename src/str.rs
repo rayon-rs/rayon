@@ -298,6 +298,11 @@ mod private {
 }
 use self::private::Pattern;
 
+#[inline]
+fn offset<T>(base: usize) -> impl Fn((usize, T)) -> (usize, T) {
+    move |(i, x)| (base + i, x)
+}
+
 impl Pattern for char {
     private_impl! {}
 
@@ -338,7 +343,7 @@ impl Pattern for char {
     where
         F: Folder<(usize, &'ch str)>,
     {
-        folder.consume_iter(chars.match_indices(*self).map(move |(i, s)| (base + i, s)))
+        folder.consume_iter(chars.match_indices(*self).map(offset(base)))
     }
 }
 
@@ -379,7 +384,7 @@ impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {
     where
         F: Folder<(usize, &'ch str)>,
     {
-        folder.consume_iter(chars.match_indices(self).map(move |(i, s)| (base + i, s)))
+        folder.consume_iter(chars.match_indices(self).map(offset(base)))
     }
 }
 
@@ -479,7 +484,7 @@ impl<'ch> UnindexedProducer for CharIndicesProducer<'ch> {
         F: Folder<Self::Item>,
     {
         let base = self.index;
-        folder.consume_iter(self.chars.char_indices().map(move |(i, c)| (base + i, c)))
+        folder.consume_iter(self.chars.char_indices().map(offset(base)))
     }
 }
 
@@ -704,6 +709,15 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
 #[derive(Debug, Clone)]
 pub struct Lines<'ch>(&'ch str);
 
+#[inline]
+fn no_carriage_return(line: &str) -> &str {
+    if line.ends_with('\r') {
+        &line[..line.len() - 1]
+    } else {
+        line
+    }
+}
+
 impl<'ch> ParallelIterator for Lines<'ch> {
     type Item = &'ch str;
 
@@ -713,13 +727,7 @@ impl<'ch> ParallelIterator for Lines<'ch> {
     {
         self.0
             .par_split_terminator('\n')
-            .map(|line| {
-                if line.ends_with('\r') {
-                    &line[..line.len() - 1]
-                } else {
-                    line
-                }
-            })
+            .map(no_carriage_return)
             .drive_unindexed(consumer)
     }
 }
@@ -730,6 +738,11 @@ impl<'ch> ParallelIterator for Lines<'ch> {
 #[derive(Debug, Clone)]
 pub struct SplitWhitespace<'ch>(&'ch str);
 
+#[inline]
+fn not_empty(s: &&str) -> bool {
+    !s.is_empty()
+}
+
 impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
     type Item = &'ch str;
 
@@ -739,7 +752,7 @@ impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
     {
         self.0
             .par_split(char::is_whitespace)
-            .filter(|string| !string.is_empty())
+            .filter(not_empty)
             .drive_unindexed(consumer)
     }
 }

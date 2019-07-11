@@ -1,3 +1,4 @@
+use super::noop::NoopConsumer;
 use super::{FromParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
 
 use std::borrow::Cow;
@@ -222,6 +223,6 @@ impl FromParallelIterator<()> for () {
     where
         I: IntoParallelIterator<Item = ()>,
     {
-        par_iter.into_par_iter().for_each(|()| {})
+        par_iter.into_par_iter().drive_unindexed(NoopConsumer)
     }
 }

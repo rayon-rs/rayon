@@ -35,6 +35,10 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        self.base.flat_map(|x| x).drive_unindexed(consumer)
+        fn id<T>(x: T) -> T {
+            x
+        }
+
+        self.base.flat_map(id).drive_unindexed(consumer)
     }
 }

@@ -147,11 +147,18 @@ where
     where
         I: IntoIterator<Item = T>,
     {
+        fn not_full<C, ID, T>(base: &C) -> impl Fn(&T) -> bool + '_
+        where
+            C: Folder<ID>,
+        {
+            move |_| !base.full()
+        }
+
         let base = self.base;
         let item = iter
             .into_iter()
             // stop iterating if another thread has finished
-            .take_while(|_| !base.full())
+            .take_while(not_full(&base))
             .fold(self.item, self.fold_op);
 
         FoldFolder {

@@ -205,10 +205,13 @@ where
     /// should yield the next element, otherwise, if `j` should yield
     /// the next element, set a = index/2 and b = (index/2)+1
     fn split_at(self, index: usize) -> (Self, Self) {
+        #[inline]
+        fn odd_offset(flag: bool) -> usize {
+            (!flag) as usize
+        }
+
         let even = index % 2 == 0;
         let idx = index >> 1;
-
-        let odd_offset = |flag| if flag { 0 } else { 1 };
 
         // desired split
         let (i_idx, j_idx) = (
