@@ -1,6 +1,4 @@
 extern crate rayon;
-#[macro_use]
-extern crate more_asserts;
 
 use rayon::prelude::*;
 use std::ops::Range;
@@ -44,10 +42,10 @@ fn iter_panic_fuse() {
         assert_eq!(count(iter.clone().inspect(check)), expected);
 
         // With `panic_fuse()` anywhere in the chain, we'll reach fewer items.
-        assert_lt!(count(iter.clone().inspect(check).panic_fuse()), expected);
-        assert_lt!(count(iter.clone().panic_fuse().inspect(check)), expected);
+        assert!(count(iter.clone().inspect(check).panic_fuse()) < expected);
+        assert!(count(iter.clone().panic_fuse().inspect(check)) < expected);
 
         // Try in reverse to be sure we hit the producer case.
-        assert_lt!(count(iter.clone().panic_fuse().inspect(check).rev()), expected);
+        assert!(count(iter.clone().panic_fuse().inspect(check).rev()) < expected);
     });
 }
