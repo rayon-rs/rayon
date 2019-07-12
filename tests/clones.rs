@@ -113,6 +113,7 @@ fn clone_adaptors() {
     let v: Vec<_> = (0..1000).map(Some).collect();
     check(v.par_iter().chain(&v));
     check(v.par_iter().cloned());
+    check(v.par_iter().copied());
     check(v.par_iter().enumerate());
     check(v.par_iter().filter(|_| true));
     check(v.par_iter().filter_map(|x| *x));

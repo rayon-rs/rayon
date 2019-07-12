@@ -149,10 +149,15 @@ mod rev;
 pub use self::rev::Rev;
 mod len;
 pub use self::len::{MaxLen, MinLen};
+
 mod cloned;
+pub use self::cloned::Cloned;
+mod copied;
+pub use self::copied::Copied;
+
 mod product;
 mod sum;
-pub use self::cloned::Cloned;
+
 mod inspect;
 pub use self::inspect::Inspect;
 mod panic_fuse;
@@ -640,7 +645,10 @@ pub trait ParallelIterator: Sized + Send {
     }
 
     /// Creates an iterator which clones all of its elements.  This may be
-    /// useful when you have an iterator over `&T`, but you need `T`.
+    /// useful when you have an iterator over `&T`, but you need `T`, and
+    /// that type implements `Clone`. See also [`copied()`].
+    ///
+    /// [`copied()`]: #method.copied
     ///
     /// # Examples
     ///
@@ -663,6 +671,35 @@ pub trait ParallelIterator: Sized + Send {
         Self: ParallelIterator<Item = &'a T>,
     {
         Cloned::new(self)
+    }
+
+    /// Creates an iterator which copies all of its elements.  This may be
+    /// useful when you have an iterator over `&T`, but you need `T`, and
+    /// that type implements `Copy`. See also [`cloned()`].
+    ///
+    /// [`cloned()`]: #method.cloned
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let a = [1, 2, 3];
+    ///
+    /// let v_copied: Vec<_> = a.par_iter().copied().collect();
+    ///
+    /// // copied is the same as .map(|&x| x), for integers
+    /// let v_map: Vec<_> = a.par_iter().map(|&x| x).collect();
+    ///
+    /// assert_eq!(v_copied, vec![1, 2, 3]);
+    /// assert_eq!(v_map, vec![1, 2, 3]);
+    /// ```
+    fn copied<'a, T>(self) -> Copied<Self>
+    where
+        T: 'a + Copy + Send,
+        Self: ParallelIterator<Item = &'a T>,
+    {
+        Copied::new(self)
     }
 
     /// Applies `inspect_op` to a reference to each item of this iterator,

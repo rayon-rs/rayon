@@ -33,6 +33,7 @@ must_use! {
     chain               /** v.par_iter().chain(&v); */
     chunks              /** v.par_iter().chunks(2); */
     cloned              /** v.par_iter().cloned(); */
+    copied              /** v.par_iter().copied(); */
     enumerate           /** v.par_iter().enumerate(); */
     filter              /** v.par_iter().filter(|_| true); */
     filter_map          /** v.par_iter().filter_map(|x| *x); */
