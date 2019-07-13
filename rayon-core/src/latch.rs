@@ -87,7 +87,7 @@ impl LockLatch {
     }
 
     /// Resets this lock latch so it can be reused again.
-    pub(super) fn reset(&mut self) {
+    pub(super) fn reset(&self) {
         *self.m.lock().unwrap() = false;
     }
 
@@ -189,5 +189,17 @@ impl<'a, L: Latch> Latch for TickleLatch<'a, L> {
     fn set(&self) {
         self.inner.set();
         self.sleep.tickle(usize::MAX);
+    }
+}
+
+impl<'a, L> LatchProbe for &'a L where L: LatchProbe {
+    fn probe(&self) -> bool {
+        unimplemented!()
+    }
+}
+
+impl<'a, L> Latch for &'a L where L: Latch {
+    fn set(&self) {
+        unimplemented!()
     }
 }

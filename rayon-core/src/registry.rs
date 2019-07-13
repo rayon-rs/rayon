@@ -15,7 +15,7 @@ use std::fmt;
 use std::hash::Hasher;
 use std::io;
 use std::mem;
-use std::ops::DerefMut;
+use std::ops::{Deref};
 use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
@@ -480,7 +480,8 @@ impl Registry {
             }
         }
     }
-
+    
+    
     #[cold]
     unsafe fn in_worker_cold<OP, R>(&self, op: OP) -> R
     where
@@ -490,7 +491,7 @@ impl Registry {
         LOCK_LATCH.with(|l| {
             // This should not panic since the latch is thread local and we are in the `cold` path.
             // If `op` were to call another `ThreadPool::install` it would not end up here.
-            let mut latch = l.borrow_mut();
+            let latch = l.borrow();
 
             // This thread isn't a member of *any* thread pool, so just block.
             debug_assert!(WorkerThread::current().is_null());
@@ -500,7 +501,7 @@ impl Registry {
                     assert!(injected && !worker_thread.is_null());
                     op(&*worker_thread, true)
                 },
-                latch.deref_mut(),
+                latch.deref(),
             );
             self.inject(&[job.as_job_ref()]);
             job.latch.wait();
@@ -518,14 +519,14 @@ impl Registry {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
-        let mut latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
+        let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
         let job = StackJob::new(
             |injected| {
                 let worker_thread = WorkerThread::current();
                 assert!(injected && !worker_thread.is_null());
                 op(&*worker_thread, true)
             },
-            &mut latch,
+            &latch,
         );
         self.inject(&[job.as_job_ref()]);
         current_thread.wait_until(job.latch);
