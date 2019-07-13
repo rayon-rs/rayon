@@ -194,12 +194,12 @@ impl<'a, L: Latch> Latch for TickleLatch<'a, L> {
 
 impl<'a, L> LatchProbe for &'a L where L: LatchProbe {
     fn probe(&self) -> bool {
-        unimplemented!()
+        L::probe(&self)
     }
 }
 
 impl<'a, L> Latch for &'a L where L: Latch {
     fn set(&self) {
-        unimplemented!()
+        L::set(&self);
     }
 }
