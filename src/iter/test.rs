@@ -447,53 +447,89 @@ fn check_cmp_gt_to_seq() {
 
 #[test]
 fn check_cmp_short_circuit() {
+    // We only use a single thread in order to make the short-circuit behavior deterministic.
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
     let a = vec![0; 1024];
     let mut b = a.clone();
     b[42] = 1;
 
-    let counter = AtomicUsize::new(0);
-    let result = a
-        .par_iter()
-        .inspect(|_| {
-            counter.fetch_add(1, Ordering::SeqCst);
-        })
-        .cmp(&b);
-    assert!(result == ::std::cmp::Ordering::Less);
-    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+    pool.install(|| {
+        let expected = ::std::cmp::Ordering::Less;
+        assert_eq!(a.par_iter().cmp(&b), expected);
+
+        for len in 1..10 {
+            let counter = AtomicUsize::new(0);
+            let result = a
+                .par_iter()
+                .with_max_len(len)
+                .inspect(|_| {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                })
+                .cmp(&b);
+            assert_eq!(result, expected);
+            // should not have visited every single one
+            assert!(counter.into_inner() < a.len());
+        }
+    });
 }
 
 #[test]
 fn check_partial_cmp_short_circuit() {
+    // We only use a single thread to make the short-circuit behavior deterministic.
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
     let a = vec![0; 1024];
     let mut b = a.clone();
     b[42] = 1;
 
-    let counter = AtomicUsize::new(0);
-    let result = a
-        .par_iter()
-        .inspect(|_| {
-            counter.fetch_add(1, Ordering::SeqCst);
-        })
-        .partial_cmp(&b);
-    assert!(result == Some(::std::cmp::Ordering::Less));
-    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+    pool.install(|| {
+        let expected = Some(::std::cmp::Ordering::Less);
+        assert_eq!(a.par_iter().partial_cmp(&b), expected);
+
+        for len in 1..10 {
+            let counter = AtomicUsize::new(0);
+            let result = a
+                .par_iter()
+                .with_max_len(len)
+                .inspect(|_| {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                })
+                .partial_cmp(&b);
+            assert_eq!(result, expected);
+            // should not have visited every single one
+            assert!(counter.into_inner() < a.len());
+        }
+    });
 }
 
 #[test]
 fn check_partial_cmp_nan_short_circuit() {
+    // We only use a single thread to make the short-circuit behavior deterministic.
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
     let a = vec![0.0; 1024];
     let mut b = a.clone();
     b[42] = f64::NAN;
 
-    let counter = AtomicUsize::new(0);
-    let result = a
-        .par_iter()
-        .inspect(|_| {
-            counter.fetch_add(1, Ordering::SeqCst);
-        })
-        .partial_cmp(&b);
-    assert!(result == None);
-    assert!(counter.load(Ordering::SeqCst) < a.len()); // should not have visited every single one
+    pool.install(|| {
+        let expected = None;
+        assert_eq!(a.par_iter().partial_cmp(&b), expected);
+
+        for len in 1..10 {
+            let counter = AtomicUsize::new(0);
+            let result = a
+                .par_iter()
+                .with_max_len(len)
+                .inspect(|_| {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                })
+                .partial_cmp(&b);
+            assert_eq!(result, expected);
+            // should not have visited every single one
+            assert!(counter.into_inner() < a.len());
+        }
+    });
 }
 
 #[test]
