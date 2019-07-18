@@ -1,6 +1,7 @@
 extern crate rayon;
 
 use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 use std::ops::Range;
 use std::panic::{self, UnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -24,7 +25,9 @@ fn iter_panic() {
 fn iter_panic_fuse() {
     // We only use a single thread in order to make the behavior
     // of 'panic_fuse' deterministic
-    rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap().install(|| {
+    let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+
+    pool.install(|| {
         fn count(iter: impl ParallelIterator + UnwindSafe) -> usize {
             let count = AtomicUsize::new(0);
             let result = panic::catch_unwind(|| {
