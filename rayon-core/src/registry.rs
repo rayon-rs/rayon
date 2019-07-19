@@ -9,13 +9,12 @@ use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
 use log::Event::*;
 use sleep::Sleep;
 use std::any::Any;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::Hasher;
 use std::io;
 use std::mem;
-use std::ops::{Deref};
 use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
@@ -480,19 +479,16 @@ impl Registry {
             }
         }
     }
-    
-    
+
     #[cold]
     unsafe fn in_worker_cold<OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
     {
-        LOCK_LATCH.with(|l| {
-            // This should not panic since the latch is thread local and we are in the `cold` path.
-            // If `op` were to call another `ThreadPool::install` it would not end up here.
-            let latch = l.borrow();
+        thread_local!(static LOCK_LATCH: LockLatch = LockLatch::new());
 
+        LOCK_LATCH.with(|l| {
             // This thread isn't a member of *any* thread pool, so just block.
             debug_assert!(WorkerThread::current().is_null());
             let job = StackJob::new(
@@ -501,11 +497,10 @@ impl Registry {
                     assert!(injected && !worker_thread.is_null());
                     op(&*worker_thread, true)
                 },
-                latch.deref(),
+                l,
             );
             self.inject(&[job.as_job_ref()]);
-            job.latch.wait();
-            job.latch.reset(); // Makes sure we can use the same latch again next time.
+            job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
             job.into_result()
         })
     }
@@ -620,8 +615,6 @@ pub(super) struct WorkerThread {
 // for a RefCell<T> etc.
 thread_local! {
     static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
-
-    static LOCK_LATCH: RefCell<LockLatch> = RefCell::new(LockLatch::new());
 }
 
 impl Drop for WorkerThread {
