@@ -521,10 +521,10 @@ impl Registry {
                 assert!(injected && !worker_thread.is_null());
                 op(&*worker_thread, true)
             },
-            &latch,
+            latch,
         );
         self.inject(&[job.as_job_ref()]);
-        current_thread.wait_until(job.latch);
+        current_thread.wait_until(&job.latch);
         job.into_result()
     }
 
