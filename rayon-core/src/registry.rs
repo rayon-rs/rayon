@@ -486,19 +486,23 @@ impl Registry {
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
     {
-        // This thread isn't a member of *any* thread pool, so just block.
-        debug_assert!(WorkerThread::current().is_null());
-        let job = StackJob::new(
-            |injected| {
-                let worker_thread = WorkerThread::current();
-                assert!(injected && !worker_thread.is_null());
-                op(&*worker_thread, true)
-            },
-            LockLatch::new(),
-        );
-        self.inject(&[job.as_job_ref()]);
-        job.latch.wait();
-        job.into_result()
+        thread_local!(static LOCK_LATCH: LockLatch = LockLatch::new());
+
+        LOCK_LATCH.with(|l| {
+            // This thread isn't a member of *any* thread pool, so just block.
+            debug_assert!(WorkerThread::current().is_null());
+            let job = StackJob::new(
+                |injected| {
+                    let worker_thread = WorkerThread::current();
+                    assert!(injected && !worker_thread.is_null());
+                    op(&*worker_thread, true)
+                },
+                l,
+            );
+            self.inject(&[job.as_job_ref()]);
+            job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
+            job.into_result()
+        })
     }
 
     #[cold]

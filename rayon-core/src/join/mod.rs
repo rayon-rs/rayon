@@ -120,13 +120,12 @@ where
             worker: worker_thread.index()
         });
 
+        let latch = SpinLatch::new();
+
         // Create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough.
-        let job_b = StackJob::new(
-            |migrated| oper_b(FnContext::new(migrated)),
-            SpinLatch::new(),
-        );
+        let job_b = StackJob::new(|migrated| oper_b(FnContext::new(migrated)), latch);
         let job_b_ref = job_b.as_job_ref();
         worker_thread.push(job_b_ref);
 
