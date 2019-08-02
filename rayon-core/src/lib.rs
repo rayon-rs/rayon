@@ -80,6 +80,7 @@ mod log;
 mod private;
 
 mod broadcast;
+mod future;
 mod job;
 mod join;
 mod latch;
@@ -94,6 +95,7 @@ mod compile_fail;
 mod test;
 
 pub use self::broadcast::{broadcast, spawn_broadcast, BroadcastContext};
+pub use self::future::{spawn_fifo_future, spawn_future};
 pub use self::join::{join, join_context};
 pub use self::registry::ThreadBuilder;
 pub use self::scope::{in_place_scope, scope, Scope};
