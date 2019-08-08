@@ -90,7 +90,7 @@ just add:
 use rayon::prelude::*;
 ```
 
-Rayon currently requires `rustc 1.26.0` or greater.
+Rayon currently requires `rustc 1.28.0` or greater.
 
 ## Contribution
 
