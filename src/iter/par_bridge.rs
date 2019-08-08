@@ -1,4 +1,4 @@
-use crossbeam_deque::{self as deque, Steal, Stealer, Worker};
+use crossbeam_deque::{Steal, Stealer, Worker};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, TryLockError};
@@ -79,7 +79,7 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let split_count = AtomicUsize::new(current_num_threads());
-        let worker = deque::Worker::new_fifo();
+        let worker = Worker::new_fifo();
         let stealer = worker.stealer();
         let done = AtomicBool::new(false);
         let iter = Mutex::new((self.iter, worker));

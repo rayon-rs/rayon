@@ -1,4 +1,4 @@
-use crossbeam_deque::{self as deque, Steal, Stealer, Worker};
+use crossbeam_deque::{Steal, Stealer, Worker};
 use crossbeam_queue::SegQueue;
 #[cfg(rayon_unstable)]
 use internal::task::Task;
@@ -225,9 +225,9 @@ impl Registry {
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads)
             .map(|_| {
                 let worker = if breadth_first {
-                    deque::Worker::new_fifo()
+                    Worker::new_fifo()
                 } else {
-                    deque::Worker::new_lifo()
+                    Worker::new_lifo()
                 };
 
                 let stealer = worker.stealer();
