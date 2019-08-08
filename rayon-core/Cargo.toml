@@ -1,6 +1,6 @@
 [package]
 name = "rayon-core"
-version = "1.5.0" # reminder to update html_root_url attribute
+version = "1.6.0" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
@@ -17,7 +17,7 @@ categories = ["concurrency"]
 [dependencies]
 num_cpus = "1.2"
 lazy_static = "1"
-crossbeam-deque = "0.6.3"
+crossbeam-deque = "0.7"
 crossbeam-queue = "0.1.2"
 crossbeam-utils = "0.6.5"
 
