@@ -139,8 +139,8 @@ where
                 // This works like `extend`, but `Vec::append` is more efficient.
                 let list = super::extend::collect(par_iter);
                 self.reserve(super::extend::len(&list));
-                for ref mut vec in list {
-                    self.append(vec);
+                for mut vec in list {
+                    self.append(&mut vec);
                 }
             }
         }
