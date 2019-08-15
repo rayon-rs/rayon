@@ -103,7 +103,7 @@ fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), 
     Ok(())
 }
 
-fn parse_solver(datafile: &Path) -> Result<Graph, Box<Error>> {
+fn parse_solver(datafile: &Path) -> Result<Graph, Box<dyn Error>> {
     let mut file = File::open(datafile)?;
     let mut text = String::new();
     file.read_to_string(&mut text)?;
