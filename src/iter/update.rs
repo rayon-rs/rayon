@@ -223,6 +223,13 @@ struct UpdateFolder<'f, C, F: 'f> {
     update_op: &'f F,
 }
 
+fn apply<T>(update_op: impl Fn(&mut T)) -> impl Fn(T) -> T {
+    move |mut item| {
+        update_op(&mut item);
+        item
+    }
+}
+
 impl<'f, T, C, F> Folder<T> for UpdateFolder<'f, C, F>
 where
     C: Folder<T>,
@@ -244,10 +251,9 @@ where
         I: IntoIterator<Item = T>,
     {
         let update_op = self.update_op;
-        self.base = self.base.consume_iter(iter.into_iter().map(|mut item| {
-            update_op(&mut item);
-            item
-        }));
+        self.base = self
+            .base
+            .consume_iter(iter.into_iter().map(apply(update_op)));
         self
     }
 
@@ -271,7 +277,7 @@ struct UpdateSeq<I, F> {
 impl<I, F> Iterator for UpdateSeq<I, F>
 where
     I: Iterator,
-    F: FnMut(&mut I::Item),
+    F: Fn(&mut I::Item),
 {
     type Item = I::Item;
 
@@ -285,15 +291,11 @@ where
         self.base.size_hint()
     }
 
-    fn fold<Acc, G>(self, init: Acc, mut g: G) -> Acc
+    fn fold<Acc, G>(self, init: Acc, g: G) -> Acc
     where
         G: FnMut(Acc, Self::Item) -> Acc,
     {
-        let mut f = self.update_op;
-        self.base.fold(init, move |acc, mut v| {
-            f(&mut v);
-            g(acc, v)
-        })
+        self.base.map(apply(self.update_op)).fold(init, g)
     }
 
     // if possible, re-use inner iterator specializations in collect
@@ -301,27 +303,21 @@ where
     where
         C: ::std::iter::FromIterator<Self::Item>,
     {
-        let mut f = self.update_op;
-        self.base
-            .map(move |mut v| {
-                f(&mut v);
-                v
-            })
-            .collect()
+        self.base.map(apply(self.update_op)).collect()
     }
 }
 
 impl<I, F> ExactSizeIterator for UpdateSeq<I, F>
 where
     I: ExactSizeIterator,
-    F: FnMut(&mut I::Item),
+    F: Fn(&mut I::Item),
 {
 }
 
 impl<I, F> DoubleEndedIterator for UpdateSeq<I, F>
 where
     I: DoubleEndedIterator,
-    F: FnMut(&mut I::Item),
+    F: Fn(&mut I::Item),
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         let mut v = self.base.next_back()?;

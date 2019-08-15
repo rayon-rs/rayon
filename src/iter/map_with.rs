@@ -310,10 +310,15 @@ where
     where
         I: IntoIterator<Item = T>,
     {
+        fn with<'f, T, U, R>(
+            item: &'f mut U,
+            map_op: impl Fn(&mut U, T) -> R + 'f,
+        ) -> impl FnMut(T) -> R + 'f {
+            move |x| map_op(item, x)
+        }
+
         {
-            let map_op = self.map_op;
-            let item = &mut self.item;
-            let mapped_iter = iter.into_iter().map(|x| map_op(item, x));
+            let mapped_iter = iter.into_iter().map(with(&mut self.item, self.map_op));
             self.base = self.base.consume_iter(mapped_iter);
         }
         self

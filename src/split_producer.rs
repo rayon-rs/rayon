@@ -84,11 +84,10 @@ where
     fn split(self) -> (Self, Option<Self>) {
         // Look forward for the separator, and failing that look backward.
         let mid = self.data.midpoint(self.tail);
-        let index = self
-            .data
-            .find(self.separator, mid, self.tail)
-            .map(|i| mid + i)
-            .or_else(|| self.data.rfind(self.separator, mid));
+        let index = match self.data.find(self.separator, mid, self.tail) {
+            Some(i) => Some(mid + i),
+            None => self.data.rfind(self.separator, mid),
+        };
 
         if let Some(index) = index {
             let len = self.data.length();

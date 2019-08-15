@@ -14,41 +14,49 @@ where
     F: FnOnce(&mut C, &LinkedList<Vec<I::Item>>),
     C: Extend<I::Item>,
 {
-    let list = par_iter
-        .into_par_iter()
-        .fold(Vec::new, |mut vec, elem| {
-            vec.push(elem);
-            vec
-        })
-        .map(|vec| {
-            let mut list = LinkedList::new();
-            list.push_back(vec);
-            list
-        })
-        .reduce(LinkedList::new, |mut list1, mut list2| {
-            list1.append(&mut list2);
-            list1
-        });
-
+    let list = collect(par_iter);
     reserve(collection, &list);
     for vec in list {
         collection.extend(vec);
     }
 }
 
+pub(super) fn collect<I>(par_iter: I) -> LinkedList<Vec<I::Item>>
+where
+    I: IntoParallelIterator,
+{
+    par_iter
+        .into_par_iter()
+        .fold(Vec::new, vec_push)
+        .map(as_list)
+        .reduce(LinkedList::new, list_append)
+}
+
+fn vec_push<T>(mut vec: Vec<T>, elem: T) -> Vec<T> {
+    vec.push(elem);
+    vec
+}
+
+fn as_list<T>(item: T) -> LinkedList<T> {
+    let mut list = LinkedList::new();
+    list.push_back(item);
+    list
+}
+
+fn list_append<T>(mut list1: LinkedList<T>, ref mut list2: LinkedList<T>) -> LinkedList<T> {
+    list1.append(list2);
+    list1
+}
+
 /// Compute the total length of a `LinkedList<Vec<_>>`.
-fn len<T>(list: &LinkedList<Vec<T>>) -> usize {
+pub(super) fn len<T>(list: &LinkedList<Vec<T>>) -> usize {
     list.iter().map(Vec::len).sum()
 }
 
-/// Compute the total string length of a `LinkedList<Vec<AsRef<str>>>`.
-fn str_len<T>(list: &LinkedList<Vec<T>>) -> usize
-where
-    T: AsRef<str>,
-{
-    list.iter()
-        .flat_map(|vec| vec.iter().map(|s| s.as_ref().len()))
-        .sum()
+fn no_reserve<C, T>(_: &mut C, _: &LinkedList<Vec<T>>) {}
+
+fn heap_reserve<T: Ord, U>(heap: &mut BinaryHeap<T>, list: &LinkedList<Vec<U>>) {
+    heap.reserve(len(list));
 }
 
 /// Extend a binary heap with items from a parallel iterator.
@@ -60,7 +68,7 @@ where
     where
         I: IntoParallelIterator<Item = T>,
     {
-        extend(self, par_iter, |heap, list| heap.reserve(len(list)));
+        extend(self, par_iter, heap_reserve);
     }
 }
 
@@ -73,7 +81,7 @@ where
     where
         I: IntoParallelIterator<Item = &'a T>,
     {
-        extend(self, par_iter, |heap, list| heap.reserve(len(list)));
+        extend(self, par_iter, heap_reserve);
     }
 }
 
@@ -87,12 +95,12 @@ where
     where
         I: IntoParallelIterator<Item = (K, V)>,
     {
-        extend(self, par_iter, |_, _| {});
+        extend(self, par_iter, no_reserve);
     }
 }
 
 /// Extend a B-tree map with copied items from a parallel iterator.
-impl<'a, K, V> ParallelExtend<(&'a K, &'a V)> for BTreeMap<K, V>
+impl<'a, K: 'a, V: 'a> ParallelExtend<(&'a K, &'a V)> for BTreeMap<K, V>
 where
     K: Copy + Ord + Send + Sync,
     V: Copy + Send + Sync,
@@ -101,7 +109,7 @@ where
     where
         I: IntoParallelIterator<Item = (&'a K, &'a V)>,
     {
-        extend(self, par_iter, |_, _| {});
+        extend(self, par_iter, no_reserve);
     }
 }
 
@@ -114,7 +122,7 @@ where
     where
         I: IntoParallelIterator<Item = T>,
     {
-        extend(self, par_iter, |_, _| {});
+        extend(self, par_iter, no_reserve);
     }
 }
 
@@ -127,8 +135,16 @@ where
     where
         I: IntoParallelIterator<Item = &'a T>,
     {
-        extend(self, par_iter, |_, _| {});
+        extend(self, par_iter, no_reserve);
     }
+}
+
+fn map_reserve<K, V, S, U>(map: &mut HashMap<K, V, S>, list: &LinkedList<Vec<U>>)
+where
+    K: Eq + Hash,
+    S: BuildHasher,
+{
+    map.reserve(len(list));
 }
 
 /// Extend a hash map with items from a parallel iterator.
@@ -143,12 +159,12 @@ where
         I: IntoParallelIterator<Item = (K, V)>,
     {
         // See the map_collect benchmarks in rayon-demo for different strategies.
-        extend(self, par_iter, |map, list| map.reserve(len(list)));
+        extend(self, par_iter, map_reserve);
     }
 }
 
 /// Extend a hash map with copied items from a parallel iterator.
-impl<'a, K, V, S> ParallelExtend<(&'a K, &'a V)> for HashMap<K, V, S>
+impl<'a, K: 'a, V: 'a, S> ParallelExtend<(&'a K, &'a V)> for HashMap<K, V, S>
 where
     K: Copy + Eq + Hash + Send + Sync,
     V: Copy + Send + Sync,
@@ -158,8 +174,16 @@ where
     where
         I: IntoParallelIterator<Item = (&'a K, &'a V)>,
     {
-        extend(self, par_iter, |map, list| map.reserve(len(list)));
+        extend(self, par_iter, map_reserve);
     }
+}
+
+fn set_reserve<T, S, U>(set: &mut HashSet<T, S>, list: &LinkedList<Vec<U>>)
+where
+    T: Eq + Hash,
+    S: BuildHasher,
+{
+    set.reserve(len(list));
 }
 
 /// Extend a hash set with items from a parallel iterator.
@@ -172,7 +196,7 @@ where
     where
         I: IntoParallelIterator<Item = T>,
     {
-        extend(self, par_iter, |set, list| set.reserve(len(list)));
+        extend(self, par_iter, set_reserve);
     }
 }
 
@@ -186,8 +210,13 @@ where
     where
         I: IntoParallelIterator<Item = &'a T>,
     {
-        extend(self, par_iter, |set, list| set.reserve(len(list)));
+        extend(self, par_iter, set_reserve);
     }
+}
+
+fn list_push_back<T>(mut list: LinkedList<T>, elem: T) -> LinkedList<T> {
+    list.push_back(elem);
+    list
 }
 
 /// Extend a linked list with items from a parallel iterator.
@@ -201,14 +230,8 @@ where
     {
         let mut list = par_iter
             .into_par_iter()
-            .fold(LinkedList::new, |mut list, elem| {
-                list.push_back(elem);
-                list
-            })
-            .reduce(LinkedList::new, |mut list1, mut list2| {
-                list1.append(&mut list2);
-                list1
-            });
+            .fold(LinkedList::new, list_push_back)
+            .reduce(LinkedList::new, list_append);
         self.append(&mut list);
     }
 }
@@ -226,6 +249,11 @@ where
     }
 }
 
+fn string_push(mut string: String, ch: char) -> String {
+    string.push(ch);
+    string
+}
+
 /// Extend a string with characters from a parallel iterator.
 impl ParallelExtend<char> for String {
     fn par_extend<I>(&mut self, par_iter: I)
@@ -236,19 +264,9 @@ impl ParallelExtend<char> for String {
         // with than `String`, so instead collect to `LinkedList<String>`.
         let list: LinkedList<_> = par_iter
             .into_par_iter()
-            .fold(String::new, |mut string, ch| {
-                string.push(ch);
-                string
-            })
-            .map(|vec| {
-                let mut list = LinkedList::new();
-                list.push_back(vec);
-                list
-            })
-            .reduce(LinkedList::new, |mut list1, mut list2| {
-                list1.append(&mut list2);
-                list1
-            });
+            .fold(String::new, string_push)
+            .map(as_list)
+            .reduce(LinkedList::new, list_append);
 
         self.reserve(list.iter().map(String::len).sum());
         self.extend(list)
@@ -265,13 +283,23 @@ impl<'a> ParallelExtend<&'a char> for String {
     }
 }
 
+fn string_reserve<T: AsRef<str>>(string: &mut String, list: &LinkedList<Vec<T>>) {
+    let len = list
+        .iter()
+        .flat_map(|vec| vec)
+        .map(T::as_ref)
+        .map(str::len)
+        .sum();
+    string.reserve(len);
+}
+
 /// Extend a string with string slices from a parallel iterator.
 impl<'a> ParallelExtend<&'a str> for String {
     fn par_extend<I>(&mut self, par_iter: I)
     where
         I: IntoParallelIterator<Item = &'a str>,
     {
-        extend(self, par_iter, |string, list| string.reserve(str_len(list)));
+        extend(self, par_iter, string_reserve);
     }
 }
 
@@ -281,7 +309,7 @@ impl ParallelExtend<String> for String {
     where
         I: IntoParallelIterator<Item = String>,
     {
-        extend(self, par_iter, |string, list| string.reserve(str_len(list)));
+        extend(self, par_iter, string_reserve);
     }
 }
 
@@ -291,29 +319,12 @@ impl<'a> ParallelExtend<Cow<'a, str>> for String {
     where
         I: IntoParallelIterator<Item = Cow<'a, str>>,
     {
-        // This is like `extend`, but `Extend<Cow<'a, str>> for String`
-        // wasn't added until Rust 1.19, so we can't use it directly yet.
-        let list = par_iter
-            .into_par_iter()
-            .fold(Vec::new, |mut vec, elem| {
-                vec.push(elem);
-                vec
-            })
-            .map(|vec| {
-                let mut list = LinkedList::new();
-                list.push_back(vec);
-                list
-            })
-            .reduce(LinkedList::new, |mut list1, mut list2| {
-                list1.append(&mut list2);
-                list1
-            });
-
-        self.reserve(str_len(&list));
-        for vec in list {
-            self.extend(vec.iter().map(|cow| &**cow));
-        }
+        extend(self, par_iter, string_reserve);
     }
+}
+
+fn deque_reserve<T, U>(deque: &mut VecDeque<T>, list: &LinkedList<Vec<U>>) {
+    deque.reserve(len(list));
 }
 
 /// Extend a deque with items from a parallel iterator.
@@ -325,7 +336,7 @@ where
     where
         I: IntoParallelIterator<Item = T>,
     {
-        extend(self, par_iter, |deque, list| deque.reserve(len(list)));
+        extend(self, par_iter, deque_reserve);
     }
 }
 
@@ -338,7 +349,7 @@ where
     where
         I: IntoParallelIterator<Item = &'a T>,
     {
-        extend(self, par_iter, |deque, list| deque.reserve(len(list)));
+        extend(self, par_iter, deque_reserve);
     }
 }
 

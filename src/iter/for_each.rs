@@ -52,7 +52,7 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        iter.into_iter().fold((), |_, item| (self.op)(item));
+        iter.into_iter().for_each(self.op);
         self
     }
 

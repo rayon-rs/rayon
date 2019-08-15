@@ -306,9 +306,13 @@ where
     where
         I: IntoIterator<Item = T>,
     {
+        fn cool<'a, T>(fuse: &'a Fuse) -> impl Fn(&T) -> bool + 'a {
+            move |_| !fuse.panicked()
+        }
+
         self.base = {
             let fuse = &self.fuse;
-            let iter = iter.into_iter().take_while(move |_| !fuse.panicked());
+            let iter = iter.into_iter().take_while(cool(fuse));
             self.base.consume_iter(iter)
         };
         self

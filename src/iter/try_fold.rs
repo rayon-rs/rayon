@@ -141,10 +141,12 @@ where
 {
     type Result = C::Result;
 
-    fn consume(self, item: T) -> Self {
+    fn consume(mut self, item: T) -> Self {
         let fold_op = self.fold_op;
-        let result = self.result.and_then(|acc| fold_op(acc, item).into_result());
-        TryFoldFolder { result, ..self }
+        if let Ok(acc) = self.result {
+            self.result = fold_op(acc, item).into_result();
+        }
+        self
     }
 
     fn complete(self) -> C::Result {

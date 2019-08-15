@@ -180,14 +180,18 @@ where
     where
         I: IntoParallelIterator<Item = Option<T>>,
     {
-        let found_none = AtomicBool::new(false);
-        let collection = par_iter
-            .into_par_iter()
-            .inspect(|item| {
+        fn check<T>(found_none: &AtomicBool) -> impl Fn(&Option<T>) + '_ {
+            move |item| {
                 if item.is_none() {
                     found_none.store(true, Ordering::Relaxed);
                 }
-            })
+            }
+        }
+
+        let found_none = AtomicBool::new(false);
+        let collection = par_iter
+            .into_par_iter()
+            .inspect(check(&found_none))
             .while_some()
             .collect();
 

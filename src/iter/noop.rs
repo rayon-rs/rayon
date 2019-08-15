@@ -2,12 +2,6 @@ use super::plumbing::*;
 
 pub(super) struct NoopConsumer;
 
-impl NoopConsumer {
-    pub(super) fn new() -> Self {
-        NoopConsumer
-    }
-}
-
 impl<T> Consumer<T> for NoopConsumer {
     type Folder = NoopConsumer;
     type Reducer = NoopReducer;
@@ -37,7 +31,7 @@ impl<T> Folder<T> for NoopConsumer {
     where
         I: IntoIterator<Item = T>,
     {
-        iter.into_iter().fold((), |_, _| ());
+        iter.into_iter().for_each(drop);
         self
     }
 

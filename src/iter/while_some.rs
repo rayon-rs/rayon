@@ -126,16 +126,19 @@ where
     where
         I: IntoIterator<Item = Option<T>>,
     {
-        let full = self.full;
+        fn some<T>(full: &AtomicBool) -> impl Fn(&Option<T>) -> bool + '_ {
+            move |x| match *x {
+                Some(_) => !full.load(Ordering::Relaxed),
+                None => {
+                    full.store(true, Ordering::Relaxed);
+                    false
+                }
+            }
+        }
+
         self.base = self.base.consume_iter(
             iter.into_iter()
-                .take_while(|x| match *x {
-                    Some(_) => !full.load(Ordering::Relaxed),
-                    None => {
-                        full.store(true, Ordering::Relaxed);
-                        false
-                    }
-                })
+                .take_while(some(self.full))
                 .map(Option::unwrap),
         );
         self

@@ -102,11 +102,11 @@ where
     T: 'a + Copy,
 {
     type Item = T;
-    type IntoIter = iter::Map<P::IntoIter, fn(&T) -> T>;
+    type IntoIter = iter::Cloned<P::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
         // FIXME: use `Iterator::copied()` when Rust 1.36 is our minimum.
-        self.base.into_iter().map(|&x| x)
+        self.base.into_iter().cloned()
     }
 
     fn min_len(&self) -> usize {
@@ -211,7 +211,7 @@ where
         I: IntoIterator<Item = &'a T>,
     {
         // FIXME: use `Iterator::copied()` when Rust 1.36 is our minimum.
-        self.base = self.base.consume_iter(iter.into_iter().map(|&x| x));
+        self.base = self.base.consume_iter(iter.into_iter().cloned());
         self
     }
 

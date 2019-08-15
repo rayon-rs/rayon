@@ -87,10 +87,14 @@ where
     where
         I: IntoIterator<Item = T>,
     {
+        fn not_full<T>(found: &AtomicBool) -> impl Fn(&T) -> bool + '_ {
+            move |_| !found.load(Ordering::Relaxed)
+        }
+
         self.item = iter
             .into_iter()
             // stop iterating if another thread has found something
-            .take_while(|_| !self.full())
+            .take_while(not_full(&self.found))
             .find(self.find_op);
         if self.item.is_some() {
             self.found.store(true, Ordering::Relaxed)

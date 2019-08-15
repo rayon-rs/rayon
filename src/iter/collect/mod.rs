@@ -1,5 +1,4 @@
 use super::{IndexedParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
-use std::collections::LinkedList;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -138,24 +137,10 @@ where
             }
             None => {
                 // This works like `extend`, but `Vec::append` is more efficient.
-                let list: LinkedList<_> = par_iter
-                    .fold(Vec::new, |mut vec, elem| {
-                        vec.push(elem);
-                        vec
-                    })
-                    .map(|vec| {
-                        let mut list = LinkedList::new();
-                        list.push_back(vec);
-                        list
-                    })
-                    .reduce(LinkedList::new, |mut list1, mut list2| {
-                        list1.append(&mut list2);
-                        list1
-                    });
-
-                self.reserve(list.iter().map(Vec::len).sum());
-                for mut vec in list {
-                    self.append(&mut vec);
+                let list = super::extend::collect(par_iter);
+                self.reserve(super::extend::len(&list));
+                for ref mut vec in list {
+                    self.append(vec);
                 }
             }
         }
