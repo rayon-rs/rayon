@@ -1,3 +1,4 @@
+use super::noop::NoopConsumer;
 use super::{IntoParallelIterator, ParallelExtend, ParallelIterator};
 
 use std::borrow::Cow;
@@ -366,5 +367,15 @@ where
         I: IntoParallelIterator<Item = &'a T>,
     {
         self.par_extend(par_iter.into_par_iter().cloned())
+    }
+}
+
+/// Collapses all unit items from a parallel iterator into one.
+impl ParallelExtend<()> for () {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = ()>,
+    {
+        par_iter.into_par_iter().drive_unindexed(NoopConsumer)
     }
 }
