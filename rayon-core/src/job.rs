@@ -8,7 +8,7 @@ use unwind;
 pub(super) enum JobResult<T> {
     None,
     Ok(T),
-    Panic(Box<Any + Send>),
+    Panic(Box<dyn Any + Send>),
 }
 
 /// A `Job` is used to advertise work for other threads that they may

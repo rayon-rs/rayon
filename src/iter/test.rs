@@ -985,7 +985,7 @@ fn check_chunks() {
 
     let par_sum_product_triples: i32 = a.par_chunks(3).map(|c| c.iter().product::<i32>()).sum();
     let seq_sum_product_triples = a.chunks(3).map(|c| c.iter().product::<i32>()).sum();
-    assert_eq!(par_sum_product_triples, 5_0 + 12_00 + 2_000_0000 + 1);
+    assert_eq!(par_sum_product_triples, 5_0 + 12_00 + 20_000_000 + 1);
     assert_eq!(par_sum_product_triples, seq_sum_product_triples);
 }
 

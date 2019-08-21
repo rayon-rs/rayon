@@ -19,7 +19,7 @@ use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Once, ONCE_INIT};
+use std::sync::{Arc, Once};
 use std::thread;
 use std::usize;
 use unwind;
@@ -161,7 +161,7 @@ pub(super) struct Registry {
 /// Initialization
 
 static mut THE_REGISTRY: Option<&'static Arc<Registry>> = None;
-static THE_REGISTRY_SET: Once = ONCE_INIT;
+static THE_REGISTRY_SET: Once = Once::new();
 
 /// Starts the worker threads (if that has not already happened). If
 /// initialization has not already occurred, use the default
@@ -322,7 +322,7 @@ impl Registry {
         self.thread_infos.len()
     }
 
-    pub(super) fn handle_panic(&self, err: Box<Any + Send>) {
+    pub(super) fn handle_panic(&self, err: Box<dyn Any + Send>) {
         match self.panic_handler {
             Some(ref handler) => {
                 // If the customizable panic handler itself panics,

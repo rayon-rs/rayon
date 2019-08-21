@@ -43,8 +43,8 @@ fn as_list<T>(item: T) -> LinkedList<T> {
     list
 }
 
-fn list_append<T>(mut list1: LinkedList<T>, ref mut list2: LinkedList<T>) -> LinkedList<T> {
-    list1.append(list2);
+fn list_append<T>(mut list1: LinkedList<T>, mut list2: LinkedList<T>) -> LinkedList<T> {
+    list1.append(&mut list2);
     list1
 }
 

@@ -140,7 +140,7 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     panic_handler: Option<Box<PanicHandler>>,
 
     /// Closure to compute the name of a thread.
-    get_thread_name: Option<Box<FnMut(usize) -> String>>,
+    get_thread_name: Option<Box<dyn FnMut(usize) -> String>>,
 
     /// The stack size for the created worker threads
     stack_size: Option<usize>,
@@ -170,17 +170,17 @@ pub struct Configuration {
 
 /// The type for a panic handling closure. Note that this same closure
 /// may be invoked multiple times in parallel.
-type PanicHandler = Fn(Box<Any + Send>) + Send + Sync;
+type PanicHandler = dyn Fn(Box<dyn Any + Send>) + Send + Sync;
 
 /// The type for a closure that gets invoked when a thread starts. The
 /// closure is passed the index of the thread on which it is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
-type StartHandler = Fn(usize) + Send + Sync;
+type StartHandler = dyn Fn(usize) + Send + Sync;
 
 /// The type for a closure that gets invoked when a thread exits. The
 /// closure is passed the index of the thread on which is is invoked.
 /// Note that this same closure may be invoked multiple times in parallel.
-type ExitHandler = Fn(usize) + Send + Sync;
+type ExitHandler = dyn Fn(usize) + Send + Sync;
 
 // NB: We can't `#[derive(Default)]` because `S` is left ambiguous.
 impl Default for ThreadPoolBuilder {
@@ -481,7 +481,7 @@ impl<S> ThreadPoolBuilder<S> {
     /// in a call to `std::panic::catch_unwind()`.
     pub fn panic_handler<H>(mut self, panic_handler: H) -> Self
     where
-        H: Fn(Box<Any + Send>) + Send + Sync + 'static,
+        H: Fn(Box<dyn Any + Send>) + Send + Sync + 'static,
     {
         self.panic_handler = Some(Box::new(panic_handler));
         self
@@ -585,7 +585,7 @@ impl Configuration {
     }
 
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
-    pub fn build(self) -> Result<ThreadPool, Box<Error + 'static>> {
+    pub fn build(self) -> Result<ThreadPool, Box<dyn Error + 'static>> {
         self.builder.build().map_err(Box::from)
     }
 
@@ -607,7 +607,7 @@ impl Configuration {
     /// Deprecated in favor of `ThreadPoolBuilder::panic_handler`.
     pub fn panic_handler<H>(mut self, panic_handler: H) -> Configuration
     where
-        H: Fn(Box<Any + Send>) + Send + Sync + 'static,
+        H: Fn(Box<dyn Any + Send>) + Send + Sync + 'static,
     {
         self.builder = self.builder.panic_handler(panic_handler);
         self
@@ -678,7 +678,7 @@ impl fmt::Display for ThreadPoolBuildError {
 /// Deprecated in favor of `ThreadPoolBuilder::build_global`.
 #[deprecated(note = "use `ThreadPoolBuilder::build_global`")]
 #[allow(deprecated)]
-pub fn initialize(config: Configuration) -> Result<(), Box<Error>> {
+pub fn initialize(config: Configuration) -> Result<(), Box<dyn Error>> {
     config.into_builder().build_global().map_err(Box::from)
 }
 

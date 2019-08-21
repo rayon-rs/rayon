@@ -50,7 +50,7 @@ struct ScopeBase<'scope> {
 
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
-    panic: AtomicPtr<Box<Any + Send + 'static>>,
+    panic: AtomicPtr<Box<dyn Any + Send + 'static>>,
 
     /// latch to set when the counter drops to zero (and hence this scope is complete)
     job_completed_latch: CountLatch,
@@ -59,7 +59,7 @@ struct ScopeBase<'scope> {
     /// all of which outlive `'scope`.  They're not actually required to be
     /// `Sync`, but it's still safe to let the `Scope` implement `Sync` because
     /// the closures are only *moved* across threads to be executed.
-    marker: PhantomData<Box<FnOnce(&Scope<'scope>) + Send + Sync + 'scope>>,
+    marker: PhantomData<Box<dyn FnOnce(&Scope<'scope>) + Send + Sync + 'scope>>,
 }
 
 /// Create a "fork-join" scope `s` and invokes the closure with a
@@ -572,7 +572,7 @@ impl<'scope> ScopeBase<'scope> {
         }
     }
 
-    unsafe fn job_panicked(&self, err: Box<Any + Send + 'static>) {
+    unsafe fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
@@ -613,7 +613,7 @@ impl<'scope> ScopeBase<'scope> {
             log!(ScopeCompletePanicked {
                 owner_thread: owner_thread.index()
             });
-            let value: Box<Box<Any + Send + 'static>> = mem::transmute(panic);
+            let value: Box<Box<dyn Any + Send + 'static>> = mem::transmute(panic);
             unwind::resume_unwinding(*value);
         } else {
             log!(ScopeCompleteNoPanic {
