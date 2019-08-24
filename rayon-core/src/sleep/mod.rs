@@ -2,6 +2,7 @@
 //! for an overview.
 
 use log::Event::*;
+use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::thread;
@@ -11,20 +12,27 @@ pub(super) struct Sleep {
     state: AtomicUsize,
     data: Mutex<()>,
     tickle: Condvar,
+    rounds_until_sleepy: usize,
+    rounds_until_asleep: usize,
 }
 
 const AWAKE: usize = 0;
 const SLEEPING: usize = 1;
 
-const ROUNDS_UNTIL_SLEEPY: usize = 32;
-const ROUNDS_UNTIL_ASLEEP: usize = 64;
-
 impl Sleep {
     pub(super) fn new() -> Sleep {
+        fn env_or(var: &str, default: usize) -> usize {
+            env::var(var)
+                .map_err(|_| ())
+                .and_then(|val| val.parse().map_err(|_| ()))
+                .unwrap_or(default)
+        }
         Sleep {
             state: AtomicUsize::new(AWAKE),
             data: Mutex::new(()),
             tickle: Condvar::new(),
+            rounds_until_sleepy: env_or("RAYON_ROUNDS_UNTIL_SLEEPY", 32),
+            rounds_until_asleep: env_or("RAYON_ROUNDS_UNTIL_ASLEEP", 64),
         }
     }
 
@@ -51,7 +59,7 @@ impl Sleep {
             worker: worker_index,
             yields: yields,
         });
-        if yields > ROUNDS_UNTIL_SLEEPY {
+        if yields > self.rounds_until_sleepy {
             // FIXME tickling here is a bit extreme; mostly we want to "release the lock"
             // from us being sleepy, we don't necessarily need to wake others
             // who are sleeping
@@ -66,17 +74,17 @@ impl Sleep {
             worker: worker_index,
             yields: yields,
         });
-        if yields < ROUNDS_UNTIL_SLEEPY {
+        if yields < self.rounds_until_sleepy {
             thread::yield_now();
             yields + 1
-        } else if yields == ROUNDS_UNTIL_SLEEPY {
+        } else if yields == self.rounds_until_sleepy {
             thread::yield_now();
             if self.get_sleepy(worker_index) {
                 yields + 1
             } else {
                 yields
             }
-        } else if yields < ROUNDS_UNTIL_ASLEEP {
+        } else if yields < self.rounds_until_asleep {
             thread::yield_now();
             if self.still_sleepy(worker_index) {
                 yields + 1
@@ -87,7 +95,7 @@ impl Sleep {
                 0
             }
         } else {
-            debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
+            debug_assert_eq!(yields, self.rounds_until_asleep);
             self.sleep(worker_index);
             0
         }
