@@ -1,3 +1,21 @@
+# Release rayon 1.2.0 / rayon-core 1.6.0 (2019-08-30)
+
+- The new `ParallelIterator::copied()` converts an iterator of references into
+  copied values, like `Iterator::copied()`.
+- `ParallelExtend` is now implemented for the unit `()`.
+- Internal updates were made to improve test determinism, reduce closure type
+  sizes, reduce task allocations, and update dependencies.
+- The minimum supported `rustc` is now 1.28.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @Aaron1011
+- @cuviper
+- @ralfbiedert
+
+
 # Release rayon 1.1.0 / rayon-core 1.5.0 (2019-06-12)
 
 - FIFO spawns are now supported using the new `spawn_fifo()` and `scope_fifo()`
