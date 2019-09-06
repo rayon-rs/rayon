@@ -737,12 +737,6 @@ impl WorkerThread {
 
     pub(super) unsafe fn execute(&self, job: JobRef) {
         job.execute();
-
-        // Subtle: executing this job will have `set()` some of its
-        // latches.  This may mean that a sleepy (or sleeping) worker
-        // can now make progress. So we have to tickle them to let
-        // them know.
-        self.registry.sleep.tickle(self.index);
     }
 
     /// Try to steal a single job and return it.
