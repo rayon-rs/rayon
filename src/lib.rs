@@ -18,6 +18,9 @@
 //!   typically the most efficient.
 //!   - [Parallel iterators][iter module] make it easy to convert a sequential iterator to
 //!     execute in parallel.
+//!     - The [`ParallelIterator`] trait defines general methods for all parallel iterators.
+//!     - The [`IndexedParallelIterator`] trait adds methods for iterators that support random
+//!       access.
 //!   - The [`par_sort`] method sorts `&mut [T]` slices (or vectors) in parallel.
 //!   - [`par_extend`] can be used to efficiently grow collections with items produced
 //!     by a parallel iterator.
@@ -55,6 +58,8 @@
 //! [`filter`]: iter/trait.ParallelIterator.html#method.filter
 //! [`fold`]: iter/trait.ParallelIterator.html#method.fold
 //! [more]: iter/trait.ParallelIterator.html#provided-methods
+//! [`ParallelIterator`]: iter/trait.ParallelIterator.html
+//! [`IndexedParallelIterator`]: iter/trait.IndexedParallelIterator.html
 //!
 //! # Crate Layout
 //!
