@@ -5,7 +5,7 @@
 //! [`join()`]: ../join/join.fn.html
 
 use job::{HeapJob, JobFifo};
-use latch::{CountLatch, Latch};
+use latch::{CountLatch};
 use log::Event::*;
 use registry::{in_worker, Registry, WorkerThread};
 use std::any::Any;
@@ -591,14 +591,14 @@ impl<'scope> ScopeBase<'scope> {
             });
         }
 
-        self.job_completed_latch.set();
+        self.job_completed_latch.set_and_tickle(&self.registry);
     }
 
     unsafe fn job_completed_ok(&self) {
         log!(JobCompletedOk {
             owner_thread: self.owner_thread_index
         });
-        self.job_completed_latch.set();
+        self.job_completed_latch.set_and_tickle(&self.registry);
     }
 
     unsafe fn steal_till_jobs_complete(&self, owner_thread: &WorkerThread) {

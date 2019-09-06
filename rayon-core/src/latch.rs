@@ -129,6 +129,16 @@ impl Latch for LockLatch {
 /// necessarily make the latch be considered `set()`; instead, it just
 /// decrements the counter. The latch is only "set" (in the sense that
 /// `probe()` returns true) once the counter reaches zero.
+///
+/// Note: like a `SpinLatch`, count laches are always associated with
+/// some registry that is probing them, which must be tickled when
+/// they are set. *Unlike* a `SpinLatch`, they don't themselves hold a
+/// reference to that registry. This is because in some cases the
+/// registry owns the count-latch, and that would create a cycle. So a
+/// `CountLatch` must be given a reference to its owning registry when
+/// it is set. For this reason, it does not implement the `Latch`
+/// trait (but it doesn't have to, as it is not used in those generic
+/// contexts).
 #[derive(Debug)]
 pub(super) struct CountLatch {
     counter: AtomicUsize,
@@ -147,6 +157,19 @@ impl CountLatch {
         debug_assert!(!self.probe());
         self.counter.fetch_add(1, Ordering::Relaxed);
     }
+
+    /// Decrements the latch counter by one. If this is the final
+    /// count, then the latch is **set**, and calls to `probe()` will
+    /// return true. If the latch does wind up being set, we will
+    /// tickle the registry `registry`, which should be the registry
+    /// that owns this latch. (Only this registry ought to be probing
+    /// the count-lach.)
+    #[inline]
+    pub(super) fn set_and_tickle(&self, registry: &Registry) {
+        if self.counter.fetch_sub(1, Ordering::SeqCst) == 1 {
+            registry.tickle_from_latch();
+        }
+    }
 }
 
 impl LatchProbe for CountLatch {
@@ -154,14 +177,6 @@ impl LatchProbe for CountLatch {
     fn probe(&self) -> bool {
         // Need to acquire any memory reads before latch was set:
         self.counter.load(Ordering::SeqCst) == 0
-    }
-}
-
-impl Latch for CountLatch {
-    /// Set the latch to true, releasing all threads who are waiting.
-    #[inline]
-    fn set(&self) {
-        self.counter.fetch_sub(1, Ordering::SeqCst);
     }
 }
 

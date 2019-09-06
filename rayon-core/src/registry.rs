@@ -559,8 +559,7 @@ impl Registry {
     /// dropped. The worker threads will gradually terminate, once any
     /// extant work is completed.
     pub(super) fn terminate(&self) {
-        self.terminate_latch.set();
-        self.sleep.tickle(usize::MAX);
+        self.terminate_latch.set_and_tickle(self);
     }
 
     /// Invoked by a latch associated with this registry when it is set.
