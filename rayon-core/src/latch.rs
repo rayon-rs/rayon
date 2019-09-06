@@ -1,8 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
-use std::usize;
 
-use sleep::Sleep;
+use registry::Registry;
 
 /// We define various kinds of latches, which are all a primitive signaling
 /// mechanism. A latch starts as false. Eventually someone calls `set()` and
@@ -43,30 +42,33 @@ pub(super) trait LatchProbe {
 /// Spin latches are the simplest, most efficient kind, but they do
 /// not support a `wait()` operation. They just have a boolean flag
 /// that becomes true when `set()` is called.
-pub(super) struct SpinLatch {
+pub(super) struct SpinLatch<'r> {
     b: AtomicBool,
+    r: &'r Registry,
 }
 
-impl SpinLatch {
+impl<'r> SpinLatch<'r> {
     #[inline]
-    pub(super) fn new() -> SpinLatch {
+    pub(super) fn new(r: &'r Registry) -> SpinLatch {
         SpinLatch {
             b: AtomicBool::new(false),
+            r,
         }
     }
 }
 
-impl LatchProbe for SpinLatch {
+impl<'r> LatchProbe for SpinLatch<'r> {
     #[inline]
     fn probe(&self) -> bool {
         self.b.load(Ordering::SeqCst)
     }
 }
 
-impl Latch for SpinLatch {
+impl<'r> Latch for SpinLatch<'r> {
     #[inline]
     fn set(&self) {
         self.b.store(true, Ordering::SeqCst);
+        self.r.tickle_from_latch();
     }
 }
 
@@ -160,39 +162,6 @@ impl Latch for CountLatch {
     #[inline]
     fn set(&self) {
         self.counter.fetch_sub(1, Ordering::SeqCst);
-    }
-}
-
-/// A tickling latch wraps another latch type, and will also awaken a thread
-/// pool when it is set.  This is useful for jobs injected between thread pools,
-/// so the source pool can continue processing its own work while waiting.
-pub(super) struct TickleLatch<'a, L: Latch> {
-    inner: L,
-    sleep: &'a Sleep,
-}
-
-impl<'a, L: Latch> TickleLatch<'a, L> {
-    #[inline]
-    pub(super) fn new(latch: L, sleep: &'a Sleep) -> Self {
-        TickleLatch {
-            inner: latch,
-            sleep,
-        }
-    }
-}
-
-impl<'a, L: Latch> LatchProbe for TickleLatch<'a, L> {
-    #[inline]
-    fn probe(&self) -> bool {
-        self.inner.probe()
-    }
-}
-
-impl<'a, L: Latch> Latch for TickleLatch<'a, L> {
-    #[inline]
-    fn set(&self) {
-        self.inner.set();
-        self.sleep.tickle(usize::MAX);
     }
 }
 

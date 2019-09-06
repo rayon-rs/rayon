@@ -5,7 +5,7 @@ use internal::task::Task;
 #[cfg(rayon_unstable)]
 use job::Job;
 use job::{JobFifo, JobRef, StackJob};
-use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
+use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch};
 use log::Event::*;
 use sleep::Sleep;
 use std::any::Any;
@@ -517,7 +517,7 @@ impl Registry {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
-        let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
+        let latch = SpinLatch::new(current_thread.registry());
         let job = StackJob::new(
             |injected| {
                 let worker_thread = WorkerThread::current();
@@ -560,6 +560,11 @@ impl Registry {
     /// extant work is completed.
     pub(super) fn terminate(&self) {
         self.terminate_latch.set();
+        self.sleep.tickle(usize::MAX);
+    }
+
+    /// Invoked by a latch associated with this registry when it is set.
+    pub(super) fn tickle_from_latch(&self) {
         self.sleep.tickle(usize::MAX);
     }
 }

@@ -138,7 +138,7 @@ where
         // Create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough.
-        let job_b = StackJob::new(call_b(oper_b), SpinLatch::new());
+        let job_b = StackJob::new(call_b(oper_b), SpinLatch::new(worker_thread.registry()));
         let job_b_ref = job_b.as_job_ref();
         worker_thread.push(job_b_ref);
 
