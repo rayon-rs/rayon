@@ -9,6 +9,7 @@ mod life;
 mod matmul;
 mod mergesort;
 mod nbody;
+mod noop;
 mod quicksort;
 mod sieve;
 mod tsp;
@@ -81,6 +82,7 @@ Benchmarks:
   - sieve: Finding primes using a Sieve of Eratosthenes.
   - matmul: Parallel matrix multiplication.
   - mergesort: Parallel mergesort.
+  - noop: Launch empty tasks to measure CPU usage.
   - quicksort: Parallel quicksort.
   - tsp: Traveling salesman problem solver (sample data sets in `data/tsp`).
 ";
@@ -106,6 +108,7 @@ fn main() {
         "sieve" => sieve::main(&args[1..]),
         "tsp" => tsp::main(&args[1..]),
         "life" => life::main(&args[1..]),
+        "noop" => noop::main(&args[1..]),
         _ => usage(),
     }
 }
