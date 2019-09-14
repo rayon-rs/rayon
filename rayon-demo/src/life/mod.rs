@@ -14,6 +14,7 @@ Options:
     -h, --help      Show this message.
 ";
 
+use cpu_time::{self, CpuMeasure};
 use rand::distributions::Standard;
 use rand::{thread_rng, Rng};
 use std::iter::repeat;
@@ -28,7 +29,6 @@ use rayon::prelude::*;
 
 #[cfg(test)]
 mod bench;
-mod cpu_time;
 
 #[derive(Deserialize)]
 pub struct Args {
@@ -249,19 +249,14 @@ fn measure_cpu(f: fn(Board, usize, u64) -> (), args: &Args) -> CpuResult {
     let (n, gens, rate) = (args.flag_size, args.flag_gens, args.flag_fps);
     let interval = 1_000_000_000 / rate as u64;
     let brd = Board::new(n, n).random();
-    let start = time::precise_time_ns();
-    let cpu_start = cpu_time::get_cpu_time();
 
-    f(brd, gens, interval);
-
-    let cpu_stop = cpu_time::get_cpu_time();
-    let duration = time::precise_time_ns() - start;
+    let CpuMeasure { time_duration, cpu_usage_percent } = cpu_time::measure_cpu(|| {
+        f(brd, gens, interval)
+    });
 
     CpuResult {
-        actual_fps: (1_000_000_000.0 * gens as f64) / duration as f64,
-        cpu_usage_percent: cpu_time::get_cpu_duration(cpu_start, cpu_stop)
-            .and_then(|cpu| cpu.num_nanoseconds())
-            .and_then(|cpu| Some(100.0 * cpu as f64 / duration as f64)),
+        actual_fps: (1_000_000_000.0 * gens as f64) / time_duration as f64,
+        cpu_usage_percent,
     }
 }
 

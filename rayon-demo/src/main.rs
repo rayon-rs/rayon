@@ -5,6 +5,7 @@ use std::io;
 use std::io::prelude::*;
 use std::process::exit;
 
+mod cpu_time;
 mod life;
 mod matmul;
 mod mergesort;

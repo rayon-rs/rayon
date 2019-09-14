@@ -8,6 +8,7 @@ Options:
     --iters N        Total time to execution (in millis). [default: 100]
 ";
 
+use cpu_time;
 use docopt::Docopt;
 
 #[derive(Deserialize)]
@@ -21,8 +22,12 @@ pub fn main(args: &[String]) {
         .and_then(|d| d.argv(args).deserialize())
         .unwrap_or_else(|e| e.exit());
 
-    for _ in 1..args.flag_iters {
-        std::thread::sleep(std::time::Duration::from_millis(args.flag_sleep));
-        rayon::spawn(move || {  } );
-    }
+    let m = cpu_time::measure_cpu(|| {
+        for _ in 1..args.flag_iters {
+            std::thread::sleep(std::time::Duration::from_millis(args.flag_sleep));
+            rayon::spawn(move || {  } );
+        }
+    });
+    println!("noop --iters={} --sleep={}", args.flag_iters, args.flag_sleep);
+    cpu_time::print_time(m);
 }
