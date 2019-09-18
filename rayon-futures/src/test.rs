@@ -286,3 +286,42 @@ fn async_future_scope_interact() {
 
     assert_eq!(vec![44], vec);
 }
+
+#[test]
+fn non_send_item() {
+    use std::marker::PhantomData;
+    use std::thread;
+    use futures::future::{poll_fn, PollFn};
+    
+    struct TattleTale {
+        id: thread::ThreadId,
+        not_send: PhantomData<*mut ()>
+    }
+
+    impl Drop for TattleTale {
+        fn drop(&mut self) {
+            let drop_id = thread::current().id();
+            assert_eq!(self.id, drop_id);
+        }
+    }
+
+    let evil_future_factory = || { poll_fn(|| {
+        let evil_item = TattleTale {
+            id: thread::current().id(),
+            not_send: PhantomData,
+        };
+        return Ok(Async::Ready(evil_item));
+    } ) };
+
+    let pool = ThreadPool::global();
+
+    scope(|s| {
+        let futures: Vec<_> = (0..1000)
+            .map(|_: i32| s.spawn_future(evil_future_factory()))
+            .collect();
+        
+        for f in futures {
+            let _: Result<_, ()> = f.rayon_wait();
+        }
+    } );
+}
