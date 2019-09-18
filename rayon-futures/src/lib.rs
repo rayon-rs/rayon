@@ -335,8 +335,7 @@ struct ScopeHandleSend<'s, S: ScopeHandle<'s>>(S, PhantomData<&'s ()>);
 unsafe impl<'scope, S> Send for ScopeHandleSend<'scope, S> 
 where
     S: ScopeHandle<'scope>
-{
-}
+{}
 impl<'scope, S> ScopeHandleSend<'scope, S> 
 where
     S: ScopeHandle<'scope>
@@ -354,18 +353,6 @@ where
         self.0.ok();
     }
 }
-/* unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
-where
-    F: Future + Send + 'scope,
-    S: ScopeHandle<'scope>,
-{
-}
-unsafe impl<'scope, F, S> Sync for ScopeFuture<'scope, F, S>
-where
-    F: Future + Send + 'scope,
-    S: ScopeHandle<'scope>,
-{
-} */
 
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
 where
