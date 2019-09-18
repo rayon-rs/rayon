@@ -292,7 +292,7 @@ fn non_send_item() {
     use std::marker::PhantomData;
     use std::thread;
     use futures::future::poll_fn;
-    
+
     struct TattleTale {
         id: thread::ThreadId,
         not_send: PhantomData<*mut ()>
@@ -319,7 +319,7 @@ fn non_send_item() {
         let futures: Vec<_> = (0..1000)
             .map(|_: i32| s.spawn_future(evil_future_factory()))
             .collect();
-        
+
         for f in futures {
             let _: Result<_, ()> = f.rayon_wait();
         }

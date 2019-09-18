@@ -47,7 +47,7 @@ where
     where
         F: Future + Send + 'scope,
         <F as Future>::Item: Send,
-        <F as Future>::Error: Send
+        <F as Future>::Error: Send,
     {
         let inner = ScopeFuture::spawn(future, self.to_scope_handle());
 
@@ -332,13 +332,10 @@ where
 
 // Assert that the `*const` is safe to transmit between threads:
 struct ScopeHandleSend<'s, S: ScopeHandle<'s>>(S, PhantomData<&'s ()>);
-unsafe impl<'scope, S> Send for ScopeHandleSend<'scope, S> 
+unsafe impl<'scope, S> Send for ScopeHandleSend<'scope, S> where S: ScopeHandle<'scope> {}
+impl<'scope, S> ScopeHandleSend<'scope, S>
 where
-    S: ScopeHandle<'scope>
-{}
-impl<'scope, S> ScopeHandleSend<'scope, S> 
-where
-    S: ScopeHandle<'scope>
+    S: ScopeHandle<'scope>,
 {
     unsafe fn assert_send(s: S) -> Self {
         ScopeHandleSend(s, PhantomData)
