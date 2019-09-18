@@ -291,7 +291,7 @@ fn async_future_scope_interact() {
 fn non_send_item() {
     use std::marker::PhantomData;
     use std::thread;
-    use futures::future::{poll_fn, PollFn};
+    use futures::future::poll_fn;
     
     struct TattleTale {
         id: thread::ThreadId,

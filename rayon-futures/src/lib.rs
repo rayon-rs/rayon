@@ -34,7 +34,9 @@ const STATE_COMPLETE: usize = 4;
 pub trait ScopeFutureExt<'scope> {
     fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
     where
-        F: Future + Send + 'scope;
+        F: Future + Send + 'scope,
+        <F as Future>::Item: Send,
+        <F as Future>::Error: Send;
 }
 
 impl<'scope, T> ScopeFutureExt<'scope> for T
@@ -44,6 +46,8 @@ where
     fn spawn_future<F>(&self, future: F) -> RayonFuture<F::Item, F::Error>
     where
         F: Future + Send + 'scope,
+        <F as Future>::Item: Send,
+        <F as Future>::Error: Send
     {
         let inner = ScopeFuture::spawn(future, self.to_scope_handle());
 
@@ -136,6 +140,8 @@ impl<T, E> fmt::Debug for RayonFuture<T, E> {
 struct ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     state: AtomicUsize,
@@ -149,6 +155,8 @@ type CUError<F> = <CU<F> as Future>::Error;
 struct ScopeFutureContents<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
@@ -160,7 +168,7 @@ where
     // the counter in the scope; since the scope doesn't terminate until
     // counter reaches zero, and we hold a ref in this counter, we are
     // assured that this pointer remains valid
-    scope: Option<S>,
+    scope: Option<ScopeHandleSend<'scope, S>>,
 
     waiting_task: Option<Task>,
     result: Poll<CUItem<F>, CUError<F>>,
@@ -171,6 +179,8 @@ where
 impl<'scope, F, S> fmt::Debug for ScopeFutureContents<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -183,11 +193,15 @@ where
 struct ArcScopeFuture<'scope, F, S>(Arc<ScopeFuture<'scope, F, S>>)
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>;
 
 impl<'scope, F, S> Clone for ArcScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn clone(&self) -> Self {
@@ -198,6 +212,8 @@ where
 impl<'scope, F, S> Notify for ArcScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn notify(&self, id: usize) {
@@ -225,6 +241,8 @@ unsafe impl<'scope, F, S> Sync for ScopeFutureWrapped<'scope, F, S> {}
 impl<'scope, F, S> Notify for ScopeFutureWrapped<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn notify(&self, id: usize) {
@@ -264,6 +282,8 @@ where
 unsafe impl<'scope, F, S> UnsafeNotify for ScopeFutureWrapped<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     unsafe fn clone_raw(&self) -> NotifyHandle {
@@ -285,6 +305,8 @@ where
 impl<'scope, F, S> From<ArcScopeFuture<'scope, F, S>> for NotifyHandle
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn from(rc: ArcScopeFuture<'scope, F, S>) -> NotifyHandle {
@@ -309,7 +331,30 @@ where
 }
 
 // Assert that the `*const` is safe to transmit between threads:
-unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
+struct ScopeHandleSend<'s, S: ScopeHandle<'s>>(S, PhantomData<&'s ()>);
+unsafe impl<'scope, S> Send for ScopeHandleSend<'scope, S> 
+where
+    S: ScopeHandle<'scope>
+{
+}
+impl<'scope, S> ScopeHandleSend<'scope, S> 
+where
+    S: ScopeHandle<'scope>
+{
+    unsafe fn assert_send(s: S) -> Self {
+        ScopeHandleSend(s, PhantomData)
+    }
+    unsafe fn spawn_task<T: RayonTask + 'scope>(&self, task: Arc<T>) {
+        self.0.spawn_task(task);
+    }
+    fn panicked(self, err: Box<Any + Send>) {
+        self.0.panicked(err);
+    }
+    fn ok(self) {
+        self.0.ok();
+    }
+}
+/* unsafe impl<'scope, F, S> Send for ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
     S: ScopeHandle<'scope>,
@@ -320,11 +365,13 @@ where
     F: Future + Send + 'scope,
     S: ScopeHandle<'scope>,
 {
-}
+} */
 
 impl<'scope, F, S> ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn spawn(future: F, scope: S) -> Arc<Self> {
@@ -338,7 +385,7 @@ where
             contents: Mutex::new(ScopeFutureContents {
                 spawn: None,
                 this: None,
-                scope: Some(scope),
+                scope: unsafe { Some(ScopeHandleSend::assert_send(scope)) },
                 waiting_task: None,
                 result: Ok(Async::NotReady),
                 canceled: false,
@@ -466,6 +513,8 @@ where
 impl<'scope, F, S> Notify for ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn notify(&self, _: usize) {
@@ -476,6 +525,8 @@ where
 impl<'scope, F, S> RayonTask for ScopeFuture<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn execute(this: Arc<Self>) {
@@ -510,6 +561,8 @@ where
 impl<'scope, F, S> ScopeFutureContents<'scope, F, S>
 where
     F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn poll(&mut self) -> Poll<CUItem<F>, CUError<F>> {
@@ -578,7 +631,9 @@ trait ScopeFutureTrait<T, E>: Send + Sync {
 
 impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F, S>
 where
-    F: Future + Send,
+    F: Future + Send + 'scope,
+    <F as Future>::Item: Send,
+    <F as Future>::Error: Send,
     S: ScopeHandle<'scope>,
 {
     fn probe(&self) -> bool {
