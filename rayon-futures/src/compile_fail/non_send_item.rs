@@ -15,4 +15,4 @@ scope(|s| {
     let f = s.spawn_future(evil_future);
     let _: Result<_, ()> = f.rayon_waist();
 } );
-*/
+``` */
