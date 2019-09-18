@@ -287,7 +287,7 @@ fn async_future_scope_interact() {
     assert_eq!(vec![44], vec);
 }
 
-#[test]
+/* #[test]
 fn non_send_item() {
     use std::marker::PhantomData;
     use std::thread;
@@ -324,4 +324,4 @@ fn non_send_item() {
             let _: Result<_, ()> = f.rayon_wait();
         }
     } );
-}
+} */
