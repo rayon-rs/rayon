@@ -28,7 +28,7 @@ fn nbody_seq(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-fn nbody_par(b: &mut ::test::Bencher) {
+fn nbody_par_iter(b: &mut ::test::Bencher) {
     nbody_bench(b, |n| {
         n.tick_par();
     });
