@@ -15,6 +15,7 @@ matrix:
     - rust: 1.28.0
       os: linux
       #if: everything!
+      before_script: cp ci/compat-Cargo.lock ./Cargo.lock
       script: cargo build
 
     - rust: stable
