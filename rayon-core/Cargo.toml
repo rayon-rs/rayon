@@ -15,7 +15,7 @@ categories = ["concurrency"]
 
 # Some dependencies may not be their latest version, in order to support older rustc.
 [dependencies]
-num_cpus = "1.2"
+num_cpus = "1.11"
 lazy_static = "1"
 crossbeam-deque = "0.7"
 crossbeam-queue = "0.1.2"
