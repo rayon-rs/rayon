@@ -74,7 +74,7 @@
 //! `None`/`Err` values will exit early.
 //!
 //! A note about object safety: It is currently _not_ possible to wrap
-//! a ParallelIterator (or any trait that depends on it) using a
+//! a `ParallelIterator` (or any trait that depends on it) using a
 //! `Box<dyn ParallelIterator>` or other kind of dynamic allocation,
 //! because `ParallelIterator` is **not object-safe**.
 //! (This keeps the implementation simpler and allows extra optimizations.)
