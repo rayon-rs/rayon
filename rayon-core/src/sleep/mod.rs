@@ -1,6 +1,7 @@
 //! Code that decides when workers should go to sleep. See README.md
 //! for an overview.
 
+use crate::log::Logger;
 use crate::log::Event::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
@@ -11,6 +12,7 @@ pub(super) struct Sleep {
     state: AtomicUsize,
     data: Mutex<()>,
     tickle: Condvar,
+    logger: Logger,
 }
 
 /// An instance of this struct is created when a thread becomes idle.
@@ -33,11 +35,12 @@ const ROUNDS_UNTIL_SLEEPY: usize = 32;
 const ROUNDS_UNTIL_ASLEEP: usize = 64;
 
 impl Sleep {
-    pub(super) fn new() -> Sleep {
+    pub(super) fn new(logger: Logger) -> Sleep {
         Sleep {
             state: AtomicUsize::new(AWAKE),
             data: Mutex::new(()),
             tickle: Condvar::new(),
+            logger,
         }
     }
 
@@ -60,6 +63,10 @@ impl Sleep {
 
     #[inline]
     pub(super) fn start_looking(&self, worker_index: usize) -> IdleState {
+        self.logger.log(|| ThreadIdle {
+            worker: worker_index,
+        });
+
         IdleState {
             worker_index,
             rounds: 0,
@@ -70,7 +77,7 @@ impl Sleep {
     pub(super) fn work_found(&self, idle_state: IdleState) {
         let IdleState { worker_index, rounds } = idle_state;
 
-        log!(FoundWork {
+        self.logger.log(|| ThreadFoundWork {
             worker: worker_index,
             yields: rounds,
         });
@@ -86,7 +93,7 @@ impl Sleep {
     #[inline]
     pub(super) fn no_work_found(&self, idle_state: &mut IdleState) {
         let IdleState { worker_index, rounds } = idle_state;
-        log!(DidNotFindWork {
+        self.logger.log(|| ThreadNoWork {
             worker: *worker_index,
             yields: *rounds,
         });
@@ -105,7 +112,7 @@ impl Sleep {
             if self.still_sleepy(*worker_index) {
                 *rounds += 1;
             } else {
-                log!(GotInterrupted {
+                self.logger.log(|| ThreadSleepInterrupted {
                     worker: *worker_index
                 });
                 *rounds = 0;
@@ -141,7 +148,7 @@ impl Sleep {
         // were were going to sleep, we will acquire lock and hence
         // acquire their reads.
         let old_state = self.state.swap(AWAKE, Ordering::Release);
-        log!(Tickle {
+        self.logger.log(|| Tickle {
             worker: worker_index,
             old_state,
         });
@@ -160,10 +167,6 @@ impl Sleep {
             // assert a stronger order and acquire any reads etc that
             // we must see.
             let state = self.state.load(Ordering::Acquire);
-            log!(GetSleepy {
-                worker: worker_index,
-                state,
-            });
             if self.any_worker_is_sleepy(state) {
                 // somebody else is already sleepy, so we'll just wait our turn
                 debug_assert!(
@@ -196,10 +199,10 @@ impl Sleep {
                     .compare_exchange(state, new_state, Ordering::SeqCst, Ordering::Relaxed)
                     .is_ok()
                 {
-                    log!(GotSleepy {
+                    self.logger.log(|| ThreadSleepy {
                         worker: worker_index,
-                        old_state: state,
-                        new_state,
+                        state: state,
+                        new_state: state,
                     });
                     return true;
                 }
@@ -285,17 +288,17 @@ impl Sleep {
                     // to sleep. Note that if we get a false wakeup it's not a
                     // problem for us, we'll just loop around and maybe get
                     // sleepy again.
-                    log!(FellAsleep {
+                    self.logger.log(|| ThreadSleeping {
                         worker: worker_index
                     });
                     drop(self.tickle.wait(data).unwrap());
-                    log!(GotAwoken {
+                    self.logger.log(|| ThreadAwoken {
                         worker: worker_index
                     });
                     return;
                 }
             } else {
-                log!(GotInterrupted {
+                self.logger.log(|| ThreadSleepInterrupted {
                     worker: worker_index
                 });
                 return;

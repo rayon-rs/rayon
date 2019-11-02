@@ -1,5 +1,6 @@
 use crate::job::{JobFifo, JobRef, StackJob};
 use crate::latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
+use crate::log::Logger;
 use crate::log::Event::*;
 use crate::sleep::Sleep;
 use crate::unwind;
@@ -132,6 +133,7 @@ where
 }
 
 pub(super) struct Registry {
+    logger: Logger,
     thread_infos: Vec<ThreadInfo>,
     sleep: Sleep,
     injected_jobs: SegQueue<JobRef>,
@@ -233,9 +235,11 @@ impl Registry {
             })
             .unzip();
 
+        let logger = Logger::new(n_threads);
         let registry = Arc::new(Registry {
+            logger: logger.clone(),
             thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
-            sleep: Sleep::new(),
+            sleep: Sleep::new(logger),
             injected_jobs: SegQueue::new(),
             terminate_latch: CountLatch::new(),
             panic_handler: builder.take_panic_handler(),
@@ -311,6 +315,11 @@ impl Registry {
         }
     }
 
+    #[inline]
+    pub(super) fn log(&self, event: impl FnOnce() -> crate::log::Event) {
+        self.logger.log(event)
+    }
+
     pub(super) fn num_threads(&self) -> usize {
         self.thread_infos.len()
     }
@@ -374,7 +383,7 @@ impl Registry {
     /// whatever worker has nothing to do. Use this is you know that
     /// you are not on a worker of this registry.
     pub(super) fn inject(&self, injected_jobs: &[JobRef]) {
-        log!(InjectJobs {
+        self.log(|| JobsInjected {
             count: injected_jobs.len()
         });
 
@@ -397,7 +406,7 @@ impl Registry {
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
         let job = self.injected_jobs.pop().ok();
         if job.is_some() {
-            log!(UninjectedWork {
+            self.log(|| JobUninjected {
                 worker: worker_index
             });
         }
@@ -450,6 +459,10 @@ impl Registry {
             );
             self.inject(&[job.as_job_ref()]);
             job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
+
+            // flush accumulated logs as we exit the thread
+            self.logger.log(|| Flush);
+
             job.into_result()
         })
     }
@@ -603,6 +616,11 @@ impl WorkerThread {
         &self.registry
     }
 
+    #[inline]
+    pub(super) fn log(&self, event: impl FnOnce() -> crate::log::Event) {
+        self.registry.logger.log(event)
+    }
+
     /// Our index amongst the worker threads (ranges from `0..self.num_threads()`).
     #[inline]
     pub(super) fn index(&self) -> usize {
@@ -611,6 +629,7 @@ impl WorkerThread {
 
     #[inline]
     pub(super) unsafe fn push(&self, job: JobRef) {
+        self.log(|| JobPushed { worker: self.index });
         self.worker.push(job);
         self.registry.sleep.tickle(self.index);
     }
@@ -638,7 +657,6 @@ impl WorkerThread {
     /// stealing tasks as necessary.
     #[inline]
     pub(super) unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
-        log!(WaitUntil { worker: self.index });
         if !latch.probe() {
             self.wait_until_cold(latch);
         }
@@ -678,7 +696,7 @@ impl WorkerThread {
         // wait.
         self.registry.sleep.work_found(idle_state);
 
-        log!(LatchSet { worker: self.index });
+        self.log(|| ThreadSawLatchSet { worker: self.index });
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
@@ -716,7 +734,7 @@ impl WorkerThread {
                     match victim.stealer.steal() {
                         Steal::Empty => return None,
                         Steal::Success(d) => {
-                            log!(StoleWork {
+                            self.log(|| JobStolen {
                                 worker: self.index,
                                 victim: victim_index
                             });
@@ -761,6 +779,9 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         }
     }
 
+    worker_thread.log(|| ThreadStart {
+        worker: index,
+    });
     worker_thread.wait_until(&registry.terminate_latch);
 
     // Should not be any work left in our queue.
@@ -771,6 +792,10 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
+
+    worker_thread.log(|| ThreadTerminate {
+        worker: index,
+    });
 
     // Inform a user callback that we exited a thread.
     if let Some(ref handler) = registry.exit_handler {

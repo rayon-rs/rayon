@@ -580,12 +580,12 @@ impl<'scope> ScopeBase<'scope> {
             .compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed)
             .is_ok()
         {
-            log!(JobPanickedErrorStored {
+            self.registry.log(|| JobPanickedErrorStored {
                 owner_thread: self.owner_thread_index
             });
             mem::forget(err); // ownership now transferred into self.panic
         } else {
-            log!(JobPanickedErrorNotStored {
+            self.registry.log(|| JobPanickedErrorNotStored {
                 owner_thread: self.owner_thread_index
             });
         }
@@ -594,7 +594,7 @@ impl<'scope> ScopeBase<'scope> {
     }
 
     unsafe fn job_completed_ok(&self) {
-        log!(JobCompletedOk {
+        self.registry.log(|| JobCompletedOk {
             owner_thread: self.owner_thread_index
         });
         self.job_completed_latch.set();
@@ -609,13 +609,13 @@ impl<'scope> ScopeBase<'scope> {
         // ordering:
         let panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
         if !panic.is_null() {
-            log!(ScopeCompletePanicked {
+            self.registry.log(|| ScopeCompletePanicked {
                 owner_thread: owner_thread.index()
             });
             let value: Box<Box<dyn Any + Send + 'static>> = mem::transmute(panic);
             unwind::resume_unwinding(*value);
         } else {
-            log!(ScopeCompleteNoPanic {
+            self.registry.log(|| ScopeCompleteNoPanic {
                 owner_thread: owner_thread.index()
             });
         }
