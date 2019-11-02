@@ -653,7 +653,7 @@ impl WorkerThread {
         // accesses, which would be *very bad*
         let abort_guard = unwind::AbortIfPanic;
 
-        let mut yields = 0;
+        let mut idle_state = self.registry.sleep.start_looking(self.index);
         while !latch.probe() {
             // Try to find some work to do. We give preference first
             // to things in our local deque, then in other workers
@@ -665,17 +665,18 @@ impl WorkerThread {
                 .or_else(|| self.steal())
                 .or_else(|| self.registry.pop_injected_job(self.index))
             {
-                yields = self.registry.sleep.work_found(self.index, yields);
+                self.registry.sleep.work_found(idle_state);
                 self.execute(job);
+                idle_state = self.registry.sleep.start_looking(self.index);
             } else {
-                yields = self.registry.sleep.no_work_found(self.index, yields);
+                self.registry.sleep.no_work_found(&mut idle_state);
             }
         }
 
         // If we were sleepy, we are not anymore. We "found work" --
         // whatever the surrounding thread was doing before it had to
         // wait.
-        self.registry.sleep.work_found(self.index, yields);
+        self.registry.sleep.work_found(idle_state);
 
         log!(LatchSet { worker: self.index });
         mem::forget(abort_guard); // successful execution, do not abort

@@ -13,6 +13,19 @@ pub(super) struct Sleep {
     tickle: Condvar,
 }
 
+/// An instance of this struct is created when a thread becomes idle.
+/// It is consumed when the thread finds work, and passed by `&mut`
+/// reference for operations that preserve the idle state. (In other
+/// words, producing one of these structs is evidence the thread is
+/// idle.) It tracks state such as how long the thread has been idle.
+pub(super) struct IdleState {
+    /// What is worker index of the idle thread?
+    worker_index: usize,
+
+    /// How many rounds have we been circling without sleeping?
+    rounds: usize,
+}
+
 const AWAKE: usize = 0;
 const SLEEPING: usize = 1;
 
@@ -46,50 +59,61 @@ impl Sleep {
     }
 
     #[inline]
-    pub(super) fn work_found(&self, worker_index: usize, yields: usize) -> usize {
+    pub(super) fn start_looking(&self, worker_index: usize) -> IdleState {
+        IdleState {
+            worker_index,
+            rounds: 0,
+        }
+    }
+
+    #[inline]
+    pub(super) fn work_found(&self, idle_state: IdleState) {
+        let IdleState { worker_index, rounds } = idle_state;
+
         log!(FoundWork {
             worker: worker_index,
-            yields,
+            yields: rounds,
         });
-        if yields > ROUNDS_UNTIL_SLEEPY {
+
+        if rounds > ROUNDS_UNTIL_SLEEPY {
             // FIXME tickling here is a bit extreme; mostly we want to "release the lock"
             // from us being sleepy, we don't necessarily need to wake others
             // who are sleeping
             self.tickle(worker_index);
         }
-        0
     }
 
     #[inline]
-    pub(super) fn no_work_found(&self, worker_index: usize, yields: usize) -> usize {
+    pub(super) fn no_work_found(&self, idle_state: &mut IdleState) {
+        let IdleState { worker_index, rounds } = idle_state;
         log!(DidNotFindWork {
-            worker: worker_index,
-            yields,
+            worker: *worker_index,
+            yields: *rounds,
         });
-        if yields < ROUNDS_UNTIL_SLEEPY {
+        if *rounds < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
-            yields + 1
-        } else if yields == ROUNDS_UNTIL_SLEEPY {
+            *rounds += 1;
+        } else if *rounds == ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
-            if self.get_sleepy(worker_index) {
-                yields + 1
+            if self.get_sleepy(*worker_index) {
+                *rounds += 1;
             } else {
-                yields
+                *rounds = 0;
             }
-        } else if yields < ROUNDS_UNTIL_ASLEEP {
+        } else if *rounds < ROUNDS_UNTIL_ASLEEP {
             thread::yield_now();
-            if self.still_sleepy(worker_index) {
-                yields + 1
+            if self.still_sleepy(*worker_index) {
+                *rounds += 1;
             } else {
                 log!(GotInterrupted {
-                    worker: worker_index
+                    worker: *worker_index
                 });
-                0
+                *rounds = 0;
             }
         } else {
-            debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            self.sleep(worker_index);
-            0
+            debug_assert_eq!(*rounds, ROUNDS_UNTIL_ASLEEP);
+            self.sleep(*worker_index);
+            *rounds = 0;
         }
     }
 
