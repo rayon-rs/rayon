@@ -38,23 +38,6 @@ pub(super) enum Event {
     /// yield rounds. It should no longer be considered idle.
     ThreadFoundWork { worker: usize, yields: usize },
 
-    /// Indicates that a worker blocked on a latch observed that it was set.
-    ///
-    /// Internal debugging event that does not affect the state
-    /// machine.
-    ThreadSawLatchSet { worker: usize },
-
-    /// Indicates that an idle worker thread searched for another round without finding work.
-    ThreadNoWork { worker: usize, yields: usize },
-
-    /// Indicates that an idle worker became the sleepy worker. `state` is our internal sleep
-    /// state value (for debugging).
-    ThreadSleepy { worker: usize, state: usize, new_state: usize },
-
-    /// Indicates that the thread's attempt to fall asleep by somebody
-    /// making us not the sleepy worker.
-    ThreadSleepInterrupted { worker: usize },
-
     /// Indicates that an idle worker has gone to sleep.
     ThreadSleeping { worker: usize },
 
@@ -75,34 +58,6 @@ pub(super) enum Event {
 
     /// A job was removed from the global queue.
     JobUninjected { worker: usize },
-
-    /// Indicates that a job completed "ok" as part of a scope.
-    JobCompletedOk { owner_thread: usize },
-
-    /// Indicates that a job panicked as part of a scope, and the
-    /// error was stored for later.
-    ///
-    /// Useful for debugging.
-    JobPanickedErrorStored { owner_thread: usize },
-
-    /// Indicates that a job panicked as part of a scope, and the
-    /// error was discarded.
-    ///
-    /// Useful for debugging.
-    JobPanickedErrorNotStored { owner_thread: usize },
-
-    /// Indicates that a scope completed with a panic.
-    ///
-    /// Useful for debugging.
-    ScopeCompletePanicked { owner_thread: usize },
-
-    /// Indicates that a scope completed with a panic.
-    ///
-    /// Useful for debugging.
-    ScopeCompleteNoPanic { owner_thread: usize },
-
-    /// A "tickle" came through and there were sleepy/sleeping workers.
-    Tickle { worker: usize, old_state: usize },
 }
 
 /// Handle to the logging thread, if any. You can use this to deliver
@@ -374,9 +329,7 @@ impl SimulatorState {
                 true
             }
 
-            // remaining events are no-ops from pov of simulating the
-            // thread state
-            _ => false,
+            Event::Flush => false,
         }
     }
 

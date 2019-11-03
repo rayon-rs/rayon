@@ -93,10 +93,6 @@ impl Sleep {
     #[inline]
     pub(super) fn no_work_found(&self, idle_state: &mut IdleState) {
         let IdleState { worker_index, rounds } = idle_state;
-        self.logger.log(|| ThreadNoWork {
-            worker: *worker_index,
-            yields: *rounds,
-        });
         if *rounds < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
             *rounds += 1;
@@ -112,9 +108,6 @@ impl Sleep {
             if self.still_sleepy(*worker_index) {
                 *rounds += 1;
             } else {
-                self.logger.log(|| ThreadSleepInterrupted {
-                    worker: *worker_index
-                });
                 *rounds = 0;
             }
         } else {
@@ -136,7 +129,7 @@ impl Sleep {
     }
 
     #[cold]
-    fn tickle_cold(&self, worker_index: usize) {
+    fn tickle_cold(&self, _worker_index: usize) {
         // The `Release` ordering here suffices. The reasoning is that
         // the atomic's own natural ordering ensure that any attempt
         // to become sleepy/asleep either will come before/after this
@@ -148,10 +141,6 @@ impl Sleep {
         // were were going to sleep, we will acquire lock and hence
         // acquire their reads.
         let old_state = self.state.swap(AWAKE, Ordering::Release);
-        self.logger.log(|| Tickle {
-            worker: worker_index,
-            old_state,
-        });
         if self.anyone_sleeping(old_state) {
             let _data = self.data.lock().unwrap();
             self.tickle.notify_all();
@@ -199,11 +188,6 @@ impl Sleep {
                     .compare_exchange(state, new_state, Ordering::SeqCst, Ordering::Relaxed)
                     .is_ok()
                 {
-                    self.logger.log(|| ThreadSleepy {
-                        worker: worker_index,
-                        state: state,
-                        new_state: state,
-                    });
                     return true;
                 }
             }
@@ -298,9 +282,6 @@ impl Sleep {
                     return;
                 }
             } else {
-                self.logger.log(|| ThreadSleepInterrupted {
-                    worker: worker_index
-                });
                 return;
             }
         }
