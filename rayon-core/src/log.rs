@@ -67,12 +67,6 @@ pub(super) enum Event {
     /// The given worker has popped a job from its local deque.
     JobPopped { worker: usize },
 
-    /// The given worker has popped a job from its local deque, and
-    /// the job was the RHS of the `join` we were blocked on.
-    ///
-    /// Identical to `JobPopped` but for debugging.
-    JobPoppedRhs { worker: usize },
-
     /// The given worker has stolen a job from the deque of another.
     JobStolen { worker: usize, victim: usize },
 
@@ -360,7 +354,7 @@ impl SimulatorState {
                 true
             }
 
-            Event::JobPopped { worker } | Event::JobPoppedRhs { worker } => {
+            Event::JobPopped { worker } => {
                 self.local_queue_size[worker] -= 1;
                 true
             }

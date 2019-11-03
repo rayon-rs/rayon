@@ -650,7 +650,15 @@ impl WorkerThread {
     /// bottom.
     #[inline]
     pub(super) unsafe fn take_local_job(&self) -> Option<JobRef> {
-        self.worker.pop()
+        let popped_job = self.worker.pop();
+
+        if popped_job.is_some() {
+            self.log(|| JobPopped {
+                worker: self.index
+            });
+        }
+
+        popped_job
     }
 
     /// Wait until the latch is set. Try to keep busy by popping and

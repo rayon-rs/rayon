@@ -1,6 +1,5 @@
 use crate::job::StackJob;
 use crate::latch::{LatchProbe, SpinLatch};
-use crate::log::Event::*;
 use crate::registry::{self, WorkerThread};
 use crate::unwind;
 use std::any::Any;
@@ -156,15 +155,9 @@ where
                     // Found it! Let's run it.
                     //
                     // Note that this could panic, but it's ok if we unwind here.
-                    worker_thread.log(|| JobPoppedRhs {
-                        worker: worker_thread.index()
-                    });
                     let result_b = job_b.run_inline(injected);
                     return (result_a, result_b);
                 } else {
-                    worker_thread.log(|| JobPopped {
-                        worker: worker_thread.index()
-                    });
                     worker_thread.execute(job);
                 }
             } else {
