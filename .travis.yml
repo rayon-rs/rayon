@@ -16,7 +16,7 @@ matrix:
       os: linux
       #if: everything!
       before_script: cp ci/compat-Cargo.lock ./Cargo.lock
-      script: cargo build
+      script: cargo build --locked
 
     - rust: stable
       os: linux
