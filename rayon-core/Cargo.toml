@@ -18,8 +18,8 @@ categories = ["concurrency"]
 num_cpus = "1.2"
 lazy_static = "1"
 crossbeam-deque = "0.7"
-crossbeam-queue = "0.1.2"
-crossbeam-utils = "0.6.5"
+crossbeam-queue = "0.2"
+crossbeam-utils = "0.7"
 
 [dev-dependencies]
 rand = "0.6"
