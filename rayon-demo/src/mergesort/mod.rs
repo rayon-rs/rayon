@@ -217,7 +217,7 @@ pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
 }
 
 fn default_vec(n: usize) -> Vec<u32> {
-    let mut rng = crate::seeded_rng();
+    let rng = crate::seeded_rng();
     rng.sample_iter(&Standard).take(n).collect()
 }
 

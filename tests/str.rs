@@ -11,7 +11,7 @@ fn seeded_rng() -> XorShiftRng {
 
 #[test]
 pub fn execute_strings() {
-    let mut rng = seeded_rng();
+    let rng = seeded_rng();
     let s: String = rng.sample_iter::<char, _>(&Standard).take(1024).collect();
 
     let par_chars: String = s.par_chars().collect();

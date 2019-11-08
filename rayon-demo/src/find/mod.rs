@@ -10,7 +10,7 @@ macro_rules! make_tests {
 
             lazy_static! {
                 static ref HAYSTACK: Vec<[u32; $n]> = {
-                    let mut rng = crate::seeded_rng();
+                    let rng = crate::seeded_rng();
                     rng.sample_iter(&Standard)
                         .map(|x| {
                             let mut result: [u32; $n] = [0; $n];
