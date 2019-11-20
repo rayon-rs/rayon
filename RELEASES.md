@@ -1,3 +1,21 @@
+# Release rayon 1.2.1 / rayon-core 1.6.1 (2019-11-20)
+
+- Update crossbeam dependencies.
+- Add top-level doc links for the iterator traits.
+- Document that the iterator traits are not object safe.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @dnaka91
+- @matklad
+- @nikomatsakis
+- @Qqwy
+- @vorner
+
+
 # Release rayon 1.2.0 / rayon-core 1.6.0 (2019-08-30)
 
 - The new `ParallelIterator::copied()` converts an iterator of references into
