@@ -16,7 +16,7 @@ pub fn get_cpu_time() -> Option<u64> {
 }
 
 pub fn get_cpu_duration(start: Option<u64>, stop: Option<u64>) -> Option<Duration> {
-    start.and_then(|start| stop.and_then(|stop| Some(Duration::nanoseconds((stop - start) as i64))))
+    Some(Duration::nanoseconds((stop? - start?) as i64))
 }
 
 #[derive(Copy, Clone)]
@@ -41,7 +41,7 @@ pub fn measure_cpu(op: impl FnOnce()) -> CpuMeasure {
         time_duration,
         cpu_usage_percent: get_cpu_duration(cpu_start, cpu_stop)
             .and_then(|cpu| cpu.num_nanoseconds())
-            .and_then(|cpu| Some(100.0 * cpu as f64 / time_duration as f64)),
+            .map(|cpu| 100.0 * cpu as f64 / time_duration as f64),
     }
 }
 
