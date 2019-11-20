@@ -250,9 +250,10 @@ fn measure_cpu(f: fn(Board, usize, u64) -> (), args: &Args) -> CpuResult {
     let interval = 1_000_000_000 / rate as u64;
     let brd = Board::new(n, n).random();
 
-    let CpuMeasure { time_duration, cpu_usage_percent } = cpu_time::measure_cpu(|| {
-        f(brd, gens, interval)
-    });
+    let CpuMeasure {
+        time_duration,
+        cpu_usage_percent,
+    } = cpu_time::measure_cpu(|| f(brd, gens, interval));
 
     CpuResult {
         actual_fps: (1_000_000_000.0 * gens as f64) / time_duration as f64,
