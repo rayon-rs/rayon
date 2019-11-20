@@ -256,14 +256,14 @@ where
     let mut block_l = BLOCK;
     let mut start_l = ptr::null_mut();
     let mut end_l = ptr::null_mut();
-    let mut offsets_l: [u8; BLOCK] = unsafe { mem::uninitialized() };
+    let mut offsets_l = [0u8; BLOCK];
 
     // The current block on the right side (from `r.offset(-block_r)` to `r`).
     let mut r = unsafe { l.add(v.len()) };
     let mut block_r = BLOCK;
     let mut start_r = ptr::null_mut();
     let mut end_r = ptr::null_mut();
-    let mut offsets_r: [u8; BLOCK] = unsafe { mem::uninitialized() };
+    let mut offsets_r = [0u8; BLOCK];
 
     // Returns the number of elements between pointers `l` (inclusive) and `r` (exclusive).
     fn width<T>(l: *mut T, r: *mut T) -> usize {

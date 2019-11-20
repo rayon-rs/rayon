@@ -8,8 +8,8 @@ publish = false
 rayon = { path = "../" }
 cgmath = "0.17"
 docopt = "1"
-fixedbitset = "0.1.5"
-glium = "0.24"
+fixedbitset = "0.2.0"
+glium = "0.25.1"
 lazy_static = "1"
 odds = "0.3"
 rand = "0.6"

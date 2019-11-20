@@ -25,9 +25,12 @@ pub fn main(args: &[String]) {
     let m = cpu_time::measure_cpu(|| {
         for _ in 1..args.flag_iters {
             std::thread::sleep(std::time::Duration::from_millis(args.flag_sleep));
-            rayon::spawn(move || {  } );
+            rayon::spawn(move || {});
         }
     });
-    println!("noop --iters={} --sleep={}", args.flag_iters, args.flag_sleep);
+    println!(
+        "noop --iters={} --sleep={}",
+        args.flag_iters, args.flag_sleep
+    );
     cpu_time::print_time(m);
 }
