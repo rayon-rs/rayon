@@ -61,6 +61,9 @@ mod thread_pool;
 mod unwind;
 mod util;
 
+#[cfg(has_future)]
+mod future;
+
 mod compile_fail;
 mod test;
 
@@ -74,6 +77,9 @@ pub use spawn::{spawn, spawn_fifo};
 pub use thread_pool::current_thread_has_pending_tasks;
 pub use thread_pool::current_thread_index;
 pub use thread_pool::ThreadPool;
+
+#[cfg(has_future)]
+pub use future::{spawn_future, spawn_fifo_future};
 
 use registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 

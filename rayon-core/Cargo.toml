@@ -55,3 +55,6 @@ path = "tests/simple_panic.rs"
 [[test]]
 name = "scoped_threadpool"
 path = "tests/scoped_threadpool.rs"
+
+[build-dependencies]
+autocfg = "0.1.5"
