@@ -82,31 +82,58 @@ pub struct MultiZip<T> {
     tuple: T,
 }
 
+// These macros greedily consume 4 or 2 items first to achieve log2 nesting depth.
+// For example, 5 => 4,1 => (2,2),1.
+//
+// The tuples go up to 12, so we might want to greedily consume 8 too, but
+// the depth works out the same if we let that expand on the right:
+//      9 => 4,5 => (2,2),(4,1) => (2,2),((2,2),1)
+//     12 => 4,8 => (2,2),(4,4) => (2,2),((2,2),(2,2))
+//
+// But if we ever increase to 13, we would want to split 8,5 rather than 4,9.
+
 macro_rules! zip {
-    ($first:expr, $( $iter:expr, )*) => {
-        $first $( .zip($iter) )*
+    ($a:expr, $b:expr, $c:expr, $d:expr, $( $x:expr, )+) => {
+        zip!(zip!($a, $b, $c, $d,), zip!($( $x, )+),)
+    };
+    ($a:expr, $b:expr, $( $x:expr, )+) => {
+        zip!(zip!($a, $b,), zip!($( $x, )+),)
+    };
+    ($a:expr, $( $x:expr, )*) => {
+        $a $( .zip($x) )*
     };
 }
 
 macro_rules! min {
-    ($x:expr,) => { $x };
-    ($x:expr, $( $y:expr, )+) => { cmp::min($x, min!($( $y, )+)) };
+    ($a:expr, $b:expr, $c:expr, $d:expr, $( $x:expr, )+) => {
+        min!(min!($a, $b, $c, $d,), min!($( $x, )+),)
+    };
+    ($a:expr, $b:expr, $( $x:expr, )+) => {
+        min!(min!($a, $b,), min!($( $x, )+),)
+    };
+    ($a:expr, $b:expr,) => { cmp::min($a, $b) };
+    ($a:expr,) => { $a };
+}
+
+macro_rules! nest {
+    ($A:tt, $B:tt, $C:tt, $D:tt, $( $X:tt, )+) => {
+        (nest!($A, $B, $C, $D,), nest!($( $X, )+))
+    };
+    ($A:tt, $B:tt, $( $X:tt, )+) => {
+        (($A, $B), nest!($( $X, )+))
+    };
+    ($A:tt, $B:tt,) => { ($A, $B) };
+    ($A:tt,) => { $A };
 }
 
 macro_rules! flatten {
-    (|$a:tt : $A:tt| -> ($( $X:ident, )+) { $tuple:tt };) => {{
-        fn flatten<$( $X ),+>($a : $A) -> ($( $X, )*) {
-            $tuple
+    ($( $T:ident, )+) => {{
+        #[allow(non_snake_case)]
+        fn flatten<$( $T ),+>(nest!($( $T, )+) : nest!($( $T, )+)) -> ($( $T, )+) {
+            ($( $T, )+)
         }
         flatten
     }};
-    (|$a:tt : $A:tt| -> ($( $X:ident, )+) { ($( $x:ident, )+) };
-     $B:ident, $( $T:ident, )*) => {
-        flatten!(|($a, b): ($A, $B)| -> ($( $X, )+ $B,) { ($( $x, )+ b,) }; $( $T, )*)
-    };
-    ($A:ident, $( $T:ident, )*) => {
-        flatten!(|a: $A| -> ($A,) { (a,) }; $( $T, )*)
-    };
 }
 
 macro_rules! multizip_impls {
