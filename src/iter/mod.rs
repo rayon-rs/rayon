@@ -141,6 +141,8 @@ mod zip;
 pub use self::zip::Zip;
 mod zip_eq;
 pub use self::zip_eq::ZipEq;
+mod multizip;
+pub use self::multizip::MultiZip;
 mod interleave;
 pub use self::interleave::Interleave;
 mod interleave_shortest;
