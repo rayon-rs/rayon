@@ -1,8 +1,6 @@
 use super::plumbing::*;
 use super::*;
 
-use std::cmp;
-
 /// `MultiZip` is an iterator that zips up a tuple of parallel iterators to
 /// produce tuples of their items.
 ///
@@ -92,44 +90,36 @@ pub struct MultiZip<T> {
 //
 // But if we ever increase to 13, we would want to split 8,5 rather than 4,9.
 
-macro_rules! zip {
-    ($a:expr, $b:expr, $c:expr, $d:expr, $( $x:expr, )+) => {
-        zip!(zip!($a, $b, $c, $d,), zip!($( $x, )+),)
+macro_rules! reduce {
+    ($a:expr, $b:expr, $c:expr, $d:expr, $( $x:expr ),+ => $fn:path) => {
+        reduce!(reduce!($a, $b, $c, $d => $fn),
+                reduce!($( $x ),+ => $fn)
+                => $fn)
     };
-    ($a:expr, $b:expr, $( $x:expr, )+) => {
-        zip!(zip!($a, $b,), zip!($( $x, )+),)
+    ($a:expr, $b:expr, $( $x:expr ),+ => $fn:path) => {
+        reduce!(reduce!($a, $b => $fn),
+                reduce!($( $x ),+ => $fn)
+                => $fn)
     };
-    ($a:expr, $( $x:expr, )*) => {
-        $a $( .zip($x) )*
-    };
-}
-
-macro_rules! min {
-    ($a:expr, $b:expr, $c:expr, $d:expr, $( $x:expr, )+) => {
-        min!(min!($a, $b, $c, $d,), min!($( $x, )+),)
-    };
-    ($a:expr, $b:expr, $( $x:expr, )+) => {
-        min!(min!($a, $b,), min!($( $x, )+),)
-    };
-    ($a:expr, $b:expr,) => { cmp::min($a, $b) };
-    ($a:expr,) => { $a };
+    ($a:expr, $b:expr => $fn:path) => { $fn($a, $b) };
+    ($a:expr => $fn:path) => { $a };
 }
 
 macro_rules! nest {
-    ($A:tt, $B:tt, $C:tt, $D:tt, $( $X:tt, )+) => {
-        (nest!($A, $B, $C, $D,), nest!($( $X, )+))
+    ($A:tt, $B:tt, $C:tt, $D:tt, $( $X:tt ),+) => {
+        (nest!($A, $B, $C, $D), nest!($( $X ),+))
     };
-    ($A:tt, $B:tt, $( $X:tt, )+) => {
-        (($A, $B), nest!($( $X, )+))
+    ($A:tt, $B:tt, $( $X:tt ),+) => {
+        (($A, $B), nest!($( $X ),+))
     };
-    ($A:tt, $B:tt,) => { ($A, $B) };
-    ($A:tt,) => { $A };
+    ($A:tt, $B:tt) => { ($A, $B) };
+    ($A:tt) => { $A };
 }
 
 macro_rules! flatten {
-    ($( $T:ident, )+) => {{
+    ($( $T:ident ),+) => {{
         #[allow(non_snake_case)]
-        fn flatten<$( $T ),+>(nest!($( $T, )+) : nest!($( $T, )+)) -> ($( $T, )+) {
+        fn flatten<$( $T ),+>(nest!($( $T ),+) : nest!($( $T ),+)) -> ($( $T, )+) {
             ($( $T, )+)
         }
         flatten
@@ -220,21 +210,21 @@ macro_rules! multizip_impls {
                 where
                     CONSUMER: Consumer<Self::Item>,
                 {
-                    zip!($( self.tuple.$idx, )+)
-                        .map(flatten!($( $T, )+))
+                    reduce!($( self.tuple.$idx ),+ => IndexedParallelIterator::zip)
+                        .map(flatten!($( $T ),+))
                         .drive(consumer)
                 }
 
                 fn len(&self) -> usize {
-                    min!($( self.tuple.$idx.len(), )+)
+                    reduce!($( self.tuple.$idx.len() ),+ => Ord::min)
                 }
 
                 fn with_producer<CB>(self, callback: CB) -> CB::Output
                 where
                     CB: ProducerCallback<Self::Item>,
                 {
-                    zip!($( self.tuple.$idx, )+)
-                        .map(flatten!($( $T, )+))
+                    reduce!($( self.tuple.$idx ),+ => IndexedParallelIterator::zip)
+                        .map(flatten!($( $T ),+))
                         .with_producer(callback)
                 }
             }
