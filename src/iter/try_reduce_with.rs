@@ -18,7 +18,7 @@ where
     pi.drive_unindexed(consumer)
 }
 
-struct TryReduceWithConsumer<'r, R: 'r> {
+struct TryReduceWithConsumer<'r, R> {
     reduce_op: &'r R,
     full: &'r AtomicBool,
 }
@@ -88,7 +88,7 @@ where
     }
 }
 
-struct TryReduceWithFolder<'r, R: 'r, T: Try> {
+struct TryReduceWithFolder<'r, R, T: Try> {
     reduce_op: &'r R,
     opt_result: Option<Result<T::Ok, T::Error>>,
     full: &'r AtomicBool,

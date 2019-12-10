@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::*;
-use prelude::*;
+use crate::prelude::*;
 use rayon_core::*;
 
 use rand::distributions::Standard;
@@ -1851,7 +1851,7 @@ fn check_partition_map() {
 
 #[test]
 fn check_either() {
-    type I = ::vec::IntoIter<i32>;
+    type I = crate::vec::IntoIter<i32>;
     type E = Either<I, I>;
 
     let v: Vec<i32> = (0..1024).collect();

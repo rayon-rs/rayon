@@ -2,10 +2,10 @@
 //!
 //! This module is private, so these items are effectively `pub(super)`
 
-use iter::plumbing::{Folder, UnindexedProducer};
+use crate::iter::plumbing::{Folder, UnindexedProducer};
 
 /// Common producer for splitting on a predicate.
-pub(super) struct SplitProducer<'p, P: 'p, V> {
+pub(super) struct SplitProducer<'p, P, V> {
     data: V,
     separator: &'p P,
 

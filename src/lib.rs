@@ -83,14 +83,6 @@
 //!
 //! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 
-extern crate crossbeam_deque;
-extern crate either;
-extern crate rayon_core;
-
-#[cfg(test)]
-extern crate rand;
-#[cfg(test)]
-extern crate rand_xorshift;
 #[cfg(test)]
 #[macro_use]
 extern crate doc_comment;

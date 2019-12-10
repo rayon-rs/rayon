@@ -51,7 +51,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct FlatMapConsumer<'f, C, F: 'f> {
+struct FlatMapConsumer<'f, C, F> {
     base: C,
     map_op: &'f F,
 }
@@ -109,7 +109,7 @@ where
     }
 }
 
-struct FlatMapFolder<'f, C, F: 'f, R> {
+struct FlatMapFolder<'f, C, F, R> {
     base: C,
     map_op: &'f F,
     previous: Option<R>,

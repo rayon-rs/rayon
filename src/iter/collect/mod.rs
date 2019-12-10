@@ -67,7 +67,7 @@ where
 }
 
 /// Manage the collection vector.
-struct Collect<'c, T: Send + 'c> {
+struct Collect<'c, T: Send> {
     writes: AtomicUsize,
     vec: &'c mut Vec<T>,
     len: usize,

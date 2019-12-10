@@ -13,9 +13,9 @@
 //!
 //! [std::str]: https://doc.rust-lang.org/stable/std/str/
 
-use iter::plumbing::*;
-use iter::*;
-use split_producer::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
+use crate::split_producer::*;
 
 /// Test if a byte is the start of a UTF-8 character.
 /// (extracted from `str::is_char_boundary`)
@@ -274,7 +274,7 @@ impl ParallelString for str {
 /// would be nicer to have its basic existence and implementors public while
 /// keeping all of the methods private.
 mod private {
-    use iter::plumbing::Folder;
+    use crate::iter::plumbing::Folder;
 
     /// Pattern-matching trait for `ParallelString`, somewhat like a mix of
     /// `std::str::pattern::{Pattern, Searcher}`.
@@ -646,7 +646,7 @@ pub struct SplitTerminator<'ch, P: Pattern> {
     terminator: P,
 }
 
-struct SplitTerminatorProducer<'ch, 'sep, P: Pattern + 'sep> {
+struct SplitTerminatorProducer<'ch, 'sep, P: Pattern> {
     splitter: SplitProducer<'sep, P, &'ch str>,
     skip_last: bool,
 }
@@ -766,7 +766,7 @@ pub struct Matches<'ch, P: Pattern> {
     pattern: P,
 }
 
-struct MatchesProducer<'ch, 'pat, P: Pattern + 'pat> {
+struct MatchesProducer<'ch, 'pat, P: Pattern> {
     chars: &'ch str,
     pattern: &'pat P,
 }
@@ -822,7 +822,7 @@ pub struct MatchIndices<'ch, P: Pattern> {
     pattern: P,
 }
 
-struct MatchIndicesProducer<'ch, 'pat, P: Pattern + 'pat> {
+struct MatchIndicesProducer<'ch, 'pat, P: Pattern> {
     index: usize,
     chars: &'ch str,
     pattern: &'pat P,

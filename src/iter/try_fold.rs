@@ -65,7 +65,7 @@ where
     }
 }
 
-struct TryFoldConsumer<'c, U, C, ID: 'c, F: 'c> {
+struct TryFoldConsumer<'c, U, C, ID, F> {
     base: C,
     identity: &'c ID,
     fold_op: &'c F,
@@ -127,7 +127,7 @@ where
     }
 }
 
-struct TryFoldFolder<'r, C, U: Try, F: 'r> {
+struct TryFoldFolder<'r, C, U: Try, F> {
     base: C,
     fold_op: &'r F,
     result: Result<U::Ok, U::Error>,
@@ -227,7 +227,7 @@ where
     }
 }
 
-struct TryFoldWithConsumer<'c, C, U: Try, F: 'c> {
+struct TryFoldWithConsumer<'c, C, U: Try, F> {
     base: C,
     item: U::Ok,
     fold_op: &'c F,

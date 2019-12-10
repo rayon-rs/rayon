@@ -1,6 +1,3 @@
-extern crate crossbeam_utils;
-extern crate rayon_core;
-
 #[macro_use]
 extern crate scoped_tls;
 

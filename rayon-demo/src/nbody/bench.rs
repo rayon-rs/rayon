@@ -11,7 +11,7 @@ fn nbody_bench<TICK>(b: &mut test::Bencher, mut tick: TICK)
 where
     TICK: FnMut(&mut NBodyBenchmark),
 {
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     let mut benchmark = NBodyBenchmark::new(BENCH_BODIES, &mut rng);
     b.iter(|| {
         for _ in 0..BENCH_TICKS {

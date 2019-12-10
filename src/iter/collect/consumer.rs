@@ -4,7 +4,7 @@ use std::ptr;
 use std::slice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-pub(super) struct CollectConsumer<'c, T: Send + 'c> {
+pub(super) struct CollectConsumer<'c, T: Send> {
     /// Tracks how many items we successfully wrote. Used to guarantee
     /// safety in the face of panics or buggy parallel iterators.
     ///
@@ -19,7 +19,7 @@ pub(super) struct CollectConsumer<'c, T: Send + 'c> {
     target: &'c mut [T],
 }
 
-pub(super) struct CollectFolder<'c, T: Send + 'c> {
+pub(super) struct CollectFolder<'c, T: Send> {
     global_writes: &'c AtomicUsize,
     local_writes: usize,
 

@@ -110,7 +110,7 @@ where
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct MapProducer<'f, P, F: 'f> {
+struct MapProducer<'f, P, F> {
     base: P,
     map_op: &'f F,
 }
@@ -164,7 +164,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct MapConsumer<'f, C, F: 'f> {
+struct MapConsumer<'f, C, F> {
     base: C,
     map_op: &'f F,
 }
@@ -221,7 +221,7 @@ where
     }
 }
 
-struct MapFolder<'f, C, F: 'f> {
+struct MapFolder<'f, C, F> {
     base: C,
     map_op: &'f F,
 }

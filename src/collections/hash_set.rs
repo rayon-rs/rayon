@@ -5,10 +5,10 @@
 use std::collections::HashSet;
 use std::hash::{BuildHasher, Hash};
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
-use vec;
+use crate::vec;
 
 /// Parallel iterator over a hash set
 #[derive(Debug)] // std doesn't Clone
@@ -28,7 +28,7 @@ delegate_iterator! {
 
 /// Parallel iterator over an immutable reference to a hash set
 #[derive(Debug)]
-pub struct Iter<'a, T: Hash + Eq + Sync + 'a> {
+pub struct Iter<'a, T: Hash + Eq + Sync> {
     inner: vec::IntoIter<&'a T>,
 }
 

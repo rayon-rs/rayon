@@ -4,12 +4,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use join;
-use thread_pool::ThreadPool;
-use unwind;
+use crate::join;
+use crate::thread_pool::ThreadPool;
+
 #[allow(deprecated)]
-use Configuration;
-use ThreadPoolBuilder;
+use crate::Configuration;
+use crate::ThreadPoolBuilder;
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
@@ -134,7 +134,7 @@ fn panic_thread_name() {
             format!("panic_thread_name#{}", i)
         });
 
-    let pool = unwind::halt_unwinding(|| builder.build());
+    let pool = crate::unwind::halt_unwinding(|| builder.build());
     assert!(pool.is_err(), "thread-name panic should propagate!");
 
     // Assuming they're created in order, threads 0 through 4 should have

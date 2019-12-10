@@ -306,7 +306,7 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        fn cool<'a, T>(fuse: &'a Fuse) -> impl Fn(&T) -> bool + 'a {
+        fn cool<'a, T>(fuse: &'a Fuse<'_>) -> impl Fn(&T) -> bool + 'a {
             move |_| !fuse.panicked()
         }
 

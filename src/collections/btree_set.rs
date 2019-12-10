@@ -4,10 +4,10 @@
 
 use std::collections::BTreeSet;
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
-use vec;
+use crate::vec;
 
 /// Parallel iterator over a B-Tree set
 #[derive(Debug)] // std doesn't Clone
@@ -27,7 +27,7 @@ delegate_iterator! {
 
 /// Parallel iterator over an immutable reference to a B-Tree set
 #[derive(Debug)]
-pub struct Iter<'a, T: Ord + Sync + 'a> {
+pub struct Iter<'a, T: Ord + Sync> {
     inner: vec::IntoIter<&'a T>,
 }
 

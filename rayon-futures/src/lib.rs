@@ -4,9 +4,6 @@
 #![deny(missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/rayon-futures/0.1")]
 
-extern crate futures;
-extern crate rayon_core;
-
 use futures::future::CatchUnwind;
 use futures::task::{self, Spawn, Task};
 use futures::{Async, Future, Poll};
@@ -60,8 +57,8 @@ where
         }
 
         unsafe fn hide_lifetime<'l, T, E>(
-            x: Arc<ScopeFutureTrait<T, E> + 'l>,
-        ) -> Arc<ScopeFutureTrait<T, E>> {
+            x: Arc<dyn ScopeFutureTrait<T, E> + 'l>,
+        ) -> Arc<dyn ScopeFutureTrait<T, E>> {
             mem::transmute(x)
         }
     }
@@ -75,7 +72,7 @@ where
 /// Any panics that occur while computing the spawned future will be
 /// propagated when this future is polled.
 pub struct RayonFuture<T, E> {
-    inner: Arc<ScopeFutureTrait<Result<T, E>, Box<Any + Send + 'static>>>,
+    inner: Arc<dyn ScopeFutureTrait<Result<T, E>, Box<dyn Any + Send + 'static>>>,
 }
 
 impl<T, E> RayonFuture<T, E> {
@@ -127,7 +124,7 @@ impl<T, E> Drop for RayonFuture<T, E> {
 }
 
 impl<T, E> fmt::Debug for RayonFuture<T, E> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("RayonFuture").finish()
     }
 }
@@ -148,7 +145,7 @@ type CUError<F> = <CU<F> as Future>::Error;
 
 struct ScopeFutureContents<'scope, F, S>
 where
-    F: Future + Send + 'scope,
+    F: Future + Send,
     S: ScopeHandle<'scope>,
 {
     spawn: Option<Spawn<CU<F>>>,
@@ -173,7 +170,7 @@ where
     F: Future + Send + 'scope,
     S: ScopeHandle<'scope>,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("ScopeFutureContents").finish()
     }
 }
@@ -182,7 +179,7 @@ where
 #[derive(Debug)]
 struct ArcScopeFuture<'scope, F, S>(Arc<ScopeFuture<'scope, F, S>>)
 where
-    F: Future + Send + 'scope,
+    F: Future + Send,
     S: ScopeHandle<'scope>;
 
 impl<'scope, F, S> Clone for ArcScopeFuture<'scope, F, S>
@@ -217,7 +214,7 @@ where
 // Arc in futures-rs, we need to roll our own to drop the 'static bound.
 // A ScopeFuture that is inside a ArcScopeFuture.
 #[derive(Debug)]
-struct ScopeFutureWrapped<'scope, F: 'scope, S>(PhantomData<(&'scope F, S)>);
+struct ScopeFutureWrapped<'scope, F, S>(PhantomData<(&'scope F, S)>);
 
 unsafe impl<'scope, F, S> Send for ScopeFutureWrapped<'scope, F, S> {}
 unsafe impl<'scope, F, S> Sync for ScopeFutureWrapped<'scope, F, S> {}
@@ -303,7 +300,7 @@ where
             // `F` outlive `counter`. And we can see from `complete()`
             // that we drop all values of type `F` before decrementing
             // `counter`.
-            NotifyHandle::new(mem::transmute(ptr as *mut UnsafeNotify))
+            NotifyHandle::new(mem::transmute(ptr as *mut dyn UnsafeNotify))
         }
     }
 }
@@ -578,7 +575,7 @@ trait ScopeFutureTrait<T, E>: Send + Sync {
 
 impl<'scope, F, S> ScopeFutureTrait<CUItem<F>, CUError<F>> for ScopeFuture<'scope, F, S>
 where
-    F: Future + Send,
+    F: Future + Send + 'scope,
     S: ScopeHandle<'scope>,
 {
     fn probe(&self) -> bool {

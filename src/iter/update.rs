@@ -107,7 +107,7 @@ where
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct UpdateProducer<'f, P, F: 'f> {
+struct UpdateProducer<'f, P, F> {
     base: P,
     update_op: &'f F,
 }
@@ -163,7 +163,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct UpdateConsumer<'f, C, F: 'f> {
+struct UpdateConsumer<'f, C, F> {
     base: C,
     update_op: &'f F,
 }
@@ -218,7 +218,7 @@ where
     }
 }
 
-struct UpdateFolder<'f, C, F: 'f> {
+struct UpdateFolder<'f, C, F> {
     base: C,
     update_op: &'f F,
 }

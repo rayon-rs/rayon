@@ -1,4 +1,4 @@
-extern crate rayon_core;
+use rayon_core;
 
 /// Test that one can emulate join with `scope`:
 fn pseudo_join<F, G>(f: F, g: G)

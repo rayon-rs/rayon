@@ -127,7 +127,7 @@ macro_rules! make_bench {
     ($generate:ident, $check:ident) => {
         #[bench]
         fn with_collect(b: &mut ::test::Bencher) {
-            use vec_collect::util;
+            use crate::vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::collect($generate())));
             $check(&vec.unwrap());
@@ -135,7 +135,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_collect_vec(b: &mut ::test::Bencher) {
-            use vec_collect::util;
+            use crate::vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::linked_list_collect_vec($generate())));
             $check(&vec.unwrap());
@@ -143,7 +143,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_collect_vec_sized(b: &mut ::test::Bencher) {
-            use vec_collect::util;
+            use crate::vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::linked_list_collect_vec_sized($generate())));
             $check(&vec.unwrap());
@@ -151,7 +151,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_map_reduce_vec_sized(b: &mut ::test::Bencher) {
-            use vec_collect::util;
+            use crate::vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::linked_list_map_reduce_vec_sized($generate())));
             $check(&vec.unwrap());
@@ -159,7 +159,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_vec_vec_sized(b: &mut ::test::Bencher) {
-            use vec_collect::util;
+            use crate::vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::vec_vec_sized($generate())));
             $check(&vec.unwrap());
@@ -167,7 +167,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_fold(b: &mut ::test::Bencher) {
-            use vec_collect::util;
+            use crate::vec_collect::util;
             let mut vec = None;
             b.iter(|| vec = Some(util::fold($generate())));
             $check(&vec.unwrap());

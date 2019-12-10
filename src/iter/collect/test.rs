@@ -6,7 +6,7 @@
 // result in panics.
 
 use super::Collect;
-use iter::plumbing::*;
+use crate::iter::plumbing::*;
 use rayon_core::join;
 
 /// Promises to produce 2 items, but then produces 3.  Does not do any

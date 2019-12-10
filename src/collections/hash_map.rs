@@ -5,10 +5,10 @@
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash};
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
-use vec;
+use crate::vec;
 
 /// Parallel iterator over a hash map
 #[derive(Debug)] // std doesn't Clone
@@ -28,7 +28,7 @@ delegate_iterator! {
 
 /// Parallel iterator over an immutable reference to a hash map
 #[derive(Debug)]
-pub struct Iter<'a, K: Hash + Eq + Sync + 'a, V: Sync + 'a> {
+pub struct Iter<'a, K: Hash + Eq + Sync, V: Sync> {
     inner: vec::IntoIter<(&'a K, &'a V)>,
 }
 
@@ -52,7 +52,7 @@ delegate_iterator! {
 
 /// Parallel iterator over a mutable reference to a hash map
 #[derive(Debug)]
-pub struct IterMut<'a, K: Hash + Eq + Sync + 'a, V: Send + 'a> {
+pub struct IterMut<'a, K: Hash + Eq + Sync, V: Send> {
     inner: vec::IntoIter<(&'a K, &'a mut V)>,
 }
 

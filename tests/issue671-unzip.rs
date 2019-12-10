@@ -1,7 +1,5 @@
 #![type_length_limit = "10000"]
 
-extern crate rayon;
-
 use rayon::prelude::*;
 
 #[test]

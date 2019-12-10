@@ -60,7 +60,7 @@ pub unsafe trait ScopeHandle<'scope>: 'scope {
     /// This takes ownership of the scope handle, meaning that once
     /// you invoke `panicked`, the scope is permitted to terminate
     /// (and, in particular, the Rust lifetime `'scope` may end).
-    fn panicked(self, err: Box<Any + Send>);
+    fn panicked(self, err: Box<dyn Any + Send>);
 
     /// Indicates that the sub-tasks of this scope that you have
     /// spawned concluded successfully.

@@ -1,7 +1,3 @@
-extern crate rand;
-extern crate rand_xorshift;
-extern crate rayon;
-
 use rand::distributions::Standard;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;

@@ -5,9 +5,9 @@ use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::vec;
-use unwind;
-use ThreadPoolBuilder;
-use {scope, scope_fifo, Scope};
+use crate::unwind;
+use crate::ThreadPoolBuilder;
+use crate::{scope, scope_fifo, Scope};
 
 #[test]
 fn scope_empty() {

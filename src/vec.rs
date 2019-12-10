@@ -5,8 +5,8 @@
 //!
 //! [std::vec]: https://doc.rust-lang.org/stable/std/vec/
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 use std;
 
 /// Parallel iterator that moves out of a vector.
@@ -73,7 +73,7 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct VecProducer<'data, T: 'data + Send> {
+struct VecProducer<'data, T: Send> {
     slice: &'data mut [T],
 }
 
@@ -108,7 +108,7 @@ impl<'data, T: 'data + Send> Drop for VecProducer<'data, T> {
 /// ////////////////////////////////////////////////////////////////////////
 
 // like std::vec::Drain, without updating a source Vec
-struct SliceDrain<'data, T: 'data> {
+struct SliceDrain<'data, T> {
     iter: std::slice::IterMut<'data, T>,
 }
 

@@ -12,9 +12,9 @@ mod test;
 
 use self::mergesort::par_mergesort;
 use self::quicksort::par_quicksort;
-use iter::plumbing::*;
-use iter::*;
-use split_producer::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
+use crate::split_producer::*;
 use std::cmp;
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
@@ -443,7 +443,7 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
 
 /// Parallel iterator over immutable items in a slice
 #[derive(Debug)]
-pub struct Iter<'data, T: 'data + Sync> {
+pub struct Iter<'data, T: Sync> {
     slice: &'data [T],
 }
 
@@ -488,7 +488,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Iter<'data, T> {
     }
 }
 
-struct IterProducer<'data, T: 'data + Sync> {
+struct IterProducer<'data, T: Sync> {
     slice: &'data [T],
 }
 
@@ -508,7 +508,7 @@ impl<'data, T: 'data + Sync> Producer for IterProducer<'data, T> {
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice
 #[derive(Debug)]
-pub struct Chunks<'data, T: 'data + Sync> {
+pub struct Chunks<'data, T: Sync> {
     chunk_size: usize,
     slice: &'data [T],
 }
@@ -557,7 +557,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
     }
 }
 
-struct ChunksProducer<'data, T: 'data + Sync> {
+struct ChunksProducer<'data, T: Sync> {
     chunk_size: usize,
     slice: &'data [T],
 }
@@ -588,7 +588,7 @@ impl<'data, T: 'data + Sync> Producer for ChunksProducer<'data, T> {
 
 /// Parallel iterator over immutable overlapping windows of a slice
 #[derive(Debug)]
-pub struct Windows<'data, T: 'data + Sync> {
+pub struct Windows<'data, T: Sync> {
     window_size: usize,
     slice: &'data [T],
 }
@@ -638,7 +638,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Windows<'data, T> {
     }
 }
 
-struct WindowsProducer<'data, T: 'data + Sync> {
+struct WindowsProducer<'data, T: Sync> {
     window_size: usize,
     slice: &'data [T],
 }
@@ -670,7 +670,7 @@ impl<'data, T: 'data + Sync> Producer for WindowsProducer<'data, T> {
 
 /// Parallel iterator over mutable items in a slice
 #[derive(Debug)]
-pub struct IterMut<'data, T: 'data + Send> {
+pub struct IterMut<'data, T: Send> {
     slice: &'data mut [T],
 }
 
@@ -709,7 +709,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for IterMut<'data, T> {
     }
 }
 
-struct IterMutProducer<'data, T: 'data + Send> {
+struct IterMutProducer<'data, T: Send> {
     slice: &'data mut [T],
 }
 
@@ -732,7 +732,7 @@ impl<'data, T: 'data + Send> Producer for IterMutProducer<'data, T> {
 
 /// Parallel iterator over mutable non-overlapping chunks of a slice
 #[derive(Debug)]
-pub struct ChunksMut<'data, T: 'data + Send> {
+pub struct ChunksMut<'data, T: Send> {
     chunk_size: usize,
     slice: &'data mut [T],
 }
@@ -775,7 +775,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
     }
 }
 
-struct ChunksMutProducer<'data, T: 'data + Send> {
+struct ChunksMutProducer<'data, T: Send> {
     chunk_size: usize,
     slice: &'data mut [T],
 }
@@ -805,7 +805,7 @@ impl<'data, T: 'data + Send> Producer for ChunksMutProducer<'data, T> {
 }
 
 /// Parallel iterator over slices separated by a predicate
-pub struct Split<'data, T: 'data, P> {
+pub struct Split<'data, T, P> {
     slice: &'data [T],
     separator: P,
 }
@@ -881,7 +881,7 @@ where
 }
 
 /// Parallel iterator over mutable slices separated by a predicate
-pub struct SplitMut<'data, T: 'data, P> {
+pub struct SplitMut<'data, T, P> {
     slice: &'data mut [T],
     separator: P,
 }

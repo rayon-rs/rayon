@@ -1,7 +1,7 @@
 #![cfg(rayon_unstable)]
 
 use super::{Scope, ScopeBase};
-use internal::task::{ScopeHandle, Task, ToScopeHandle};
+use crate::internal::task::{ScopeHandle, Task, ToScopeHandle};
 use std::any::Any;
 use std::mem;
 use std::sync::Arc;
@@ -52,7 +52,7 @@ unsafe impl<'scope> ScopeHandle<'scope> for LocalScopeHandle<'scope> {
         mem::drop(self);
     }
 
-    fn panicked(self, err: Box<Any + Send>) {
+    fn panicked(self, err: Box<dyn Any + Send>) {
         unsafe {
             (*self.scope).job_panicked(err);
             mem::forget(self); // no need to run dtor now

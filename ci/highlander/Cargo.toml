@@ -1,5 +1,6 @@
 [package]
 authors = ["Josh Stone <cuviper@gmail.com>"]
+edition = "2018"
 name = "highlander"
 description = "There Can Be Only One"
 version = "0.0.0"

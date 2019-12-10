@@ -1,11 +1,11 @@
-use job::StackJob;
-use latch::{LatchProbe, SpinLatch};
-use log::Event::*;
-use registry::{self, WorkerThread};
+use crate::job::StackJob;
+use crate::latch::{LatchProbe, SpinLatch};
+use crate::log::Event::*;
+use crate::registry::{self, WorkerThread};
 use std::any::Any;
-use unwind;
+use crate::unwind;
 
-use FnContext;
+use crate::FnContext;
 
 #[cfg(test)]
 mod test;

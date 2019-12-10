@@ -1,5 +1,5 @@
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
 use std;
 use std::fmt;

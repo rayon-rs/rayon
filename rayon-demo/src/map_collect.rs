@@ -205,7 +205,7 @@ macro_rules! make_bench {
     ($generate:ident, $check:ident) => {
         #[bench]
         fn with_collect(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::collect($generate())));
             $check(&map.unwrap());
@@ -213,7 +213,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_mutex(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::mutex($generate())));
             $check(&map.unwrap());
@@ -221,7 +221,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_mutex_vec(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::mutex_vec($generate())));
             $check(&map.unwrap());
@@ -229,7 +229,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_collect(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::linked_list_collect($generate())));
             $check(&map.unwrap());
@@ -237,7 +237,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_collect_vec(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::linked_list_collect_vec($generate())));
             $check(&map.unwrap());
@@ -245,7 +245,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_collect_vec_sized(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::linked_list_collect_vec_sized($generate())));
             $check(&map.unwrap());
@@ -253,7 +253,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_linked_list_map_reduce_vec_sized(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::linked_list_map_reduce_vec_sized($generate())));
             $check(&map.unwrap());
@@ -261,7 +261,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_vec_vec_sized(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::vec_vec_sized($generate())));
             $check(&map.unwrap());
@@ -269,7 +269,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_fold(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::fold($generate())));
             $check(&map.unwrap());
@@ -277,7 +277,7 @@ macro_rules! make_bench {
 
         #[bench]
         fn with_fold_vec(b: &mut ::test::Bencher) {
-            use map_collect::util;
+            use crate::map_collect::util;
             let mut map = None;
             b.iter(|| map = Some(util::fold_vec($generate())));
             $check(&map.unwrap());

@@ -119,7 +119,7 @@ where
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct MapWithProducer<'f, P, U, F: 'f> {
+struct MapWithProducer<'f, P, U, F> {
     base: P,
     item: U,
     map_op: &'f F,
@@ -179,7 +179,7 @@ where
     }
 }
 
-struct MapWithIter<'f, I, U, F: 'f> {
+struct MapWithIter<'f, I, U, F> {
     base: I,
     item: U,
     map_op: &'f F,
@@ -226,7 +226,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct MapWithConsumer<'f, C, U, F: 'f> {
+struct MapWithConsumer<'f, C, U, F> {
     base: C,
     item: U,
     map_op: &'f F,
@@ -287,7 +287,7 @@ where
     }
 }
 
-struct MapWithFolder<'f, C, U, F: 'f> {
+struct MapWithFolder<'f, C, U, F> {
     base: C,
     item: U,
     map_op: &'f F,
@@ -448,7 +448,7 @@ where
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct MapInitProducer<'f, P, INIT: 'f, F: 'f> {
+struct MapInitProducer<'f, P, INIT, F> {
     base: P,
     init: &'f INIT,
     map_op: &'f F,
@@ -511,7 +511,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct MapInitConsumer<'f, C, INIT: 'f, F: 'f> {
+struct MapInitConsumer<'f, C, INIT, F> {
     base: C,
     init: &'f INIT,
     map_op: &'f F,

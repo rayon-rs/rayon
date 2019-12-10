@@ -50,7 +50,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct FilterMapConsumer<'p, C, P: 'p> {
+struct FilterMapConsumer<'p, C, P> {
     base: C,
     filter_op: &'p P,
 }
@@ -106,7 +106,7 @@ where
     }
 }
 
-struct FilterMapFolder<'p, C, P: 'p> {
+struct FilterMapFolder<'p, C, P> {
     base: C,
     filter_op: &'p P,
 }

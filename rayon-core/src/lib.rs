@@ -32,18 +32,9 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-extern crate crossbeam_deque;
-extern crate crossbeam_queue;
-extern crate crossbeam_utils;
 #[cfg(any(debug_assertions, rayon_unstable))]
 #[macro_use]
 extern crate lazy_static;
-extern crate num_cpus;
-
-#[cfg(test)]
-extern crate rand;
-#[cfg(test)]
-extern crate rand_xorshift;
 
 #[macro_use]
 mod log;
@@ -66,16 +57,19 @@ mod test;
 
 #[cfg(rayon_unstable)]
 pub mod internal;
-pub use join::{join, join_context};
-pub use registry::ThreadBuilder;
-pub use scope::{scope, Scope};
-pub use scope::{scope_fifo, ScopeFifo};
-pub use spawn::{spawn, spawn_fifo};
-pub use thread_pool::current_thread_has_pending_tasks;
-pub use thread_pool::current_thread_index;
-pub use thread_pool::ThreadPool;
 
-use registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
+pub use self::join::{join, join_context};
+pub use self::registry::ThreadBuilder;
+pub use self::scope::{scope, Scope};
+pub use self::scope::{scope_fifo, ScopeFifo};
+pub use self::spawn::{spawn, spawn_fifo};
+pub use self::thread_pool::current_thread_has_pending_tasks;
+pub use self::thread_pool::current_thread_index;
+pub use self::thread_pool::ThreadPool;
+
+use crossbeam_utils;
+use num_cpus;
+use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be
@@ -96,7 +90,7 @@ use registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 ///
 /// [snt]: struct.ThreadPoolBuilder.html#method.num_threads
 pub fn current_num_threads() -> usize {
-    ::registry::Registry::current_num_threads()
+    crate::registry::Registry::current_num_threads()
 }
 
 /// Error when initializing a thread pool.
@@ -667,7 +661,7 @@ impl Error for ThreadPoolBuildError {
 }
 
 impl fmt::Display for ThreadPoolBuildError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
             ErrorKind::IOError(ref e) => e.fmt(f),
             _ => self.description().fmt(f),
@@ -683,7 +677,7 @@ pub fn initialize(config: Configuration) -> Result<(), Box<dyn Error>> {
 }
 
 impl<S> fmt::Debug for ThreadPoolBuilder<S> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ThreadPoolBuilder {
             ref num_threads,
             ref get_thread_name,
@@ -699,7 +693,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
         // output.
         struct ClosurePlaceholder;
         impl fmt::Debug for ClosurePlaceholder {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 f.write_str("<closure>")
             }
         }
@@ -731,7 +725,7 @@ impl Default for Configuration {
 
 #[allow(deprecated)]
 impl fmt::Debug for Configuration {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.builder.fmt(f)
     }
 }

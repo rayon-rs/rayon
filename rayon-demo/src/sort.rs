@@ -15,12 +15,12 @@ fn gen_descending(len: usize) -> Vec<u64> {
 }
 
 fn gen_random(len: usize) -> Vec<u64> {
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     rng.sample_iter(&Standard).take(len).collect()
 }
 
 fn gen_mostly_ascending(len: usize) -> Vec<u64> {
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     let len_dist = Uniform::new(0, len);
     let mut v = gen_ascending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
@@ -32,7 +32,7 @@ fn gen_mostly_ascending(len: usize) -> Vec<u64> {
 }
 
 fn gen_mostly_descending(len: usize) -> Vec<u64> {
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     let len_dist = Uniform::new(0, len);
     let mut v = gen_descending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
@@ -44,7 +44,7 @@ fn gen_mostly_descending(len: usize) -> Vec<u64> {
 }
 
 fn gen_strings(len: usize) -> Vec<String> {
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     let len_dist = Uniform::new(1, 21);
     let mut v = vec![];
     for _ in 0..len {
@@ -55,7 +55,7 @@ fn gen_strings(len: usize) -> Vec<String> {
 }
 
 fn gen_big_random(len: usize) -> Vec<[u64; 16]> {
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     rng.sample_iter(&Standard)
         .map(|x| [x; 16])
         .take(len)
@@ -230,7 +230,7 @@ trait QuickSort {
 
 impl<T: PartialOrd + Send> QuickSort for [T] {
     fn demo_quick_sort(&mut self) {
-        use quicksort::{quick_sort, Parallel};
+        use crate::quicksort::{quick_sort, Parallel};
         quick_sort::<Parallel, T>(self);
     }
 }

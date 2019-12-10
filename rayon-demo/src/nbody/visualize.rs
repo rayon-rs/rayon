@@ -8,8 +8,8 @@ use glium::{Display, Program, Surface};
 use glium::{IndexBuffer, VertexBuffer};
 use rand::{self, Rng};
 
-use nbody::nbody::NBodyBenchmark;
-use nbody::ExecutionMode;
+use crate::nbody::nbody::NBodyBenchmark;
+use crate::nbody::ExecutionMode;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -121,7 +121,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = IndexBuffer::new(&display, PrimitiveType::TrianglesList, &indices).unwrap();
 
-    let mut rng = ::seeded_rng();
+    let mut rng = crate::seeded_rng();
     let instances: Vec<_> = (0..num_bodies)
         .map(|_| Instance {
             color: [

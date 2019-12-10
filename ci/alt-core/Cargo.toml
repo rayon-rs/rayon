@@ -1,4 +1,5 @@
 [package]
+edition = "2018"
 name = "alt-core"
 version = "0.0.0"
 authors = ["Josh Stone <cuviper@gmail.com>"]
