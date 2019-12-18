@@ -7,35 +7,10 @@ environment:
       CHANNEL: stable
       RUSTFLAGS: --cfg rayon_unstable
 
-    - TARGET: x86_64-pc-windows-gnu
-      CHANNEL: beta
-    - TARGET: x86_64-pc-windows-gnu
-      CHANNEL: beta
-      RUSTFLAGS: --cfg rayon_unstable
-
-    - TARGET: x86_64-pc-windows-gnu
-      CHANNEL: nightly
-    - TARGET: x86_64-pc-windows-gnu
-      CHANNEL: nightly
-      RUSTFLAGS: --cfg rayon_unstable
-
-
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: stable
     - TARGET: x86_64-pc-windows-msvc
       CHANNEL: stable
-      RUSTFLAGS: --cfg rayon_unstable
-
-    - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: beta
-    - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: beta
-      RUSTFLAGS: --cfg rayon_unstable
-
-    - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: nightly
-    - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: nightly
       RUSTFLAGS: --cfg rayon_unstable
 
 install:
