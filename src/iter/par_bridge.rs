@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, TryLockError};
 use std::thread::yield_now;
 
-use current_num_threads;
-use iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
-use iter::ParallelIterator;
+use crate::current_num_threads;
+use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
+use crate::iter::ParallelIterator;
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
@@ -96,7 +96,7 @@ where
     }
 }
 
-struct IterParallelProducer<'a, Iter: Iterator + 'a> {
+struct IterParallelProducer<'a, Iter: Iterator> {
     split_count: &'a AtomicUsize,
     done: &'a AtomicBool,
     iter: &'a Mutex<(Iter, Worker<Iter::Item>)>,

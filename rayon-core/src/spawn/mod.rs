@@ -1,8 +1,8 @@
-use job::*;
-use registry::Registry;
+use crate::job::*;
+use crate::registry::Registry;
 use std::mem;
 use std::sync::Arc;
-use unwind;
+use crate::unwind;
 
 /// Fires off a task into the Rayon threadpool in the "static" or
 /// "global" scope.  Just like a standard thread, this task is not

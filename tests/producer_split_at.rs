@@ -1,5 +1,3 @@
-extern crate rayon;
-
 use rayon::iter::plumbing::*;
 use rayon::prelude::*;
 

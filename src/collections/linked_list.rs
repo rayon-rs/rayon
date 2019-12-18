@@ -4,10 +4,10 @@
 
 use std::collections::LinkedList;
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
-use vec;
+use crate::vec;
 
 /// Parallel iterator over a linked list
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ delegate_iterator! {
 
 /// Parallel iterator over an immutable reference to a linked list
 #[derive(Debug)]
-pub struct Iter<'a, T: Sync + 'a> {
+pub struct Iter<'a, T: Sync> {
     inner: vec::IntoIter<&'a T>,
 }
 
@@ -51,7 +51,7 @@ delegate_iterator! {
 
 /// Parallel iterator over a mutable reference to a linked list
 #[derive(Debug)]
-pub struct IterMut<'a, T: Send + 'a> {
+pub struct IterMut<'a, T: Send> {
     inner: vec::IntoIter<&'a mut T>,
 }
 

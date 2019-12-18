@@ -1,10 +1,8 @@
-extern crate docopt;
-extern crate rayon;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde;
 
 use docopt::Docopt;
+use rayon;
 use std::io;
 use std::process;
 

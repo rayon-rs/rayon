@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use super::plumbing::*;
 use super::*;
-use math::div_round_up;
+use crate::math::div_round_up;
 
 /// `Chunks` is an iterator that groups elements of an underlying iterator.
 ///

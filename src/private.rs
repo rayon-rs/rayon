@@ -13,14 +13,14 @@ macro_rules! private_decl {
         /// This trait is private; this method exists to make it
         /// impossible to implement outside the crate.
         #[doc(hidden)]
-        fn __rayon_private__(&self) -> ::private::PrivateMarker;
+        fn __rayon_private__(&self) -> crate::private::PrivateMarker;
     }
 }
 
 macro_rules! private_impl {
     () => {
-        fn __rayon_private__(&self) -> ::private::PrivateMarker {
-            ::private::PrivateMarker
+        fn __rayon_private__(&self) -> crate::private::PrivateMarker {
+            crate::private::PrivateMarker
         }
     }
 }

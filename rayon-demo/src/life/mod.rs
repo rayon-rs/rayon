@@ -14,7 +14,7 @@ Options:
     -h, --help      Show this message.
 ";
 
-use cpu_time::{self, CpuMeasure};
+use crate::cpu_time::{self, CpuMeasure};
 use rand::distributions::Standard;
 use rand::{thread_rng, Rng};
 use std::iter::repeat;

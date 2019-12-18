@@ -4,11 +4,11 @@
 
 use std::collections::VecDeque;
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
-use slice;
-use vec;
+use crate::slice;
+use crate::vec;
 
 /// Parallel iterator over a double-ended queue
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ delegate_indexed_iterator! {
 
 /// Parallel iterator over an immutable reference to a double-ended queue
 #[derive(Debug)]
-pub struct Iter<'a, T: Sync + 'a> {
+pub struct Iter<'a, T: Sync> {
     inner: Chain<slice::Iter<'a, T>, slice::Iter<'a, T>>,
 }
 
@@ -59,7 +59,7 @@ delegate_indexed_iterator! {
 
 /// Parallel iterator over a mutable reference to a double-ended queue
 #[derive(Debug)]
-pub struct IterMut<'a, T: Send + 'a> {
+pub struct IterMut<'a, T: Send> {
     inner: Chain<slice::IterMut<'a, T>, slice::IterMut<'a, T>>,
 }
 

@@ -98,7 +98,7 @@ fn compute_lower_bound(
     min_weights.iter().fold(Weight::zero(), |w1, &w2| w1 + w2) + weight
 }
 
-fn solve_tour_seq(solver: &SolverCx, element: Arc<TourPrefix>) {
+fn solve_tour_seq(solver: &SolverCx<'_>, element: Arc<TourPrefix>) {
     // Sequentially enumerate all possible tours starting from this point.
     let graph = solver.graph();
     let mut path = Vec::with_capacity(graph.num_nodes() + 1);
@@ -128,7 +128,7 @@ fn solve_tour_seq(solver: &SolverCx, element: Arc<TourPrefix>) {
 }
 
 fn enumerate_sequentially(
-    solver: &SolverCx,
+    solver: &SolverCx<'_>,
     path: &mut Vec<Node>,
     visited: &mut NodeSet,
     mut weight: Weight,
@@ -173,7 +173,7 @@ fn enumerate_sequentially(
     }
 }
 
-fn complete_tour(solver: &SolverCx, path: &mut Vec<Node>, weight: Weight) {
+fn complete_tour(solver: &SolverCx<'_>, path: &mut Vec<Node>, weight: Weight) {
     let graph = solver.graph();
     debug_assert!(path.len() == graph.num_nodes());
     let home = path[0];

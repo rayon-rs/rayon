@@ -8,7 +8,7 @@ Options:
     --iters N        Total time to execution (in millis). [default: 100]
 ";
 
-use cpu_time;
+use crate::cpu_time;
 use docopt::Docopt;
 
 #[derive(Deserialize)]

@@ -36,31 +36,19 @@ mod str_split;
 #[cfg(test)]
 mod vec_collect;
 
-extern crate docopt;
-extern crate rayon; // all // all
 #[macro_use]
 extern crate serde_derive; // all
-extern crate cgmath;
-extern crate serde; // all // nbody
 #[macro_use]
 extern crate glium; // nbody
-#[cfg(unix)]
-extern crate libc; // life
-#[cfg(test)]
-extern crate num;
-extern crate odds; // sieve
-extern crate rand; // nbody
-extern crate rand_xorshift; // nbody
-extern crate time; // nbody, sieve // factorial
 #[macro_use]
 extern crate lazy_static; // find
-extern crate fixedbitset; // tsp
-extern crate regex; // tsp
 #[cfg(windows)]
 extern crate winapi; // life
-
 #[cfg(test)]
 extern crate test;
+
+use rand;
+use rand_xorshift;
 
 const USAGE: &str = "
 Usage: rayon-demo bench

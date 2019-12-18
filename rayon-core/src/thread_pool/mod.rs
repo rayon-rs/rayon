@@ -3,17 +3,17 @@
 //!
 //! [`ThreadPool`]: struct.ThreadPool.html
 
-use join;
-use registry::{Registry, ThreadSpawn, WorkerThread};
-use spawn;
+use crate::join;
+use crate::registry::{Registry, ThreadSpawn, WorkerThread};
+use crate::spawn;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 #[allow(deprecated)]
-use Configuration;
-use {scope, Scope};
-use {scope_fifo, ScopeFifo};
-use {ThreadPoolBuildError, ThreadPoolBuilder};
+use crate::Configuration;
+use crate::{scope, Scope};
+use crate::{scope_fifo, ScopeFifo};
+use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
 
 mod internal;
 mod test;
@@ -283,7 +283,7 @@ impl Drop for ThreadPool {
 }
 
 impl fmt::Debug for ThreadPool {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("ThreadPool")
             .field("num_threads", &self.current_num_threads())
             .field("id", &self.registry.id())

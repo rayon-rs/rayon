@@ -1,7 +1,7 @@
 //! Code that decides when workers should go to sleep. See README.md
 //! for an overview.
 
-use log::Event::*;
+use crate::log::Event::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::thread;

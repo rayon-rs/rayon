@@ -146,7 +146,7 @@ where
     }
 }
 
-struct SplitProducer<'a, D, S: 'a> {
+struct SplitProducer<'a, D, S> {
     data: D,
     splitter: &'a S,
 }

@@ -1,5 +1,3 @@
-extern crate rayon_core;
-
 use rayon_core::ThreadPoolBuilder;
 
 #[test]

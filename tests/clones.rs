@@ -1,5 +1,3 @@
-extern crate rayon;
-
 use rayon::prelude::*;
 
 fn check<I>(iter: I)

@@ -4,10 +4,10 @@
 
 use std::collections::BinaryHeap;
 
-use iter::plumbing::*;
-use iter::*;
+use crate::iter::plumbing::*;
+use crate::iter::*;
 
-use vec;
+use crate::vec;
 
 /// Parallel iterator over a binary heap
 #[derive(Debug, Clone)]
@@ -33,7 +33,7 @@ delegate_indexed_iterator! {
 
 /// Parallel iterator over an immutable reference to a binary heap
 #[derive(Debug)]
-pub struct Iter<'a, T: Ord + Sync + 'a> {
+pub struct Iter<'a, T: Ord + Sync> {
     inner: vec::IntoIter<&'a T>,
 }
 

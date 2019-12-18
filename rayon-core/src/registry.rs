@@ -1,13 +1,13 @@
 use crossbeam_deque::{Steal, Stealer, Worker};
 use crossbeam_queue::SegQueue;
 #[cfg(rayon_unstable)]
-use internal::task::Task;
+use crate::internal::task::Task;
 #[cfg(rayon_unstable)]
-use job::Job;
-use job::{JobFifo, JobRef, StackJob};
-use latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
-use log::Event::*;
-use sleep::Sleep;
+use crate::job::Job;
+use crate::job::{JobFifo, JobRef, StackJob};
+use crate::latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
+use crate::log::Event::*;
+use crate::sleep::Sleep;
 use std::any::Any;
 use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
@@ -22,9 +22,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread;
 use std::usize;
-use unwind;
-use util::leak;
-use {ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
+use crate::unwind;
+use crate::util::leak;
+use crate::{ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
 
 /// Thread builder used for customization via
 /// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
@@ -60,7 +60,7 @@ impl ThreadBuilder {
 }
 
 impl fmt::Debug for ThreadBuilder {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ThreadBuilder")
             .field("pool", &self.registry.id())
             .field("index", &self.index)
@@ -79,7 +79,7 @@ pub trait ThreadSpawn {
 
     /// Spawn a thread with the `ThreadBuilder` parameters, and then
     /// call `ThreadBuilder::run()`.
-    fn spawn(&mut self, ThreadBuilder) -> io::Result<()>;
+    fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()>;
 }
 
 /// Spawns a thread in the "normal" way with `std::thread::Builder`.

@@ -108,7 +108,7 @@ where
 
 /// ////////////////////////////////////////////////////////////////////////
 
-struct InspectProducer<'f, P, F: 'f> {
+struct InspectProducer<'f, P, F> {
     base: P,
     inspect_op: &'f F,
 }
@@ -162,7 +162,7 @@ where
 /// ////////////////////////////////////////////////////////////////////////
 /// Consumer implementation
 
-struct InspectConsumer<'f, C, F: 'f> {
+struct InspectConsumer<'f, C, F> {
     base: C,
     inspect_op: &'f F,
 }
@@ -217,7 +217,7 @@ where
     }
 }
 
-struct InspectFolder<'f, C, F: 'f> {
+struct InspectFolder<'f, C, F> {
     base: C,
     inspect_op: &'f F,
 }

@@ -1,5 +1,3 @@
-extern crate rayon;
-
 use rayon::prelude::*;
 
 const OCTILLION: u128 = 1_000_000_000_000_000_000_000_000_000;

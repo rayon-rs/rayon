@@ -2,8 +2,8 @@
 //! worker thread. Intended for building abstractions atop the
 //! rayon-core thread pool, rather than direct use by end users.
 
-use latch::LatchProbe;
-use registry;
+use crate::latch::LatchProbe;
+use crate::registry;
 use std::fmt;
 
 /// Represents the active worker thread.
@@ -29,7 +29,7 @@ impl<'w> WorkerThread<'w> {
     where
         F: Fn() -> bool,
     {
-        struct DummyLatch<'a, F: 'a> {
+        struct DummyLatch<'a, F> {
             f: &'a F,
         }
 
@@ -44,7 +44,7 @@ impl<'w> WorkerThread<'w> {
 }
 
 impl<'w> fmt::Debug for WorkerThread<'w> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("WorkerThread")
             .field("pool", &self.thread.registry().id())
             .field("index", &self.thread.index())
@@ -58,7 +58,7 @@ impl<'w> fmt::Debug for WorkerThread<'w> {
 /// a Rayon worker thread, `None` is immediately returned.
 pub fn if_in_worker_thread<F, R>(if_true: F) -> Option<R>
 where
-    F: FnOnce(&WorkerThread) -> R,
+    F: FnOnce(&WorkerThread<'_>) -> R,
 {
     unsafe {
         let thread = registry::WorkerThread::current().as_ref()?;
