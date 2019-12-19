@@ -17,7 +17,6 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 use crate::unwind;
 
-mod internal;
 #[cfg(test)]
 mod test;
 

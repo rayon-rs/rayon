@@ -32,7 +32,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-#[cfg(any(debug_assertions, rayon_unstable))]
+#[cfg(any(debug_assertions))]
 #[macro_use]
 extern crate lazy_static;
 
@@ -54,9 +54,6 @@ mod util;
 
 mod compile_fail;
 mod test;
-
-#[cfg(rayon_unstable)]
-pub mod internal;
 
 pub use self::join::{join, join_context};
 pub use self::registry::ThreadBuilder;
