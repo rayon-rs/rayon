@@ -1,9 +1,14 @@
-use crossbeam_deque::{Steal, Stealer, Worker};
-use crossbeam_queue::SegQueue;
 use crate::job::{JobFifo, JobRef, StackJob};
 use crate::latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
 use crate::log::Event::*;
 use crate::sleep::Sleep;
+use crate::unwind;
+use crate::util::leak;
+use crate::{
+    ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder,
+};
+use crossbeam_deque::{Steal, Stealer, Worker};
+use crossbeam_queue::SegQueue;
 use std::any::Any;
 use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
@@ -18,9 +23,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread;
 use std::usize;
-use crate::unwind;
-use crate::util::leak;
-use crate::{ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder};
 
 /// Thread builder used for customization via
 /// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).

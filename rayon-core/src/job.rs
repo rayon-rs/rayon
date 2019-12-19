@@ -1,9 +1,9 @@
-use crossbeam_queue::SegQueue;
 use crate::latch::Latch;
+use crate::unwind;
+use crossbeam_queue::SegQueue;
 use std::any::Any;
 use std::cell::UnsafeCell;
 use std::mem;
-use crate::unwind;
 
 pub(super) enum JobResult<T> {
     None,

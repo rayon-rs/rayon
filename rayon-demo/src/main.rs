@@ -42,10 +42,10 @@ extern crate serde_derive; // all
 extern crate glium; // nbody
 #[macro_use]
 extern crate lazy_static; // find
-#[cfg(windows)]
-extern crate winapi; // life
 #[cfg(test)]
 extern crate test;
+#[cfg(windows)]
+extern crate winapi; // life
 
 const USAGE: &str = "
 Usage: rayon-demo bench

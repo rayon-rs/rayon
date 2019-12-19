@@ -8,6 +8,7 @@ use crate::job::{HeapJob, JobFifo};
 use crate::latch::{CountLatch, Latch};
 use crate::log::Event::*;
 use crate::registry::{in_worker, Registry, WorkerThread};
+use crate::unwind;
 use std::any::Any;
 use std::fmt;
 use std::marker::PhantomData;
@@ -15,7 +16,6 @@ use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
-use crate::unwind;
 
 #[cfg(test)]
 mod test;

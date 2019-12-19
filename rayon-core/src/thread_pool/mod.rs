@@ -6,14 +6,14 @@
 use crate::join;
 use crate::registry::{Registry, ThreadSpawn, WorkerThread};
 use crate::spawn;
-use std::error::Error;
-use std::fmt;
-use std::sync::Arc;
 #[allow(deprecated)]
 use crate::Configuration;
 use crate::{scope, Scope};
 use crate::{scope_fifo, ScopeFifo};
 use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
+use std::error::Error;
+use std::fmt;
+use std::sync::Arc;
 
 mod test;
 

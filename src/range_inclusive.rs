@@ -191,8 +191,8 @@ fn test_u128_opt_len() {
 #[test]
 #[cfg(target_pointer_width = "64")]
 fn test_usize_i64_overflow() {
-    use std::i64;
     use crate::ThreadPoolBuilder;
+    use std::i64;
 
     let iter = (-2..=i64::MAX).into_par_iter();
     assert_eq!(iter.opt_len(), Some(i64::MAX as usize + 3));

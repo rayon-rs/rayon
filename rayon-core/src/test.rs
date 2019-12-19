@@ -1,10 +1,10 @@
 #![cfg(test)]
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Barrier};
 #[allow(deprecated)]
 use crate::Configuration;
 use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Barrier};
 
 #[test]
 fn worker_thread_index() {
