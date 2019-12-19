@@ -86,11 +86,6 @@ script:
   - cargo test -p rayon
   - cargo test -p rayon-core
   - ./ci/highlander.sh
-  - |
-    if [ -n "$RUSTFLAGS" ]; then
-      cargo build -p rayon-futures &&
-      cargo test -p rayon-futures
-    fi
 
 branches:
   only:
