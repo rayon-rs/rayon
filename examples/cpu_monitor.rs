@@ -2,7 +2,6 @@
 extern crate serde_derive;
 
 use docopt::Docopt;
-use rayon;
 use std::io;
 use std::process;
 

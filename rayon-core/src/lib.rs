@@ -64,8 +64,6 @@ pub use self::thread_pool::current_thread_has_pending_tasks;
 pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
 
-use crossbeam_utils;
-use num_cpus;
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
 /// Returns the number of threads in the current registry. If this

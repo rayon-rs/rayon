@@ -1,5 +1,3 @@
-use test;
-
 use super::nbody::NBodyBenchmark;
 
 // Because benchmarks run iteratively, use smaller constants by default:

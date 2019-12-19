@@ -1,5 +1,4 @@
 use std::path::Path;
-use test;
 
 use super::graph::Node;
 use super::parse_solver;

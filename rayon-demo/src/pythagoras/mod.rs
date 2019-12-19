@@ -6,7 +6,6 @@ use rayon::prelude::*;
 use rayon::range::Iter;
 use std::ops::Add;
 use std::usize;
-use test;
 
 /// Use Euclid's formula to count Pythagorean triples
 ///

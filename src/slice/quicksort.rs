@@ -4,7 +4,6 @@
 //! The only difference from the original is that calls to `recurse` are executed in parallel using
 //! `rayon_core::join`.
 
-use rayon_core;
 use std::cmp;
 use std::mem;
 use std::ptr;

@@ -1,6 +1,5 @@
 //! Some microbenchmarks that stress test a pure `join` path.
 
-use rayon;
 use rayon::prelude::*;
 use std::usize;
 use test::Bencher;

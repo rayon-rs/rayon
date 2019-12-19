@@ -1,10 +1,8 @@
 //! Benchmark Factorial N! = 1×2×⋯×N
 
 use num::{BigUint, One};
-use rayon;
 use rayon::prelude::*;
 use std::ops::Mul;
-use test;
 
 const N: u32 = 9999;
 

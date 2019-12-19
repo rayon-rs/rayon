@@ -42,7 +42,6 @@ mod bench;
 use docopt::Docopt;
 use odds::stride::StrideMut;
 use rayon::prelude::*;
-use time;
 
 const CHUNK_SIZE: usize = 100_000;
 

@@ -17,7 +17,6 @@ pub struct Args {
 }
 
 use docopt::Docopt;
-use rayon;
 use rayon::prelude::*;
 
 use std::time::Instant;

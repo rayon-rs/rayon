@@ -25,7 +25,6 @@ pub struct Args {
 }
 
 use docopt::Docopt;
-use rayon;
 
 use std::cmp::max;
 use std::time::Instant;

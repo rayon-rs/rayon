@@ -7,7 +7,6 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use std;
 
 /// Parallel iterator that moves out of a vector.
 #[derive(Debug, Clone)]

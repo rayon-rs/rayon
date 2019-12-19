@@ -47,9 +47,6 @@ extern crate winapi; // life
 #[cfg(test)]
 extern crate test;
 
-use rand;
-use rand_xorshift;
-
 const USAGE: &str = "
 Usage: rayon-demo bench
        rayon-demo <demo-name> [ options ]

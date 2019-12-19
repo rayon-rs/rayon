@@ -21,7 +21,6 @@ use std::iter::repeat;
 use std::num::Wrapping;
 use std::sync::Arc;
 use std::thread;
-use time;
 
 use docopt::Docopt;
 use rayon::iter::ParallelBridge;

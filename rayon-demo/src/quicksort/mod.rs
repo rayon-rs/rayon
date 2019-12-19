@@ -25,7 +25,6 @@ pub struct Args {
 use docopt::Docopt;
 use rand::distributions::Standard;
 use rand::Rng;
-use rayon;
 use std::time::Instant;
 
 pub trait Joiner {

@@ -1,5 +1,3 @@
-use test;
-
 use super::NUM_PRIMES;
 
 const MAGNITUDE: usize = 7;

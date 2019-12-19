@@ -1,5 +1,3 @@
-use test;
-
 use super::{Parallel, Sequential};
 
 // Size to use when doing `cargo bench`; extensively tuned to run in

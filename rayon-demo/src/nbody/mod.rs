@@ -1,5 +1,4 @@
 use docopt::Docopt;
-use time;
 
 #[cfg(test)]
 mod bench;

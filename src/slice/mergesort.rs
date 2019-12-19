@@ -5,7 +5,6 @@
 //! `MergesortResult` and leaves descending arrays intact.
 
 use crate::iter::*;
-use rayon_core;
 use crate::slice::ParallelSliceMut;
 use std::mem;
 use std::mem::size_of;
