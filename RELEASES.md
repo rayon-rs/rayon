@@ -1,3 +1,40 @@
+# Release rayon 1.3.0 / rayon-core 1.7.0 (2019-12-20)
+
+- Tuples up to length 12 now implement `IntoParallelIterator`, creating a
+  `MultiZip` iterator that produces items as similarly-shaped tuples.
+- The `--cfg=rayon_unstable` supporting code for `rayon-futures` is removed.
+- The minimum supported `rustc` is now 1.31.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @c410-f3r
+- @silwol
+
+
+# Release rayon-futures 0.1.1 (2019-12-20)
+
+- `Send` bounds have been added for the `Item` and `Error` associated types on
+  all generic `F: Future` interfaces. While technically a breaking change, this
+  is a soundness fix, so we are not increasing the semantic version for this.
+- This crate is now deprecated, and the `--cfg=rayon_unstable` supporting code
+  will be removed in `rayon-core 1.7.0`. This only supported the now-obsolete
+  `Future` from `futures 0.1`, while support for `std::future::Future` is
+  expected to come directly in `rayon-core` -- although that is not ready yet.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @kornelski
+- @jClaireCodesStuff
+- @jwass
+- @seanchen1991
+
+
 # Release rayon 1.2.1 / rayon-core 1.6.1 (2019-11-20)
 
 - Update crossbeam dependencies.
