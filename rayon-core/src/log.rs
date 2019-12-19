@@ -90,7 +90,7 @@ pub(super) enum Event {
 }
 
 #[cfg(debug_assertions)]
-lazy_static! {
+lazy_static::lazy_static! {
     pub(super) static ref LOG_ENV: bool =
         env::var("RAYON_LOG").is_ok() || env::var("RAYON_RS_LOG").is_ok();
 }

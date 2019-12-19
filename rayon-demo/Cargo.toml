@@ -16,9 +16,11 @@ odds = "0.3"
 rand = "0.7"
 rand_xorshift = "0.2"
 regex = "1"
-serde = "1"
-serde_derive = "1"
 time = "0.1"
+
+[dependencies.serde]
+version = "1.0.85"
+features = ["derive"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

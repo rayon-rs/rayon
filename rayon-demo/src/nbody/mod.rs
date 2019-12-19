@@ -41,14 +41,14 @@ Ported from the RiverTrail demo found at:
     https://github.com/IntelLabs/RiverTrail/tree/master/examples/nbody-webgl
 ";
 
-#[derive(Copy, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, serde::Deserialize)]
 pub enum ExecutionMode {
     Par,
     ParReduce,
     Seq,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     cmd_visualize: bool,

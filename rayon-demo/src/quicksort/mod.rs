@@ -15,7 +15,7 @@ Options:
     -h, --help         Show this message.
 ";
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     flag_size: usize,

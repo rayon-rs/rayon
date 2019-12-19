@@ -1,13 +1,10 @@
-#[macro_use]
-extern crate scoped_tls;
-
 use crossbeam_utils::thread;
 use rayon_core::ThreadPoolBuilder;
 
 #[derive(PartialEq, Eq, Debug)]
 struct Local(i32);
 
-scoped_thread_local!(static LOCAL: Local);
+scoped_tls::scoped_thread_local!(static LOCAL: Local);
 
 #[test]
 fn missing_scoped_tls() {

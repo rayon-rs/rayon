@@ -32,10 +32,6 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-#[cfg(any(debug_assertions))]
-#[macro_use]
-extern crate lazy_static;
-
 #[macro_use]
 mod log;
 #[macro_use]
@@ -244,11 +240,9 @@ impl ThreadPoolBuilder {
     /// A scoped pool may be useful in combination with scoped thread-local variables.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate scoped_tls;
     /// # use rayon_core as rayon;
     ///
-    /// scoped_thread_local!(static POOL_DATA: Vec<i32>);
+    /// scoped_tls::scoped_thread_local!(static POOL_DATA: Vec<i32>);
     ///
     /// fn main() -> Result<(), rayon::ThreadPoolBuildError> {
     ///     let pool_data = vec![1, 2, 3];

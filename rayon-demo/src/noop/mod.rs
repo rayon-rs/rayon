@@ -11,7 +11,7 @@ Options:
 use crate::cpu_time;
 use docopt::Docopt;
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     flag_sleep: u64,
     flag_iters: u64,

@@ -29,7 +29,7 @@ use rayon::prelude::*;
 #[cfg(test)]
 mod bench;
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     cmd_play: bool,
