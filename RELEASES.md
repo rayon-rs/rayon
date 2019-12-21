@@ -1,4 +1,4 @@
-# Release rayon-futures 0.1.1 (2019-12-20)
+# Release rayon-futures 0.1.1 (2019-12-21)
 
 - `Send` bounds have been added for the `Item` and `Error` associated types on
   all generic `F: Future` interfaces. While technically a breaking change, this
