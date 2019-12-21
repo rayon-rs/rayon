@@ -15,7 +15,7 @@ Options:
     -h, --help         Show this message.
 ";
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     flag_size: usize,
@@ -25,7 +25,6 @@ pub struct Args {
 use docopt::Docopt;
 use rand::distributions::Standard;
 use rand::Rng;
-use rayon;
 use std::time::Instant;
 
 pub trait Joiner {

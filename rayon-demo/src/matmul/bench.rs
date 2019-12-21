@@ -1,5 +1,3 @@
-use test;
-
 const ROW_SIZE: usize = 256;
 
 #[bench]

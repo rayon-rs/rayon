@@ -13,10 +13,6 @@
 //! unless you have a whole lot of CPUs.  The iterative version reveals the
 //! joke.
 
-extern crate test;
-
-use rayon;
-
 const N: u32 = 32;
 const FN: u32 = 2_178_309;
 

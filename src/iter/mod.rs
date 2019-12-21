@@ -403,9 +403,6 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// extern crate rand;
-    /// extern crate rayon;
-    ///
     /// use rand::Rng;
     /// use rayon::prelude::*;
     ///
@@ -514,9 +511,6 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// extern crate rand;
-    /// extern crate rayon;
-    ///
     /// use rand::Rng;
     /// use rayon::prelude::*;
     ///
@@ -636,9 +630,6 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// extern crate rand;
-    /// extern crate rayon;
-    ///
     /// use rand::Rng;
     /// use rayon::prelude::*;
     ///

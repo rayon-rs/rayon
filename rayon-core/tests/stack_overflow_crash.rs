@@ -1,6 +1,3 @@
-#[cfg(unix)]
-extern crate libc;
-
 use rayon_core::ThreadPoolBuilder;
 
 use std::env;

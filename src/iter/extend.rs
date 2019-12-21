@@ -285,12 +285,7 @@ impl<'a> ParallelExtend<&'a char> for String {
 }
 
 fn string_reserve<T: AsRef<str>>(string: &mut String, list: &LinkedList<Vec<T>>) {
-    let len = list
-        .iter()
-        .flat_map(|vec| vec)
-        .map(T::as_ref)
-        .map(str::len)
-        .sum();
+    let len = list.iter().flatten().map(T::as_ref).map(str::len).sum();
     string.reserve(len);
 }
 

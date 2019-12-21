@@ -42,7 +42,7 @@ Options:
     --from N           Node index from which to start the search [default: 0].
 ";
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     arg_datafile: String,

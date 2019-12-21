@@ -1,5 +1,3 @@
-use test;
-
 // Size to use when doing `cargo bench`; extensively tuned to run in
 // "not too long" on my laptop -nmatsakis
 const BENCH_SIZE: usize = 250_000_000 / 512;

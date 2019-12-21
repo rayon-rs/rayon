@@ -19,7 +19,7 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
-#![doc(html_root_url = "https://docs.rs/rayon-core/1.6")]
+#![doc(html_root_url = "https://docs.rs/rayon-core/1.7")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
@@ -31,10 +31,6 @@ use std::fmt;
 use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
-
-#[cfg(any(debug_assertions, rayon_unstable))]
-#[macro_use]
-extern crate lazy_static;
 
 #[macro_use]
 mod log;
@@ -55,9 +51,6 @@ mod util;
 mod compile_fail;
 mod test;
 
-#[cfg(rayon_unstable)]
-pub mod internal;
-
 pub use self::join::{join, join_context};
 pub use self::registry::ThreadBuilder;
 pub use self::scope::{scope, Scope};
@@ -67,8 +60,6 @@ pub use self::thread_pool::current_thread_has_pending_tasks;
 pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
 
-use crossbeam_utils;
-use num_cpus;
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
 /// Returns the number of threads in the current registry. If this
@@ -249,11 +240,9 @@ impl ThreadPoolBuilder {
     /// A scoped pool may be useful in combination with scoped thread-local variables.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate scoped_tls;
     /// # use rayon_core as rayon;
     ///
-    /// scoped_thread_local!(static POOL_DATA: Vec<i32>);
+    /// scoped_tls::scoped_thread_local!(static POOL_DATA: Vec<i32>);
     ///
     /// fn main() -> Result<(), rayon::ThreadPoolBuildError> {
     ///     let pool_data = vec![1, 2, 3];

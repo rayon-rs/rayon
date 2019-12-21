@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/rayon/1.2")]
+#![doc(html_root_url = "https://docs.rs/rayon/1.3")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
@@ -39,8 +39,7 @@
 //!
 //! # Basic usage and the Rayon prelude
 //!
-//! First, you will need to add `rayon` to your `Cargo.toml` and put
-//! `extern crate rayon` in your main file (`lib.rs`, `main.rs`).
+//! First, you will need to add `rayon` to your `Cargo.toml`.
 //!
 //! Next, to use parallel iterators or the other high-level methods,
 //! you need to import several traits. Those traits are bundled into
@@ -84,11 +83,7 @@
 //! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 
 #[cfg(test)]
-#[macro_use]
-extern crate doc_comment;
-
-#[cfg(test)]
-doctest!("../README.md");
+doc_comment::doctest!("../README.md");
 
 #[macro_use]
 mod delegate;

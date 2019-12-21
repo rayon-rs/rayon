@@ -9,8 +9,8 @@ matrix:
   fast_finish: true
   include:
     # NB: To help with CI delays, each `pull_request` is only tested on Linux,
-    # with 1.31 for compatibility and stable+rayon_unstable for broad test
-    # coverage.  The bors bot counts as a `push` type, which will run it all.
+    # with 1.31 for compatibility and stable for broad test coverage.  The bors
+    # bot counts as a `push` type, which will run it all.
 
     - rust: 1.31.0
       os: linux
@@ -20,42 +20,22 @@ matrix:
 
     - rust: stable
       os: linux
-      if: NOT type = pull_request
-    - rust: stable
-      os: linux
-      env: RUSTFLAGS='--cfg rayon_unstable'
       #if: everything!
 
     - rust: beta
       os: linux
       if: NOT type = pull_request
-    - rust: beta
-      os: linux
-      env: RUSTFLAGS='--cfg rayon_unstable'
-      if: NOT type = pull_request
 
     - rust: nightly
       os: linux
-      if: NOT type = pull_request
-    - rust: nightly
-      os: linux
-      env: RUSTFLAGS='--cfg rayon_unstable'
       if: NOT type = pull_request
 
     - rust: stable
       os: osx
       if: NOT type = pull_request
-    - rust: stable
-      os: osx
-      env: RUSTFLAGS='--cfg rayon_unstable'
-      if: NOT type = pull_request
 
     - rust: nightly
       os: osx
-      if: NOT type = pull_request
-    - rust: nightly
-      os: osx
-      env: RUSTFLAGS='--cfg rayon_unstable'
       if: NOT type = pull_request
 
     # wasm won't actually work without threading, but it builds
@@ -86,11 +66,6 @@ script:
   - cargo test -p rayon
   - cargo test -p rayon-core
   - ./ci/highlander.sh
-  - |
-    if [ -n "$RUSTFLAGS" ]; then
-      cargo build -p rayon-futures &&
-      cargo test -p rayon-futures
-    fi
 
 branches:
   only:

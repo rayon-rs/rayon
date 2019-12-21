@@ -21,7 +21,6 @@ use std::iter::repeat;
 use std::num::Wrapping;
 use std::sync::Arc;
 use std::thread;
-use time;
 
 use docopt::Docopt;
 use rayon::iter::ParallelBridge;
@@ -30,7 +29,7 @@ use rayon::prelude::*;
 #[cfg(test)]
 mod bench;
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     cmd_play: bool,

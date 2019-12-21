@@ -16,7 +16,7 @@ struct Vertex {
     position: [f32; 3],
 }
 
-implement_vertex!(Vertex, position);
+glium::implement_vertex!(Vertex, position);
 
 fn icosahedron() -> ([Vertex; 12], Vec<u8>) {
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
@@ -75,7 +75,7 @@ struct Instance {
     world_position: [f32; 3],
 }
 
-implement_vertex!(Instance, color, world_position);
+glium::implement_vertex!(Instance, color, world_position);
 
 pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
     let mut events_loop = EventsLoop::new();
@@ -181,7 +181,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                 (&vertex_buffer, instance_buffer.per_instance().unwrap()),
                 &index_buffer,
                 &program,
-                &uniform! { matrix: view_proj },
+                &glium::uniform! { matrix: view_proj },
                 &params,
             )
             .unwrap();

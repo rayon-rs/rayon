@@ -36,19 +36,8 @@ mod str_split;
 #[cfg(test)]
 mod vec_collect;
 
-#[macro_use]
-extern crate serde_derive; // all
-#[macro_use]
-extern crate glium; // nbody
-#[macro_use]
-extern crate lazy_static; // find
-#[cfg(windows)]
-extern crate winapi; // life
 #[cfg(test)]
 extern crate test;
-
-use rand;
-use rand_xorshift;
 
 const USAGE: &str = "
 Usage: rayon-demo bench

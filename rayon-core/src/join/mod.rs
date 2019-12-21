@@ -2,8 +2,8 @@ use crate::job::StackJob;
 use crate::latch::{LatchProbe, SpinLatch};
 use crate::log::Event::*;
 use crate::registry::{self, WorkerThread};
-use std::any::Any;
 use crate::unwind;
+use std::any::Any;
 
 use crate::FnContext;
 

@@ -7,7 +7,6 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use std;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A parallel iterator over the value in [`Some`] variant of an [`Option`].
