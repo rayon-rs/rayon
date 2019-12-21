@@ -840,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "rayon-futures"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon-core 1.6.1",

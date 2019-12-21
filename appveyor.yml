@@ -36,6 +36,7 @@ test_script:
 
 branches:
   only:
+    - rayon-futures-0.1.x
     - master
     - staging
     - trying
