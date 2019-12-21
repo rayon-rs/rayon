@@ -1,4 +1,4 @@
-# Release rayon 1.3.0 / rayon-core 1.7.0 (2019-12-20)
+# Release rayon 1.3.0 / rayon-core 1.7.0 (2019-12-21)
 
 - Tuples up to length 12 now implement `IntoParallelIterator`, creating a
   `MultiZip` iterator that produces items as similarly-shaped tuples.
@@ -14,7 +14,7 @@ Thanks to all of the contributors for this release!
 - @silwol
 
 
-# Release rayon-futures 0.1.1 (2019-12-20)
+# Release rayon-futures 0.1.1 (2019-12-21)
 
 - `Send` bounds have been added for the `Item` and `Error` associated types on
   all generic `F: Future` interfaces. While technically a breaking change, this
