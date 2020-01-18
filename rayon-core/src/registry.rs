@@ -1,5 +1,5 @@
 use crate::job::{JobFifo, JobRef, StackJob};
-use crate::latch::{CountLatch, Latch, LatchProbe, LockLatch, SpinLatch, TickleLatch};
+use crate::latch::{AsCoreLatch, CoreLatch, CountLatch, Latch, LockLatch, SpinLatch};
 use crate::log::Logger;
 use crate::log::Event::*;
 use crate::sleep::Sleep;
@@ -154,7 +154,7 @@ pub(super) struct Registry {
     // - when `join()` or `scope()` is invoked, similarly, no adjustments are needed.
     //   These are always owned by some other job (e.g., one injected by `ThreadPool::install()`)
     //   and that job will keep the pool alive.
-    terminate_latch: CountLatch,
+    terminate_count: AtomicUsize,
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -239,9 +239,9 @@ impl Registry {
         let registry = Arc::new(Registry {
             logger: logger.clone(),
             thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
-            sleep: Sleep::new(logger),
+            sleep: Sleep::new(logger, n_threads),
             injected_jobs: SegQueue::new(),
-            terminate_latch: CountLatch::new(),
+            terminate_count: AtomicUsize::new(1),
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
             exit_handler: builder.take_exit_handler(),
@@ -392,15 +392,19 @@ impl Registry {
         // drops) a `ThreadPool`; and, in that case, they cannot be
         // calling `inject()` later, since they dropped their
         // `ThreadPool`.
-        assert!(
-            !self.terminate_latch.probe(),
+        debug_assert_ne!(
+            self.terminate_count.load(Ordering::Acquire),
+            0,
             "inject() sees state.terminate as true"
         );
+
+        let queue_was_empty = self.injected_jobs.is_empty();
 
         for &job_ref in injected_jobs {
             self.injected_jobs.push(job_ref);
         }
-        self.sleep.tickle(usize::MAX);
+
+        self.sleep.new_injected_jobs(usize::MAX, injected_jobs.len() as u32, queue_was_empty);
     }
 
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
@@ -476,7 +480,7 @@ impl Registry {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
-        let latch = TickleLatch::new(SpinLatch::new(), current_thread.registry());
+        let latch = SpinLatch::new(current_thread);
         let job = StackJob::new(
             |injected| {
                 let worker_thread = WorkerThread::current();
@@ -511,19 +515,25 @@ impl Registry {
     /// terminate count and is responsible for invoking `terminate()`
     /// when finished.
     pub(super) fn increment_terminate_count(&self) {
-        self.terminate_latch.increment();
+        let previous = self.terminate_count.fetch_add(1, Ordering::AcqRel);
+        debug_assert!(previous != 0, "registry ref count incremented from zero");
+        assert!(previous != std::usize::MAX, "overflow in registry ref count");
     }
 
     /// Signals that the thread-pool which owns this registry has been
     /// dropped. The worker threads will gradually terminate, once any
     /// extant work is completed.
     pub(super) fn terminate(&self) {
-        self.terminate_latch.set();
-        self.sleep.tickle(usize::MAX);
+        if self.terminate_count.fetch_sub(1, Ordering::AcqRel) == 1 {
+            for (i, thread_info) in self.thread_infos.iter().enumerate() {
+                thread_info.terminate.set_and_tickle_one(self, i);
+            }
+        }
     }
 
-    pub(super) fn tickle(&self) {
-        self.sleep.tickle(usize::MAX);
+    /// Notify the worker that the latch they are sleeping on has bene "set".
+    pub(super) fn notify_worker_latch_is_set(&self, target_worker_index: usize) {
+        self.sleep.notify_worker_latch_is_set(target_worker_index);
     }
 }
 
@@ -542,6 +552,15 @@ struct ThreadInfo {
     /// until workers have stopped; only used for tests.
     stopped: LockLatch,
 
+    /// The latch used to signal that terminated has been requested.
+    /// This latch is *set* by the `terminate` method on the
+    /// `Registry`, once the registry's main "terminate" counter
+    /// reaches zero.
+    ///
+    /// NB. We use a `CountLatch` here because it has no lifetimes and is
+    /// meant for async use, but the count never gets higher than one.
+    terminate: CountLatch,
+
     /// the "stealer" half of the worker's deque
     stealer: Stealer<JobRef>,
 }
@@ -551,6 +570,7 @@ impl ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
+            terminate: CountLatch::new(),
             stealer,
         }
     }
@@ -630,8 +650,9 @@ impl WorkerThread {
     #[inline]
     pub(super) unsafe fn push(&self, job: JobRef) {
         self.log(|| JobPushed { worker: self.index });
+        let queue_was_empty = self.worker.is_empty();
         self.worker.push(job);
-        self.registry.sleep.tickle(self.index);
+        self.registry.sleep.new_internal_jobs(self.index, 1, queue_was_empty);
     }
 
     #[inline]
@@ -664,14 +685,15 @@ impl WorkerThread {
     /// Wait until the latch is set. Try to keep busy by popping and
     /// stealing tasks as necessary.
     #[inline]
-    pub(super) unsafe fn wait_until<L: LatchProbe + ?Sized>(&self, latch: &L) {
+    pub(super) unsafe fn wait_until<L: AsCoreLatch + ?Sized>(&self, latch: &L) {
+        let latch = latch.as_core_latch();
         if !latch.probe() {
             self.wait_until_cold(latch);
         }
     }
 
     #[cold]
-    unsafe fn wait_until_cold<L: LatchProbe + ?Sized>(&self, latch: &L) {
+    unsafe fn wait_until_cold(&self, latch: &CoreLatch) {
         // the code below should swallow all panics and hence never
         // unwind; but if something does wrong, we want to abort,
         // because otherwise other code in rayon may assume that the
@@ -679,7 +701,7 @@ impl WorkerThread {
         // accesses, which would be *very bad*
         let abort_guard = unwind::AbortIfPanic;
 
-        let mut idle_state = self.registry.sleep.start_looking(self.index);
+        let mut idle_state = self.registry.sleep.start_looking(self.index, latch);
         while !latch.probe() {
             // Try to find some work to do. We give preference first
             // to things in our local deque, then in other workers
@@ -693,9 +715,9 @@ impl WorkerThread {
             {
                 self.registry.sleep.work_found(idle_state);
                 self.execute(job);
-                idle_state = self.registry.sleep.start_looking(self.index);
+                idle_state = self.registry.sleep.start_looking(self.index, latch);
             } else {
-                self.registry.sleep.no_work_found(&mut idle_state);
+                self.registry.sleep.no_work_found(&mut idle_state, latch);
             }
         }
 
@@ -704,17 +726,12 @@ impl WorkerThread {
         // wait.
         self.registry.sleep.work_found(idle_state);
 
+        self.log(|| ThreadSawLatchSet { worker: self.index, latch_addr: latch.addr() });
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
     pub(super) unsafe fn execute(&self, job: JobRef) {
         job.execute();
-
-        // Subtle: executing this job will have `set()` some of its
-        // latches.  This may mean that a sleepy (or sleeping) worker
-        // can now make progress. So we have to tickle them to let
-        // them know.
-        self.registry.sleep.tickle(self.index);
     }
 
     /// Try to steal a single job and return it.
@@ -786,10 +803,12 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         }
     }
 
+    let my_terminate_latch = &registry.thread_infos[index].terminate;
     worker_thread.log(|| ThreadStart {
         worker: index,
+        terminate_addr: my_terminate_latch.as_core_latch().addr(),
     });
-    worker_thread.wait_until(&registry.terminate_latch);
+    worker_thread.wait_until(my_terminate_latch);
 
     // Should not be any work left in our queue.
     debug_assert!(worker_thread.take_local_job().is_none());

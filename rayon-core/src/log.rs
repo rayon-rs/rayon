@@ -24,6 +24,7 @@ pub(super) enum Event {
     /// Indicates that a worker thread started execution.
     ThreadStart {
         worker: usize,
+        terminate_addr: usize,
     },
 
     /// Indicates that a worker thread started execution.
@@ -31,18 +32,42 @@ pub(super) enum Event {
         worker: usize,
     },
 
-    /// Indicates that a worker thread became idle, waiting for a latch.
-    ThreadIdle { worker: usize },
+    /// Indicates that a worker thread became idle, blocked on `latch_addr`.
+    ThreadIdle { worker: usize, latch_addr: usize },
 
     /// Indicates that an idle worker thread found work to do, after
     /// yield rounds. It should no longer be considered idle.
-    ThreadFoundWork { worker: usize, yields: usize },
+    ThreadFoundWork { worker: usize, yields: u32 },
+
+    /// Indicates that a worker blocked on a latch observed that it was set.
+    ///
+    /// Internal debugging event that does not affect the state
+    /// machine.
+    ThreadSawLatchSet { worker: usize, latch_addr: usize },
+
+    /// Indicates that an idle worker is getting sleepy. `sleepy_counter` is the internal
+    /// sleep state that we saw at the time.
+    ThreadSleepy { worker: usize, sleepy_counter: u16 },
+
+    /// Indicates that the thread's attempt to fall asleep was
+    /// interrupted because the latch was set. (This is not, in and of
+    /// itself, a change to the thread state.)
+    ThreadSleepInterruptedByLatch { worker: usize, latch_addr: usize },
+
+    /// Indicates that the thread's attempt to fall asleep was
+    /// interrupted because a job was posted. (This is not, in and of
+    /// itself, a change to the thread state.)
+    ThreadSleepInterruptedByJob { worker: usize },
 
     /// Indicates that an idle worker has gone to sleep.
-    ThreadSleeping { worker: usize },
+    ThreadSleeping { worker: usize, latch_addr: usize },
 
     /// Indicates that a sleeping worker has awoken.
-    ThreadAwoken { worker: usize },
+    ThreadAwoken { worker: usize, latch_addr: usize },
+
+    /// Indicates that the given worker thread was notified it should
+    /// awaken.
+    ThreadNotify { worker: usize },
 
     /// The given worker has pushed a job to its local deque.
     JobPushed { worker: usize },
@@ -58,6 +83,15 @@ pub(super) enum Event {
 
     /// A job was removed from the global queue.
     JobUninjected { worker: usize },
+
+    /// When announcing a job, this was the value of the counters we observed.
+    ///
+    /// No effect on thread state, just a debugging event.
+    JobThreadCounts {
+        worker: usize,
+        num_idle: u16,
+        num_sleepers: u16,
+    },
 }
 
 /// Handle to the logging thread, if any. You can use this to deliver
@@ -100,7 +134,7 @@ impl Logger {
                 Self::profile_logger_thread(num_workers, filename, 10_000, receiver)
             });
         } else {
-            panic!("RAYON_RS_LOG should be 'all', 'tail:<file>', or 'profile:<file>'");
+            panic!("RAYON_RS_LOG should be 'tail:<file>' or 'profile:<file>'");
         }
 
         return Logger {
@@ -143,7 +177,7 @@ impl Logger {
             loop {
                 match receiver.recv_timeout(timeout) {
                     Ok(event) => {
-                        if let Event::Flush = event  {
+                        if let Event::Flush = event {
                             break;
                         } else {
                             events.push(event);
@@ -243,6 +277,7 @@ impl Logger {
 enum State {
     Working,
     Idle,
+    Notified,
     Sleeping,
     Terminated,
 }
@@ -252,7 +287,7 @@ impl State {
         match self {
             State::Working => 'W',
             State::Idle => 'I',
-
+            State::Notified => 'N',
             State::Sleeping => 'S',
             State::Terminated => 'T',
         }
@@ -299,7 +334,7 @@ impl SimulatorState {
             }
 
             Event::ThreadAwoken { worker, .. } => {
-                assert_eq!(self.thread_states[worker], State::Sleeping);
+                assert_eq!(self.thread_states[worker], State::Notified);
                 self.thread_states[worker] = State::Idle;
                 true
             }
@@ -329,7 +364,18 @@ impl SimulatorState {
                 true
             }
 
-            Event::Flush => false,
+            Event::ThreadNotify { worker } => {
+                // Currently, this log event occurs while holding the
+                // thread lock, so we should *always* see it before
+                // the worker awakens.
+                assert_eq!(self.thread_states[worker], State::Sleeping);
+                self.thread_states[worker] = State::Notified;
+                true
+            }
+
+            // remaining events are no-ops from pov of simulating the
+            // thread state
+            _ => false,
         }
     }
 
@@ -346,8 +392,11 @@ impl SimulatorState {
             .filter(|s| **s == State::Sleeping)
             .count();
 
-        // we don't track this on rayon master, but other branches do
-        let num_notified_threads = 0;
+        let num_notified_threads = self
+            .thread_states
+            .iter()
+            .filter(|s| **s == State::Notified)
+            .count();
 
         let num_pending_jobs: usize = self.local_queue_size.iter().sum();
 

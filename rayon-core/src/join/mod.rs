@@ -1,5 +1,5 @@
 use crate::job::StackJob;
-use crate::latch::{LatchProbe, SpinLatch};
+use crate::latch::SpinLatch;
 use crate::registry::{self, WorkerThread};
 use crate::unwind;
 use std::any::Any;
@@ -133,7 +133,7 @@ where
         // Create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough.
-        let job_b = StackJob::new(call_b(oper_b), SpinLatch::new());
+        let job_b = StackJob::new(call_b(oper_b), SpinLatch::new(worker_thread));
         let job_b_ref = job_b.as_job_ref();
         worker_thread.push(job_b_ref);
 
@@ -179,7 +179,7 @@ where
 #[cold] // cold path
 unsafe fn join_recover_from_panic(
     worker_thread: &WorkerThread,
-    job_b_latch: &SpinLatch,
+    job_b_latch: &SpinLatch<'_>,
     err: Box<dyn Any + Send>,
 ) -> ! {
     worker_thread.wait_until(job_b_latch);

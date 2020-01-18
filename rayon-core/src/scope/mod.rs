@@ -5,7 +5,7 @@
 //! [`join()`]: ../join/join.fn.html
 
 use crate::job::{HeapJob, JobFifo};
-use crate::latch::{CountLatch, Latch};
+use crate::latch::CountLatch;
 use crate::registry::{in_worker, Registry, WorkerThread};
 use crate::unwind;
 use std::any::Any;
@@ -582,11 +582,11 @@ impl<'scope> ScopeBase<'scope> {
             mem::forget(err); // ownership now transferred into self.panic
         }
 
-        self.job_completed_latch.set();
+        self.job_completed_latch.set_and_tickle_one(&self.registry, self.owner_thread_index);
     }
 
     unsafe fn job_completed_ok(&self) {
-        self.job_completed_latch.set();
+        self.job_completed_latch.set_and_tickle_one(&self.registry, self.owner_thread_index);
     }
 
     unsafe fn steal_till_jobs_complete(&self, owner_thread: &WorkerThread) {
