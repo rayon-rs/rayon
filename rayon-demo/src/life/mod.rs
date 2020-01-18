@@ -1,6 +1,6 @@
 const USAGE: &str = "
-Usage: life bench [--size N] [--gens N]
-       life play [--size N] [--gens N] [--fps N]
+Usage: life bench [--size N] [--gens N] [--skip-bridge]
+       life play [--size N] [--gens N] [--fps N] [--skip-bridge]
        life --help
 Conway's Game of Life.
 
@@ -11,6 +11,7 @@ Options:
     --size N        Size of the game board (N x N) [default: 200]
     --gens N        Simulate N generations [default: 100]
     --fps N         Maximum frame rate [default: 60]
+    --skip-bridge   Skips the tests with par-bridge, as it is much slower.
     -h, --help      Show this message.
 ";
 
@@ -37,6 +38,7 @@ pub struct Args {
     flag_size: usize,
     flag_gens: usize,
     flag_fps: usize,
+    flag_skip_bridge: bool,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -277,12 +279,14 @@ pub fn main(args: &[String]) {
             serial as f64 / parallel as f64
         );
 
-        let par_bridge = measure(par_bridge_generations, &args).as_nanos();
-        println!(
-            "par_bridge: {:10} ns -> {:.2}x speedup",
-            par_bridge,
-            serial as f64 / par_bridge as f64
-        );
+        if !args.flag_skip_bridge {
+            let par_bridge = measure(par_bridge_generations, &args).as_nanos();
+            println!(
+                "par_bridge: {:10} ns -> {:.2}x speedup",
+                par_bridge,
+                serial as f64 / par_bridge as f64
+            );
+        }
     }
 
     if args.cmd_play {
@@ -298,10 +302,12 @@ pub fn main(args: &[String]) {
             println!("  cpu usage: {:.1}%", cpu_usage);
         }
 
-        let par_bridge = measure_cpu(par_bridge_generations_limited, &args);
-        println!("par_bridge: {:.2} fps", par_bridge.actual_fps);
-        if let Some(cpu_usage) = par_bridge.cpu_usage_percent {
-            println!("  cpu usage: {:.1}%", cpu_usage);
+        if !args.flag_skip_bridge {
+            let par_bridge = measure_cpu(par_bridge_generations_limited, &args);
+            println!("par_bridge: {:.2} fps", par_bridge.actual_fps);
+            if let Some(cpu_usage) = par_bridge.cpu_usage_percent {
+                println!("  cpu usage: {:.1}%", cpu_usage);
+            }
         }
     }
 }
