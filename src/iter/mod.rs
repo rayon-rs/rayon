@@ -151,6 +151,9 @@ mod intersperse;
 pub use self::intersperse::Intersperse;
 mod update;
 pub use self::update::Update;
+mod step_by;
+#[cfg(step_by)]
+pub use self::step_by::StepBy;
 
 mod noop;
 mod rev;
@@ -2424,6 +2427,30 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn enumerate(self) -> Enumerate<Self> {
         Enumerate::new(self)
+    }
+
+    /// Creates an iterator that steps by the given amount
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///use rayon::prelude::*;
+    ///
+    /// let range = (3..10);
+    /// let result: Vec<i32> = range
+    ///    .into_par_iter()
+    ///    .step_by(3)
+    ///    .collect();
+    ///
+    /// assert_eq!(result, [3, 6, 9])
+    /// ```
+    ///
+    /// # Compatibility
+    ///
+    /// This method is only available on Rust 1.38 or greater.
+    #[cfg(step_by)]
+    fn step_by(self, step: usize) -> StepBy<Self> {
+        StepBy::new(self, step)
     }
 
     /// Creates an iterator that skips the first `n` elements.

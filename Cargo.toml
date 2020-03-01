@@ -37,3 +37,6 @@ doc-comment = "0.3"
 [dev-dependencies.serde]
 version = "1.0.85"
 features = ["derive"]
+
+[build-dependencies]
+autocfg = "1"
