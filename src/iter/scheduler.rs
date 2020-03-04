@@ -73,6 +73,18 @@ impl<I: ParallelIterator, S> WithUnindexedScheduler<I, S> {
     }
 }
 
+macro_rules! no_link {
+    ($l:literal) => {
+        {
+            extern "C" {
+                #[link_name = $l]
+                fn trigger() -> !;
+            }
+            unsafe { trigger() }
+        }
+    };
+}
+
 impl<I: IndexedParallelIterator, S: Scheduler> ParallelIterator for WithScheduler<I, S> {
     type Item = I::Item;
 
@@ -127,7 +139,7 @@ impl<I: IndexedParallelIterator, S: Scheduler> IndexedParallelIterator for WithS
     where
         CB: ProducerCallback<Self::Item>,
     {
-        panic!("After scheduler, the iterator should not be used as producer.");
+        no_link!( "\n\nERROR[rayon]: After `with_scheduler`, the iterator should not be used as producer.\nFor example, `Zip` works in producer mode, so `with_scheduler` should not happen before any `zip`.\nFor more information about producer and customer mode, please refer to https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md\n")
     }
 }
 

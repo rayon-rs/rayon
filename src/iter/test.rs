@@ -2214,17 +2214,12 @@ fn check_schedule() {
         .map(|(a, b)| a * b)
         .sum();
     assert_eq!(r, 14);
-}
 
-#[test]
-#[should_panic(expected = "After scheduler, the iterator should not be used as producer.")]
-fn check_schedule_fail_as_producer() {
-    let v = vec![1, 2, 3];
-    let r: i32 = v
-        .par_iter()
-        .with_scheduler(DefaultScheduler)
-        .zip(v.par_iter())
-        .map(|(a, b)| a * b)
-        .sum();
-    assert_eq!(r, 14);
+    // should not compile
+    // let r: i32 = v
+    //     .par_iter()
+    //     .zip(v.par_iter())
+    //     .with_scheduler(DefaultScheduler)
+    //     .map(|(a, b)| a * b)
+    //     .sum();
 }
