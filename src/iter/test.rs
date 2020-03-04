@@ -2186,3 +2186,45 @@ fn check_update() {
 
     assert_eq!(v, vec![vec![1, 0], vec![3, 2, 1, 0]]);
 }
+
+#[test]
+fn check_schedule() {
+    let v = vec![1, 2, 3];
+
+    let r: i32 = v
+        .par_iter()
+        .with_scheduler(DefaultScheduler)
+        .map(|v| v * v)
+        .flat_map(|v| vec![1; v as usize])
+        .sum();
+    assert_eq!(r, 14);
+
+    let r: i32 = v
+        .par_iter()
+        .map(|v| v * v)
+        .with_scheduler(DefaultScheduler)
+        .flat_map(|v| vec![1; v as usize])
+        .sum();
+    assert_eq!(r, 14);
+
+    let r: i32 = v
+        .par_iter()
+        .zip(v.par_iter())
+        .with_scheduler(DefaultScheduler)
+        .map(|(a, b)| a * b)
+        .sum();
+    assert_eq!(r, 14);
+}
+
+#[test]
+#[should_panic(expected = "After scheduler, the iterator should not be used as producer.")]
+fn check_schedule_fail_as_producer() {
+    let v = vec![1, 2, 3];
+    let r: i32 = v
+        .par_iter()
+        .with_scheduler(DefaultScheduler)
+        .zip(v.par_iter())
+        .map(|(a, b)| a * b)
+        .sum();
+    assert_eq!(r, 14);
+}
