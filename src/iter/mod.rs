@@ -101,9 +101,8 @@ mod par_bridge;
 pub use self::par_bridge::{IterBridge, ParallelBridge};
 
 pub mod scheduler;
-pub use self::scheduler::{
-    DefaultScheduler, Scheduler, UnindexedScheduler, WithScheduler, WithUnindexedScheduler,
-};
+pub use self::scheduler::{Scheduler, UnindexedScheduler, WithScheduler, WithUnindexedScheduler};
+pub use self::scheduler::misc::*;
 
 mod chain;
 mod find;

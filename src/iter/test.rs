@@ -2223,3 +2223,15 @@ fn check_schedule() {
     //     .map(|(a, b)| a * b)
     //     .sum();
 }
+
+#[test]
+fn check_schedule_sequential() {
+    let v = vec![1, 2, 3];
+    let r: i32 = v
+        .par_iter()
+        .with_scheduler(SequentialScheduler)
+        .map(|v| v * v)
+        .flat_map(|v| vec![1; v as usize])
+        .sum();
+    assert_eq!(r, 14);
+}

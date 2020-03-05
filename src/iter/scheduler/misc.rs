@@ -26,3 +26,28 @@ impl UnindexedScheduler for DefaultScheduler {
         bridge_unindexed(producer, consumer)
     }
 }
+
+/// Dummy Sequential Scheduler.
+/// No parallel is used at all.
+#[derive(Debug, Clone, Default)]
+pub struct SequentialScheduler;
+
+impl Scheduler for SequentialScheduler {
+    fn bridge<P, C, T>(&mut self, _len: usize, producer: P, consumer: C) -> C::Result
+    where
+        P: Producer<Item = T>,
+        C: Consumer<T>,
+    {
+        producer.fold_with(consumer.into_folder()).complete()
+    }
+}
+
+impl UnindexedScheduler for SequentialScheduler {
+    fn bridge_unindexed<P, C, T>(&mut self, producer: P, consumer: C) -> C::Result
+    where
+        P: UnindexedProducer<Item = T>,
+        C: UnindexedConsumer<T>,
+    {
+        producer.fold_with(consumer.into_folder()).complete()
+    }
+}
