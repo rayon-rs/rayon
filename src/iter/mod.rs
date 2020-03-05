@@ -100,7 +100,7 @@ use std::ops::Fn;
 mod par_bridge;
 pub use self::par_bridge::{IterBridge, ParallelBridge};
 
-mod scheduler;
+pub mod scheduler;
 pub use self::scheduler::{
     DefaultScheduler, Scheduler, UnindexedScheduler, WithScheduler, WithUnindexedScheduler,
 };
