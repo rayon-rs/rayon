@@ -2226,12 +2226,36 @@ fn check_schedule() {
 
 #[test]
 fn check_schedule_sequential() {
-    let v = vec![1, 2, 3];
+    let v: Vec<_> = (1..100).collect();
     let r: i32 = v
         .par_iter()
         .with_scheduler(SequentialScheduler)
         .map(|v| v * v)
         .flat_map(|v| vec![1; v as usize])
         .sum();
-    assert_eq!(r, 14);
+    assert_eq!(r, 328350);
+}
+
+#[test]
+fn check_schedule_fixed_length() {
+    let v: Vec<_> = (1..100).collect();
+    let r: i32 = v
+        .par_iter()
+        .with_scheduler(FixedLengthScheduler::new(1))
+        .map(|v| v * v)
+        .flat_map(|v| vec![1; v as usize])
+        .sum();
+    assert_eq!(r, 328350);
+}
+
+#[test]
+fn check_schedule_static() {
+    let v: Vec<_> = (1..100).collect();
+    let r: i32 = v
+        .par_iter()
+        .with_scheduler(StaticScheduler::with_chunk_size(1))
+        .map(|v| v * v)
+        .flat_map(|v| vec![1; v as usize])
+        .sum();
+    assert_eq!(r, 328350);
 }
