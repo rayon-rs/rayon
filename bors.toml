@@ -1,7 +1,17 @@
 status = [
-  "continuous-integration/travis-ci/push",
-  "continuous-integration/appveyor/branch",
+  "Check (1.31.0)",
+  "Test (1.5.0)",
+  "Test (ubuntu-latest, stable)",
+  "Test (ubuntu-latest, beta)",
+  "Test (ubuntu-latest, nightly)",
+  "Test (windows-latest, stable)",
+  "Test (windows-latest, beta)",
+  "Test (windows-latest, nightly)",
+  "Test (macos-latest, stable)",
+  "Test (macos-latest, beta)",
+  "Test (macos-latest, nightly)",
+  "Demo (stable)",
+  "Demo (nightly)",
+  "WebAssembly",
+  "Format",
 ]
-
-# Sometimes the queue for Travis CI on OSX gets really backed up...
-timeout_sec = 21600
