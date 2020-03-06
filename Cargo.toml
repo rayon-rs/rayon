@@ -12,7 +12,7 @@ documentation = "https://docs.rs/rayon/"
 readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
-exclude = ["/ci/*", "/scripts/*", "/.travis.yml", "/appveyor.yml", "/bors.toml"]
+exclude = ["/ci/*", "/scripts/*", "/.github/*", "/bors.toml"]
 
 [workspace]
 members = ["rayon-demo", "rayon-core"]
