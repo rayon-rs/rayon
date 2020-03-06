@@ -45,6 +45,8 @@ Ported from the RiverTrail demo found at:
 #[derive(Copy, Clone, PartialEq, Eq, serde::Deserialize)]
 pub enum ExecutionMode {
     Par,
+    ParSched,
+    ParBridge,
     ParReduce,
     Seq,
 }
@@ -77,6 +79,8 @@ pub fn main(args: &[String]) {
 
 fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     let run_par = mode.map(|m| m == ExecutionMode::Par).unwrap_or(true);
+    let run_par_schedule = mode.map(|m| m == ExecutionMode::ParSched).unwrap_or(true);
+    let run_par_bridge = mode.map(|m| m == ExecutionMode::ParBridge).unwrap_or(true);
     let run_par_reduce = mode.map(|m| m == ExecutionMode::ParReduce).unwrap_or(true);
     let run_seq = mode.map(|m| m == ExecutionMode::Seq).unwrap_or(true);
 
@@ -90,7 +94,41 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = par_start.elapsed().as_nanos();
-        println!("Parallel time    : {} ns", par_time);
+        println!("Parallel time\t: {} ns", par_time);
+
+        Some(par_time)
+    } else {
+        None
+    };
+
+    let par_schedule_time = if run_par_schedule {
+        let mut rng = crate::seeded_rng();
+        let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
+        let par_start = Instant::now();
+
+        for _ in 0..ticks {
+            benchmark.tick_par_schedule();
+        }
+
+        let par_time = par_start.elapsed().as_nanos();
+        println!("ParSched time\t: {} ns", par_time);
+
+        Some(par_time)
+    } else {
+        None
+    };
+
+    let par_bridge_time = if run_par_bridge {
+        let mut rng = crate::seeded_rng();
+        let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
+        let par_start = Instant::now();
+
+        for _ in 0..ticks {
+            benchmark.tick_par_bridge();
+        }
+
+        let par_time = par_start.elapsed().as_nanos();
+        println!("ParBridge time\t: {} ns", par_time);
 
         Some(par_time)
     } else {
@@ -107,7 +145,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = par_start.elapsed().as_nanos();
-        println!("ParReduce time   : {} ns", par_time);
+        println!("ParReduce time\t: {} ns", par_time);
 
         Some(par_time)
     } else {
@@ -124,7 +162,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let seq_time = seq_start.elapsed().as_nanos();
-        println!("Sequential time  : {} ns", seq_time);
+        println!("Sequential time\t: {} ns", seq_time);
 
         Some(seq_time)
     } else {
@@ -132,10 +170,18 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     };
 
     if let (Some(pt), Some(st)) = (par_time, seq_time) {
-        println!("Parallel speedup : {}", (st as f32) / (pt as f32));
+        println!("Parallel speedup\t: {}", (st as f32) / (pt as f32));
+    }
+
+    if let (Some(pt), Some(st)) = (par_schedule_time, seq_time) {
+        println!("ParSched speedup\t: {}", (st as f32) / (pt as f32));
+    }
+
+    if let (Some(pt), Some(st)) = (par_bridge_time, seq_time) {
+        println!("ParBridge speedup\t: {}", (st as f32) / (pt as f32));
     }
 
     if let (Some(pt), Some(st)) = (par_reduce_time, seq_time) {
-        println!("ParReduce speedup: {}", (st as f32) / (pt as f32));
+        println!("ParReduce speedup\t: {}", (st as f32) / (pt as f32));
     }
 }
