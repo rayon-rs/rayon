@@ -1,0 +1,77 @@
+name: PR
+on: pull_request
+
+# Using 16MB stacks for deep test/debug recursion
+env:
+  RUST_MIN_STACK: 16777216
+
+jobs:
+
+  check:
+    name: Check (1.31.0)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.31.0
+          profile: minimal
+          override: true
+      - name: Prepare Cargo.lock
+        run: cp ci/compat-Cargo.lock ./Cargo.lock
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --verbose --locked
+
+  test:
+    name: Test (stable)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose
+      - name: Test rayon
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --package rayon
+      - name: Test rayon-core
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --package rayon-core
+      - name: Test multiple rayon-core
+        run: ./ci/highlander.sh
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.40.0
+          override: true
+          components: rustfmt
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
