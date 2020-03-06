@@ -139,6 +139,7 @@ fn clone_adaptors() {
     check(v.par_iter().with_min_len(1));
     check(v.par_iter().zip(&v));
     check(v.par_iter().zip_eq(&v));
+    check(v.par_iter().step_by(2));
 }
 
 #[test]

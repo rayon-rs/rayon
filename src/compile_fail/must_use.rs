@@ -30,6 +30,7 @@ macro_rules! must_use {
 }
 
 must_use! {
+    step_by             /** v.par_iter().step_by(2); */
     chain               /** v.par_iter().chain(&v); */
     chunks              /** v.par_iter().chunks(2); */
     cloned              /** v.par_iter().cloned(); */

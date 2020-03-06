@@ -183,6 +183,30 @@ fn fold_is_full() {
 }
 
 #[test]
+fn check_step_by() {
+    let a: Vec<i32> = (0..1024).step_by(2).collect();
+    let b: Vec<i32> = (0..1024).into_par_iter().step_by(2).collect();
+
+    assert_eq!(a, b);
+}
+
+#[test]
+fn check_step_by_unaligned() {
+    let a: Vec<i32> = (0..1029).step_by(10).collect();
+    let b: Vec<i32> = (0..1029).into_par_iter().step_by(10).collect();
+
+    assert_eq!(a, b)
+}
+
+#[test]
+fn check_step_by_rev() {
+    let a: Vec<i32> = (0..1024).step_by(2).rev().collect();
+    let b: Vec<i32> = (0..1024).into_par_iter().step_by(2).rev().collect();
+
+    assert_eq!(a, b);
+}
+
+#[test]
 fn check_enumerate() {
     let a: Vec<usize> = (0..1024).rev().collect();
 

@@ -1,6 +1,6 @@
 // Check that `!Send` types fail early.
 
-/** ```compile_fail,E0277,E0599
+/** ```compile_fail,E0277
 
 use rayon::prelude::*;
 use std::ptr::null;
@@ -21,7 +21,7 @@ fn main() {
 ``` */
 mod map {}
 
-/** ```compile_fail,E0277,E0599
+/** ```compile_fail,E0277
 
 use rayon::prelude::*;
 use std::ptr::null;
@@ -42,7 +42,7 @@ fn main() {
 ``` */
 mod filter_map {}
 
-/** ```compile_fail,E0277,E0599
+/** ```compile_fail,E0277
 
 use rayon::prelude::*;
 use std::ptr::null;
