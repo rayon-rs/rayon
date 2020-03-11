@@ -480,7 +480,7 @@ impl Registry {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
-        let latch = SpinLatch::new(current_thread);
+        let latch = SpinLatch::cross(current_thread);
         let job = StackJob::new(
             |injected| {
                 let worker_thread = WorkerThread::current();

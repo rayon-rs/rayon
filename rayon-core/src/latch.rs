@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::usize;
 
 use crate::registry::{Registry, WorkerThread};
@@ -128,8 +128,9 @@ impl CoreLatch {
 /// that becomes true when `set()` is called.
 pub(super) struct SpinLatch<'r> {
     core_latch: CoreLatch,
-    registry: &'r Registry,
+    registry: &'r Arc<Registry>,
     target_worker_index: usize,
+    cross: bool,
 }
 
 impl<'r> SpinLatch<'r> {
@@ -143,6 +144,17 @@ impl<'r> SpinLatch<'r> {
             core_latch: CoreLatch::new(),
             registry: thread.registry(),
             target_worker_index: thread.index(),
+            cross: false,
+        }
+    }
+
+    /// Creates a new spin latch for cross-threadpool blocking.  Notably, we
+    /// need to make sure the registry is kept alive after setting, so we can
+    /// safely call the notification.
+    pub(super) fn cross(thread: &'r WorkerThread) -> SpinLatch {
+        SpinLatch {
+            cross: true,
+            ..SpinLatch::new(thread)
         }
     }
 
@@ -161,11 +173,18 @@ impl<'r> AsCoreLatch for SpinLatch<'r> {
 impl<'r> Latch for SpinLatch<'r> {
     #[inline]
     fn set(&self) {
-        // NB: once we `set`, the target may proceed and invalidate `&self`!
-        let SpinLatch { ref core_latch, registry, target_worker_index } = *self;
-        if core_latch.set() {
-            // FIXME: we probably need to ensure the registry is still alive too,
-            // specifically for the case of cross-pool notifications.
+        let cross_registry;
+        let registry = if self.cross {
+            // Ensure the registry stays alive while we notify it.
+            cross_registry = Arc::clone(self.registry);
+            &cross_registry
+        } else {
+            self.registry
+        };
+        let target_worker_index = self.target_worker_index;
+
+        // NOTE: Once we `set`, the target may proceed and invalidate `&self`!
+        if self.core_latch.set() {
             registry.notify_worker_latch_is_set(target_worker_index);
         }
     }
