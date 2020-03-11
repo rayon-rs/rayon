@@ -161,8 +161,12 @@ impl<'r> AsCoreLatch for SpinLatch<'r> {
 impl<'r> Latch for SpinLatch<'r> {
     #[inline]
     fn set(&self) {
-        if self.core_latch.set() {
-            self.registry.notify_worker_latch_is_set(self.target_worker_index);
+        // NB: once we `set`, the target may proceed and invalidate `&self`!
+        let SpinLatch { ref core_latch, registry, target_worker_index } = *self;
+        if core_latch.set() {
+            // FIXME: we probably need to ensure the registry is still alive too,
+            // specifically for the case of cross-pool notifications.
+            registry.notify_worker_latch_is_set(target_worker_index);
         }
     }
 }
