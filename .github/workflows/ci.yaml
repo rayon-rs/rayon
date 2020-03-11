@@ -1,0 +1,130 @@
+name: CI
+on:
+  push:
+    branches:
+      - staging
+      - trying
+
+jobs:
+
+  check:
+    name: Check (1.31.0)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.31.0
+          profile: minimal
+          override: true
+      - name: Prepare Cargo.lock
+        run: cp ci/compat-Cargo.lock ./Cargo.lock
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --verbose --locked
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta, nightly]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose
+      - name: Test rayon
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --package rayon
+      - name: Test rayon-core
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --package rayon-core
+      - name: Test multiple rayon-core
+        run: ./ci/highlander.sh
+
+  # rayon-demo has huge dependencies, so limit its testing.
+  # build on stable, test on nightly (because of #[bench])
+  demo:
+    name: Demo
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --package rayon-demo
+      - name: Test
+        uses: actions-rs/cargo@v1
+        if: matrix.rust == 'nightly'
+        with:
+          command: test
+          args: --verbose --package rayon-demo
+
+  # wasm won't actually work without threading, but it builds
+  wasm:
+    name: WebAssembly
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --verbose --target wasm32-unknown-unknown
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.40.0
+          override: true
+          components: rustfmt
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
