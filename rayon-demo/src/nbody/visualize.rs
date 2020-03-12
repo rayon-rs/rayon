@@ -141,6 +141,8 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
         Event::MainEventsCleared => {
             let bodies = match mode {
                 ExecutionMode::Par => benchmark.tick_par(),
+                ExecutionMode::ParSched => benchmark.tick_par_schedule(),
+                ExecutionMode::ParBridge => benchmark.tick_par_bridge(),
                 ExecutionMode::ParReduce => benchmark.tick_par_reduce(),
                 ExecutionMode::Seq => benchmark.tick_seq(),
             };

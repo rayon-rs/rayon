@@ -100,6 +100,10 @@ use std::ops::Fn;
 mod par_bridge;
 pub use self::par_bridge::{IterBridge, ParallelBridge};
 
+pub mod scheduler;
+pub use self::scheduler::{Scheduler, UnindexedScheduler, WithScheduler, WithUnindexedScheduler};
+pub use self::scheduler::misc::*;
+
 mod chain;
 mod find;
 mod find_first_last;
@@ -348,6 +352,11 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// [`for_each`]: #method.for_each
     type Item: Send;
+
+    /// Sets the "scheduler" that this thread-pool will use.
+    fn with_unindexed_scheduler<S>(self, scheduler: S) -> WithUnindexedScheduler<Self, S> {
+        WithUnindexedScheduler::new(self, scheduler)
+    }
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     ///
@@ -2085,6 +2094,11 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 ///
 /// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
 pub trait IndexedParallelIterator: ParallelIterator {
+    /// Sets the "scheduler" that this thread-pool will use.
+    fn with_scheduler<S>(self, scheduler: S) -> WithScheduler<Self, S> {
+        WithScheduler::new(self, scheduler)
+    }
+
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution
     /// begins. If possible, reusing the vector across calls can lead

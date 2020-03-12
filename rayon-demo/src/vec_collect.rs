@@ -227,3 +227,40 @@ mod vec_i_filtered {
 
     make_bench!(generate, check);
 }
+
+/// Tests a big vector of i forall i in 0 to N, with static scheduler.
+mod vec_i_schedule {
+    use rayon::prelude::*;
+
+    const N: u32 = 4 * 1024 * 1024;
+
+    fn generate() -> impl IndexedParallelIterator<Item = u32> {
+        (0_u32..N)
+            .into_par_iter()
+            .with_scheduler(rayon::iter::StaticScheduler::with_chunk_size(4))
+    }
+
+    fn check(v: &[u32]) {
+        assert!(v.iter().cloned().eq(0..N));
+    }
+
+    #[bench]
+    fn with_collect_into_vec(b: &mut ::test::Bencher) {
+        let mut vec = None;
+        b.iter(|| {
+            let mut v = vec![];
+            generate().collect_into_vec(&mut v);
+            vec = Some(v);
+        });
+        check(&vec.unwrap());
+    }
+
+    #[bench]
+    fn with_collect_into_vec_reused(b: &mut ::test::Bencher) {
+        let mut vec = vec![];
+        b.iter(|| generate().collect_into_vec(&mut vec));
+        check(&vec);
+    }
+
+    make_bench!(generate, check);
+}
