@@ -105,9 +105,10 @@ pub trait ParallelSlice<T: Sync> {
     /// ```
     fn par_chunks_exact(&self, chunk_size: usize) -> ChunksExact<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
-        let rem = self.as_parallel_slice().len() % chunk_size;
-        let len = self.as_parallel_slice().len() - rem;
-        let (fst, snd) = self.as_parallel_slice().split_at(len);
+        let slice = self.as_parallel_slice();
+        let rem = slice.len() % chunk_size;
+        let len = slice.len() - rem;
+        let (fst, snd) = slice.split_at(len);
         ChunksExact {
             chunk_size: chunk_size,
             slice: fst,
@@ -193,9 +194,10 @@ pub trait ParallelSliceMut<T: Send> {
     /// ```
     fn par_chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
-        let rem = self.as_parallel_slice_mut().len() % chunk_size;
-        let len = self.as_parallel_slice_mut().len() - rem;
-        let (fst, snd) = self.as_parallel_slice_mut().split_at_mut(len);
+        let slice = self.as_parallel_slice_mut();
+        let rem = slice.len() % chunk_size;
+        let len = slice.len() - rem;
+        let (fst, snd) = slice.split_at_mut(len);
         ChunksExactMut {
             chunk_size: chunk_size,
             slice: fst,
@@ -694,10 +696,39 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for ChunksExact<'data, T> {
     where
         CB: ProducerCallback<Self::Item>,
     {
-        callback.callback(ChunksProducer {
+        callback.callback(ChunksExactProducer {
             chunk_size: self.chunk_size,
             slice: self.slice,
         })
+    }
+}
+
+struct ChunksExactProducer<'data, T: Sync> {
+    chunk_size: usize,
+    slice: &'data [T],
+}
+
+impl<'data, T: 'data + Sync> Producer for ChunksExactProducer<'data, T> {
+    type Item = &'data [T];
+    type IntoIter = ::std::slice::ChunksExact<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.chunks_exact(self.chunk_size)
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let elem_index = index * self.chunk_size;
+        let (left, right) = self.slice.split_at(elem_index);
+        (
+            ChunksExactProducer {
+                chunk_size: self.chunk_size,
+                slice: left,
+            },
+            ChunksExactProducer {
+                chunk_size: self.chunk_size,
+                slice: right,
+            },
+        )
     }
 }
 
@@ -967,10 +998,39 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksExactMut<'data, T
     where
         CB: ProducerCallback<Self::Item>,
     {
-        callback.callback(ChunksMutProducer {
+        callback.callback(ChunksExactMutProducer {
             chunk_size: self.chunk_size,
             slice: self.slice,
         })
+    }
+}
+
+struct ChunksExactMutProducer<'data, T: Send> {
+    chunk_size: usize,
+    slice: &'data mut [T],
+}
+
+impl<'data, T: 'data + Send> Producer for ChunksExactMutProducer<'data, T> {
+    type Item = &'data mut [T];
+    type IntoIter = ::std::slice::ChunksExactMut<'data, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.slice.chunks_exact_mut(self.chunk_size)
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let elem_index = index * self.chunk_size;
+        let (left, right) = self.slice.split_at_mut(elem_index);
+        (
+            ChunksExactMutProducer {
+                chunk_size: self.chunk_size,
+                slice: left,
+            },
+            ChunksExactMutProducer {
+                chunk_size: self.chunk_size,
+                slice: right,
+            },
+        )
     }
 }
 

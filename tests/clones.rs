@@ -101,6 +101,7 @@ fn clone_vec() {
     let v: Vec<_> = (0..1000).collect();
     check(v.par_iter());
     check(v.par_chunks(42));
+    check(v.par_chunks_exact(42));
     check(v.par_windows(42));
     check(v.par_split(|x| x % 3 == 0));
     check(v.into_par_iter());
