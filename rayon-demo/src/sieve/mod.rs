@@ -42,6 +42,7 @@ mod bench;
 use docopt::Docopt;
 use odds::stride::StrideMut;
 use rayon::prelude::*;
+use std::time::{Duration, Instant};
 
 const CHUNK_SIZE: usize = 100_000;
 
@@ -167,12 +168,12 @@ fn clear_stride(slice: &mut [bool], from: usize, stride: usize) {
     }
 }
 
-fn measure(f: fn(usize) -> Vec<bool>) -> u64 {
+fn measure(f: fn(usize) -> Vec<bool>) -> Duration {
     const MAGNITUDE: usize = 9;
 
-    let start = time::precise_time_ns();
+    let start = Instant::now();
     let sieve = f(max(MAGNITUDE));
-    let duration = time::precise_time_ns() - start;
+    let duration = start.elapsed();
 
     // sanity check the number of primes found
     let num_primes = 1 + sieve.into_iter().filter(|&b| b).count();
@@ -187,17 +188,17 @@ pub fn main(args: &[String]) {
         .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        let serial = measure(sieve_serial);
+        let serial = measure(sieve_serial).as_nanos();
         println!("  serial: {:10} ns", serial);
 
-        let chunks = measure(sieve_chunks);
+        let chunks = measure(sieve_chunks).as_nanos();
         println!(
             "  chunks: {:10} ns -> {:.2}x speedup",
             chunks,
             serial as f64 / chunks as f64
         );
 
-        let parallel = measure(sieve_parallel);
+        let parallel = measure(sieve_parallel).as_nanos();
         println!(
             "parallel: {:10} ns -> {:.2}x speedup",
             parallel,

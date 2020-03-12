@@ -1,4 +1,5 @@
 use docopt::Docopt;
+use std::time::Instant;
 
 #[cfg(test)]
 mod bench;
@@ -82,13 +83,13 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     let par_time = if run_par {
         let mut rng = crate::seeded_rng();
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
-        let par_start = time::precise_time_ns();
+        let par_start = Instant::now();
 
         for _ in 0..ticks {
             benchmark.tick_par();
         }
 
-        let par_time = time::precise_time_ns() - par_start;
+        let par_time = par_start.elapsed().as_nanos();
         println!("Parallel time    : {} ns", par_time);
 
         Some(par_time)
@@ -99,13 +100,13 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     let par_reduce_time = if run_par_reduce {
         let mut rng = crate::seeded_rng();
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
-        let par_start = time::precise_time_ns();
+        let par_start = Instant::now();
 
         for _ in 0..ticks {
             benchmark.tick_par_reduce();
         }
 
-        let par_time = time::precise_time_ns() - par_start;
+        let par_time = par_start.elapsed().as_nanos();
         println!("ParReduce time   : {} ns", par_time);
 
         Some(par_time)
@@ -116,13 +117,13 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
     let seq_time = if run_seq {
         let mut rng = crate::seeded_rng();
         let mut benchmark = NBodyBenchmark::new(bodies, &mut rng);
-        let seq_start = time::precise_time_ns();
+        let seq_start = Instant::now();
 
         for _ in 0..ticks {
             benchmark.tick_seq();
         }
 
-        let seq_time = time::precise_time_ns() - seq_start;
+        let seq_time = seq_start.elapsed().as_nanos();
         println!("Sequential time  : {} ns", seq_time);
 
         Some(seq_time)

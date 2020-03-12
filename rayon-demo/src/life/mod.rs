@@ -21,6 +21,7 @@ use std::iter::repeat;
 use std::num::Wrapping;
 use std::sync::Arc;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use docopt::Docopt;
 use rayon::iter::ParallelBridge;
@@ -191,52 +192,52 @@ fn par_bridge_generations(board: Board, gens: usize) {
     }
 }
 
-fn delay(last_start: u64, min_interval_ns: u64) -> u64 {
-    let mut current_time = time::precise_time_ns();
+fn delay(last_start: Instant, min_interval: Duration) -> Instant {
+    let mut current_time = Instant::now();
     let elapsed = current_time - last_start;
-    if elapsed < min_interval_ns {
-        let delay = min_interval_ns - elapsed;
-        thread::sleep(::std::time::Duration::from_nanos(delay));
+    if elapsed < min_interval {
+        let delay = min_interval - elapsed;
+        thread::sleep(delay);
         current_time += delay;
     }
     current_time
 }
 
-fn generations_limited(board: Board, gens: usize, min_interval_ns: u64) {
+fn generations_limited(board: Board, gens: usize, min_interval: Duration) {
     let mut brd = board;
-    let mut time = time::precise_time_ns();
+    let mut time = Instant::now();
     for _ in 0..gens {
         brd = brd.next_generation();
-        time = delay(time, min_interval_ns);
+        time = delay(time, min_interval);
     }
 }
 
-fn parallel_generations_limited(board: Board, gens: usize, min_interval_ns: u64) {
+fn parallel_generations_limited(board: Board, gens: usize, min_interval: Duration) {
     let mut brd = board;
-    let mut time = time::precise_time_ns();
+    let mut time = Instant::now();
     for _ in 0..gens {
         brd = brd.parallel_next_generation();
-        time = delay(time, min_interval_ns);
+        time = delay(time, min_interval);
     }
 }
 
-fn par_bridge_generations_limited(board: Board, gens: usize, min_interval_ns: u64) {
+fn par_bridge_generations_limited(board: Board, gens: usize, min_interval: Duration) {
     let mut brd = board;
-    let mut time = time::precise_time_ns();
+    let mut time = Instant::now();
     for _ in 0..gens {
         brd = brd.par_bridge_next_generation();
-        time = delay(time, min_interval_ns);
+        time = delay(time, min_interval);
     }
 }
 
-fn measure(f: fn(Board, usize) -> (), args: &Args) -> u64 {
+fn measure(f: fn(Board, usize) -> (), args: &Args) -> Duration {
     let (n, gens) = (args.flag_size, args.flag_gens);
     let brd = Board::new(n, n).random();
-    let start = time::precise_time_ns();
+    let start = Instant::now();
 
     f(brd, gens);
 
-    time::precise_time_ns() - start
+    start.elapsed()
 }
 
 struct CpuResult {
@@ -244,9 +245,9 @@ struct CpuResult {
     cpu_usage_percent: Option<f64>,
 }
 
-fn measure_cpu(f: fn(Board, usize, u64) -> (), args: &Args) -> CpuResult {
+fn measure_cpu(f: fn(Board, usize, Duration) -> (), args: &Args) -> CpuResult {
     let (n, gens, rate) = (args.flag_size, args.flag_gens, args.flag_fps);
-    let interval = 1_000_000_000 / rate as u64;
+    let interval = Duration::from_secs_f64(1.0 / rate as f64);
     let brd = Board::new(n, n).random();
 
     let CpuMeasure {
@@ -255,7 +256,7 @@ fn measure_cpu(f: fn(Board, usize, u64) -> (), args: &Args) -> CpuResult {
     } = cpu_time::measure_cpu(|| f(brd, gens, interval));
 
     CpuResult {
-        actual_fps: (1_000_000_000.0 * gens as f64) / time_duration as f64,
+        actual_fps: gens as f64 / time_duration.as_secs_f64(),
         cpu_usage_percent,
     }
 }
@@ -266,17 +267,17 @@ pub fn main(args: &[String]) {
         .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        let serial = measure(generations, &args);
+        let serial = measure(generations, &args).as_nanos();
         println!("  serial: {:10} ns", serial);
 
-        let parallel = measure(parallel_generations, &args);
+        let parallel = measure(parallel_generations, &args).as_nanos();
         println!(
             "parallel: {:10} ns -> {:.2}x speedup",
             parallel,
             serial as f64 / parallel as f64
         );
 
-        let par_bridge = measure(par_bridge_generations, &args);
+        let par_bridge = measure(par_bridge_generations, &args).as_nanos();
         println!(
             "par_bridge: {:10} ns -> {:.2}x speedup",
             par_bridge,
