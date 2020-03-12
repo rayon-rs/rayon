@@ -173,6 +173,15 @@ fn slice_chunks() {
 }
 
 #[test]
+fn slice_chunks_exact() {
+    let s: Vec<_> = (0..10).collect();
+    for len in 1..s.len() + 2 {
+        let v: Vec<_> = s.chunks_exact(len).collect();
+        check(&v, || s.par_chunks_exact(len));
+    }
+}
+
+#[test]
 fn slice_chunks_mut() {
     let mut s: Vec<_> = (0..10).collect();
     let mut v: Vec<_> = s.clone();
@@ -181,6 +190,19 @@ fn slice_chunks_mut() {
         map_triples(expected.len() + 1, |i, j, k| {
             Split::forward(s.par_chunks_mut(len), i, j, k, &expected);
             Split::reverse(s.par_chunks_mut(len), i, j, k, &expected);
+        });
+    }
+}
+
+#[test]
+fn slice_chunks_exact_mut() {
+    let mut s: Vec<_> = (0..10).collect();
+    let mut v: Vec<_> = s.clone();
+    for len in 1..s.len() + 2 {
+        let expected: Vec<_> = v.chunks_exact_mut(len).collect();
+        map_triples(expected.len() + 1, |i, j, k| {
+            Split::forward(s.par_chunks_exact_mut(len), i, j, k, &expected);
+            Split::reverse(s.par_chunks_exact_mut(len), i, j, k, &expected);
         });
     }
 }
