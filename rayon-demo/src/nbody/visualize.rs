@@ -1,7 +1,9 @@
 use cgmath::{self, Angle, EuclideanSpace, Matrix4, Point3, Rad, Vector3};
-use glium::glutin::VirtualKeyCode as Key;
-use glium::glutin::{ContextBuilder, EventsLoop, WindowBuilder};
-use glium::glutin::{ElementState, Event, WindowEvent};
+use glium::glutin::dpi::LogicalSize;
+use glium::glutin::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
+use glium::glutin::event_loop::{ControlFlow, EventLoop};
+use glium::glutin::window::WindowBuilder;
+use glium::glutin::ContextBuilder;
 use glium::index::PrimitiveType;
 use glium::{Depth, DepthTest, DrawParameters};
 use glium::{Display, Program, Surface};
@@ -78,12 +80,12 @@ struct Instance {
 glium::implement_vertex!(Instance, color, world_position);
 
 pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
-    let mut events_loop = EventsLoop::new();
+    let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_dimensions((800, 600).into())
+        .with_inner_size(LogicalSize::new(800, 600))
         .with_title("nbody demo".to_string());
     let context = ContextBuilder::new().with_depth_buffer(24);
-    let display = Display::new(window, context, &events_loop).unwrap();
+    let display = Display::new(window, context, &event_loop).unwrap();
 
     let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rand::thread_rng());
 
@@ -135,8 +137,8 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
 
     let mut instance_buffer = VertexBuffer::dynamic(&display, &instances).unwrap();
 
-    'main: loop {
-        {
+    event_loop.run(move |event, _target, control| match event {
+        Event::MainEventsCleared => {
             let bodies = match mode {
                 ExecutionMode::Par => benchmark.tick_par(),
                 ExecutionMode::ParReduce => benchmark.tick_par_reduce(),
@@ -151,64 +153,58 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
                     body.position.z as f32,
                 ];
             }
+            display.gl_window().window().request_redraw();
         }
-
-        let params = DrawParameters {
-            depth: Depth {
-                test: DepthTest::IfLess,
-                write: true,
+        Event::RedrawRequested(_) => {
+            let params = DrawParameters {
+                depth: Depth {
+                    test: DepthTest::IfLess,
+                    write: true,
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        };
+            };
 
-        let mut target = display.draw();
+            let mut target = display.draw();
 
-        let (width, height) = target.get_dimensions();
-        let aspect = width as f32 / height as f32;
+            let (width, height) = target.get_dimensions();
+            let aspect = width as f32 / height as f32;
 
-        let proj = cgmath::perspective(Rad::full_turn() / 6.0, aspect, 0.1, 3000.0);
-        let view = Matrix4::look_at(
-            Point3::new(10.0, 10.0, 10.0),
-            Point3::origin(),
-            Vector3::unit_z(),
-        );
-        let view_proj: [[f32; 4]; 4] = (proj * view).into();
+            let proj = cgmath::perspective(Rad::full_turn() / 6.0, aspect, 0.1, 3000.0);
+            let view = Matrix4::look_at(
+                Point3::new(10.0, 10.0, 10.0),
+                Point3::origin(),
+                Vector3::unit_z(),
+            );
+            let view_proj: [[f32; 4]; 4] = (proj * view).into();
 
-        target.clear_color_and_depth((0.1, 0.1, 0.1, 1.0), 1.0);
-        target
-            .draw(
-                (&vertex_buffer, instance_buffer.per_instance().unwrap()),
-                &index_buffer,
-                &program,
-                &glium::uniform! { matrix: view_proj },
-                &params,
-            )
-            .unwrap();
-        target.finish().unwrap();
-
-        let mut done = false;
-        events_loop.poll_events(|event| {
-            if let Event::WindowEvent { event, .. } = event {
-                match event {
-                    WindowEvent::CloseRequested => done = true,
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let ElementState::Pressed = input.state {
-                            match input.virtual_keycode {
-                                Some(Key::Escape) => done = true,
-                                Some(Key::P) => mode = ExecutionMode::Par,
-                                Some(Key::R) => mode = ExecutionMode::ParReduce,
-                                Some(Key::S) => mode = ExecutionMode::Seq,
-                                _ => (),
-                            }
-                        }
+            target.clear_color_and_depth((0.1, 0.1, 0.1, 1.0), 1.0);
+            target
+                .draw(
+                    (&vertex_buffer, instance_buffer.per_instance().unwrap()),
+                    &index_buffer,
+                    &program,
+                    &glium::uniform! { matrix: view_proj },
+                    &params,
+                )
+                .unwrap();
+            target.finish().unwrap();
+        }
+        Event::WindowEvent { event, .. } => match event {
+            WindowEvent::CloseRequested => *control = ControlFlow::Exit,
+            WindowEvent::KeyboardInput { input, .. } => {
+                if let ElementState::Pressed = input.state {
+                    match input.virtual_keycode {
+                        Some(VirtualKeyCode::Escape) => *control = ControlFlow::Exit,
+                        Some(VirtualKeyCode::P) => mode = ExecutionMode::Par,
+                        Some(VirtualKeyCode::R) => mode = ExecutionMode::ParReduce,
+                        Some(VirtualKeyCode::S) => mode = ExecutionMode::Seq,
+                        _ => (),
                     }
-                    _ => (),
                 }
             }
-        });
-        if done {
-            break 'main;
-        }
-    }
+            _ => (),
+        },
+        _ => (),
+    });
 }
