@@ -1,47 +1,36 @@
-use docopt::Docopt;
 use std::io;
-use std::process;
+use structopt::StructOpt;
 
-const USAGE: &str = "
-Usage: cpu_monitor [options] <scenario>
-       cpu_monitor --help
+#[derive(StructOpt, Debug)]
+pub enum ArgScenario {
+    /// after all tasks have finished, go to sleep
+    TaskEnded,
+    /// a root task stalls for a very long time
+    TaskStallRoot,
+    /// a task in a scope stalls for a very long time
+    TaskStallScope,
+}
 
-A test for monitoring how much CPU usage Rayon consumes under various
-scenarios. This test is intended to be executed interactively, like so:
-
-    cargo run --example cpu_monitor -- tasks_ended
-
-The list of scenarios you can try are as follows:
-
-- tasks_ended: after all tasks have finished, go to sleep
-- task_stall_root: a root task stalls for a very long time
-- task_stall_scope: a task in a scope stalls for a very long time
-
-Options:
-    -h, --help                   Show this message.
-    -d N, --depth N              Control how hard the dummy task works [default: 27]
-";
-
-#[derive(serde::Deserialize)]
+#[derive(StructOpt, Debug)]
+#[structopt(
+    about = "A test for monitoring how much CPU usage Rayon consumes under various scenarios."
+)]
 pub struct Args {
-    arg_scenario: String,
+    #[structopt(subcommand)]
+    arg_scenario: ArgScenario,
+    /// Control how hard the dummy task works
+    #[structopt(short = "d", long = "depth", default_value = "27")]
     flag_depth: usize,
 }
 
 fn main() {
-    let args: &Args = &Docopt::new(USAGE)
-        .and_then(|d| d.deserialize())
-        .unwrap_or_else(|e| e.exit());
+    use ArgScenario::*;
+    let args: Args = Args::from_args();
 
-    match &args.arg_scenario[..] {
-        "tasks_ended" => tasks_ended(args),
-        "task_stall_root" => task_stall_root(args),
-        "task_stall_scope" => task_stall_scope(args),
-        _ => {
-            println!("unknown scenario: `{}`", args.arg_scenario);
-            println!("try --help");
-            process::exit(1);
-        }
+    match args.arg_scenario {
+        TaskEnded => tasks_ended(&args),
+        TaskStallRoot => task_stall_root(&args),
+        TaskStallScope => task_stall_scope(&args),
     }
 }
 
