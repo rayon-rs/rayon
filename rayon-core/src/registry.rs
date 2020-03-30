@@ -463,7 +463,7 @@ impl Registry {
         // This thread is a member of a different pool, so let it process
         // other work while waiting for this `op` to complete.
         debug_assert!(current_thread.registry().id() != self.id());
-        let latch = TickleLatch::new(SpinLatch::new(), &current_thread.registry().sleep);
+        let latch = TickleLatch::new(SpinLatch::new(), current_thread.registry());
         let job = StackJob::new(
             |injected| {
                 let worker_thread = WorkerThread::current();
@@ -506,6 +506,10 @@ impl Registry {
     /// extant work is completed.
     pub(super) fn terminate(&self) {
         self.terminate_latch.set();
+        self.sleep.tickle(usize::MAX);
+    }
+
+    pub(super) fn tickle(&self) {
         self.sleep.tickle(usize::MAX);
     }
 }
