@@ -638,22 +638,31 @@ impl ThreadPoolBuildError {
     }
 }
 
+const GLOBAL_POOL_ALREADY_INITIALIZED: &str =
+    "The global thread pool has already been initialized.";
+
 impl Error for ThreadPoolBuildError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match self.kind {
-            ErrorKind::GlobalPoolAlreadyInitialized => {
-                "The global thread pool has already been initialized."
-            }
+            ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED,
             ErrorKind::IOError(ref e) => e.description(),
+        }
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match &self.kind {
+            ErrorKind::GlobalPoolAlreadyInitialized => None,
+            ErrorKind::IOError(e) => Some(e),
         }
     }
 }
 
 impl fmt::Display for ThreadPoolBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.kind {
-            ErrorKind::IOError(ref e) => e.fmt(f),
-            _ => self.description().fmt(f),
+        match &self.kind {
+            ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED.fmt(f),
+            ErrorKind::IOError(e) => e.fmt(f),
         }
     }
 }
