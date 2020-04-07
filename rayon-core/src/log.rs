@@ -1,11 +1,22 @@
 //! Debug Logging
 //!
-//! To use in a debug build, set the env var `RAYON_RS_LOG=1`.  In a
-//! release build, logs are compiled out by default unless Rayon is built
-//! with `--cfg rayon_rs_log` (try `RUSTFLAGS="--cfg rayon_rs_log"`).
+//! To use in a debug build, set the env var `RAYON_LOG` as
+//! described below.  In a release build, logs are compiled out by
+//! default unless Rayon is built with `--cfg rayon_rs_log` (try
+//! `RUSTFLAGS="--cfg rayon_rs_log"`).
 //!
 //! Note that logs are an internally debugging tool and their format
 //! is considered unstable, as are the details of how to enable them.
+//!
+//! # Valid values for RAYON_LOG
+//!
+//! The `RAYON_LOG` variable can take on the following values:
+//!
+//! * `tail:<file>` -- dumps the last 10,000 events into the given file;
+//!   useful for tracking down deadlocks
+//! * `profile:<file>` -- dumps only those events needed to reconstruct how
+//!   many workers are active at a given time
+//! * `all:<file>` -- dumps every event to the file; useful for debugging
 
 use crossbeam_channel::{self, Receiver, Sender};
 use std::collections::VecDeque;
@@ -107,12 +118,8 @@ impl Logger {
             return Self::disabled();
         }
 
-        // format:
-        //
-        // tail:<file> -- dumps the last 10,000 events
-        // profile:<file> -- dumps every Nth event
-        // all:<file> -- dumps every event to the file
-        let env_log = match env::var("RAYON_RS_LOG") {
+        // see the doc comment for the format
+        let env_log = match env::var("RAYON_LOG") {
             Ok(s) => s,
             Err(_) => return Self::disabled(),
         };
@@ -134,7 +141,7 @@ impl Logger {
                 Self::profile_logger_thread(num_workers, filename, 10_000, receiver)
             });
         } else {
-            panic!("RAYON_RS_LOG should be 'tail:<file>' or 'profile:<file>'");
+            panic!("RAYON_LOG should be 'tail:<file>' or 'profile:<file>'");
         }
 
         return Logger {
