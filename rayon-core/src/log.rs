@@ -39,9 +39,7 @@ pub(super) enum Event {
     },
 
     /// Indicates that a worker thread started execution.
-    ThreadTerminate {
-        worker: usize,
-    },
+    ThreadTerminate { worker: usize },
 
     /// Indicates that a worker thread became idle, blocked on `latch_addr`.
     ThreadIdle { worker: usize, latch_addr: usize },
@@ -132,9 +130,7 @@ impl Logger {
                 Self::tail_logger_thread(num_workers, filename, 10_000, receiver)
             });
         } else if env_log == "all" {
-            ::std::thread::spawn(move || {
-                Self::all_logger_thread(num_workers, receiver)
-            });
+            ::std::thread::spawn(move || Self::all_logger_thread(num_workers, receiver));
         } else if env_log.starts_with("profile:") {
             let filename = env_log["profile:".len()..].to_string();
             ::std::thread::spawn(move || {
@@ -160,9 +156,7 @@ impl Logger {
         }
 
         if let Some(sender) = &self.sender {
-            sender
-                .send(event())
-                .unwrap();
+            sender.send(event()).unwrap();
         }
     }
 
@@ -264,10 +258,7 @@ impl Logger {
         }
     }
 
-    fn all_logger_thread(
-        num_workers: usize,
-        receiver: Receiver<Event>,
-    ) {
+    fn all_logger_thread(num_workers: usize, receiver: Receiver<Event>) {
         let stderr = std::io::stderr();
         let mut state = SimulatorState::new(num_workers);
 

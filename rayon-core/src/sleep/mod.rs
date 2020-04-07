@@ -1,17 +1,19 @@
 //! Code that decides when workers should go to sleep. See README.md
 //! for an overview.
 
-use crossbeam_utils::CachePadded;
 use crate::latch::CoreLatch;
-use crate::log::Logger;
 use crate::log::Event::*;
+use crate::log::Logger;
+use crossbeam_utils::CachePadded;
 use std::sync::atomic::Ordering;
 use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
 
 mod counters;
-use self::counters::{AtomicCounters, Counters, INVALID_SLEEPY_COUNTER, SleepyCounter, ZERO_SLEEPY_COUNTER};
+use self::counters::{
+    AtomicCounters, Counters, SleepyCounter, INVALID_SLEEPY_COUNTER, ZERO_SLEEPY_COUNTER,
+};
 
 pub(super) struct Sleep {
     logger: Logger,
@@ -92,11 +94,7 @@ impl Sleep {
     }
 
     #[inline]
-    pub(super) fn no_work_found(
-        &self,
-        idle_state: &mut IdleState,
-        latch: &CoreLatch,
-    ) {
+    pub(super) fn no_work_found(&self, idle_state: &mut IdleState, latch: &CoreLatch) {
         if idle_state.rounds < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
             idle_state.rounds += 1;
@@ -119,13 +117,22 @@ impl Sleep {
             let counters = self.counters.load(Ordering::Relaxed);
             let sleepy_counter = counters.sleepy_counter();
             if sleepy_counter.is_max() {
-                if self.counters.try_rollover_jobs_and_sleepy_counters(counters) {
-                    self.logger.log(|| ThreadSleepy { worker: worker_index, sleepy_counter: 0 });
+                if self
+                    .counters
+                    .try_rollover_jobs_and_sleepy_counters(counters)
+                {
+                    self.logger.log(|| ThreadSleepy {
+                        worker: worker_index,
+                        sleepy_counter: 0,
+                    });
                     return ZERO_SLEEPY_COUNTER;
                 }
             } else {
                 if self.counters.try_add_sleepy_thread(counters) {
-                    self.logger.log(|| ThreadSleepy { worker: worker_index, sleepy_counter: sleepy_counter.as_u16() });
+                    self.logger.log(|| ThreadSleepy {
+                        worker: worker_index,
+                        sleepy_counter: sleepy_counter.as_u16(),
+                    });
                     return sleepy_counter;
                 }
             }
@@ -209,7 +216,6 @@ impl Sleep {
             worker: worker_index,
             latch_addr: latch.addr(),
         });
-
     }
 
     /// Notify the given thread that it should wake up (if it is
@@ -219,7 +225,6 @@ impl Sleep {
     pub(super) fn notify_worker_latch_is_set(&self, target_worker_index: usize) {
         self.wake_specific_thread(target_worker_index);
     }
-
 
     /// Signals that `num_jobs` new jobs were injected into the thread
     /// pool from outside. This function will ensure that there are
@@ -270,12 +275,7 @@ impl Sleep {
 
     /// Common helper for `new_injected_jobs` and `new_internal_jobs`.
     #[inline]
-    fn new_jobs(
-        &self,
-        source_worker_index: usize,
-        num_jobs: u32,
-        queue_was_empty: bool,
-    ) {
+    fn new_jobs(&self, source_worker_index: usize, num_jobs: u32, queue_was_empty: bool) {
         let mut counters = self.counters.load(Ordering::SeqCst);
 
         // If we find that the jobs counter is out of date, we have to fix that.
@@ -337,10 +337,7 @@ impl Sleep {
     }
 
     #[cold]
-    fn wake_any_threads(
-        &self,
-        mut num_to_wake: u32,
-    ) {
+    fn wake_any_threads(&self, mut num_to_wake: u32) {
         if num_to_wake > 0 {
             for i in 0..self.worker_sleep_states.len() {
                 if self.wake_specific_thread(i) {
@@ -372,9 +369,7 @@ impl Sleep {
             // do.
             self.counters.sub_sleeping_thread();
 
-            self.logger.log(|| ThreadNotify {
-                worker: index,
-            });
+            self.logger.log(|| ThreadNotify { worker: index });
 
             true
         } else {
@@ -394,4 +389,3 @@ impl IdleState {
         self.sleepy_counter = INVALID_SLEEPY_COUNTER;
     }
 }
-

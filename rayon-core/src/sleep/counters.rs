@@ -11,12 +11,12 @@ pub(super) struct AtomicCounters {
     /// - The bits 0x4444 are the number of **sleeping threads**.
     ///
     /// See the struct `Counters` below.
-    value: AtomicU64
+    value: AtomicU64,
 }
 
 #[derive(Copy, Clone)]
 pub(super) struct Counters {
-    word: u64
+    word: u64,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -40,7 +40,9 @@ pub(super) const ZERO_SLEEPY_COUNTER: SleepyCounter = SleepyCounter(0);
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
-        AtomicCounters { value: AtomicU64::new(0) }
+        AtomicCounters {
+            value: AtomicU64::new(0),
+        }
     }
 
     pub(super) fn load(&self, ordering: Ordering) -> Counters {
@@ -49,12 +51,9 @@ impl AtomicCounters {
 
     #[inline]
     fn try_exchange(&self, old_value: Counters, new_value: Counters, ordering: Ordering) -> bool {
-        self.value.compare_exchange(
-            old_value.word,
-            new_value.word,
-            ordering,
-            Ordering::Relaxed,
-        ).is_ok()
+        self.value
+            .compare_exchange(old_value.word, new_value.word, ordering, Ordering::Relaxed)
+            .is_ok()
     }
 
     /// Adds an idle thread. This cannot fail.

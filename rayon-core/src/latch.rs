@@ -78,8 +78,7 @@ impl CoreLatch {
     /// if the owning thread may proceed to fall asleep, false if the
     /// latch was set in the meantime.
     pub(super) fn get_sleepy(&self) -> bool {
-        self
-            .state
+        self.state
             .compare_exchange(UNSET, SLEEPY, Ordering::SeqCst, Ordering::Relaxed)
             .is_ok()
     }
@@ -88,8 +87,7 @@ impl CoreLatch {
     /// true if the owning thread should block, or false if the latch
     /// was set in the meantime.
     pub(super) fn fall_asleep(&self) -> bool {
-        self
-            .state
+        self.state
             .compare_exchange(SLEEPY, SLEEPING, Ordering::SeqCst, Ordering::Relaxed)
             .is_ok()
     }
@@ -100,9 +98,8 @@ impl CoreLatch {
     pub(super) fn wake_up(&self) {
         if !self.probe() {
             let _ =
-                self
-                .state
-                .compare_exchange(SLEEPING, UNSET, Ordering::SeqCst, Ordering::Relaxed);
+                self.state
+                    .compare_exchange(SLEEPING, UNSET, Ordering::SeqCst, Ordering::Relaxed);
         }
     }
 

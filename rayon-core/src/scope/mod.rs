@@ -582,11 +582,13 @@ impl<'scope> ScopeBase<'scope> {
             mem::forget(err); // ownership now transferred into self.panic
         }
 
-        self.job_completed_latch.set_and_tickle_one(&self.registry, self.owner_thread_index);
+        self.job_completed_latch
+            .set_and_tickle_one(&self.registry, self.owner_thread_index);
     }
 
     unsafe fn job_completed_ok(&self) {
-        self.job_completed_latch.set_and_tickle_one(&self.registry, self.owner_thread_index);
+        self.job_completed_latch
+            .set_and_tickle_one(&self.registry, self.owner_thread_index);
     }
 
     unsafe fn steal_till_jobs_complete(&self, owner_thread: &WorkerThread) {
