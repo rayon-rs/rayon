@@ -535,7 +535,7 @@ impl Registry {
         }
     }
 
-    /// Notify the worker that the latch they are sleeping on has bene "set".
+    /// Notify the worker that the latch they are sleeping on has been "set".
     pub(super) fn notify_worker_latch_is_set(&self, target_worker_index: usize) {
         self.sleep.notify_worker_latch_is_set(target_worker_index);
     }
