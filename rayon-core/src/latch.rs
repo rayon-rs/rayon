@@ -179,17 +179,29 @@ impl<'r> Latch for SpinLatch<'r> {
     #[inline]
     fn set(&self) {
         let cross_registry;
+
         let registry = if self.cross {
             // Ensure the registry stays alive while we notify it.
+            // Otherwise, it would be possible that we set the spin
+            // latch and the other thread sees it and exits, causing
+            // the registry to be deallocated, all before we get a
+            // chance to invoke `registry.notify_worker_latch_is_set`.
             cross_registry = Arc::clone(self.registry);
             &cross_registry
         } else {
+            // If this is not a "cross-registry" spin-latch, then the
+            // thread which is performing `set` is itself ensuring
+            // that the registry stays alive.
             self.registry
         };
         let target_worker_index = self.target_worker_index;
 
         // NOTE: Once we `set`, the target may proceed and invalidate `&self`!
         if self.core_latch.set() {
+            // Subtle: at this point, we can no longer read from
+            // `self`, because the thread owning this spin latch may
+            // have awoken and deallocated the latch. Therefore, we
+            // only use fields whose values we already read.
             registry.notify_worker_latch_is_set(target_worker_index);
         }
     }
