@@ -5,8 +5,8 @@ pub(super) struct AtomicCounters {
     ///
     /// Consider the value `0x1111_2222_3333_4444`:
     ///
-    /// - The bits 0x1111 are the **jobs counter**.
-    /// - The bits 0x2222 are the **sleepy counter**.
+    /// - The bits 0x1111 are the **jobs event counter**.
+    /// - The bits 0x2222 are the **sleepy event counter**.
     /// - The bits 0x3333 are the number of **idle threads**.
     /// - The bits 0x4444 are the number of **sleeping threads**.
     ///
@@ -20,10 +20,10 @@ pub(super) struct Counters {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub(super) struct SleepyCounter(u16);
+pub(super) struct SleepyEventCounter(u16);
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub(super) struct JobsCounter(u16);
+pub(super) struct JobsEventCounter(u16);
 
 const ONE_SLEEPING: u64 = 0x0000_0000_0000_0001;
 const ONE_IDLE: u64 = 0x0000_0000_0001_0000;
@@ -35,8 +35,8 @@ const IDLE_SHIFT: u64 = 1 * 16;
 const SLEEPY_SHIFT: u64 = 2 * 16;
 const JOBS_SHIFT: u64 = 3 * 16;
 
-pub(super) const INVALID_SLEEPY_COUNTER: SleepyCounter = SleepyCounter(std::u16::MAX);
-pub(super) const ZERO_SLEEPY_COUNTER: SleepyCounter = SleepyCounter(0);
+pub(super) const INVALID_SLEEPY_COUNTER: SleepyEventCounter = SleepyEventCounter(std::u16::MAX);
+pub(super) const ZERO_SLEEPY_COUNTER: SleepyEventCounter = SleepyEventCounter(0);
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
@@ -45,6 +45,9 @@ impl AtomicCounters {
         }
     }
 
+    /// Load and return the current value of the various counters.
+    /// This value can then be given to other method which will
+    /// attempt to update the counters via compare-and-swap.
     pub(super) fn load(&self, ordering: Ordering) -> Counters {
         Counters::new(self.value.load(ordering))
     }
@@ -62,6 +65,9 @@ impl AtomicCounters {
         self.value.fetch_add(ONE_IDLE, Ordering::SeqCst);
     }
 
+    /// Attempt to increment the number of sleepy threads with a compare and
+    /// swap. Returns false if this attempt failed (in which case no changed was
+    /// made).
     #[inline]
     pub(super) fn try_add_sleepy_thread(&self, old_value: Counters) -> bool {
         debug_assert!(
@@ -156,12 +162,12 @@ impl Counters {
         Counters { word }
     }
 
-    pub(super) fn jobs_counter(self) -> JobsCounter {
-        JobsCounter(select_u16(self.word, JOBS_SHIFT))
+    pub(super) fn jobs_counter(self) -> JobsEventCounter {
+        JobsEventCounter(select_u16(self.word, JOBS_SHIFT))
     }
 
-    pub(super) fn sleepy_counter(self) -> SleepyCounter {
-        SleepyCounter(select_u16(self.word, SLEEPY_SHIFT))
+    pub(super) fn sleepy_counter(self) -> SleepyEventCounter {
+        SleepyEventCounter(select_u16(self.word, SLEEPY_SHIFT))
     }
 
     pub(super) fn raw_idle_threads(self) -> u16 {
@@ -177,7 +183,7 @@ impl Counters {
     }
 }
 
-impl SleepyCounter {
+impl SleepyEventCounter {
     pub(super) fn is_max(self) -> bool {
         self.0 == std::u16::MAX
     }
@@ -187,26 +193,26 @@ impl SleepyCounter {
     }
 }
 
-impl PartialOrd<JobsCounter> for SleepyCounter {
-    fn partial_cmp(&self, other: &JobsCounter) -> Option<::std::cmp::Ordering> {
+impl PartialOrd<JobsEventCounter> for SleepyEventCounter {
+    fn partial_cmp(&self, other: &JobsEventCounter) -> Option<::std::cmp::Ordering> {
         PartialOrd::partial_cmp(&self.0, &other.0)
     }
 }
 
-impl PartialOrd<SleepyCounter> for JobsCounter {
-    fn partial_cmp(&self, other: &SleepyCounter) -> Option<::std::cmp::Ordering> {
+impl PartialOrd<SleepyEventCounter> for JobsEventCounter {
+    fn partial_cmp(&self, other: &SleepyEventCounter) -> Option<::std::cmp::Ordering> {
         PartialOrd::partial_cmp(&self.0, &other.0)
     }
 }
 
-impl PartialEq<JobsCounter> for SleepyCounter {
-    fn eq(&self, other: &JobsCounter) -> bool {
+impl PartialEq<JobsEventCounter> for SleepyEventCounter {
+    fn eq(&self, other: &JobsEventCounter) -> bool {
         PartialEq::eq(&self.0, &other.0)
     }
 }
 
-impl PartialEq<SleepyCounter> for JobsCounter {
-    fn eq(&self, other: &SleepyCounter) -> bool {
+impl PartialEq<SleepyEventCounter> for JobsEventCounter {
+    fn eq(&self, other: &SleepyEventCounter) -> bool {
         PartialEq::eq(&self.0, &other.0)
     }
 }

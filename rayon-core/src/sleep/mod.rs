@@ -12,9 +12,16 @@ use std::usize;
 
 mod counters;
 use self::counters::{
-    AtomicCounters, Counters, SleepyCounter, INVALID_SLEEPY_COUNTER, ZERO_SLEEPY_COUNTER,
+    AtomicCounters, Counters, SleepyEventCounter, INVALID_SLEEPY_COUNTER, ZERO_SLEEPY_COUNTER,
 };
 
+/// The `Sleep` struct is embedded into each registry. It governs the waking and sleeping
+/// of workers. It has callbacks that are invoked periodically at significant events,
+/// such as when workers are looping and looking for work, when latches are set, or when
+/// jobs are published, and it either blocks threads or wakes them in response to these
+/// events. See the [`README.md`] in this module for more details.
+///
+/// [`README.md`] README.md
 pub(super) struct Sleep {
     logger: Logger,
 
@@ -39,7 +46,7 @@ pub(super) struct IdleState {
 
     /// Once we become sleepy, what was the sleepy counter value?
     /// Set to `INVALID_SLEEPY_COUNTER` otherwise.
-    sleepy_counter: SleepyCounter,
+    sleepy_counter: SleepyEventCounter,
 }
 
 /// The "sleep state" for an individual worker.
@@ -112,7 +119,7 @@ impl Sleep {
     }
 
     #[cold]
-    fn announce_sleepy(&self, worker_index: usize) -> SleepyCounter {
+    fn announce_sleepy(&self, worker_index: usize) -> SleepyEventCounter {
         loop {
             let counters = self.counters.load(Ordering::Relaxed);
             let sleepy_counter = counters.sleepy_counter();
