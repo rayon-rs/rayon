@@ -32,6 +32,14 @@ use crate::registry::{Registry, WorkerThread};
 ///   README](/src/sleep/README.md#tickle-then-get-sleepy) for details.
 pub(super) trait Latch {
     /// Set the latch, signalling others.
+    ///
+    /// # WARNING
+    ///
+    /// Setting a latch triggers other threads to wake up and (in some
+    /// cases) complete. This may, in turn, cause memory to be
+    /// allocated and so forth.  One must be very careful about this,
+    /// and it's typically better to read all the fields you will need
+    /// to access *before* a latch is set!
     fn set(&self);
 }
 
