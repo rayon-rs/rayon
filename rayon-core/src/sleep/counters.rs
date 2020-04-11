@@ -50,6 +50,9 @@ const ONE_IDLE: u64 = 0x0000_0000_0001_0000;
 /// Constant that can be added to add one to the JEC.
 const ONE_JEC: u64 = 0x0000_0001_0000_0000;
 
+/// Mask to zero out the JEC (but retain everything else).
+const ZERO_JEC_MASK: u64 = 0x0000_0000_FFFF_FFFF;
+
 /// Bits to shift to select the sleeping threads
 /// (used with `select_bits`).
 const SLEEPING_SHIFT: u64 = 0;
@@ -111,7 +114,11 @@ impl AtomicCounters {
     /// * If a thread is publishing work, and the JEC is odd, then it will attempt
     ///   to increment to an event value.
     pub(super) fn try_increment_jobs_event_counter(&self, old_value: Counters) -> bool {
-        let new_value = Counters::new(old_value.word + ONE_JEC);
+        let new_value = if old_value.jobs_counter() == JobsEventCounter::MAX {
+            Counters::new(old_value.word & ZERO_JEC_MASK)
+        } else {
+            Counters::new(old_value.word + ONE_JEC)
+        };
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 
