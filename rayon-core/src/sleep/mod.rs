@@ -81,7 +81,7 @@ impl Sleep {
         IdleState {
             worker_index,
             rounds: 0,
-            jobs_counter: JobsEventCounter::INVALID,
+            jobs_counter: JobsEventCounter::MAX,
         }
     }
 
@@ -359,11 +359,11 @@ impl Sleep {
 impl IdleState {
     fn wake_fully(&mut self) {
         self.rounds = 0;
-        self.jobs_counter = JobsEventCounter::INVALID;
+        self.jobs_counter = JobsEventCounter::MAX;
     }
 
     fn wake_partly(&mut self) {
         self.rounds = ROUNDS_UNTIL_SLEEPY;
-        self.jobs_counter = JobsEventCounter::INVALID;
+        self.jobs_counter = JobsEventCounter::MAX;
     }
 }
