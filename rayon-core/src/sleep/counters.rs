@@ -23,13 +23,13 @@ pub(super) struct Counters {
 /// See the [`README.md`](README.md) for more
 /// coverage of how the jobs event counter works.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub(super) struct JobsEventCounter(u16);
+pub(super) struct JobsEventCounter(usize);
 
 impl JobsEventCounter {
     pub(super) const INVALID: JobsEventCounter = JobsEventCounter(JOBS_MAX);
 
     fn as_usize(self) -> usize {
-        self.0 as usize
+        self.0
     }
 
     /// Returns true if there were sleepy workers pending when this reading was
@@ -47,7 +47,10 @@ const ONE_JEC: u64 = 0x0000_0001_0000_0000;
 const SLEEPING_SHIFT: u64 = 0;
 const IDLE_SHIFT: u64 = 1 * 16;
 const JOBS_SHIFT: u64 = 2 * 16;
-const JOBS_MAX: u16 = 0xFFFF;
+const JOBS_MAX: usize = 0xFFFF;
+const THREADS_MAX: usize = 0xFFFF;
+const THREADS_BITS: usize = 0xFFFF;
+const JOBS_BITS: usize = std::usize::MAX;
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
@@ -90,7 +93,7 @@ impl AtomicCounters {
 
     /// Subtracts an idle thread. This cannot fail; it returns the
     /// number of sleeping threads to wake up (if any).
-    pub(super) fn sub_idle_thread(&self) -> u16 {
+    pub(super) fn sub_idle_thread(&self) -> usize {
         let old_value = Counters::new(self.value.fetch_sub(ONE_IDLE, Ordering::SeqCst));
         debug_assert!(
             old_value.raw_idle_threads() > 0,
@@ -126,7 +129,7 @@ impl AtomicCounters {
             old_value,
         );
         debug_assert!(
-            old_value.sleeping_threads() < std::u16::MAX,
+            old_value.sleeping_threads() < THREADS_MAX,
             "try_add_sleeping_thread: old_value {:?} has too many sleeping threads",
             old_value,
         );
@@ -138,8 +141,8 @@ impl AtomicCounters {
     }
 }
 
-fn select_u16(word: u64, shift: u64) -> u16 {
-    (word >> shift) as u16
+fn select_bits(word: u64, shift: u64, bits: usize) -> usize {
+    ((word >> shift) as usize) & bits
 }
 
 impl Counters {
@@ -148,19 +151,19 @@ impl Counters {
     }
 
     pub(super) fn jobs_counter(self) -> JobsEventCounter {
-        JobsEventCounter(select_u16(self.word, JOBS_SHIFT))
+        JobsEventCounter(select_bits(self.word, JOBS_SHIFT, JOBS_BITS))
     }
 
-    pub(super) fn raw_idle_threads(self) -> u16 {
-        select_u16(self.word, IDLE_SHIFT)
+    pub(super) fn raw_idle_threads(self) -> usize {
+        select_bits(self.word, IDLE_SHIFT, THREADS_BITS)
     }
 
-    pub(super) fn awake_but_idle_threads(self) -> u16 {
+    pub(super) fn awake_but_idle_threads(self) -> usize {
         self.raw_idle_threads() - self.sleeping_threads()
     }
 
-    pub(super) fn sleeping_threads(self) -> u16 {
-        select_u16(self.word, SLEEPING_SHIFT)
+    pub(super) fn sleeping_threads(self) -> usize {
+        select_bits(self.word, SLEEPING_SHIFT, THREADS_BITS)
     }
 }
 
