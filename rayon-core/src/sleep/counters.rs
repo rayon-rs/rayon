@@ -26,7 +26,7 @@ pub(super) struct Counters {
 pub(super) struct JobsEventCounter(usize);
 
 impl JobsEventCounter {
-    pub(super) const INVALID: JobsEventCounter = JobsEventCounter(JOBS_MAX);
+    pub(super) const INVALID: JobsEventCounter = JobsEventCounter(JEC_MAX);
 
     fn as_usize(self) -> usize {
         self.0
@@ -41,16 +41,40 @@ impl JobsEventCounter {
     }
 }
 
+/// Constant that can be added to add one sleeping thread.
 const ONE_SLEEPING: u64 = 0x0000_0000_0000_0001;
+
+/// Constant that can be added to add one idle thread.
 const ONE_IDLE: u64 = 0x0000_0000_0001_0000;
+
+/// Constant that can be added to add one to the JEC.
 const ONE_JEC: u64 = 0x0000_0001_0000_0000;
+
+/// Bits to shift to select the sleeping threads
+/// (used with `select_bits`).
 const SLEEPING_SHIFT: u64 = 0;
+
+/// Bits to shift to select the idle threads
+/// (used with `select_bits`).
 const IDLE_SHIFT: u64 = 1 * 16;
-const JOBS_SHIFT: u64 = 2 * 16;
-const JOBS_MAX: usize = 0xFFFF;
+
+/// Bits to shift to select the JEC
+/// (use JOBS_BITS).
+const JEC_SHIFT: u64 = 2 * 16;
+
+/// Max value for the jobs event counter.
+const JEC_MAX: usize = 0xFFFF;
+
+/// Max value for the thread counters.
 const THREADS_MAX: usize = 0xFFFF;
+
+/// Mask to select the sleeping|idle thread value, after
+/// shifting (used with `select_bits`)
 const THREADS_BITS: usize = 0xFFFF;
-const JOBS_BITS: usize = std::usize::MAX;
+
+/// Mask to select the JEC, after
+/// shifting (used with `select_bits`)
+const JEC_BITS: usize = std::usize::MAX;
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
@@ -151,7 +175,7 @@ impl Counters {
     }
 
     pub(super) fn jobs_counter(self) -> JobsEventCounter {
-        JobsEventCounter(select_bits(self.word, JOBS_SHIFT, JOBS_BITS))
+        JobsEventCounter(select_bits(self.word, JEC_SHIFT, JEC_BITS))
     }
 
     pub(super) fn raw_idle_threads(self) -> usize {
