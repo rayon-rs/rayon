@@ -11,9 +11,7 @@ use std::thread;
 use std::usize;
 
 mod counters;
-use self::counters::{
-    AtomicCounters, Counters, SleepyEventCounter, INVALID_SLEEPY_COUNTER, ZERO_SLEEPY_COUNTER,
-};
+use self::counters::{AtomicCounters, JobsEventCounter};
 
 /// The `Sleep` struct is embedded into each registry. It governs the waking and sleeping
 /// of workers. It has callbacks that are invoked periodically at significant events,
@@ -46,7 +44,7 @@ pub(super) struct IdleState {
 
     /// Once we become sleepy, what was the sleepy counter value?
     /// Set to `INVALID_SLEEPY_COUNTER` otherwise.
-    sleepy_counter: SleepyEventCounter,
+    jobs_counter: JobsEventCounter,
 }
 
 /// The "sleep state" for an individual worker.
@@ -83,7 +81,7 @@ impl Sleep {
         IdleState {
             worker_index,
             rounds: 0,
-            sleepy_counter: INVALID_SLEEPY_COUNTER,
+            jobs_counter: JobsEventCounter::INVALID,
         }
     }
 
@@ -106,7 +104,7 @@ impl Sleep {
             thread::yield_now();
             idle_state.rounds += 1;
         } else if idle_state.rounds == ROUNDS_UNTIL_SLEEPY {
-            idle_state.sleepy_counter = self.announce_sleepy(idle_state.worker_index);
+            idle_state.jobs_counter = self.announce_sleepy(idle_state.worker_index);
             idle_state.rounds += 1;
             thread::yield_now();
         } else if idle_state.rounds < ROUNDS_UNTIL_SLEEPING {
@@ -119,29 +117,17 @@ impl Sleep {
     }
 
     #[cold]
-    fn announce_sleepy(&self, worker_index: usize) -> SleepyEventCounter {
+    fn announce_sleepy(&self, worker_index: usize) -> JobsEventCounter {
         loop {
             let counters = self.counters.load(Ordering::Relaxed);
-            let sleepy_counter = counters.sleepy_counter();
-            if sleepy_counter.is_max() {
-                if self
-                    .counters
-                    .try_rollover_jobs_and_sleepy_counters(counters)
-                {
-                    self.logger.log(|| ThreadSleepy {
-                        worker: worker_index,
-                        sleepy_counter: 0,
-                    });
-                    return ZERO_SLEEPY_COUNTER;
-                }
-            } else {
-                if self.counters.try_add_sleepy_thread(counters) {
-                    self.logger.log(|| ThreadSleepy {
-                        worker: worker_index,
-                        sleepy_counter: sleepy_counter.as_u16(),
-                    });
-                    return sleepy_counter;
-                }
+            let jobs_counter = counters.jobs_counter();
+            if jobs_counter.is_sleepy() || self.counters.try_increment_jobs_event_counter(counters)
+            {
+                self.logger.log(|| ThreadSleepy {
+                    worker: worker_index,
+                    jobs_counter: 0,
+                });
+                return jobs_counter;
             }
         }
     }
@@ -177,7 +163,7 @@ impl Sleep {
 
         loop {
             let counters = self.counters.load(Ordering::SeqCst);
-            if counters.jobs_counter() > idle_state.sleepy_counter {
+            if counters.jobs_counter() != idle_state.jobs_counter {
                 self.logger.log(|| ThreadSleepInterruptedByJob {
                     worker: worker_index,
                 });
@@ -283,11 +269,18 @@ impl Sleep {
     /// Common helper for `new_injected_jobs` and `new_internal_jobs`.
     #[inline]
     fn new_jobs(&self, source_worker_index: usize, num_jobs: u32, queue_was_empty: bool) {
-        let mut counters = self.counters.load(Ordering::SeqCst);
+        let mut counters;
 
-        // If we find that the jobs counter is out of date, we have to fix that.
-        if counters.jobs_counter() != counters.sleepy_counter() {
-            self.sync_jobs_counter(&mut counters);
+        // Read the counters and -- if sleepy workers have announced themselves
+        // -- announce that there is now work available. The final value of `counters`
+        // with which we exit the loop thus corresponds to a state when
+        loop {
+            counters = self.counters.load(Ordering::SeqCst);
+            if !counters.jobs_counter().is_sleepy() {
+                break;
+            } else if self.counters.try_increment_jobs_event_counter(counters) {
+                break;
+            }
         }
 
         let num_awake_but_idle = counters.awake_but_idle_threads();
@@ -318,28 +311,6 @@ impl Sleep {
         } else if num_awake_but_idle < num_jobs {
             let num_to_wake = std::cmp::min(num_jobs - num_awake_but_idle, num_sleepers);
             self.wake_any_threads(num_to_wake);
-        }
-    }
-
-    /// Invoked when we find that the "jobs counter" is not equal to
-    /// the "sleepy counter".  This means that there may be threads
-    /// actively going to sleep. In that case, we have to synchronize
-    /// the jobs counter with the sleepy counter using a
-    /// compare-exchange. If it happens that this fails, then the
-    /// sleepy thread may have actually gone to sleep, so we re-load
-    /// the counters word.
-    #[cold]
-    fn sync_jobs_counter(&self, counters: &mut Counters) {
-        loop {
-            if counters.jobs_counter() == counters.sleepy_counter() {
-                return;
-            }
-
-            if self.counters.try_replicate_sleepy_counter(*counters) {
-                return;
-            }
-
-            *counters = self.counters.load(Ordering::SeqCst);
         }
     }
 
@@ -388,11 +359,11 @@ impl Sleep {
 impl IdleState {
     fn wake_fully(&mut self) {
         self.rounds = 0;
-        self.sleepy_counter = INVALID_SLEEPY_COUNTER;
+        self.jobs_counter = JobsEventCounter::INVALID;
     }
 
     fn wake_partly(&mut self) {
         self.rounds = ROUNDS_UNTIL_SLEEPY;
-        self.sleepy_counter = INVALID_SLEEPY_COUNTER;
+        self.jobs_counter = JobsEventCounter::INVALID;
     }
 }

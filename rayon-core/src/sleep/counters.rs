@@ -19,24 +19,35 @@ pub(super) struct Counters {
     word: u64,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub(super) struct SleepyEventCounter(u16);
-
+/// A value read from the **Jobs Event Counter**.
+/// See the [`README.md`](README.md) for more
+/// coverage of how the jobs event counter works.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub(super) struct JobsEventCounter(u16);
 
+impl JobsEventCounter {
+    pub(super) const INVALID: JobsEventCounter = JobsEventCounter(JOBS_MAX);
+
+    fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+
+    /// Returns true if there were sleepy workers pending when this reading was
+    /// taken. This is determined by checking whether the value is odd (sleepy
+    /// workers) or even (work published since last sleepy worker got sleepy,
+    /// though they may not have seen it yet).
+    pub(super) fn is_sleepy(self) -> bool {
+        (self.as_usize() & 1) != 0
+    }
+}
+
 const ONE_SLEEPING: u64 = 0x0000_0000_0000_0001;
 const ONE_IDLE: u64 = 0x0000_0000_0001_0000;
-const ONE_SLEEPY: u64 = 0x0000_0001_0000_0000;
-const SLEEPY_ROLLVER_MASK: u64 = 0x0000_0000_FFFF_FFFF;
-const NO_JOBS_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
+const ONE_JEC: u64 = 0x0000_0001_0000_0000;
 const SLEEPING_SHIFT: u64 = 0;
 const IDLE_SHIFT: u64 = 1 * 16;
-const SLEEPY_SHIFT: u64 = 2 * 16;
-const JOBS_SHIFT: u64 = 3 * 16;
-
-pub(super) const INVALID_SLEEPY_COUNTER: SleepyEventCounter = SleepyEventCounter(std::u16::MAX);
-pub(super) const ZERO_SLEEPY_COUNTER: SleepyEventCounter = SleepyEventCounter(0);
+const JOBS_SHIFT: u64 = 2 * 16;
+const JOBS_MAX: u16 = 0xFFFF;
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
@@ -65,23 +76,20 @@ impl AtomicCounters {
         self.value.fetch_add(ONE_IDLE, Ordering::SeqCst);
     }
 
-    /// Attempt to increment the number of sleepy threads with a compare and
-    /// swap. Returns false if this attempt failed (in which case no changed was
-    /// made).
-    #[inline]
-    pub(super) fn try_add_sleepy_thread(&self, old_value: Counters) -> bool {
-        debug_assert!(
-            !old_value.sleepy_counter().is_max(),
-            "try_add_sleepy_thread: old_value {:?} has max sleepy threads",
-            old_value,
-        );
-        let new_value = Counters::new(old_value.word + ONE_SLEEPY);
+    /// Attempts to increment the jobs event counter by one, returning true
+    /// if it succeeded. This can be used for two purposes:
+    ///
+    /// * If a thread is getting sleepy, and the JEC is even, then it will attempt
+    ///   to increment to an odd value.
+    /// * If a thread is publishing work, and the JEC is odd, then it will attempt
+    ///   to increment to an event value.
+    pub(super) fn try_increment_jobs_event_counter(&self, old_value: Counters) -> bool {
+        let new_value = Counters::new(old_value.word + ONE_JEC);
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 
     /// Subtracts an idle thread. This cannot fail; it returns the
     /// number of sleeping threads to wake up (if any).
-    #[inline]
     pub(super) fn sub_idle_thread(&self) -> u16 {
         let old_value = Counters::new(self.value.fetch_sub(ONE_IDLE, Ordering::SeqCst));
         debug_assert!(
@@ -128,29 +136,6 @@ impl AtomicCounters {
 
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
-
-    #[inline]
-    pub(super) fn try_replicate_sleepy_counter(&self, old_value: Counters) -> bool {
-        let sc = old_value.sleepy_counter();
-
-        // clear jobs counter
-        let word_without_jc = old_value.word & NO_JOBS_MASK;
-
-        // replace with sleepy counter
-        let sc_shifted_to_jc = (sc.0 as u64) << JOBS_SHIFT;
-        let new_value = Counters::new(word_without_jc | sc_shifted_to_jc);
-
-        debug_assert!(new_value.sleepy_counter() == old_value.sleepy_counter());
-        debug_assert!(new_value.jobs_counter() == old_value.sleepy_counter());
-
-        self.try_exchange(old_value, new_value, Ordering::SeqCst)
-    }
-
-    #[inline]
-    pub(super) fn try_rollover_jobs_and_sleepy_counters(&self, old_value: Counters) -> bool {
-        let new_value = Counters::new(old_value.word & SLEEPY_ROLLVER_MASK);
-        self.try_exchange(old_value, new_value, Ordering::SeqCst)
-    }
 }
 
 fn select_u16(word: u64, shift: u64) -> u16 {
@@ -166,10 +151,6 @@ impl Counters {
         JobsEventCounter(select_u16(self.word, JOBS_SHIFT))
     }
 
-    pub(super) fn sleepy_counter(self) -> SleepyEventCounter {
-        SleepyEventCounter(select_u16(self.word, SLEEPY_SHIFT))
-    }
-
     pub(super) fn raw_idle_threads(self) -> u16 {
         select_u16(self.word, IDLE_SHIFT)
     }
@@ -183,47 +164,12 @@ impl Counters {
     }
 }
 
-impl SleepyEventCounter {
-    pub(super) fn is_max(self) -> bool {
-        self.0 == std::u16::MAX
-    }
-
-    pub(super) fn as_u16(self) -> u16 {
-        self.0
-    }
-}
-
-impl PartialOrd<JobsEventCounter> for SleepyEventCounter {
-    fn partial_cmp(&self, other: &JobsEventCounter) -> Option<::std::cmp::Ordering> {
-        PartialOrd::partial_cmp(&self.0, &other.0)
-    }
-}
-
-impl PartialOrd<SleepyEventCounter> for JobsEventCounter {
-    fn partial_cmp(&self, other: &SleepyEventCounter) -> Option<::std::cmp::Ordering> {
-        PartialOrd::partial_cmp(&self.0, &other.0)
-    }
-}
-
-impl PartialEq<JobsEventCounter> for SleepyEventCounter {
-    fn eq(&self, other: &JobsEventCounter) -> bool {
-        PartialEq::eq(&self.0, &other.0)
-    }
-}
-
-impl PartialEq<SleepyEventCounter> for JobsEventCounter {
-    fn eq(&self, other: &SleepyEventCounter) -> bool {
-        PartialEq::eq(&self.0, &other.0)
-    }
-}
-
 impl std::fmt::Debug for Counters {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let word = format!("{:016x}", self.word);
         fmt.debug_struct("Counters")
             .field("word", &word)
             .field("jobs", &self.jobs_counter().0)
-            .field("sleepy", &self.sleepy_counter())
             .field("idle", &self.raw_idle_threads())
             .field("sleeping", &self.sleeping_threads())
             .finish()
