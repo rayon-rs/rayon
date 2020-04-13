@@ -485,7 +485,7 @@ impl<'scope> ScopeFifo<'scope> {
     /// this distinction.
     ///
     /// [`Scope::spawn()`]: struct.Scope.html#method.spawn
-    /// [`scope_fifo` function]: fn.scope.html
+    /// [`scope_fifo` function]: fn.scope_fifo.html
     pub fn spawn_fifo<BODY>(&self, body: BODY)
     where
         BODY: FnOnce(&ScopeFifo<'scope>) + Send + 'scope,
