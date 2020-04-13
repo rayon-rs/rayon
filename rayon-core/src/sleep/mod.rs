@@ -76,7 +76,7 @@ impl Sleep {
             latch_addr: latch.addr(),
         });
 
-        self.counters.add_idle_thread();
+        self.counters.add_inactive_thread();
 
         IdleState {
             worker_index,
@@ -94,7 +94,7 @@ impl Sleep {
 
         // If we were the last idle thread and other threads are still sleeping,
         // then we should wake up another thread.
-        let threads_to_wake = self.counters.sub_idle_thread();
+        let threads_to_wake = self.counters.sub_inactive_thread();
         self.wake_any_threads(threads_to_wake as u32);
     }
 

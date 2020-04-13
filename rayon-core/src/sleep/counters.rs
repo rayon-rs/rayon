@@ -6,7 +6,7 @@ pub(super) struct AtomicCounters {
     /// Consider the value `0x11112222_3333_4444`:
     ///
     /// - The bits 0x11112222 are the **jobs event counter**.
-    /// - The bits 0x3333 are the number of **idle threads**.
+    /// - The bits 0x3333 are the number of **inactive threads**.
     /// - The bits 0x4444 are the number of **sleeping threads**.
     ///
     /// See the struct `Counters` below.
@@ -43,8 +43,9 @@ impl JobsEventCounter {
 /// Constant that can be added to add one sleeping thread.
 const ONE_SLEEPING: u64 = 0x0000_0000_0000_0001;
 
-/// Constant that can be added to add one idle thread.
-const ONE_IDLE: u64 = 0x0000_0000_0001_0000;
+/// Constant that can be added to add one inactive thread.
+/// An inactive thread is either idle, sleepy, or sleeping.
+const ONE_INACTIVE: u64 = 0x0000_0000_0001_0000;
 
 /// Constant that can be added to add one to the JEC.
 const ONE_JEC: u64 = 0x0000_0001_0000_0000;
@@ -56,9 +57,9 @@ const ZERO_JEC_MASK: u64 = 0x0000_0000_FFFF_FFFF;
 /// (used with `select_bits`).
 const SLEEPING_SHIFT: u64 = 0;
 
-/// Bits to shift to select the idle threads
+/// Bits to shift to select the inactive threads
 /// (used with `select_bits`).
-const IDLE_SHIFT: u64 = 1 * 16;
+const INACTIVE_SHIFT: u64 = 1 * 16;
 
 /// Bits to shift to select the JEC
 /// (use JOBS_BITS).
@@ -70,8 +71,9 @@ const JEC_MAX: usize = 0xFFFF;
 /// Max value for the thread counters.
 const THREADS_MAX: usize = 0xFFFF;
 
-/// Mask to select the sleeping|idle thread value, after
-/// shifting (used with `select_bits`)
+/// Mask to select the value of a thread counter
+/// (sleepy, inactive), after shifting (used with
+/// `select_bits`)
 const THREADS_BITS: usize = 0xFFFF;
 
 /// Mask to select the JEC, after
@@ -99,10 +101,16 @@ impl AtomicCounters {
             .is_ok()
     }
 
-    /// Adds an idle thread. This cannot fail.
+    /// Adds an inactive thread. This cannot fail.
+    ///
+    /// This should be invoked when a thread enters its idle loop looking
+    /// for work. It is decremented when work is found. Note that it is
+    /// not decremented if the thread transitions from idle to sleepy or sleeping;
+    /// so the number of inactive threads is always greater-than-or-equal
+    /// to the number of sleeping threads.
     #[inline]
-    pub(super) fn add_idle_thread(&self) {
-        self.value.fetch_add(ONE_IDLE, Ordering::SeqCst);
+    pub(super) fn add_inactive_thread(&self) {
+        self.value.fetch_add(ONE_INACTIVE, Ordering::SeqCst);
     }
 
     /// Attempts to increment the jobs event counter by one, returning true
@@ -121,24 +129,27 @@ impl AtomicCounters {
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 
-    /// Subtracts an idle thread. This cannot fail; it returns the
+    /// Subtracts an inactive thread. This cannot fail. It is invoked
+    /// when a thread finds work and hence becomes active. It returns the
     /// number of sleeping threads to wake up (if any).
-    pub(super) fn sub_idle_thread(&self) -> usize {
-        let old_value = Counters::new(self.value.fetch_sub(ONE_IDLE, Ordering::SeqCst));
+    ///
+    /// See `add_inactive_thread`.
+    pub(super) fn sub_inactive_thread(&self) -> usize {
+        let old_value = Counters::new(self.value.fetch_sub(ONE_INACTIVE, Ordering::SeqCst));
         debug_assert!(
-            old_value.raw_idle_threads() > 0,
-            "sub_idle_thread: old_value {:?} has no idle threads",
+            old_value.inactive_threads() > 0,
+            "sub_inactive_thread: old_value {:?} has no inactive threads",
             old_value,
         );
         debug_assert!(
-            old_value.sleeping_threads() <= old_value.raw_idle_threads(),
-            "sub_sleeping_thread: old_value {:?} had {} sleeping threads and {} raw idle threads",
+            old_value.sleeping_threads() <= old_value.inactive_threads(),
+            "sub_inactive_thread: old_value {:?} had {} sleeping threads and {} inactive threads",
             old_value,
             old_value.sleeping_threads(),
-            old_value.raw_idle_threads(),
+            old_value.inactive_threads(),
         );
 
-        // Current heuristic: whenever an idle thread goes away, if
+        // Current heuristic: whenever an inactive thread goes away, if
         // there are any sleeping threads, wake 'em up.
         let sleeping_threads = old_value.sleeping_threads();
         std::cmp::min(sleeping_threads, 2)
@@ -157,19 +168,19 @@ impl AtomicCounters {
             old_value,
         );
         debug_assert!(
-            old_value.sleeping_threads() <= old_value.raw_idle_threads(),
-            "sub_sleeping_thread: old_value {:?} had {} sleeping threads and {} raw idle threads",
+            old_value.sleeping_threads() <= old_value.inactive_threads(),
+            "sub_sleeping_thread: old_value {:?} had {} sleeping threads and {} inactive threads",
             old_value,
             old_value.sleeping_threads(),
-            old_value.raw_idle_threads(),
+            old_value.inactive_threads(),
         );
     }
 
     #[inline]
     pub(super) fn try_add_sleeping_thread(&self, old_value: Counters) -> bool {
         debug_assert!(
-            old_value.raw_idle_threads() > 0,
-            "try_add_sleeping_thread: old_value {:?} has no idle threads",
+            old_value.inactive_threads() > 0,
+            "try_add_sleeping_thread: old_value {:?} has no inactive threads",
             old_value,
         );
         debug_assert!(
@@ -198,18 +209,20 @@ impl Counters {
         JobsEventCounter(select_bits(self.word, JEC_SHIFT, JEC_BITS))
     }
 
-    pub(super) fn raw_idle_threads(self) -> usize {
-        select_bits(self.word, IDLE_SHIFT, THREADS_BITS)
+    /// The number of threads that are not actively
+    /// executing work. They may be idle, sleepy, or asleep.
+    pub(super) fn inactive_threads(self) -> usize {
+        select_bits(self.word, INACTIVE_SHIFT, THREADS_BITS)
     }
 
     pub(super) fn awake_but_idle_threads(self) -> usize {
         debug_assert!(
-            self.sleeping_threads() <= self.raw_idle_threads(),
+            self.sleeping_threads() <= self.inactive_threads(),
             "sleeping threads: {} > raw idle threads {}",
             self.sleeping_threads(),
-            self.raw_idle_threads()
+            self.inactive_threads()
         );
-        self.raw_idle_threads() - self.sleeping_threads()
+        self.inactive_threads() - self.sleeping_threads()
     }
 
     pub(super) fn sleeping_threads(self) -> usize {
@@ -223,7 +236,7 @@ impl std::fmt::Debug for Counters {
         fmt.debug_struct("Counters")
             .field("word", &word)
             .field("jobs", &self.jobs_counter().0)
-            .field("idle", &self.raw_idle_threads())
+            .field("inactive", &self.inactive_threads())
             .field("sleeping", &self.sleeping_threads())
             .finish()
     }
