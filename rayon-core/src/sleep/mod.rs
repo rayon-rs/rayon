@@ -99,7 +99,12 @@ impl Sleep {
     }
 
     #[inline]
-    pub(super) fn no_work_found(&self, idle_state: &mut IdleState, latch: &CoreLatch) {
+    pub(super) fn no_work_found(
+        &self,
+        idle_state: &mut IdleState,
+        latch: &CoreLatch,
+        has_injected_jobs: impl FnOnce() -> bool,
+    ) {
         if idle_state.rounds < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
             idle_state.rounds += 1;
@@ -112,7 +117,7 @@ impl Sleep {
             thread::yield_now();
         } else {
             debug_assert_eq!(idle_state.rounds, ROUNDS_UNTIL_SLEEPING);
-            self.sleep(idle_state, latch);
+            self.sleep(idle_state, latch, has_injected_jobs);
         }
     }
 
@@ -133,7 +138,12 @@ impl Sleep {
     }
 
     #[cold]
-    fn sleep(&self, idle_state: &mut IdleState, latch: &CoreLatch) {
+    fn sleep(
+        &self,
+        idle_state: &mut IdleState,
+        latch: &CoreLatch,
+        has_injected_jobs: impl FnOnce() -> bool,
+    ) {
         let worker_index = idle_state.worker_index;
 
         if !latch.get_sleepy() {
@@ -189,16 +199,30 @@ impl Sleep {
             latch_addr: latch.addr(),
         });
 
-        // Flag ourselves as asleep and wait till we are notified.
+        // We have one last check for injected jobs to do. This protects against
+        // deadlock in the very unlikely event that
         //
-        // (Note that `is_blocked` is held under a mutex and the mutex
-        // was acquired *before* we incremented the "sleepy
-        // counter". This means that whomever is coming to wake us
-        // will have to wait until we release the mutex in the call to
-        // `wait`, so they will see this boolean as true.)
-        *is_blocked = true;
-        while *is_blocked {
-            is_blocked = sleep_state.condvar.wait(is_blocked).unwrap();
+        // - an external job is being injected while we are sleepy
+        // - that job triggers the rollover over the JEC such that we don't see it
+        // - we are the last active worker thread
+        if has_injected_jobs() {
+            // If we see an externally injected job, then we have to 'wake
+            // ourselves up'. (Ordinarily, `sub_sleeping_thread` is invoked by
+            // the one that wakes us.)
+            self.counters.sub_sleeping_thread();
+        } else {
+            // If we don't see an injected job (the normal case), then flag
+            // ourselves as asleep and wait till we are notified.
+            //
+            // (Note that `is_blocked` is held under a mutex and the mutex was
+            // acquired *before* we incremented the "sleepy counter". This means
+            // that whomever is coming to wake us will have to wait until we
+            // release the mutex in the call to `wait`, so they will see this
+            // boolean as true.)
+            *is_blocked = true;
+            while *is_blocked {
+                is_blocked = sleep_state.condvar.wait(is_blocked).unwrap();
+            }
         }
 
         // Update other state:

@@ -3,10 +3,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub(super) struct AtomicCounters {
     /// Packs together a number of counters.
     ///
-    /// Consider the value `0x1111_2222_3333_4444`:
+    /// Consider the value `0x11112222_3333_4444`:
     ///
-    /// - The bits 0x1111 are the **jobs event counter**.
-    /// - The bits 0x2222 are the **sleepy event counter**.
+    /// - The bits 0x11112222 are the **jobs event counter**.
     /// - The bits 0x3333 are the number of **idle threads**.
     /// - The bits 0x4444 are the number of **sleeping threads**.
     ///
@@ -131,6 +130,13 @@ impl AtomicCounters {
             "sub_idle_thread: old_value {:?} has no idle threads",
             old_value,
         );
+        debug_assert!(
+            old_value.sleeping_threads() <= old_value.raw_idle_threads(),
+            "sub_sleeping_thread: old_value {:?} had {} sleeping threads and {} raw idle threads",
+            old_value,
+            old_value.sleeping_threads(),
+            old_value.raw_idle_threads(),
+        );
 
         // Current heuristic: whenever an idle thread goes away, if
         // there are any sleeping threads, wake 'em up.
@@ -149,6 +155,13 @@ impl AtomicCounters {
             old_value.sleeping_threads() > 0,
             "sub_sleeping_thread: old_value {:?} had no sleeping threads",
             old_value,
+        );
+        debug_assert!(
+            old_value.sleeping_threads() <= old_value.raw_idle_threads(),
+            "sub_sleeping_thread: old_value {:?} had {} sleeping threads and {} raw idle threads",
+            old_value,
+            old_value.sleeping_threads(),
+            old_value.raw_idle_threads(),
         );
     }
 
@@ -190,6 +203,12 @@ impl Counters {
     }
 
     pub(super) fn awake_but_idle_threads(self) -> usize {
+        debug_assert!(
+            self.sleeping_threads() <= self.raw_idle_threads(),
+            "sleeping threads: {} > raw idle threads {}",
+            self.sleeping_threads(),
+            self.raw_idle_threads()
+        );
         self.raw_idle_threads() - self.sleeping_threads()
     }
 

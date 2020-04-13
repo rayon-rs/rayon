@@ -408,6 +408,10 @@ impl Registry {
             .new_injected_jobs(usize::MAX, injected_jobs.len() as u32, queue_was_empty);
     }
 
+    fn has_injected_job(&self) -> bool {
+        !self.injected_jobs.is_empty()
+    }
+
     fn pop_injected_job(&self, worker_index: usize) -> Option<JobRef> {
         let job = self.injected_jobs.pop().ok();
         if job.is_some() {
@@ -721,7 +725,9 @@ impl WorkerThread {
                 self.execute(job);
                 idle_state = self.registry.sleep.start_looking(self.index, latch);
             } else {
-                self.registry.sleep.no_work_found(&mut idle_state, latch);
+                self.registry
+                    .sleep
+                    .no_work_found(&mut idle_state, latch, || self.registry.has_injected_job())
             }
         }
 
