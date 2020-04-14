@@ -23,112 +23,161 @@ The `Sleep` struct is embedded into each registry. It performs several functions
 
 ## Thread states
 
-An **active** thread is one that is running tasks and doing work.
+There are three main thread states:
 
-An **idle** thread is one that is in a busy loop looking for work. It will be
-actively trying to steal from other threads and searching the global injection
-queue for jobs. While it does this, it will periodically call back into the
-sleep module with information about its progress.
+* An **active** thread is one that is actively executing a job.
+* An **idle** thread is one that is searching for work to do. It will be
+  trying to steal work or pop work from the global injector queue.
+* A **sleeping** thread is one that is blocked on a condition variable,
+  waiting to be awoken.
 
-Towards the end of the idle period, idle threads also become **sleepy**. A
-**sleepy** thread is an idle thread that is *about* to go to sleep after it does
-one more search (or some other number, potentially). The role of going sleepy is
-to prevent a possible race condition, wherein:
+We sometimes refer to the final two states collectively as **inactive**.
+Threads begin as idle but transition to idle and finally sleeping when
+they're unable to find work to do.
 
-* some thread A attempts to steal work from thread B, but finds that B's queue
-  is empty;
-* thread B posts work, but finds that no workers are sleeping and hence there is
-  no one to wake;
-* thread A decides to go to sleep, and thus never sees the work that B posted.
+### Sleepy threads
 
-This race condition can lead to suboptimal performance because we have no
-workers available.
-
-A **sleeping** thread is one that is blocked and which must be actively awoken.
-Sleeping threads will always be blocked on the mutex/condition-variable assigned
-to them in the `Sleep` struct.
+There is one other special state worth mentioning. During the idle state,
+threads can get **sleepy**. A sleepy thread is still idle, in that it is still
+searching for work, but it is *about* to go to sleep after it does one more
+search (or some other number, potentially). When a thread enters the sleepy
+state, it signals (via the **jobs event counter**, described below) that it is
+about to go to sleep. If new work is published, this will lead to the counter
+being adjusted. When the thread actually goes to sleep, it will (hopefully, but
+not guaranteed) see that the counter has changed and elect not to sleep, but
+instead to search again. See the section on the **jobs event counter** for more
+details.
 
 ## The counters
 
 One of the key structs in the sleep module is `AtomicCounters`, found in
-`counters.rs`. It packs four counters into one atomically managed value. These
-counters fall into two categories:
+`counters.rs`. It packs three counters into one atomically managed value:
 
-* **Thread counters**, which track the number of threads in a particular state.
-* **Event counters**, which track the number of events that occurred.
+* Two **thread counters**, which track the number of threads in a particular state.
+* The **jobs event counter**, which is used to signal when new work is available.
+  It (sort of) tracks the number of jobs posted, but not quite, and it can rollover.
 
 ### Thread counters
 
-There are two thread counters, one that tracks **idle** threads and one that
-tracks **sleeping** threads. These are incremented and decremented as threads
-enter and leave the idle/sleeping state in a fairly straightforward fashion. It
-is important, however, that the thread counters are maintained atomically with
-the event counters to prevent race conditions between new work being posted and
-threads falling asleep. In other words, when new work is posted, it may need to
-wake sleeping threads, and so we need a clear ordering whether the *work was
-posted first* or the *thread fell asleep first*.
+There are two thread counters, one that tracks **inactive** threads and one that
+tracks **sleeping** threads. From this, one can deduce the number of threads
+that are idle by subtracting sleeping threads from inactive threads. We track
+the counters in this way because it permits simpler atomic operations. One can
+increment the number of sleeping threads (and thus decrease the number of idle
+threads) simply by doing one atomic increment, for example. Similarly, one can
+decrease the number of sleeping threads (and increase the number of idle
+threads) through one atomic decrement.
 
-### Event counters
+These counters are adjusted as follows:
 
-There are two event counters, the **jobs event counter** and the **sleepy
-event counter**. Event counters, unlike thread counters, are never
-decremented (modulo rollover, more on that later). They are simply advanced forward each time some event occurs.
+* When a thread enters the idle state: increment the inactive thread counter.
+* When a thread enters the sleeping state: increment the sleeping thread counter.
+* When a thread awakens a sleeping thread: decrement the sleeping thread counter.
+  * Subtle point: the thread that *awakens* the sleeping thread decrements the
+    counter, not the thread that is *sleeping*. This is because there is a delay
+    between siganling a thread to wake and the thread actually waking:
+    decrementing the counter when awakening the thread means that other threads
+    that may be posting work will see the up-to-date value that much faster.
+* When a thread finds work, exiting the idle state: decrement the inactive
+  thread counter.
 
-The jobs event counter is, **conceptually**, incremented each time a new job is posted. The role of this is that, when a thread becomes sleepy, it can read the jobs event counter to see how many jobs were posted up till that point. Then, when it goes to sleep, it can atomically do two things:
+### Jobs event counter
 
-* Verify that the event counter has not changed, and hence no new work was posted;
-* Increment the sleepy thread counter, so that if any new work comes later, it
-  will know that there are sleeping threads that may have to be awoken.
+The final counter is the **jobs event counter**. The role of this counter
+is to help sleepy threads detect when new work is posted in a lightweight
+fashion. It is important if the counter is even or odd:
 
-This simple picture, however, isn't quite what we do -- the problem is two-fold.
-First, it would require that each time a new job is posted, we do a write
-operation to a single global counter, which would be a performance bottleneck
-(how much of one? I'm not sure, measurements would be good!).
+* When the counter is **even**, it means that the last thing to happen was
+  that new work was published.
+* When the counter is **odd**, it means that the last thing to happen was
+  that some thread got sleepy.
 
-Second, it would not account for rollover -- it is possible, after all, that
-enough events have been posted that the counter **has** rolled all the way back
-to its original value!
+It works like so:
 
-To address the first point, we keep a separate **sleepy event counter** that
-(sort of) tracks how many times threads have become sleepy. Both event counters
-begin at zero. Thus, after a new job is posted, we can check if they are still
-equal to one another. If so, we can simply post our job, and we can now say that
-the job was posted *before* any subsequent thread got sleepy -- therefore, if a
-thread becomes sleepy after that, that thread will find the job when it does its
-final search for work.
+* When a thread becomes sleepy, it checks if the counter is even. If so,
+  it remembers the value (`JEC_OLD`) and increments so that the counter
+  is odd.
+* When a thread publishes work, it checks if the counter is odd. If so,
+  it increments the counter (potentially rolling it over).
+* When a sleepy thread goes to sleep, it reads the counter again. If
+  the counter value has changed from `JEC_OLD`, then it knows that
+  work was published during its sleepy time, so it goes back to the idle
+  state to search again.
 
-If however we see that the sleepy event counter (SEC) is **not** equal to the jobs event counter (JEC), that indicates that some thread has become sleepy since work was last posted. This means we have to do more work. What we do, specifically, is to set the JEC to be equal to the SEC, and we do this atomically.
+Assuming no rollover, this protocol serves to prevent a race condition
+like so:
 
-Meanwhile, the sleepy thread, before it goes to sleep, will read the counters again and check that the JEC has not changed since it got sleepy. So, if new work *was* posted, then the JEC will have changed (to be equal to the SEC), and the sleepy thread will go back to the idle state and search again (and then possibly become sleepy again).
+* Thread A gets sleepy.
+* Thread A searches for work, finds nothing, and decides to go to sleep.
+* Thread B posts work, but sees no sleeping threads, and hence no one to wake up.
+* Thread A goes to sleep, incrementing the sleeping thread counter.
 
-This is the high-level idea, anyway. Things get subtle when you consider that there are many threads, and also that we must account for rollover.
+The race condition would be prevented because Thread B would have incremented
+the JEC, and hence Thread A would not actually go to sleep, but rather return to
+search again.
 
-## Actual procedure
+However, because of rollover, the race condition cannot be completely thwarted.
+It is possible, if exceedingly unlikely, that Thread A will get sleepy and read
+a value of the JEC. And then, in between, there will be *just enough* activity
+from other threads to roll the JEC back over to precisely that old value.
 
-Let's document the precise procedure we follow, first. In each case, all the operations happen atomically, which is easy to implement through a compare and swap. 
+## Protocol to fall asleep
 
-* To announce a thread is idle:
-  * IdleThreads += 1
-* To announce a thread found work:
-  * IdleThreads -= 1
-  * If IdleThreads == SleepingThreads, return NeedToWake
-* To announce a thread is sleepy:
-  * If SleepyEventCounter == MAX, set JobsEventCounter = SleepyEventCounter = 0
-  * Else, set SleepyEventCounter = SleepyEventCounter + 1
-* To post work:
-  * If JobsEventCounter != SleepyEventCounter:
-    * JobsEventCounter = SleepyEventCounter
-  * NeedToWake = decide(IdleThreads, SleepingThreads)
-* To fall asleep:
-  * If JobsEventCounter > SleepyEventCounter:
-    * become idle
-  * SleepingThreads += 1
+The full protocol for a thread to fall asleep is as follows:
 
-### Accounting for rollover
+* The thread "announces it is sleepy" by incrementing the JEC if it is even.
+* The thread searches for work. If work is found, it becomes active.
+* If no work is found, the thread atomically:
+  * Checks the JEC to see that it hasn't changed. If it has, then the thread
+    returns to *just before* the "sleepy state" to search again (i.e., it won't
+    search for a full set of rounds, just a few more times).
+  * Increments the number of sleeping threads by 1.
+* The thread then does one final check for injected jobs (see below). If any
+  are available, it returns to the 'pre-sleepy' state as if the JEC had changed.
+* The thread waits to be signaled. Once signaled, it returns to the idle state.
 
-Let's consider three threads, A, B, and C:
+### The jobs event counter and deadlock
 
-* A becomes sleepy, incrementing SleepyEventCounter to get SEC_A (which is MAX)
-* In a loop:
-  * B gets sleepy, reseting SleepyEventCounter to 0
-  * B posts work,
+As described in the section on the JEC, the main concern around going to sleep
+is avoiding a race condition wherein:
+
+* Thread A looks for work, finds none.
+* Thread B posts work but sees no sleeping threads.
+* Thread A goes to sleep.
+
+The JEC protocol largely prevents this, but due to rollover, this prevention is
+not complete. It is possible -- if unlikely -- that enough activity occurs for
+Thread A to observe the same JEC value that it saw when getting sleepy. If the
+new work being published came from *inside* the thread-pool, then this race
+condition isn't too harmful. It means that we have fewer workers processing the
+work then we should, but we won't deadlock. This seems like an acceptable risk
+given that this is unlikely in practice.
+
+However, if the work was posted as an *external* job, that is a problem. In that
+case, it's possible that all of our workers could go to sleep, and the external
+job would never get processed.
+
+To prevent that, the sleeping protocol includes one final check for external
+jobs. Note that we are guaranteed to see any such jobs, but the reasoning is
+actually pretty subtle.
+
+The key point is that, if the JEC == JEC_OLD, then there are three possibilities:
+
+* No intervening operation occurred (i.e., no job was posted). In that case,
+  going to sleep means that any subsequent job will see (and wake) a sleeping
+  thread, so no deadlock.
+* Rollover occurred and JEC is odd: In this case, the last thing to happen was
+  that some other thread became sleepy. That thread will see any jobs that were
+  posted.
+* Rollover occurred and JEC is even: In this case, the last thing to happen was
+  that a job was posted.
+
+* Thread B will first post the external job into the queue.
+* Thread B will then check for sleeping threads, which is a sequentially consistent
+  read.
+* Thread A will increment the number of sleeping threads, which is also SeqCst.
+* Thread A then reads the external job.
+
+XXX this is false -- there is no synchronizes-with relation between a seq-cst
+read and the increment on thread A. We could add fences to achieve the desired
+effect.
