@@ -1,15 +1,17 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(super) struct AtomicCounters {
-    /// Packs together a number of counters.
+    /// Packs together a number of counters. The counters are ordered as
+    /// follows, from least to most significant bits (here, we assuming
+    /// that [`THREADS_BITS`] is equal to 10):
     ///
-    /// Consider the value `0x11112222_3333_4444`:
+    /// * Bits 0..10: Stores the number of **sleeping threads**
+    /// * Bits 10..20: Stores the number of **inactive threads**
+    /// * Bits 20..: Stores the **job event counter** (JEC)
     ///
-    /// - The bits 0x11112222 are the **jobs event counter**.
-    /// - The bits 0x3333 are the number of **inactive threads**.
-    /// - The bits 0x4444 are the number of **sleeping threads**.
-    ///
-    /// See the struct `Counters` below.
+    /// This uses 10 bits ([`THREADS_BITS`]) to encode the number of threads. Note
+    /// that the total number of bits (and hence the number of bits used for the
+    /// JEC) will depend on whether we are using a 32- or 64-bit architecture.
     value: AtomicUsize,
 }
 
