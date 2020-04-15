@@ -25,52 +25,40 @@ pub(super) struct Counters {
 pub(super) struct JobsEventCounter(usize);
 
 impl JobsEventCounter {
-    pub(super) const MAX: JobsEventCounter = JobsEventCounter(JEC_MAX);
+    pub(super) const DUMMY: JobsEventCounter = JobsEventCounter(std::usize::MAX);
 
     pub(super) fn as_usize(self) -> usize {
         self.0
     }
 }
 
-/// Constant that can be added to add one sleeping thread.
-const ONE_SLEEPING: u64 = 0x0000_0000_0000_0001;
-
-/// Constant that can be added to add one inactive thread.
-/// An inactive thread is either idle, sleepy, or sleeping.
-const ONE_INACTIVE: u64 = 0x0000_0000_0001_0000;
-
-/// Constant that can be added to add one to the JEC.
-const ONE_JEC: u64 = 0x0000_0001_0000_0000;
-
-/// Mask to zero out the JEC (but retain everything else).
-const ZERO_JEC_MASK: u64 = 0x0000_0000_FFFF_FFFF;
+/// Number of bits used for the thread counters.
+const THREADS_BITS: u64 = 10;
 
 /// Bits to shift to select the sleeping threads
 /// (used with `select_bits`).
-const SLEEPING_SHIFT: u64 = 0;
+const SLEEPING_SHIFT: u64 = 0 * THREADS_BITS;
 
 /// Bits to shift to select the inactive threads
 /// (used with `select_bits`).
-const INACTIVE_SHIFT: u64 = 1 * 16;
+const INACTIVE_SHIFT: u64 = 1 * THREADS_BITS;
 
 /// Bits to shift to select the JEC
 /// (use JOBS_BITS).
-const JEC_SHIFT: u64 = 2 * 16;
-
-/// Max value for the jobs event counter.
-const JEC_MAX: usize = 0xFFFF;
+const JEC_SHIFT: u64 = 2 * THREADS_BITS;
 
 /// Max value for the thread counters.
-const THREADS_MAX: usize = 0xFFFF;
+const THREADS_MAX: usize = (1 << THREADS_BITS) - 1;
 
-/// Mask to select the value of a thread counter
-/// (sleepy, inactive), after shifting (used with
-/// `select_bits`)
-const THREADS_BITS: usize = 0xFFFF;
+/// Constant that can be added to add one sleeping thread.
+const ONE_SLEEPING: u64 = 1;
 
-/// Mask to select the JEC, after
-/// shifting (used with `select_bits`)
-const JEC_BITS: usize = std::usize::MAX;
+/// Constant that can be added to add one inactive thread.
+/// An inactive thread is either idle, sleepy, or sleeping.
+const ONE_INACTIVE: u64 = 1 << INACTIVE_SHIFT;
+
+/// Constant that can be added to add one to the JEC.
+const ONE_JEC: u64 = 1 << JEC_SHIFT;
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
@@ -112,14 +100,8 @@ impl AtomicCounters {
     ///   to increment to an odd value.
     /// * If a thread is publishing work, and the JEC is odd, then it will attempt
     ///   to increment to an event value.
-    pub(super) fn try_increment_jobs_event_counter(&self, old_value: Counters) -> bool {
-        // FIXME -- we should remove the `MAX` constant and just let rollover happen naturally
-        let new_value = if old_value.jobs_counter() == JobsEventCounter::MAX {
-            Counters::new(old_value.word & ZERO_JEC_MASK)
-        } else {
-            Counters::new(old_value.word + ONE_JEC)
-        };
-        self.try_exchange(old_value, new_value, Ordering::SeqCst)
+    pub(super) fn increment_and_read_jobs_event_counter(&self) -> Counters {
+        Counters::new(self.value.fetch_add(ONE_JEC, Ordering::SeqCst))
     }
 
     /// Subtracts an inactive thread. This cannot fail. It is invoked
@@ -189,8 +171,12 @@ impl AtomicCounters {
     }
 }
 
-fn select_bits(word: u64, shift: u64, bits: usize) -> usize {
-    ((word >> shift) as usize) & bits
+fn select_thread(word: u64, shift: u64) -> usize {
+    ((word >> shift) as usize) & THREADS_MAX
+}
+
+fn select_jec(word: u64) -> usize {
+    (word >> JEC_SHIFT) as usize
 }
 
 impl Counters {
@@ -199,13 +185,13 @@ impl Counters {
     }
 
     pub(super) fn jobs_counter(self) -> JobsEventCounter {
-        JobsEventCounter(select_bits(self.word, JEC_SHIFT, JEC_BITS))
+        JobsEventCounter(select_jec(self.word))
     }
 
     /// The number of threads that are not actively
     /// executing work. They may be idle, sleepy, or asleep.
     pub(super) fn inactive_threads(self) -> usize {
-        select_bits(self.word, INACTIVE_SHIFT, THREADS_BITS)
+        select_thread(self.word, INACTIVE_SHIFT)
     }
 
     pub(super) fn awake_but_idle_threads(self) -> usize {
@@ -219,7 +205,7 @@ impl Counters {
     }
 
     pub(super) fn sleeping_threads(self) -> usize {
-        select_bits(self.word, SLEEPING_SHIFT, THREADS_BITS)
+        select_thread(self.word, SLEEPING_SHIFT)
     }
 }
 

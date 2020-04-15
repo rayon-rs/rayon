@@ -81,7 +81,7 @@ impl Sleep {
         IdleState {
             worker_index,
             rounds: 0,
-            jobs_counter: JobsEventCounter::MAX,
+            jobs_counter: JobsEventCounter::DUMMY,
         }
     }
 
@@ -291,17 +291,10 @@ impl Sleep {
     /// Common helper for `new_injected_jobs` and `new_internal_jobs`.
     #[inline]
     fn new_jobs(&self, source_worker_index: usize, num_jobs: u32, queue_was_empty: bool) {
-        let mut counters;
-
         // Read the counters and -- if sleepy workers have announced themselves
         // -- announce that there is now work available. The final value of `counters`
         // with which we exit the loop thus corresponds to a state when
-        loop {
-            counters = self.counters.load(Ordering::SeqCst);
-            if self.counters.try_increment_jobs_event_counter(counters) {
-                break;
-            }
-        }
+        let counters = self.counters.increment_and_read_jobs_event_counter();
 
         let num_awake_but_idle = counters.awake_but_idle_threads();
         let num_sleepers = counters.sleeping_threads();
@@ -379,11 +372,11 @@ impl Sleep {
 impl IdleState {
     fn wake_fully(&mut self) {
         self.rounds = 0;
-        self.jobs_counter = JobsEventCounter::MAX;
+        self.jobs_counter = JobsEventCounter::DUMMY;
     }
 
     fn wake_partly(&mut self) {
         self.rounds = ROUNDS_UNTIL_SLEEPY;
-        self.jobs_counter = JobsEventCounter::MAX;
+        self.jobs_counter = JobsEventCounter::DUMMY;
     }
 }
