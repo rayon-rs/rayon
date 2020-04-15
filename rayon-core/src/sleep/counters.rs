@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(super) struct AtomicCounters {
     /// Packs together a number of counters.
@@ -10,12 +10,12 @@ pub(super) struct AtomicCounters {
     /// - The bits 0x4444 are the number of **sleeping threads**.
     ///
     /// See the struct `Counters` below.
-    value: AtomicU64,
+    value: AtomicUsize,
 }
 
 #[derive(Copy, Clone)]
 pub(super) struct Counters {
-    word: u64,
+    word: usize,
 }
 
 /// A value read from the **Jobs Event Counter**.
@@ -33,37 +33,37 @@ impl JobsEventCounter {
 }
 
 /// Number of bits used for the thread counters.
-const THREADS_BITS: u64 = 10;
+const THREADS_BITS: usize = 10;
 
 /// Bits to shift to select the sleeping threads
 /// (used with `select_bits`).
-const SLEEPING_SHIFT: u64 = 0 * THREADS_BITS;
+const SLEEPING_SHIFT: usize = 0 * THREADS_BITS;
 
 /// Bits to shift to select the inactive threads
 /// (used with `select_bits`).
-const INACTIVE_SHIFT: u64 = 1 * THREADS_BITS;
+const INACTIVE_SHIFT: usize = 1 * THREADS_BITS;
 
 /// Bits to shift to select the JEC
 /// (use JOBS_BITS).
-const JEC_SHIFT: u64 = 2 * THREADS_BITS;
+const JEC_SHIFT: usize = 2 * THREADS_BITS;
 
 /// Max value for the thread counters.
 const THREADS_MAX: usize = (1 << THREADS_BITS) - 1;
 
 /// Constant that can be added to add one sleeping thread.
-const ONE_SLEEPING: u64 = 1;
+const ONE_SLEEPING: usize = 1;
 
 /// Constant that can be added to add one inactive thread.
 /// An inactive thread is either idle, sleepy, or sleeping.
-const ONE_INACTIVE: u64 = 1 << INACTIVE_SHIFT;
+const ONE_INACTIVE: usize = 1 << INACTIVE_SHIFT;
 
 /// Constant that can be added to add one to the JEC.
-const ONE_JEC: u64 = 1 << JEC_SHIFT;
+const ONE_JEC: usize = 1 << JEC_SHIFT;
 
 impl AtomicCounters {
     pub(super) fn new() -> AtomicCounters {
         AtomicCounters {
-            value: AtomicU64::new(0),
+            value: AtomicUsize::new(0),
         }
     }
 
@@ -171,16 +171,16 @@ impl AtomicCounters {
     }
 }
 
-fn select_thread(word: u64, shift: u64) -> usize {
+fn select_thread(word: usize, shift: usize) -> usize {
     ((word >> shift) as usize) & THREADS_MAX
 }
 
-fn select_jec(word: u64) -> usize {
+fn select_jec(word: usize) -> usize {
     (word >> JEC_SHIFT) as usize
 }
 
 impl Counters {
-    fn new(word: u64) -> Counters {
+    fn new(word: usize) -> Counters {
         Counters { word }
     }
 
