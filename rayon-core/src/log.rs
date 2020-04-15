@@ -56,7 +56,7 @@ pub(super) enum Event {
 
     /// Indicates that an idle worker is getting sleepy. `sleepy_counter` is the internal
     /// sleep state that we saw at the time.
-    ThreadSleepy { worker: usize, jobs_counter: u16 },
+    ThreadSleepy { worker: usize, jobs_counter: usize },
 
     /// Indicates that the thread's attempt to fall asleep was
     /// interrupted because the latch was set. (This is not, in and of

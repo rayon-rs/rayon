@@ -123,18 +123,13 @@ impl Sleep {
 
     #[cold]
     fn announce_sleepy(&self, worker_index: usize) -> JobsEventCounter {
-        loop {
-            let counters = self.counters.load(Ordering::Relaxed);
-            let jobs_counter = counters.jobs_counter();
-            if jobs_counter.is_sleepy() || self.counters.try_increment_jobs_event_counter(counters)
-            {
-                self.logger.log(|| ThreadSleepy {
-                    worker: worker_index,
-                    jobs_counter: 0,
-                });
-                return jobs_counter;
-            }
-        }
+        let counters = self.counters.load(Ordering::SeqCst);
+        let jobs_counter = counters.jobs_counter();
+        self.logger.log(|| ThreadSleepy {
+            worker: worker_index,
+            jobs_counter: jobs_counter.as_usize(),
+        });
+        jobs_counter
     }
 
     #[cold]
@@ -173,14 +168,17 @@ impl Sleep {
 
         loop {
             let counters = self.counters.load(Ordering::SeqCst);
+
+            // Check if the JEC has changed since we got sleepy.
             if counters.jobs_counter() != idle_state.jobs_counter {
+                // JEC has changed, so a new job was posted, but for some reason
+                // we didn't see it. We should return to just before the SLEEPY
+                // state so we can do another search and (if we fail to find
+                // work) go back to sleep.
                 self.logger.log(|| ThreadSleepInterruptedByJob {
                     worker: worker_index,
                 });
 
-                // A new job was posted. We should return to just
-                // before the SLEEPY state so we can do another search
-                // and (if we fail to find work) go back to sleep.
                 idle_state.wake_partly();
                 latch.wake_up();
                 return;
@@ -300,9 +298,7 @@ impl Sleep {
         // with which we exit the loop thus corresponds to a state when
         loop {
             counters = self.counters.load(Ordering::SeqCst);
-            if !counters.jobs_counter().is_sleepy() {
-                break;
-            } else if self.counters.try_increment_jobs_event_counter(counters) {
+            if self.counters.try_increment_jobs_event_counter(counters) {
                 break;
             }
         }

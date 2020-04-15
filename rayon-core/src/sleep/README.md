@@ -83,26 +83,17 @@ These counters are adjusted as follows:
 
 ### Jobs event counter
 
-The final counter is the **jobs event counter**. The role of this counter
-is to help sleepy threads detect when new work is posted in a lightweight
-fashion. It is important if the counter is even or odd:
+The final counter is the **jobs event counter**. The role of this counter is to
+help sleepy threads detect when new work is posted in a lightweight fashion. The
+counter is incremented every time a new job is posted -- naturally, it can  also
+rollover if there have been enough jobs posted.
 
-* When the counter is **even**, it means that the last thing to happen was
-  that new work was published.
-* When the counter is **odd**, it means that the last thing to happen was
-  that some thread got sleepy.
+The counter is used as follows:
 
-It works like so:
-
-* When a thread becomes sleepy, it checks if the counter is even. If so,
-  it remembers the value (`JEC_OLD`) and increments so that the counter
-  is odd.
-* When a thread publishes work, it checks if the counter is odd. If so,
-  it increments the counter (potentially rolling it over).
-* When a sleepy thread goes to sleep, it reads the counter again. If
-  the counter value has changed from `JEC_OLD`, then it knows that
-  work was published during its sleepy time, so it goes back to the idle
-  state to search again.
+* When a thread gets **sleepy**, it reads the current value of the counter.
+* Later, before it goes to sleep, it checks if the counter has changed.
+  If it has, that indicates that work was posted but we somehow missed it
+  while searching. We'll go back and search again.
 
 Assuming no rollover, this protocol serves to prevent a race condition
 like so:
@@ -112,25 +103,29 @@ like so:
 * Thread B posts work, but sees no sleeping threads, and hence no one to wake up.
 * Thread A goes to sleep, incrementing the sleeping thread counter.
 
-The race condition would be prevented because Thread B would have incremented
-the JEC, and hence Thread A would not actually go to sleep, but rather return to
-search again.
-
 However, because of rollover, the race condition cannot be completely thwarted.
 It is possible, if exceedingly unlikely, that Thread A will get sleepy and read
 a value of the JEC. And then, in between, there will be *just enough* activity
-from other threads to roll the JEC back over to precisely that old value.
+from other threads to roll the JEC back over to precisely that old value. We
+have an extra check in the protocol to prevent deadlock in that (rather
+unlikely) case.
 
-## Protocol to fall asleep
+## Protocol for a worker thread to fall asleep
 
 The full protocol for a thread to fall asleep is as follows:
 
-* The thread "announces it is sleepy" by incrementing the JEC if it is even.
-* The thread searches for work. If work is found, it becomes active.
+* After completing all its jobs, the worker goes idle and begins to
+  search for work. As it searches, it counts "rounds". In each round,
+  it searches all other work threads' queues, plus the 'injector queue' for
+  work injected from the outside. If work is found in this search, the thread
+  becomes active again and hence restarts this protocol from the top.
+* After a certain number of rounds, the thread "gets sleepy" and reads the JEC.
+  It does one more search for work.
 * If no work is found, the thread atomically:
-  * Checks the JEC to see that it hasn't changed. If it has, then the thread
-    returns to *just before* the "sleepy state" to search again (i.e., it won't
-    search for a full set of rounds, just a few more times).
+  * Checks the JEC to see that it hasn't changed.
+    * If it has, then the thread returns to *just before* the "sleepy state" to
+      search again (i.e., it won't search for a full set of rounds, just a few
+      more times).
   * Increments the number of sleeping threads by 1.
 * The thread then does one final check for injected jobs (see below). If any
   are available, it returns to the 'pre-sleepy' state as if the JEC had changed.
@@ -155,29 +150,29 @@ given that this is unlikely in practice.
 
 However, if the work was posted as an *external* job, that is a problem. In that
 case, it's possible that all of our workers could go to sleep, and the external
-job would never get processed.
+job would never get processed. To prevent that, the sleeping protocol includes
+one final check to see if the injector queue is empty before fully falling
+asleep. Note that this final check occurs **after** the number of sleeping
+threads has been incremented. We are not concerned therefore with races against
+injections that occur after that increment, only before.
 
-To prevent that, the sleeping protocol includes one final check for external
-jobs. Note that we are guaranteed to see any such jobs, but the reasoning is
-actually pretty subtle.
+What follows is a "proof sketch" that the protocol is deadlock free. We model
+two relevant bits of memory, the job injector queue J and the atomic counters C.
 
-The key point is that, if the JEC == JEC_OLD, then there are three possibilities:
+Consider the actions of the injecting thread:
 
-* No intervening operation occurred (i.e., no job was posted). In that case,
-  going to sleep means that any subsequent job will see (and wake) a sleeping
-  thread, so no deadlock.
-* Rollover occurred and JEC is odd: In this case, the last thing to happen was
-  that some other thread became sleepy. That thread will see any jobs that were
-  posted.
-* Rollover occurred and JEC is even: In this case, the last thing to happen was
-  that a job was posted.
+* PushJob: Job is injected, which can be modeled as an atomic write to J with release semantics.
+* IncJec: The JEC is incremented, which can be modeled as an atomic exchange to C with acquire-release semantics.
 
-* Thread B will first post the external job into the queue.
-* Thread B will then check for sleeping threads, which is a sequentially consistent
-  read.
-* Thread A will increment the number of sleeping threads, which is also SeqCst.
-* Thread A then reads the external job.
+Meanwhile, the sleepy thread does the following:
 
-XXX this is false -- there is no synchronizes-with relation between a seq-cst
-read and the increment on thread A. We could add fences to achieve the desired
-effect.
+* IncSleepers: The number of sleeping threads is incremented, which is atomic exchange to C with acquire-release semantics.
+* ReadJob: We look to see if the queue is empty, which is a read of J with acquire semantics.
+
+Both IncJec and IncSleepers modify the same memory location, and hence they must be fully ordered.
+
+* If IncSleepers came first, there is no problem, because the injecting thread
+  knows that everyone is asleep and it will wake up a thread.
+* If IncJec came first, then it "synchronizes with" IncSleepers.
+  * Therefore, PushJob "happens before" ReadJob, and so the write will be visible during
+    this final check, and the thread will not go to sleep.

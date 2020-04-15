@@ -27,16 +27,8 @@ pub(super) struct JobsEventCounter(usize);
 impl JobsEventCounter {
     pub(super) const MAX: JobsEventCounter = JobsEventCounter(JEC_MAX);
 
-    fn as_usize(self) -> usize {
+    pub(super) fn as_usize(self) -> usize {
         self.0
-    }
-
-    /// Returns true if there were sleepy workers pending when this reading was
-    /// taken. This is determined by checking whether the value is odd (sleepy
-    /// workers) or even (work published since last sleepy worker got sleepy,
-    /// though they may not have seen it yet).
-    pub(super) fn is_sleepy(self) -> bool {
-        (self.as_usize() & 1) != 0
     }
 }
 
@@ -121,6 +113,7 @@ impl AtomicCounters {
     /// * If a thread is publishing work, and the JEC is odd, then it will attempt
     ///   to increment to an event value.
     pub(super) fn try_increment_jobs_event_counter(&self, old_value: Counters) -> bool {
+        // FIXME -- we should remove the `MAX` constant and just let rollover happen naturally
         let new_value = if old_value.jobs_counter() == JobsEventCounter::MAX {
             Counters::new(old_value.word & ZERO_JEC_MASK)
         } else {
