@@ -21,7 +21,7 @@ where
     A: IndexedParallelIterator,
     B: IndexedParallelIterator,
 {
-    /// Create a new `Zip` iterator.
+    /// Creates a new `Zip` iterator.
     pub(super) fn new(a: A, b: B) -> Self {
         Zip { a, b }
     }

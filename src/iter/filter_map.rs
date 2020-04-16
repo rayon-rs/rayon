@@ -24,7 +24,7 @@ impl<I: ParallelIterator + Debug, P> Debug for FilterMap<I, P> {
 }
 
 impl<I: ParallelIterator, P> FilterMap<I, P> {
-    /// Create a new `FilterMap` iterator.
+    /// Creates a new `FilterMap` iterator.
     pub(super) fn new(base: I, filter_op: P) -> Self {
         FilterMap { base, filter_op }
     }

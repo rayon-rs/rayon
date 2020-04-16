@@ -35,22 +35,22 @@ pub struct ThreadBuilder {
 }
 
 impl ThreadBuilder {
-    /// Get the index of this thread in the pool, within `0..num_threads`.
+    /// Gets the index of this thread in the pool, within `0..num_threads`.
     pub fn index(&self) -> usize {
         self.index
     }
 
-    /// Get the string that was specified by `ThreadPoolBuilder::name()`.
+    /// Gets the string that was specified by `ThreadPoolBuilder::name()`.
     pub fn name(&self) -> Option<&str> {
         self.name.as_ref().map(String::as_str)
     }
 
-    /// Get the value that was specified by `ThreadPoolBuilder::stack_size()`.
+    /// Gets the value that was specified by `ThreadPoolBuilder::stack_size()`.
     pub fn stack_size(&self) -> Option<usize> {
         self.stack_size
     }
 
-    /// Execute the main loop for this thread. This will not return until the
+    /// Executes the main loop for this thread. This will not return until the
     /// thread pool is dropped.
     pub fn run(self) {
         unsafe { main_loop(self.worker, self.registry, self.index) }
@@ -477,7 +477,7 @@ impl Registry {
         job.into_result()
     }
 
-    /// Increment the terminate counter. This increment should be
+    /// Increments the terminate counter. This increment should be
     /// balanced by a call to `terminate`, which will decrement. This
     /// is used when spawning asynchronous work, which needs to
     /// prevent the registry from terminating so long as it is active.

@@ -27,7 +27,7 @@ impl<I, F> Map<I, F>
 where
     I: ParallelIterator,
 {
-    /// Create a new `Map` iterator.
+    /// Creates a new `Map` iterator.
     pub(super) fn new(base: I, map_op: F) -> Self {
         Map { base, map_op }
     }

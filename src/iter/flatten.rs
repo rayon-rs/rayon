@@ -18,7 +18,7 @@ where
     I: ParallelIterator<Item = PI>,
     PI: IntoParallelIterator + Send,
 {
-    /// Create a new `Flatten` iterator.
+    /// Creates a new `Flatten` iterator.
     pub(super) fn new(base: I) -> Self {
         Flatten { base }
     }

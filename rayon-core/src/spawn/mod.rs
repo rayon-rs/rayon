@@ -66,7 +66,7 @@ where
     unsafe { spawn_in(func, &Registry::current()) }
 }
 
-/// Spawn an asynchronous job in `registry.`
+/// Spawns an asynchronous job in `registry.`
 ///
 /// Unsafe because `registry` must not yet have terminated.
 pub(super) unsafe fn spawn_in<F>(func: F, registry: &Arc<Registry>)
@@ -141,7 +141,7 @@ where
     unsafe { spawn_fifo_in(func, &Registry::current()) }
 }
 
-/// Spawn an asynchronous FIFO job in `registry.`
+/// Spawns an asynchronous FIFO job in `registry.`
 ///
 /// Unsafe because `registry` must not yet have terminated.
 pub(super) unsafe fn spawn_fifo_in<F>(func: F, registry: &Arc<Registry>)

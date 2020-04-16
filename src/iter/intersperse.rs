@@ -25,7 +25,7 @@ where
     I: ParallelIterator,
     I::Item: Clone,
 {
-    /// Create a new `Intersperse` iterator
+    /// Creates a new `Intersperse` iterator
     pub(super) fn new(base: I, item: I::Item) -> Self {
         Intersperse { base, item }
     }

@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::hash::{BuildHasher, Hash};
 
-/// Perform a generic `par_extend` by collecting to a `LinkedList<Vec<_>>` in
+/// Performs a generic `par_extend` by collecting to a `LinkedList<Vec<_>>` in
 /// parallel, then extending the collection sequentially.
 fn extend<C, I, F>(collection: &mut C, par_iter: I, reserve: F)
 where
@@ -49,7 +49,7 @@ fn list_append<T>(mut list1: LinkedList<T>, mut list2: LinkedList<T>) -> LinkedL
     list1
 }
 
-/// Compute the total length of a `LinkedList<Vec<_>>`.
+/// Computes the total length of a `LinkedList<Vec<_>>`.
 pub(super) fn len<T>(list: &LinkedList<Vec<T>>) -> usize {
     list.iter().map(Vec::len).sum()
 }
@@ -60,7 +60,7 @@ fn heap_reserve<T: Ord, U>(heap: &mut BinaryHeap<T>, list: &LinkedList<Vec<U>>) 
     heap.reserve(len(list));
 }
 
-/// Extend a binary heap with items from a parallel iterator.
+/// Extends a binary heap with items from a parallel iterator.
 impl<T> ParallelExtend<T> for BinaryHeap<T>
 where
     T: Ord + Send,
@@ -73,7 +73,7 @@ where
     }
 }
 
-/// Extend a binary heap with copied items from a parallel iterator.
+/// Extends a binary heap with copied items from a parallel iterator.
 impl<'a, T> ParallelExtend<&'a T> for BinaryHeap<T>
 where
     T: 'a + Copy + Ord + Send + Sync,
@@ -86,7 +86,7 @@ where
     }
 }
 
-/// Extend a B-tree map with items from a parallel iterator.
+/// Extends a B-tree map with items from a parallel iterator.
 impl<K, V> ParallelExtend<(K, V)> for BTreeMap<K, V>
 where
     K: Ord + Send,
@@ -100,7 +100,7 @@ where
     }
 }
 
-/// Extend a B-tree map with copied items from a parallel iterator.
+/// Extends a B-tree map with copied items from a parallel iterator.
 impl<'a, K: 'a, V: 'a> ParallelExtend<(&'a K, &'a V)> for BTreeMap<K, V>
 where
     K: Copy + Ord + Send + Sync,
@@ -114,7 +114,7 @@ where
     }
 }
 
-/// Extend a B-tree set with items from a parallel iterator.
+/// Extends a B-tree set with items from a parallel iterator.
 impl<T> ParallelExtend<T> for BTreeSet<T>
 where
     T: Ord + Send,
@@ -127,7 +127,7 @@ where
     }
 }
 
-/// Extend a B-tree set with copied items from a parallel iterator.
+/// Extends a B-tree set with copied items from a parallel iterator.
 impl<'a, T> ParallelExtend<&'a T> for BTreeSet<T>
 where
     T: 'a + Copy + Ord + Send + Sync,
@@ -148,7 +148,7 @@ where
     map.reserve(len(list));
 }
 
-/// Extend a hash map with items from a parallel iterator.
+/// Extends a hash map with items from a parallel iterator.
 impl<K, V, S> ParallelExtend<(K, V)> for HashMap<K, V, S>
 where
     K: Eq + Hash + Send,
@@ -164,7 +164,7 @@ where
     }
 }
 
-/// Extend a hash map with copied items from a parallel iterator.
+/// Extends a hash map with copied items from a parallel iterator.
 impl<'a, K: 'a, V: 'a, S> ParallelExtend<(&'a K, &'a V)> for HashMap<K, V, S>
 where
     K: Copy + Eq + Hash + Send + Sync,
@@ -187,7 +187,7 @@ where
     set.reserve(len(list));
 }
 
-/// Extend a hash set with items from a parallel iterator.
+/// Extends a hash set with items from a parallel iterator.
 impl<T, S> ParallelExtend<T> for HashSet<T, S>
 where
     T: Eq + Hash + Send,
@@ -201,7 +201,7 @@ where
     }
 }
 
-/// Extend a hash set with copied items from a parallel iterator.
+/// Extends a hash set with copied items from a parallel iterator.
 impl<'a, T, S> ParallelExtend<&'a T> for HashSet<T, S>
 where
     T: 'a + Copy + Eq + Hash + Send + Sync,
@@ -220,7 +220,7 @@ fn list_push_back<T>(mut list: LinkedList<T>, elem: T) -> LinkedList<T> {
     list
 }
 
-/// Extend a linked list with items from a parallel iterator.
+/// Extends a linked list with items from a parallel iterator.
 impl<T> ParallelExtend<T> for LinkedList<T>
 where
     T: Send,
@@ -237,7 +237,7 @@ where
     }
 }
 
-/// Extend a linked list with copied items from a parallel iterator.
+/// Extends a linked list with copied items from a parallel iterator.
 impl<'a, T> ParallelExtend<&'a T> for LinkedList<T>
 where
     T: 'a + Copy + Send + Sync,
@@ -255,7 +255,7 @@ fn string_push(mut string: String, ch: char) -> String {
     string
 }
 
-/// Extend a string with characters from a parallel iterator.
+/// Extends a string with characters from a parallel iterator.
 impl ParallelExtend<char> for String {
     fn par_extend<I>(&mut self, par_iter: I)
     where
@@ -274,7 +274,7 @@ impl ParallelExtend<char> for String {
     }
 }
 
-/// Extend a string with copied characters from a parallel iterator.
+/// Extends a string with copied characters from a parallel iterator.
 impl<'a> ParallelExtend<&'a char> for String {
     fn par_extend<I>(&mut self, par_iter: I)
     where
@@ -289,7 +289,7 @@ fn string_reserve<T: AsRef<str>>(string: &mut String, list: &LinkedList<Vec<T>>)
     string.reserve(len);
 }
 
-/// Extend a string with string slices from a parallel iterator.
+/// Extends a string with string slices from a parallel iterator.
 impl<'a> ParallelExtend<&'a str> for String {
     fn par_extend<I>(&mut self, par_iter: I)
     where
@@ -299,7 +299,7 @@ impl<'a> ParallelExtend<&'a str> for String {
     }
 }
 
-/// Extend a string with strings from a parallel iterator.
+/// Extends a string with strings from a parallel iterator.
 impl ParallelExtend<String> for String {
     fn par_extend<I>(&mut self, par_iter: I)
     where
@@ -309,7 +309,7 @@ impl ParallelExtend<String> for String {
     }
 }
 
-/// Extend a string with string slices from a parallel iterator.
+/// Extends a string with string slices from a parallel iterator.
 impl<'a> ParallelExtend<Cow<'a, str>> for String {
     fn par_extend<I>(&mut self, par_iter: I)
     where
@@ -323,7 +323,7 @@ fn deque_reserve<T, U>(deque: &mut VecDeque<T>, list: &LinkedList<Vec<U>>) {
     deque.reserve(len(list));
 }
 
-/// Extend a deque with items from a parallel iterator.
+/// Extends a deque with items from a parallel iterator.
 impl<T> ParallelExtend<T> for VecDeque<T>
 where
     T: Send,
@@ -336,7 +336,7 @@ where
     }
 }
 
-/// Extend a deque with copied items from a parallel iterator.
+/// Extends a deque with copied items from a parallel iterator.
 impl<'a, T> ParallelExtend<&'a T> for VecDeque<T>
 where
     T: 'a + Copy + Send + Sync,
@@ -352,7 +352,7 @@ where
 // See the `collect` module for the `Vec<T>` implementation.
 // impl<T> ParallelExtend<T> for Vec<T>
 
-/// Extend a vector with copied items from a parallel iterator.
+/// Extends a vector with copied items from a parallel iterator.
 impl<'a, T> ParallelExtend<&'a T> for Vec<T>
 where
     T: 'a + Copy + Send + Sync,

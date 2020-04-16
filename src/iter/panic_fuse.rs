@@ -40,7 +40,7 @@ impl<I> PanicFuse<I>
 where
     I: ParallelIterator,
 {
-    /// Create a new `PanicFuse` iterator.
+    /// Creates a new `PanicFuse` iterator.
     pub(super) fn new(base: I) -> PanicFuse<I> {
         PanicFuse { base }
     }

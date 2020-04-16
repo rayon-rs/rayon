@@ -19,7 +19,7 @@ impl<I> Cloned<I>
 where
     I: ParallelIterator,
 {
-    /// Create a new `Cloned` iterator.
+    /// Creates a new `Cloned` iterator.
     pub(super) fn new(base: I) -> Self {
         Cloned { base }
     }

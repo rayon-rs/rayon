@@ -300,7 +300,7 @@ struct LengthSplitter {
 }
 
 impl LengthSplitter {
-    /// Create a new splitter based on lengths.
+    /// Creates a new splitter based on lengths.
     ///
     /// The `min` is a hard lower bound.  We'll never split below that, but
     /// of course an iterator might start out smaller already.

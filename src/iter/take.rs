@@ -18,7 +18,7 @@ impl<I> Take<I>
 where
     I: IndexedParallelIterator,
 {
-    /// Create a new `Take` iterator.
+    /// Creates a new `Take` iterator.
     pub(super) fn new(base: I, n: usize) -> Self {
         let n = min(base.len(), n);
         Take { base, n }

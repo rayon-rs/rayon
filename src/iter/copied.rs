@@ -19,7 +19,7 @@ impl<I> Copied<I>
 where
     I: ParallelIterator,
 {
-    /// Create a new `Copied` iterator.
+    /// Creates a new `Copied` iterator.
     pub(super) fn new(base: I) -> Self {
         Copied { base }
     }

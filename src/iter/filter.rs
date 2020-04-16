@@ -25,7 +25,7 @@ impl<I, P> Filter<I, P>
 where
     I: ParallelIterator,
 {
-    /// Create a new `Filter` iterator.
+    /// Creates a new `Filter` iterator.
     pub(super) fn new(base: I, filter_op: P) -> Self {
         Filter { base, filter_op }
     }

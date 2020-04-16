@@ -44,7 +44,7 @@ use crate::iter::ParallelIterator;
 /// assert_eq!(&*output, &["one!", "three!", "two!"]);
 /// ```
 pub trait ParallelBridge: Sized {
-    /// Create a bridge from this type to a `ParallelIterator`.
+    /// Creates a bridge from this type to a `ParallelIterator`.
     fn par_bridge(self) -> IterBridge<Self>;
 }
 

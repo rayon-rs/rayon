@@ -22,7 +22,7 @@ impl<I: ParallelIterator + Debug, F> Debug for FlatMap<I, F> {
 }
 
 impl<I: ParallelIterator, F> FlatMap<I, F> {
-    /// Create a new `FlatMap` iterator.
+    /// Creates a new `FlatMap` iterator.
     pub(super) fn new(base: I, map_op: F) -> Self {
         FlatMap { base, map_op }
     }
