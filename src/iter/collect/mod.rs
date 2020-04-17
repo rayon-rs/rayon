@@ -82,7 +82,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         }
     }
 
-    /// Create a consumer on a slice of our memory.
+    /// Creates a consumer on a slice of our memory.
     fn as_consumer(&mut self) -> CollectConsumer<'_, T> {
         // Reserve the new space.
         self.vec.reserve(self.len);
@@ -94,7 +94,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         CollectConsumer::new(&self.writes, slice)
     }
 
-    /// Update the final vector length.
+    /// Updates the final vector length.
     fn complete(self) {
         unsafe {
             // Here, we assert that `v` is fully initialized. This is
@@ -117,7 +117,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     }
 }
 
-/// Extend a vector with items from a parallel iterator.
+/// Extends a vector with items from a parallel iterator.
 impl<T> ParallelExtend<T> for Vec<T>
 where
     T: Send,

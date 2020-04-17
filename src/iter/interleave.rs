@@ -25,7 +25,7 @@ where
     I: IndexedParallelIterator,
     J: IndexedParallelIterator<Item = I::Item>,
 {
-    /// Create a new `Interleave` iterator
+    /// Creates a new `Interleave` iterator
     pub(super) fn new(i: I, j: J) -> Self {
         Interleave { i, j }
     }

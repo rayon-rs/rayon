@@ -24,7 +24,7 @@ impl<I> Chunks<I>
 where
     I: IndexedParallelIterator,
 {
-    /// Create a new `Chunks` iterator
+    /// Creates a new `Chunks` iterator
     pub(super) fn new(i: I, size: usize) -> Self {
         Chunks { i, size }
     }

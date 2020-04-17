@@ -31,7 +31,7 @@ impl<T> Repeat<T>
 where
     T: Clone + Send,
 {
-    /// Take only `n` repeats of the element, similar to the general
+    /// Takes only `n` repeats of the element, similar to the general
     /// [`take()`](trait.IndexedParallelIterator.html#method.take).
     ///
     /// The resulting `RepeatN` is an `IndexedParallelIterator`, allowing
@@ -40,7 +40,7 @@ where
         repeatn(self.element, n)
     }
 
-    /// Iterate tuples repeating the element with items from another
+    /// Iterates tuples, repeating the element with items from another
     /// iterator, similar to the general
     /// [`zip()`](trait.IndexedParallelIterator.html#method.zip).
     pub fn zip<Z>(self, zip_op: Z) -> Zip<RepeatN<T>, Z::Iter>

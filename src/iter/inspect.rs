@@ -28,7 +28,7 @@ impl<I, F> Inspect<I, F>
 where
     I: ParallelIterator,
 {
-    /// Create a new `Inspect` iterator.
+    /// Creates a new `Inspect` iterator.
     pub(super) fn new(base: I, inspect_op: F) -> Self {
         Inspect { base, inspect_op }
     }

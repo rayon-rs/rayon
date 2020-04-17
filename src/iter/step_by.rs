@@ -23,7 +23,7 @@ impl<I> StepBy<I>
 where
     I: IndexedParallelIterator,
 {
-    /// Create a new `StepBy` iterator.
+    /// Creates a new `StepBy` iterator.
     pub(super) fn new(base: I, step: usize) -> Self {
         StepBy { base, step }
     }

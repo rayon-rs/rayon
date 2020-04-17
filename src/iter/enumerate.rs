@@ -19,7 +19,7 @@ impl<I> Enumerate<I>
 where
     I: IndexedParallelIterator,
 {
-    /// Create a new `Enumerate` iterator.
+    /// Creates a new `Enumerate` iterator.
     pub(super) fn new(base: I) -> Self {
         Enumerate { base }
     }

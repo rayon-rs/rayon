@@ -67,7 +67,7 @@ fn sleeper_stop() {
     registry.wait_until_stopped();
 }
 
-/// Create a start/exit handler that increments an atomic counter.
+/// Creates a start/exit handler that increments an atomic counter.
 fn count_handler() -> (Arc<AtomicUsize>, impl Fn(usize)) {
     let count = Arc::new(AtomicUsize::new(0));
     (count.clone(), move |_| {

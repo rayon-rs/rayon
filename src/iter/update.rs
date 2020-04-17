@@ -27,7 +27,7 @@ impl<I, F> Update<I, F>
 where
     I: ParallelIterator,
 {
-    /// Create a new `Update` iterator.
+    /// Creates a new `Update` iterator.
     pub(super) fn new(base: I, update_op: F) -> Self {
         Update { base, update_op }
     }

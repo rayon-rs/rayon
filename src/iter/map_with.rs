@@ -30,7 +30,7 @@ impl<I, T, F> MapWith<I, T, F>
 where
     I: ParallelIterator,
 {
-    /// Create a new `MapWith` iterator.
+    /// Creates a new `MapWith` iterator.
     pub(super) fn new(base: I, item: T, map_op: F) -> Self {
         MapWith { base, item, map_op }
     }
@@ -359,7 +359,7 @@ impl<I, INIT, F> MapInit<I, INIT, F>
 where
     I: ParallelIterator,
 {
-    /// Create a new `MapInit` iterator.
+    /// Creates a new `MapInit` iterator.
     pub(super) fn new(base: I, init: INIT, map_op: F) -> Self {
         MapInit { base, init, map_op }
     }

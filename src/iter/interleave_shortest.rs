@@ -25,7 +25,7 @@ where
     I: IndexedParallelIterator,
     J: IndexedParallelIterator<Item = I::Item>,
 {
-    /// Create a new `InterleaveShortest` iterator
+    /// Creates a new `InterleaveShortest` iterator
     pub(super) fn new(i: I, j: J) -> Self {
         InterleaveShortest {
             interleave: if i.len() <= j.len() {

@@ -17,7 +17,7 @@ impl<I> Rev<I>
 where
     I: IndexedParallelIterator,
 {
-    /// Create a new `Rev` iterator.
+    /// Creates a new `Rev` iterator.
     pub(super) fn new(base: I) -> Self {
         Rev { base }
     }

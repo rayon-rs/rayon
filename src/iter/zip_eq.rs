@@ -20,7 +20,7 @@ where
     A: IndexedParallelIterator,
     B: IndexedParallelIterator,
 {
-    /// Create a new `ZipEq` iterator.
+    /// Creates a new `ZipEq` iterator.
     pub(super) fn new(a: A, b: B) -> Self {
         ZipEq {
             zip: super::Zip::new(a, b),

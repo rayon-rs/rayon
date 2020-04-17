@@ -1201,7 +1201,7 @@ pub trait ParallelIterator: Sized + Send {
         FoldWith::new(self, init, fold_op)
     }
 
-    /// Perform a fallible parallel fold.
+    /// Performs a fallible parallel fold.
     ///
     /// This is a variation of [`fold()`] for operations which can fail with
     /// `Option::None` or `Result::Err`.  The first such failure stops
@@ -1235,7 +1235,7 @@ pub trait ParallelIterator: Sized + Send {
         TryFold::new(self, identity, fold_op)
     }
 
-    /// Perform a fallible parallel fold with a cloneable `init` value.
+    /// Performs a fallible parallel fold with a cloneable `init` value.
     ///
     /// This combines the `init` semantics of [`fold_with()`] and the failure
     /// semantics of [`try_fold()`].
@@ -1861,7 +1861,7 @@ pub trait ParallelIterator: Sized + Send {
         PanicFuse::new(self)
     }
 
-    /// Create a fresh collection containing all the element produced
+    /// Creates a fresh collection containing all the elements produced
     /// by this parallel iterator.
     ///
     /// You may prefer to use `collect_into_vec()`, which allocates more
@@ -2135,7 +2135,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         collect::unzip_into_vecs(self, left, right);
     }
 
-    /// Iterate over tuples `(A, B)`, where the items `A` are from
+    /// Iterates over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
     /// iterators are of unequal length, you only get the items they
@@ -2190,7 +2190,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         ZipEq::new(self, zip_op_iter)
     }
 
-    /// Interleave elements of this iterator and the other given
+    /// Interleaves elements of this iterator and the other given
     /// iterator. Alternately yields elements from this iterator and
     /// the given iterator, until both are exhausted. If one iterator
     /// is exhausted before the other, the last elements are provided
@@ -2212,7 +2212,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         Interleave::new(self, other.into_par_iter())
     }
 
-    /// Interleave elements of this iterator and the other given
+    /// Interleaves elements of this iterator and the other given
     /// iterator, until one is exhausted.
     ///
     /// # Examples
@@ -2231,7 +2231,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
         InterleaveShortest::new(self, other.into_par_iter())
     }
 
-    /// Split an iterator up into fixed-size chunks.
+    /// Splits an iterator up into fixed-size chunks.
     ///
     /// Returns an iterator that returns `Vec`s of the given number of elements.
     /// If the number of elements in the iterator is not divisible by `chunk_size`,

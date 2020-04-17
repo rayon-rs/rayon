@@ -61,7 +61,7 @@ struct ScopeBase<'scope> {
     marker: PhantomData<Box<dyn FnOnce(&Scope<'scope>) + Send + Sync + 'scope>>,
 }
 
-/// Create a "fork-join" scope `s` and invokes the closure with a
+/// Creates a "fork-join" scope `s` and invokes the closure with a
 /// reference to `s`. This closure can then spawn asynchronous tasks
 /// into `s`. Those tasks may run asynchronously with respect to the
 /// closure; they may themselves spawn additional tasks into `s`. When
@@ -295,7 +295,7 @@ where
     })
 }
 
-/// Create a "fork-join" scope `s` with FIFO order, and invokes the
+/// Creates a "fork-join" scope `s` with FIFO order, and invokes the
 /// closure with a reference to `s`. This closure can then spawn
 /// asynchronous tasks into `s`. Those tasks may run asynchronously with
 /// respect to the closure; they may themselves spawn additional tasks
@@ -511,7 +511,7 @@ impl<'scope> ScopeFifo<'scope> {
 }
 
 impl<'scope> ScopeBase<'scope> {
-    /// Create the base of a new scope for the given worker thread
+    /// Creates the base of a new scope for the given worker thread
     fn new(owner_thread: &WorkerThread) -> Self {
         ScopeBase {
             owner_thread_index: owner_thread.index(),
