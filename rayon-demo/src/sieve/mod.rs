@@ -40,7 +40,6 @@ pub struct Args {
 mod bench;
 
 use docopt::Docopt;
-use odds::stride::StrideMut;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -162,10 +161,10 @@ fn update_chunk(low: &[bool], chunk: &mut [bool], base: usize) {
 }
 
 fn clear_stride(slice: &mut [bool], from: usize, stride: usize) {
-    let slice = &mut slice[from..];
-    for x in StrideMut::from_slice(slice, stride as isize) {
-        *x = false;
-    }
+    slice[from..]
+        .iter_mut()
+        .step_by(stride)
+        .for_each(|x| *x = false)
 }
 
 fn measure(f: fn(usize) -> Vec<bool>) -> Duration {
