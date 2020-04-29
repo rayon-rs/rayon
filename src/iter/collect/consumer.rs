@@ -1,66 +1,97 @@
-use super::super::noop::*;
 use super::super::plumbing::*;
+use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(super) struct CollectConsumer<'c, T: Send> {
-    /// Tracks how many items we successfully wrote. Used to guarantee
-    /// safety in the face of panics or buggy parallel iterators.
-    ///
-    /// In theory we could just produce this as a `CollectConsumer::Result`,
-    /// folding local counts and reducing by addition, but that requires a
-    /// certain amount of trust that the producer driving this will behave
-    /// itself. Since this count is important to the safety of marking the
-    /// memory initialized (`Vec::set_len`), we choose to keep it internal.
-    writes: &'c AtomicUsize,
-
     /// A slice covering the target memory, not yet initialized!
     target: &'c mut [T],
 }
 
 pub(super) struct CollectFolder<'c, T: Send> {
-    global_writes: &'c AtomicUsize,
-    local_writes: usize,
+    /// The folder writes into `result` and must extend the result
+    /// up to exactly this number of elements.
+    final_len: usize,
 
-    /// An iterator over the *uninitialized* target memory.
-    target: slice::IterMut<'c, T>,
+    /// The current written-to part of our slice of the target
+    result: CollectResult<'c, T>,
 }
+
+unsafe impl<'a, T> Send for CollectFolder<'a, T> where T: Send {}
 
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
-    /// overwritten without dropping anything.
-    pub(super) fn new(writes: &'c AtomicUsize, target: &'c mut [T]) -> Self {
-        CollectConsumer { writes, target }
+    /// overwritten without reading or dropping existing values.
+    pub(super) fn new(target: &'c mut [T]) -> Self {
+        CollectConsumer { target }
+    }
+}
+
+/// CollectResult represents an initialized part of the target slice.
+///
+/// This is a proxy owner of the elements in the slice; when it drops,
+/// the elements will be dropped, unless its ownership is released before then.
+#[must_use]
+pub(super) struct CollectResult<'c, T> {
+    start: *mut T,
+    len: usize,
+    invariant_lifetime: PhantomData<&'c mut &'c mut [T]>,
+}
+
+unsafe impl<'c, T> Send for CollectResult<'c, T> where T: Send {}
+
+impl<'c, T> CollectResult<'c, T> {
+    /// The current length of the collect result
+    pub(super) fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Release ownership of the slice of elements, and return the length
+    pub(super) fn release_ownership(mut self) -> usize {
+        let ret = self.len;
+        self.len = 0;
+        ret
+    }
+}
+
+impl<'c, T> Drop for CollectResult<'c, T> {
+    fn drop(&mut self) {
+        // Drop the first `self.len` elements, which have been recorded
+        // to be initialized by the folder.
+        unsafe {
+            ptr::drop_in_place(slice::from_raw_parts_mut(self.start, self.len));
+        }
     }
 }
 
 impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
     type Folder = CollectFolder<'c, T>;
-    type Reducer = NoopReducer;
-    type Result = ();
+    type Reducer = CollectReducer;
+    type Result = CollectResult<'c, T>;
 
-    fn split_at(self, index: usize) -> (Self, Self, NoopReducer) {
-        // instances Read in the fields from `self` and then
-        // forget `self`, since it has been legitimately consumed
-        // (and not dropped during unwinding).
-        let CollectConsumer { writes, target } = self;
+    fn split_at(self, index: usize) -> (Self, Self, CollectReducer) {
+        let CollectConsumer { target } = self;
 
         // Produce new consumers. Normal slicing ensures that the
         // memory range given to each consumer is disjoint.
         let (left, right) = target.split_at_mut(index);
         (
-            CollectConsumer::new(writes, left),
-            CollectConsumer::new(writes, right),
-            NoopReducer,
+            CollectConsumer::new(left),
+            CollectConsumer::new(right),
+            CollectReducer,
         )
     }
 
     fn into_folder(self) -> CollectFolder<'c, T> {
+        // Create a folder that consumes values and writes them
+        // into target. The initial result has length 0.
         CollectFolder {
-            global_writes: self.writes,
-            local_writes: 0,
-            target: self.target.iter_mut(),
+            final_len: self.target.len(),
+            result: CollectResult {
+                start: self.target.as_mut_ptr(),
+                len: 0,
+                invariant_lifetime: PhantomData,
+            },
         }
     }
 
@@ -70,30 +101,27 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
 }
 
 impl<'c, T: Send + 'c> Folder<T> for CollectFolder<'c, T> {
-    type Result = ();
+    type Result = CollectResult<'c, T>;
 
     fn consume(mut self, item: T) -> CollectFolder<'c, T> {
-        // Compute target pointer and write to it. Safe because the iterator
-        // does all the bounds checking; we're only avoiding the target drop.
-        let head = self
-            .target
-            .next()
-            .expect("too many values pushed to consumer");
-        unsafe {
-            ptr::write(head, item);
+        if self.result.len >= self.final_len {
+            panic!("too many values pushed to consumer");
         }
 
-        self.local_writes += 1;
+        // Compute target pointer and write to it, and
+        // extend the current result by one element
+        unsafe {
+            self.result.start.add(self.result.len).write(item);
+            self.result.len += 1;
+        }
+
         self
     }
 
-    fn complete(self) {
+    fn complete(self) -> Self::Result {
         // NB: We don't explicitly check that the local writes were complete,
-        // but `Collect::complete()` will assert the global write count.
-
-        // track total values written
-        self.global_writes
-            .fetch_add(self.local_writes, Ordering::Relaxed);
+        // but Collect will assert the total result length in the end.
+        self.result
     }
 
     fn full(&self) -> bool {
@@ -108,6 +136,26 @@ impl<'c, T: Send + 'c> UnindexedConsumer<T> for CollectConsumer<'c, T> {
         unreachable!("CollectConsumer must be indexed!")
     }
     fn to_reducer(&self) -> Self::Reducer {
-        NoopReducer
+        CollectReducer
+    }
+}
+
+/// CollectReducer combines adjacent chunks; the result must always
+/// be contiguous so that it is one combined slice.
+pub(super) struct CollectReducer;
+
+impl<'c, T> Reducer<CollectResult<'c, T>> for CollectReducer {
+    fn reduce(
+        self,
+        mut left: CollectResult<'c, T>,
+        right: CollectResult<'c, T>,
+    ) -> CollectResult<'c, T> {
+        // Merge if the CollectResults are adjacent and in left to right order
+        // else: drop the right piece now and total length will end up short in the end,
+        // when the correctness of the collected result is asserted.
+        if left.start.wrapping_add(left.len) == right.start {
+            left.len += right.release_ownership();
+        }
+        left
     }
 }
