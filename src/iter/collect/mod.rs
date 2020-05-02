@@ -54,14 +54,14 @@ where
     right.truncate(0);
 
     let len = pi.len();
-    Collect::new(left, len).with_consumer(|left_consumer| {
-        let mut left_result = None;
-        Collect::new(right, len).with_consumer(|right_consumer| {
+    Collect::new(right, len).with_consumer(|right_consumer| {
+        let mut right_result = None;
+        Collect::new(left, len).with_consumer(|left_consumer| {
             let (left_r, right_r) = unzip_indexed(pi, left_consumer, right_consumer);
-            left_result = Some(left_r);
-            right_r
+            right_result = Some(right_r);
+            left_r
         });
-        left_result.unwrap()
+        right_result.unwrap()
     });
 }
 
