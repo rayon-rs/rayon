@@ -63,6 +63,7 @@ const ONE_INACTIVE: usize = 1 << INACTIVE_SHIFT;
 const ONE_JEC: usize = 1 << JEC_SHIFT;
 
 impl AtomicCounters {
+    #[inline]
     pub(super) fn new() -> AtomicCounters {
         AtomicCounters {
             value: AtomicUsize::new(0),
@@ -72,6 +73,7 @@ impl AtomicCounters {
     /// Load and return the current value of the various counters.
     /// This value can then be given to other method which will
     /// attempt to update the counters via compare-and-swap.
+    #[inline]
     pub(super) fn load(&self, ordering: Ordering) -> Counters {
         Counters::new(self.value.load(ordering))
     }
@@ -102,6 +104,7 @@ impl AtomicCounters {
     ///   to increment to an odd value.
     /// * If a thread is publishing work, and the JEC is odd, then it will attempt
     ///   to increment to an event value.
+    #[inline]
     pub(super) fn increment_and_read_jobs_event_counter(&self) -> Counters {
         Counters::new(self.value.fetch_add(ONE_JEC, Ordering::SeqCst))
     }
@@ -111,6 +114,7 @@ impl AtomicCounters {
     /// number of sleeping threads to wake up (if any).
     ///
     /// See `add_inactive_thread`.
+    #[inline]
     pub(super) fn sub_inactive_thread(&self) -> usize {
         let old_value = Counters::new(self.value.fetch_sub(ONE_INACTIVE, Ordering::SeqCst));
         debug_assert!(
@@ -173,29 +177,35 @@ impl AtomicCounters {
     }
 }
 
+#[inline]
 fn select_thread(word: usize, shift: usize) -> usize {
     ((word >> shift) as usize) & THREADS_MAX
 }
 
+#[inline]
 fn select_jec(word: usize) -> usize {
     (word >> JEC_SHIFT) as usize
 }
 
 impl Counters {
+    #[inline]
     fn new(word: usize) -> Counters {
         Counters { word }
     }
 
+    #[inline]
     pub(super) fn jobs_counter(self) -> JobsEventCounter {
         JobsEventCounter(select_jec(self.word))
     }
 
     /// The number of threads that are not actively
     /// executing work. They may be idle, sleepy, or asleep.
+    #[inline]
     pub(super) fn inactive_threads(self) -> usize {
         select_thread(self.word, INACTIVE_SHIFT)
     }
 
+    #[inline]
     pub(super) fn awake_but_idle_threads(self) -> usize {
         debug_assert!(
             self.sleeping_threads() <= self.inactive_threads(),
@@ -206,6 +216,7 @@ impl Counters {
         self.inactive_threads() - self.sleeping_threads()
     }
 
+    #[inline]
     pub(super) fn sleeping_threads(self) -> usize {
         select_thread(self.word, SLEEPING_SHIFT)
     }

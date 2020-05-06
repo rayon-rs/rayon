@@ -70,6 +70,7 @@ pub(super) struct CoreLatch {
 }
 
 impl CoreLatch {
+    #[inline]
     fn new() -> Self {
         Self {
             state: AtomicUsize::new(0),
@@ -78,6 +79,7 @@ impl CoreLatch {
 
     /// Returns the address of this core latch as an integer. Used
     /// for logging.
+    #[inline]
     pub(super) fn addr(&self) -> usize {
         self as *const CoreLatch as usize
     }
@@ -85,6 +87,7 @@ impl CoreLatch {
     /// Invoked by owning thread as it prepares to sleep. Returns true
     /// if the owning thread may proceed to fall asleep, false if the
     /// latch was set in the meantime.
+    #[inline]
     pub(super) fn get_sleepy(&self) -> bool {
         self.state
             .compare_exchange(UNSET, SLEEPY, Ordering::SeqCst, Ordering::Relaxed)
@@ -94,6 +97,7 @@ impl CoreLatch {
     /// Invoked by owning thread as it falls asleep sleep. Returns
     /// true if the owning thread should block, or false if the latch
     /// was set in the meantime.
+    #[inline]
     pub(super) fn fall_asleep(&self) -> bool {
         self.state
             .compare_exchange(SLEEPY, SLEEPING, Ordering::SeqCst, Ordering::Relaxed)
@@ -103,6 +107,7 @@ impl CoreLatch {
     /// Invoked by owning thread as it falls asleep sleep. Returns
     /// true if the owning thread should block, or false if the latch
     /// was set in the meantime.
+    #[inline]
     pub(super) fn wake_up(&self) {
         if !self.probe() {
             let _ =
@@ -117,12 +122,14 @@ impl CoreLatch {
     /// This is private because, typically, setting a latch involves
     /// doing some wakeups; those are encapsulated in the surrounding
     /// latch code.
+    #[inline]
     fn set(&self) -> bool {
         let old_state = self.state.swap(SET, Ordering::AcqRel);
         old_state == SLEEPING
     }
 
     /// Test if this latch has been set.
+    #[inline]
     pub(super) fn probe(&self) -> bool {
         self.state.load(Ordering::Acquire) == SET
     }
@@ -156,6 +163,7 @@ impl<'r> SpinLatch<'r> {
     /// Creates a new spin latch for cross-threadpool blocking.  Notably, we
     /// need to make sure the registry is kept alive after setting, so we can
     /// safely call the notification.
+    #[inline]
     pub(super) fn cross(thread: &'r WorkerThread) -> SpinLatch<'r> {
         SpinLatch {
             cross: true,
@@ -163,6 +171,7 @@ impl<'r> SpinLatch<'r> {
         }
     }
 
+    #[inline]
     pub(super) fn probe(&self) -> bool {
         self.core_latch.probe()
     }
@@ -323,6 +332,7 @@ impl<'a, L> Latch for &'a L
 where
     L: Latch,
 {
+    #[inline]
     fn set(&self) {
         L::set(self);
     }

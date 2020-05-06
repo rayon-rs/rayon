@@ -640,6 +640,7 @@ impl WorkerThread {
     }
 
     /// Returns the registry that owns this worker thread.
+    #[inline]
     pub(super) fn registry(&self) -> &Arc<Registry> {
         &self.registry
     }
@@ -743,6 +744,7 @@ impl WorkerThread {
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
+    #[inline]
     pub(super) unsafe fn execute(&self, job: JobRef) {
         job.execute();
     }
