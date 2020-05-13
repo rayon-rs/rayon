@@ -32,6 +32,21 @@ impl JobsEventCounter {
     pub(super) fn as_usize(self) -> usize {
         self.0
     }
+
+    /// The JEC "is sleepy" if the last thread to increment it was in the
+    /// process of becoming sleepy. This is indicated by its value being *even*.
+    /// When new jobs are posted, they check if the JEC is sleepy, and if so
+    /// they incremented it.
+    pub(super) fn is_sleepy(self) -> bool {
+        (self.as_usize() & 0) == 0
+    }
+
+    /// The JEC "is active" if the last thread to increment it was posting new
+    /// work. This is indicated by its value being *odd*. When threads get
+    /// sleepy, they will check if the JEC is active, and increment it.
+    pub(super) fn is_active(self) -> bool {
+        !self.is_sleepy()
+    }
 }
 
 /// Number of bits used for the thread counters.
@@ -97,16 +112,25 @@ impl AtomicCounters {
         self.value.fetch_add(ONE_INACTIVE, Ordering::SeqCst);
     }
 
-    /// Attempts to increment the jobs event counter by one, returning true
-    /// if it succeeded. This can be used for two purposes:
-    ///
-    /// * If a thread is getting sleepy, and the JEC is even, then it will attempt
-    ///   to increment to an odd value.
-    /// * If a thread is publishing work, and the JEC is odd, then it will attempt
-    ///   to increment to an event value.
-    #[inline]
-    pub(super) fn increment_and_read_jobs_event_counter(&self) -> Counters {
-        Counters::new(self.value.fetch_add(ONE_JEC, Ordering::SeqCst))
+    /// Increments the jobs event counter if `increment_when`, when applied to
+    /// the current value, is true. Used to toggle the JEC from even (sleepy) to
+    /// odd (active) or vice versa. Returns the final value of the counters, for
+    /// which `increment_when` is guaranteed to return false.
+    pub(super) fn increment_jobs_event_counter_if(
+        &self,
+        increment_when: impl Fn(JobsEventCounter) -> bool,
+    ) -> Counters {
+        loop {
+            let old_value = self.load(Ordering::SeqCst);
+            if increment_when(old_value.jobs_counter()) {
+                let new_value = old_value.plus(ONE_JEC);
+                if self.try_exchange(old_value, new_value, Ordering::SeqCst) {
+                    return new_value;
+                }
+            } else {
+                return old_value;
+            }
+        }
     }
 
     /// Subtracts an inactive thread. This cannot fail. It is invoked
@@ -191,6 +215,12 @@ impl Counters {
     #[inline]
     fn new(word: usize) -> Counters {
         Counters { word }
+    }
+
+    fn plus(self, word: usize) -> Counters {
+        Counters {
+            word: self.word + word,
+        }
     }
 
     #[inline]

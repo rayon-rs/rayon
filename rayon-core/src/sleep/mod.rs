@@ -123,7 +123,9 @@ impl Sleep {
 
     #[cold]
     fn announce_sleepy(&self, worker_index: usize) -> JobsEventCounter {
-        let counters = self.counters.load(Ordering::SeqCst);
+        let counters = self
+            .counters
+            .increment_jobs_event_counter_if(JobsEventCounter::is_active);
         let jobs_counter = counters.jobs_counter();
         self.logger.log(|| ThreadSleepy {
             worker: worker_index,
@@ -170,6 +172,7 @@ impl Sleep {
             let counters = self.counters.load(Ordering::SeqCst);
 
             // Check if the JEC has changed since we got sleepy.
+            debug_assert!(idle_state.jobs_counter.is_sleepy());
             if counters.jobs_counter() != idle_state.jobs_counter {
                 // JEC has changed, so a new job was posted, but for some reason
                 // we didn't see it. We should return to just before the SLEEPY
@@ -203,6 +206,7 @@ impl Sleep {
         // - an external job is being injected while we are sleepy
         // - that job triggers the rollover over the JEC such that we don't see it
         // - we are the last active worker thread
+        std::sync::atomic::fence(Ordering::SeqCst);
         if has_injected_jobs() {
             // If we see an externally injected job, then we have to 'wake
             // ourselves up'. (Ordinarily, `sub_sleeping_thread` is invoked by
@@ -260,6 +264,11 @@ impl Sleep {
         num_jobs: u32,
         queue_was_empty: bool,
     ) {
+        // This fence is needed to guarantee that threads
+        // as they are about to fall asleep, observe any
+        // new jobs that may have been injected.
+        std::sync::atomic::fence(Ordering::SeqCst);
+
         self.new_jobs(source_worker_index, num_jobs, queue_was_empty)
     }
 
@@ -294,8 +303,9 @@ impl Sleep {
         // Read the counters and -- if sleepy workers have announced themselves
         // -- announce that there is now work available. The final value of `counters`
         // with which we exit the loop thus corresponds to a state when
-        let counters = self.counters.increment_and_read_jobs_event_counter();
-
+        let counters = self
+            .counters
+            .increment_jobs_event_counter_if(JobsEventCounter::is_sleepy);
         let num_awake_but_idle = counters.awake_but_idle_threads();
         let num_sleepers = counters.sleeping_threads();
 
