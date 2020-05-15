@@ -29,6 +29,7 @@ pub(super) struct JobsEventCounter(usize);
 impl JobsEventCounter {
     pub(super) const DUMMY: JobsEventCounter = JobsEventCounter(std::usize::MAX);
 
+    #[inline]
     pub(super) fn as_usize(self) -> usize {
         self.0
     }
@@ -37,6 +38,7 @@ impl JobsEventCounter {
     /// process of becoming sleepy. This is indicated by its value being *even*.
     /// When new jobs are posted, they check if the JEC is sleepy, and if so
     /// they incremented it.
+    #[inline]
     pub(super) fn is_sleepy(self) -> bool {
         (self.as_usize() & 1) == 0
     }
@@ -44,6 +46,7 @@ impl JobsEventCounter {
     /// The JEC "is active" if the last thread to increment it was posting new
     /// work. This is indicated by its value being *odd*. When threads get
     /// sleepy, they will check if the JEC is active, and increment it.
+    #[inline]
     pub(super) fn is_active(self) -> bool {
         !self.is_sleepy()
     }
@@ -217,6 +220,7 @@ impl Counters {
         Counters { word }
     }
 
+    #[inline]
     fn plus(self, word: usize) -> Counters {
         Counters {
             word: self.word + word,
