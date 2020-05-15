@@ -38,7 +38,7 @@ impl JobsEventCounter {
     /// When new jobs are posted, they check if the JEC is sleepy, and if so
     /// they incremented it.
     pub(super) fn is_sleepy(self) -> bool {
-        (self.as_usize() & 0) == 0
+        (self.as_usize() & 1) == 0
     }
 
     /// The JEC "is active" if the last thread to increment it was posting new
