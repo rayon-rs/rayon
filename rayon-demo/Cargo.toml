@@ -27,4 +27,5 @@ libc = "0.2"
 winapi = { version = "0.3", features = ["processthreadsapi"] }
 
 [dev-dependencies]
+doc-comment = "0.3"
 num = "0.2"

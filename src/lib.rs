@@ -82,9 +82,6 @@
 //!
 //! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
-
 #[macro_use]
 mod delegate;
 
