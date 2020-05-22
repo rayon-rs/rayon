@@ -32,7 +32,6 @@ docopt = "1"
 lazy_static = "1"
 rand = "0.7"
 rand_xorshift = "0.2"
-doc-comment = "0.3"
 
 [dev-dependencies.serde]
 version = "1.0.85"
