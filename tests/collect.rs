@@ -1,6 +1,8 @@
 use rayon::prelude::*;
 
 use std::panic;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
 #[test]
@@ -36,6 +38,9 @@ fn collect_drop_on_unwind() {
                     Recorddrop(elt, &drops)
                 })
                 .collect_into_vec(&mut result);
+
+            // If we reach this point, this must pass
+            assert_eq!(a.len(), result.len());
         }));
 
         let inserts = inserts.get_mut().unwrap();
@@ -55,3 +60,52 @@ fn collect_drop_on_unwind() {
     }
 }
 
+#[test]
+fn collect_drop_on_unwind_zst() {
+    static INSERTS: AtomicUsize = AtomicUsize::new(0);
+    static DROPS: AtomicUsize = AtomicUsize::new(0);
+
+    struct RecorddropZst;
+
+    impl Drop for RecorddropZst {
+        fn drop(&mut self) {
+            DROPS.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    let test_collect_panic = |will_panic: bool| {
+        INSERTS.store(0, Ordering::SeqCst);
+        DROPS.store(0, Ordering::SeqCst);
+
+        let test_vec_len = 1024;
+        let panic_point = 740;
+
+        let a = (0..test_vec_len).collect::<Vec<_>>();
+
+        let _result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+            let mut result = Vec::new();
+            a.par_iter()
+                .map(|&a| {
+                    if a > panic_point && will_panic {
+                        panic!("unwinding for test");
+                    }
+                    INSERTS.fetch_add(1, Ordering::SeqCst);
+                    RecorddropZst
+                })
+                .collect_into_vec(&mut result);
+
+            // If we reach this point, this must pass
+            assert_eq!(a.len(), result.len());
+        }));
+
+        let inserts = INSERTS.load(Ordering::SeqCst);
+        let drops = DROPS.load(Ordering::SeqCst);
+
+        assert_eq!(inserts, drops, "Incorrect number of drops");
+        assert!(will_panic || drops == test_vec_len)
+    };
+
+    for &should_panic in &[true, false] {
+        test_collect_panic(should_panic);
+    }
+}
