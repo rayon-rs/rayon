@@ -17,8 +17,6 @@ pub(super) struct CollectFolder<'c, T: Send> {
     result: CollectResult<'c, T>,
 }
 
-unsafe impl<'a, T> Send for CollectFolder<'a, T> where T: Send {}
-
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without reading or dropping existing values.
