@@ -1653,9 +1653,9 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// let c = ["lol", "NaN", "5", "5"];
     ///
-    /// let first_number = c.par_iter().find_map_first(|s| s.parse().ok());
+    /// let found_number = c.par_iter().find_map_any(|s| s.parse().ok());
     ///
-    /// assert_eq!(first_number, Some(5));
+    /// assert_eq!(found_number, Some(5));
     /// ```
     fn find_map_any<P, R>(self, predicate: P) -> Option<R>
     where
@@ -1721,9 +1721,9 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// let c = ["lol", "NaN", "2", "5"];
     ///
-    /// let first_number = c.par_iter().find_map_last(|s| s.parse().ok());
+    /// let last_number = c.par_iter().find_map_last(|s| s.parse().ok());
     ///
-    /// assert_eq!(first_number, Some(5));
+    /// assert_eq!(last_number, Some(5));
     /// ```
     fn find_map_last<P, R>(self, predicate: P) -> Option<R>
     where
