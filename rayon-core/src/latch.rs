@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::usize;
 
-use crate::sleep::Sleep;
+use crate::registry::Registry;
 
 /// We define various kinds of latches, which are all a primitive signaling
 /// mechanism. A latch starts as false. Eventually someone calls `set()` and
@@ -168,15 +168,16 @@ impl Latch for CountLatch {
 /// so the source pool can continue processing its own work while waiting.
 pub(super) struct TickleLatch<'a, L: Latch> {
     inner: L,
-    sleep: &'a Sleep,
+    registry: &'a Arc<Registry>,
 }
 
 impl<'a, L: Latch> TickleLatch<'a, L> {
     #[inline]
-    pub(super) fn new(latch: L, sleep: &'a Sleep) -> Self {
+    pub(super) fn new(latch: L, registry: &'a Arc<Registry>) -> Self {
+        registry.increment_terminate_count();
         TickleLatch {
             inner: latch,
-            sleep,
+            registry,
         }
     }
 }
@@ -191,8 +192,12 @@ impl<'a, L: Latch> LatchProbe for TickleLatch<'a, L> {
 impl<'a, L: Latch> Latch for TickleLatch<'a, L> {
     #[inline]
     fn set(&self) {
+        // Ensure the registry stays alive while we tickle it.
+        let registry = Arc::clone(self.registry);
+
+        // NOTE: Once we `set`, the target may proceed and invalidate `&self`!
         self.inner.set();
-        self.sleep.tickle(usize::MAX);
+        registry.tickle();
     }
 }
 
