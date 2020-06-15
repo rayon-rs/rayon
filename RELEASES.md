@@ -1,3 +1,30 @@
+# Release rayon 1.3.1 / rayon-core 1.7.1 (2020-06-15)
+
+- Fixed a use-after-free race in calls blocked between two rayon thread pools.
+- Collecting to an indexed `Vec` now drops any partial writes while unwinding,
+  rather than just leaking them. If dropping also panics, Rust will abort.
+  - Note: the old leaking behavior is considered _safe_, just not ideal.
+- The new `IndexedParallelIterator::step_by()` adapts an iterator to step
+  through items by the given count, like `Iterator::step_by()`.
+- The new `ParallelSlice::par_chunks_exact()` and mutable equivalent
+  `ParallelSliceMut::par_chunks_exact_mut()` ensure that the chunks always have
+  the exact length requested, leaving any remainder separate, like the slice
+  methods `chunks_exact()` and `chunks_exact_mut()`.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @adrian5
+- @bluss
+- @cuviper
+- @FlyingCanoe
+- @GuillaumeGomez
+- @matthiasbeyer
+- @picoHz
+- @zesterer
+
+
 # Release rayon 1.3.0 / rayon-core 1.7.0 (2019-12-21)
 
 - Tuples up to length 12 now implement `IntoParallelIterator`, creating a

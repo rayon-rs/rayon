@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
-use std::usize;
 
 use crate::registry::Registry;
 
