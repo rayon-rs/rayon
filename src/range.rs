@@ -225,6 +225,27 @@ unindexed_range_impl! {u128, u128}
 unindexed_range_impl! {i128, u128}
 
 // char is special because of the surrogate range hole
+macro_rules! convert_char {
+    ( $self:ident . $method:ident ( $( $arg:expr ),* ) ) => {{
+        let start = $self.range.start as u32;
+        let end = $self.range.end as u32;
+        if start < 0xD800 && 0xE000 < end {
+            // chain the before and after surrogate range fragments
+            (start..0xD800)
+                .into_par_iter()
+                .chain(0xE000..end)
+                .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                .$method($( $arg ),*)
+        } else {
+            // no surrogate range to worry about
+            (start..end)
+                .into_par_iter()
+                .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                .$method($( $arg ),*)
+        }
+    }};
+}
+
 impl ParallelIterator for Iter<char> {
     type Item = char;
 
@@ -232,7 +253,7 @@ impl ParallelIterator for Iter<char> {
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        self.drive(consumer)
+        convert_char!(self.drive(consumer))
     }
 
     fn opt_len(&self) -> Option<usize> {
@@ -246,22 +267,7 @@ impl IndexedParallelIterator for Iter<char> {
     where
         C: Consumer<Self::Item>,
     {
-        let start = self.range.start as u32;
-        let end = self.range.end as u32;
-        if start < 0xD800 && 0xE000 < end {
-            // chain the before and after surrogate range fragments
-            (start..0xD800)
-                .into_par_iter()
-                .chain(0xE000..end)
-                .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                .drive(consumer)
-        } else {
-            // no surrogate range to worry about
-            (start..end)
-                .into_par_iter()
-                .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                .drive(consumer)
-        }
+        convert_char!(self.drive(consumer))
     }
 
     fn len(&self) -> usize {
@@ -283,22 +289,7 @@ impl IndexedParallelIterator for Iter<char> {
     where
         CB: ProducerCallback<Self::Item>,
     {
-        let start = self.range.start as u32;
-        let end = self.range.end as u32;
-        if start < 0xD800 && 0xE000 < end {
-            // chain the before and after surrogate range fragments
-            (start..0xD800)
-                .into_par_iter()
-                .chain(0xE000..end)
-                .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                .with_producer(callback)
-        } else {
-            // no surrogate range to worry about
-            (start..end)
-                .into_par_iter()
-                .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                .with_producer(callback)
-        }
+        convert_char!(self.with_producer(callback))
     }
 }
 

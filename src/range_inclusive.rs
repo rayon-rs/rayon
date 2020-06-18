@@ -152,6 +152,32 @@ parallel_range_impl! {i128}
 
 // char is special
 #[cfg(iterable_range_char)]
+macro_rules! convert_char {
+    ( $self:ident . $method:ident ( $( $arg:expr ),* ) ) => {
+        if let Some((start, end)) = $self.bounds() {
+            let start = start as u32;
+            let end = end as u32;
+            if start < 0xD800 && 0xE000 <= end {
+                // chain the before and after surrogate range fragments
+                (start..0xD800)
+                    .into_par_iter()
+                    .chain(0xE000..end + 1) // cannot use RangeInclusive, so add one to end
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .$method($( $arg ),*)
+            } else {
+                // no surrogate range to worry about
+                (start..end + 1) // cannot use RangeInclusive, so add one to end
+                    .into_par_iter()
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .$method($( $arg ),*)
+            }
+        } else {
+            empty().into_par_iter().$method($( $arg ),*)
+        }
+    };
+}
+
+#[cfg(iterable_range_char)]
 impl ParallelIterator for Iter<char> {
     type Item = char;
 
@@ -159,7 +185,7 @@ impl ParallelIterator for Iter<char> {
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        self.drive(consumer)
+        convert_char!(self.drive(consumer))
     }
 
     fn opt_len(&self) -> Option<usize> {
@@ -175,26 +201,7 @@ impl IndexedParallelIterator for Iter<char> {
     where
         C: Consumer<Self::Item>,
     {
-        if let Some((start, end)) = self.bounds() {
-            let start = start as u32;
-            let end = end as u32;
-            if start < 0xD800 && 0xE000 <= end {
-                // chain the before and after surrogate range fragments
-                (start..0xD800)
-                    .into_par_iter()
-                    .chain(0xE000..end + 1) // cannot use RangeInclusive, so add one to end
-                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                    .drive(consumer)
-            } else {
-                // no surrogate range to worry about
-                (start..end + 1) // cannot use RangeInclusive, so add one to end
-                    .into_par_iter()
-                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                    .drive(consumer)
-            }
-        } else {
-            empty().into_par_iter().drive(consumer)
-        }
+        convert_char!(self.drive(consumer))
     }
 
     fn len(&self) -> usize {
@@ -216,26 +223,7 @@ impl IndexedParallelIterator for Iter<char> {
     where
         CB: ProducerCallback<Self::Item>,
     {
-        if let Some((start, end)) = self.bounds() {
-            let start = start as u32;
-            let end = end as u32;
-            if start < 0xD800 && 0xE000 <= end {
-                // chain the before and after surrogate range fragments
-                (start..0xD800)
-                    .into_par_iter()
-                    .chain(0xE000..end + 1) // cannot use RangeInclusive, so add one to end
-                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                    .with_producer(callback)
-            } else {
-                // no surrogate range to worry about
-                (start..end + 1) // cannot use RangeInclusive, so add one to end
-                    .into_par_iter()
-                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
-                    .with_producer(callback)
-            }
-        } else {
-            empty().into_par_iter().with_producer(callback)
-        }
+        convert_char!(self.with_producer(callback))
     }
 }
 
