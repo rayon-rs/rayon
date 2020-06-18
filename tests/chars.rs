@@ -20,6 +20,7 @@ fn half_open_correctness() {
 }
 
 #[test]
+#[cfg(iterable_range_char)]
 fn closed_correctness() {
     let low = char::from_u32(0xD800 - 0x7).unwrap();
     let high = char::from_u32(0xE000 + 0x7).unwrap();

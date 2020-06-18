@@ -18,8 +18,10 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use std::char;
 use std::ops::RangeInclusive;
+
+#[cfg(iterable_range_char)]
+use std::char;
 
 /// Parallel iterator over an inclusive range, implemented for all integer types.
 ///
@@ -149,6 +151,7 @@ parallel_range_impl! {u128}
 parallel_range_impl! {i128}
 
 // char is special
+#[cfg(iterable_range_char)]
 impl ParallelIterator for Iter<char> {
     type Item = char;
 
@@ -165,6 +168,7 @@ impl ParallelIterator for Iter<char> {
 }
 
 // Range<u32> is broken on 16 bit platforms, may as well benefit from it
+#[cfg(iterable_range_char)]
 impl IndexedParallelIterator for Iter<char> {
     // Split at the surrogate range first if we're allowed to
     fn drive<C>(self, consumer: C) -> C::Result
