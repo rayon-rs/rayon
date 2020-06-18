@@ -18,6 +18,7 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
+use std::char;
 use std::ops::RangeInclusive;
 
 /// Parallel iterator over an inclusive range, implemented for all integer types.
@@ -146,6 +147,93 @@ parallel_range_impl! {u64}
 parallel_range_impl! {i64}
 parallel_range_impl! {u128}
 parallel_range_impl! {i128}
+
+// char is special
+impl ParallelIterator for Iter<char> {
+    type Item = char;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        self.drive(consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.len())
+    }
+}
+
+// Range<u32> is broken on 16 bit platforms, may as well benefit from it
+impl IndexedParallelIterator for Iter<char> {
+    // Split at the surrogate range first if we're allowed to
+    fn drive<C>(self, consumer: C) -> C::Result
+    where
+        C: Consumer<Self::Item>,
+    {
+        if let Some((start, end)) = self.bounds() {
+            let start = start as u32;
+            let end = end as u32;
+            if start < 0xD800 && 0xE000 <= end {
+                // chain the before and after surrogate range fragments
+                (start..0xD800)
+                    .into_par_iter()
+                    .chain(0xE000..end + 1) // cannot use RangeInclusive, so add one to end
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .drive(consumer)
+            } else {
+                // no surrogate range to worry about
+                (start..end + 1) // cannot use RangeInclusive, so add one to end
+                    .into_par_iter()
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .drive(consumer)
+            }
+        } else {
+            empty().into_par_iter().drive(consumer)
+        }
+    }
+
+    fn len(&self) -> usize {
+        if let Some((start, end)) = self.bounds() {
+            // Taken from <char as Step>::steps_between
+            let start = start as u32;
+            let end = end as u32;
+            let mut count = end - start;
+            if start < 0xD800 && 0xE000 <= end {
+                count -= 0x800
+            }
+            (count + 1) as usize // add one for inclusive
+        } else {
+            0
+        }
+    }
+
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<Self::Item>,
+    {
+        if let Some((start, end)) = self.bounds() {
+            let start = start as u32;
+            let end = end as u32;
+            if start < 0xD800 && 0xE000 <= end {
+                // chain the before and after surrogate range fragments
+                (start..0xD800)
+                    .into_par_iter()
+                    .chain(0xE000..end + 1) // cannot use RangeInclusive, so add one to end
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .with_producer(callback)
+            } else {
+                // no surrogate range to worry about
+                (start..end + 1) // cannot use RangeInclusive, so add one to end
+                    .into_par_iter()
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .with_producer(callback)
+            }
+        } else {
+            empty().into_par_iter().with_producer(callback)
+        }
+    }
+}
 
 #[test]
 #[cfg(target_pointer_width = "64")]
