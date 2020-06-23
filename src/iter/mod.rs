@@ -1864,10 +1864,15 @@ pub trait ParallelIterator: Sized + Send {
     /// Creates a fresh collection containing all the elements produced
     /// by this parallel iterator.
     ///
-    /// You may prefer to use `collect_into_vec()`, which allocates more
-    /// efficiently with precise knowledge of how many elements the
-    /// iterator contains, and even allows you to reuse an existing
-    /// vector's backing store rather than allocating a fresh vector.
+    /// You may prefer [`collect_into_vec()`] implemented on
+    /// [`IndexedParallelIterator`], if your underlying iterator also implements
+    /// it. [`collect_into_vec()`] allocates efficiently with precise knowledge
+    /// of how many elements the iterator contains, and even allows you to reuse
+    /// an existing vector's backing store rather than allocating a fresh vector.
+    ///
+    /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+    /// [`collect_into_vec()`]:
+    ///     trait.IndexedParallelIterator.html#method.collect_into_vec
     ///
     /// # Examples
     ///
