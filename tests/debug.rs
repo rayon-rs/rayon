@@ -124,6 +124,7 @@ fn debug_vec() {
     check(v.par_array_chunks::<42>());
     check(v.par_chunks_mut(42));
     check(v.par_chunks_exact_mut(42));
+    check(v.par_array_chunks_mut::<42>());
     check(v.par_windows(42));
     check(v.par_split(|x| x % 3 == 0));
     check(v.par_split_mut(|x| x % 3 == 0));

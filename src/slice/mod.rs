@@ -12,7 +12,7 @@ mod quicksort;
 mod test;
 
 #[cfg(min_const_generics)]
-pub use self::array::ArrayChunks;
+pub use self::array::{ArrayChunks, ArrayChunksMut};
 
 use self::mergesort::par_mergesort;
 use self::quicksort::par_quicksort;
@@ -226,6 +226,27 @@ pub trait ParallelSliceMut<T: Send> {
             slice: fst,
             rem: snd,
         }
+    }
+
+    /// Returns a parallel iterator over `N`-element chunks of
+    /// `self` at a time. The chunks are mutable and do not overlap.
+    ///
+    /// If `N` does not divide the length of the slice, then the
+    /// last up to `N-1` elements will be omitted and can be
+    /// retrieved from the remainder function of the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 4, 5];
+    /// array.par_array_chunks_mut()
+    ///      .for_each(|[a, _, b]| std::mem::swap(a, b));
+    /// assert_eq!(array, [3, 2, 1, 4, 5]);
+    /// ```
+    #[cfg(min_const_generics)]
+    fn par_array_chunks_mut<const N: usize>(&mut self) -> ArrayChunksMut<'_, T, N> {
+        ArrayChunksMut::new(self.as_parallel_slice_mut())
     }
 
     /// Sorts the slice in parallel.
