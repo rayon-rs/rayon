@@ -188,6 +188,36 @@ fn slice_chunks_exact() {
 }
 
 #[test]
+fn slice_array_chunks() {
+    use std::convert::{TryFrom, TryInto};
+    fn check_len<const N: usize>(s: &[i32])
+    where
+        for<'a> &'a [i32; N]: PartialEq + TryFrom<&'a [i32]> + std::fmt::Debug,
+    {
+        // TODO: use https://github.com/rust-lang/rust/pull/74373 instead.
+        let v: Vec<_> = s
+            .chunks_exact(N)
+            .map(|s| s.try_into().ok().unwrap())
+            .collect();
+        check(&v, || s.par_array_chunks::<N>());
+    }
+
+    let s: Vec<_> = (0..10).collect();
+    check_len::<1>(&s);
+    check_len::<2>(&s);
+    check_len::<3>(&s);
+    check_len::<4>(&s);
+    check_len::<5>(&s);
+    check_len::<6>(&s);
+    check_len::<7>(&s);
+    check_len::<8>(&s);
+    check_len::<9>(&s);
+    check_len::<10>(&s);
+    check_len::<11>(&s);
+    check_len::<12>(&s);
+}
+
+#[test]
 fn slice_chunks_mut() {
     let mut s: Vec<_> = (0..10).collect();
     let mut v: Vec<_> = s.clone();

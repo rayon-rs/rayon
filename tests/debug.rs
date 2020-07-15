@@ -121,6 +121,7 @@ fn debug_vec() {
     check(v.par_iter_mut());
     check(v.par_chunks(42));
     check(v.par_chunks_exact(42));
+    check(v.par_array_chunks::<42>());
     check(v.par_chunks_mut(42));
     check(v.par_chunks_exact_mut(42));
     check(v.par_rchunks(42));
