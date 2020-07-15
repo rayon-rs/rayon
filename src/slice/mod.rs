@@ -5,10 +5,14 @@
 //!
 //! [std::slice]: https://doc.rust-lang.org/stable/std/slice/
 
+mod array;
 mod mergesort;
 mod quicksort;
 
 mod test;
+
+#[cfg(min_const_generics)]
+pub use self::array::ArrayChunks;
 
 use self::mergesort::par_mergesort;
 use self::quicksort::par_quicksort;
@@ -114,6 +118,25 @@ pub trait ParallelSlice<T: Sync> {
             slice: fst,
             rem: snd,
         }
+    }
+
+    /// Returns a parallel iterator over `N`-element chunks of
+    /// `self` at a time. The chunks do not overlap.
+    ///
+    /// If `N` does not divide the length of the slice, then the
+    /// last up to `N-1` elements will be omitted and can be
+    /// retrieved from the remainder function of the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_array_chunks().collect();
+    /// assert_eq!(chunks, vec![&[1, 2], &[3, 4]]);
+    /// ```
+    #[cfg(min_const_generics)]
+    fn par_array_chunks<const N: usize>(&self) -> ArrayChunks<'_, T, N> {
+        ArrayChunks::new(self.as_parallel_slice())
     }
 }
 
