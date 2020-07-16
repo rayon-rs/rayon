@@ -110,7 +110,7 @@ pub trait ParallelSlice<T: Sync> {
         let len = slice.len() - rem;
         let (fst, snd) = slice.split_at(len);
         ChunksExact {
-            chunk_size: chunk_size,
+            chunk_size,
             slice: fst,
             rem: snd,
         }
@@ -199,7 +199,7 @@ pub trait ParallelSliceMut<T: Send> {
         let len = slice.len() - rem;
         let (fst, snd) = slice.split_at_mut(len);
         ChunksExactMut {
-            chunk_size: chunk_size,
+            chunk_size,
             slice: fst,
             rem: snd,
         }

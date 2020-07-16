@@ -86,7 +86,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     /// the vector is complete with the collected result.
     fn with_consumer<F>(mut self, scope_fn: F)
     where
-        F: FnOnce(CollectConsumer<T>) -> CollectResult<T>,
+        F: FnOnce(CollectConsumer<'_, T>) -> CollectResult<'_, T>,
     {
         unsafe {
             let slice = Self::reserve_get_tail_slice(&mut self.vec, self.len);

@@ -1,4 +1,5 @@
 #![cfg_attr(test, feature(test))]
+#![warn(rust_2018_idioms)]
 
 use std::env;
 use std::io;
