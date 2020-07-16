@@ -2,6 +2,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
+#![warn(rust_2018_idioms)]
 
 //! Data-parallelism library that makes it easy to convert sequential
 //! computations into parallel
