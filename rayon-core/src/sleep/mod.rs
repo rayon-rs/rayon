@@ -264,7 +264,7 @@ impl Sleep {
                     log!(FellAsleep {
                         worker: worker_index
                     });
-                    let _ = self.tickle.wait(data).unwrap();
+                    drop(self.tickle.wait(data).unwrap());
                     log!(GotAwoken {
                         worker: worker_index
                     });
