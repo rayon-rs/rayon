@@ -49,7 +49,7 @@ impl Sleep {
     pub(super) fn work_found(&self, worker_index: usize, yields: usize) -> usize {
         log!(FoundWork {
             worker: worker_index,
-            yields: yields,
+            yields,
         });
         if yields > ROUNDS_UNTIL_SLEEPY {
             // FIXME tickling here is a bit extreme; mostly we want to "release the lock"
@@ -64,7 +64,7 @@ impl Sleep {
     pub(super) fn no_work_found(&self, worker_index: usize, yields: usize) -> usize {
         log!(DidNotFindWork {
             worker: worker_index,
-            yields: yields,
+            yields,
         });
         if yields < ROUNDS_UNTIL_SLEEPY {
             thread::yield_now();
@@ -119,7 +119,7 @@ impl Sleep {
         let old_state = self.state.swap(AWAKE, Ordering::Release);
         log!(Tickle {
             worker: worker_index,
-            old_state: old_state,
+            old_state,
         });
         if self.anyone_sleeping(old_state) {
             let _data = self.data.lock().unwrap();
@@ -138,7 +138,7 @@ impl Sleep {
             let state = self.state.load(Ordering::Acquire);
             log!(GetSleepy {
                 worker: worker_index,
-                state: state,
+                state,
             });
             if self.any_worker_is_sleepy(state) {
                 // somebody else is already sleepy, so we'll just wait our turn
@@ -175,7 +175,7 @@ impl Sleep {
                     log!(GotSleepy {
                         worker: worker_index,
                         old_state: state,
-                        new_state: new_state,
+                        new_state,
                     });
                     return true;
                 }
