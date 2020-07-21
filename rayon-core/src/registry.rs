@@ -153,6 +153,8 @@ pub(super) struct Registry {
     //   These are always owned by some other job (e.g., one injected by `ThreadPool::install()`)
     //   and that job will keep the pool alive.
     terminate_latch: CountLatch,
+
+    disable_cross_pool_optimization: bool,
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -241,6 +243,7 @@ impl Registry {
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
             exit_handler: builder.take_exit_handler(),
+            disable_cross_pool_optimization: builder.get_disable_cross_pool_optimization(),
         });
 
         // If we return early or panic, make sure to terminate existing threads.
@@ -309,6 +312,10 @@ impl Registry {
         RegistryId {
             addr: self as *const Self as usize,
         }
+    }
+
+    fn disable_cross_pool_optimization(&self) -> bool {
+        self.disable_cross_pool_optimization
     }
 
     pub(super) fn num_threads(&self) -> usize {
@@ -416,7 +423,11 @@ impl Registry {
     {
         unsafe {
             let worker_thread = WorkerThread::current();
-            if worker_thread.is_null() {
+            if worker_thread.is_null()
+                || (*worker_thread)
+                    .registry()
+                    .disable_cross_pool_optimization()
+            {
                 self.in_worker_cold(op)
             } else if (*worker_thread).registry().id() != self.id() {
                 self.in_worker_cross(&*worker_thread, op)
@@ -439,7 +450,12 @@ impl Registry {
 
         LOCK_LATCH.with(|l| {
             // This thread isn't a member of *any* thread pool, so just block.
-            debug_assert!(WorkerThread::current().is_null());
+            debug_assert!(
+                WorkerThread::current().is_null()
+                    || (*WorkerThread::current())
+                        .registry()
+                        .disable_cross_pool_optimization()
+            );
             let job = StackJob::new(
                 |injected| {
                     let worker_thread = WorkerThread::current();

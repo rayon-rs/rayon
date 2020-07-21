@@ -144,6 +144,10 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// "depth-first" fashion. If true, they will do a "breadth-first"
     /// fashion. Depth-first is the default.
     breadth_first: bool,
+
+    /// If true, dispatching a job to a different rayon [`ThreadPool`] will block.
+    /// If false, the thread will continue processing other jobs from its pool.
+    disable_cross_pool_optimization: bool,
 }
 
 /// Contains the rayon thread pool configuration. Use [`ThreadPoolBuilder`] instead.
@@ -180,6 +184,7 @@ impl Default for ThreadPoolBuilder {
             exit_handler: None,
             spawn_handler: DefaultSpawn,
             breadth_first: false,
+            disable_cross_pool_optimization: false,
         }
     }
 }
@@ -363,6 +368,7 @@ impl<S> ThreadPoolBuilder<S> {
             start_handler: self.start_handler,
             exit_handler: self.exit_handler,
             breadth_first: self.breadth_first,
+            disable_cross_pool_optimization: self.disable_cross_pool_optimization,
         }
     }
 
@@ -518,6 +524,19 @@ impl<S> ThreadPoolBuilder<S> {
 
     fn get_breadth_first(&self) -> bool {
         self.breadth_first
+    }
+
+    /// Disables an optimization that allows a pool thread to continue processing
+    /// other jobs when it does a "blocking" dispatch to a different [`ThreadPool`].
+    ///
+    /// Note that this could lead to deadlocks if all pool threads block.
+    pub fn disable_cross_pool_optimization(mut self) -> Self {
+        self.disable_cross_pool_optimization = true;
+        self
+    }
+
+    fn get_disable_cross_pool_optimization(&self) -> bool {
+        self.disable_cross_pool_optimization
     }
 
     /// Takes the current thread start callback, leaving `None`.
@@ -686,6 +705,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
             ref exit_handler,
             spawn_handler: _,
             ref breadth_first,
+            ref disable_cross_pool_optimization,
         } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
@@ -709,6 +729,10 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
             .field("start_handler", &start_handler)
             .field("exit_handler", &exit_handler)
             .field("breadth_first", &breadth_first)
+            .field(
+                "disable_cross_pool_optimization",
+                disable_cross_pool_optimization,
+            )
             .finish()
     }
 }
