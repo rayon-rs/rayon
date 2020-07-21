@@ -18,6 +18,7 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
+use std::char;
 use std::ops::RangeInclusive;
 
 /// Parallel iterator over an inclusive range, implemented for all integer types.
@@ -48,7 +49,8 @@ pub struct Iter<T> {
 
 impl<T> Iter<T>
 where
-    RangeInclusive<T>: Clone + Iterator<Item = T> + DoubleEndedIterator,
+    RangeInclusive<T>: Eq,
+    T: Ord + Copy,
 {
     /// Returns `Some((start, end))` for `start..=end`, or `None` if it is exhausted.
     ///
@@ -56,7 +58,16 @@ where
     /// so this is a way for us to figure out what we've got.  Thankfully, all of the
     /// integer types we care about can be trivially cloned.
     fn bounds(&self) -> Option<(T, T)> {
-        Some((self.range.clone().next()?, self.range.clone().next_back()?))
+        let start = *self.range.start();
+        let end = *self.range.end();
+        if start <= end && self.range == (start..=end) {
+            // If the range is still nonempty, this is obviously true
+            // If the range is exhausted, either start > end or
+            // the range does not equal start..=end.
+            Some((start, end))
+        } else {
+            None
+        }
     }
 }
 
@@ -146,6 +157,80 @@ parallel_range_impl! {u64}
 parallel_range_impl! {i64}
 parallel_range_impl! {u128}
 parallel_range_impl! {i128}
+
+// char is special
+macro_rules! convert_char {
+    ( $self:ident . $method:ident ( $( $arg:expr ),* ) ) => {
+        if let Some((start, end)) = $self.bounds() {
+            let start = start as u32;
+            let end = end as u32;
+            if start < 0xD800 && 0xE000 <= end {
+                // chain the before and after surrogate range fragments
+                (start..0xD800)
+                    .into_par_iter()
+                    .chain(0xE000..end + 1) // cannot use RangeInclusive, so add one to end
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .$method($( $arg ),*)
+            } else {
+                // no surrogate range to worry about
+                (start..end + 1) // cannot use RangeInclusive, so add one to end
+                    .into_par_iter()
+                    .map(|codepoint| unsafe { char::from_u32_unchecked(codepoint) })
+                    .$method($( $arg ),*)
+            }
+        } else {
+            empty().into_par_iter().$method($( $arg ),*)
+        }
+    };
+}
+
+impl ParallelIterator for Iter<char> {
+    type Item = char;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        convert_char!(self.drive(consumer))
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.len())
+    }
+}
+
+// Range<u32> is broken on 16 bit platforms, may as well benefit from it
+impl IndexedParallelIterator for Iter<char> {
+    // Split at the surrogate range first if we're allowed to
+    fn drive<C>(self, consumer: C) -> C::Result
+    where
+        C: Consumer<Self::Item>,
+    {
+        convert_char!(self.drive(consumer))
+    }
+
+    fn len(&self) -> usize {
+        if let Some((start, end)) = self.bounds() {
+            // Taken from <char as Step>::steps_between
+            let start = start as u32;
+            let end = end as u32;
+            let mut count = end - start;
+            if start < 0xD800 && 0xE000 <= end {
+                count -= 0x800
+            }
+            (count + 1) as usize // add one for inclusive
+        } else {
+            0
+        }
+    }
+
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<Self::Item>,
+    {
+        convert_char!(self.with_producer(callback))
+    }
+}
 
 #[test]
 #[cfg(target_pointer_width = "64")]
