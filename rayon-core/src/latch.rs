@@ -148,7 +148,7 @@ impl<'r> SpinLatch<'r> {
     /// Creates a new spin latch for cross-threadpool blocking.  Notably, we
     /// need to make sure the registry is kept alive after setting, so we can
     /// safely call the notification.
-    pub(super) fn cross(thread: &'r WorkerThread) -> SpinLatch {
+    pub(super) fn cross(thread: &'r WorkerThread) -> SpinLatch<'r> {
         SpinLatch {
             cross: true,
             ..SpinLatch::new(thread)
