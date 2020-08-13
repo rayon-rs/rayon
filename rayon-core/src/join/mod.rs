@@ -1,6 +1,5 @@
 use crate::job::StackJob;
-use crate::latch::{LatchProbe, SpinLatch};
-use crate::log::Event::*;
+use crate::latch::SpinLatch;
 use crate::registry::{self, WorkerThread};
 use crate::unwind;
 use std::any::Any;
@@ -131,14 +130,10 @@ where
     }
 
     registry::in_worker(|worker_thread, injected| unsafe {
-        log!(Join {
-            worker: worker_thread.index()
-        });
-
         // Create virtual wrapper for task b; this all has to be
         // done here so that the stack frame can keep it all live
         // long enough.
-        let job_b = StackJob::new(call_b(oper_b), SpinLatch::new());
+        let job_b = StackJob::new(call_b(oper_b), SpinLatch::new(worker_thread));
         let job_b_ref = job_b.as_job_ref();
         worker_thread.push(job_b_ref);
 
@@ -160,23 +155,14 @@ where
                     // Found it! Let's run it.
                     //
                     // Note that this could panic, but it's ok if we unwind here.
-                    log!(PoppedRhs {
-                        worker: worker_thread.index()
-                    });
                     let result_b = job_b.run_inline(injected);
                     return (result_a, result_b);
                 } else {
-                    log!(PoppedJob {
-                        worker: worker_thread.index()
-                    });
                     worker_thread.execute(job);
                 }
             } else {
                 // Local deque is empty. Time to steal from other
                 // threads.
-                log!(LostJob {
-                    worker: worker_thread.index()
-                });
                 worker_thread.wait_until(&job_b.latch);
                 debug_assert!(job_b.latch.probe());
                 break;
@@ -193,7 +179,7 @@ where
 #[cold] // cold path
 unsafe fn join_recover_from_panic(
     worker_thread: &WorkerThread,
-    job_b_latch: &SpinLatch,
+    job_b_latch: &SpinLatch<'_>,
     err: Box<dyn Any + Send>,
 ) -> ! {
     worker_thread.wait_until(job_b_latch);
