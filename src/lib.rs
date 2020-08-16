@@ -100,6 +100,7 @@ pub mod range_inclusive;
 pub mod result;
 pub mod slice;
 pub mod str;
+pub mod string;
 pub mod vec;
 
 mod math;

@@ -8,6 +8,8 @@ pub use crate::iter::IntoParallelIterator;
 pub use crate::iter::IntoParallelRefIterator;
 pub use crate::iter::IntoParallelRefMutIterator;
 pub use crate::iter::ParallelBridge;
+pub use crate::iter::ParallelDrainFull;
+pub use crate::iter::ParallelDrainRange;
 pub use crate::iter::ParallelExtend;
 pub use crate::iter::ParallelIterator;
 pub use crate::slice::ParallelSlice;
