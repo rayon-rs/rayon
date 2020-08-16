@@ -115,7 +115,9 @@ mod filter_map;
 mod find;
 mod find_first_last;
 mod flat_map;
+mod flat_map_iter;
 mod flatten;
+mod flatten_iter;
 mod fold;
 mod for_each;
 mod from_par_iter;
@@ -158,7 +160,9 @@ pub use self::{
     filter::Filter,
     filter_map::FilterMap,
     flat_map::FlatMap,
+    flat_map_iter::FlatMapIter,
     flatten::Flatten,
+    flatten_iter::FlattenIter,
     fold::{Fold, FoldWith},
     inspect::Inspect,
     interleave::Interleave,
@@ -819,8 +823,13 @@ pub trait ParallelIterator: Sized + Send {
         FilterMap::new(self, filter_op)
     }
 
-    /// Applies `map_op` to each item of this iterator to get nested iterators,
-    /// producing a new iterator that flattens these back into one.
+    /// Applies `map_op` to each item of this iterator to get nested parallel iterators,
+    /// producing a new parallel iterator that flattens these back into one.
+    ///
+    /// Each nested iterator will go through another round of parallel task division,
+    /// which may not be desirable if there's little work to do on its items. Consider
+    /// using `flat_map_iter` instead to keep the flattening local to the thread where
+    /// each mapping takes place.
     ///
     /// # Examples
     ///
@@ -843,7 +852,47 @@ pub trait ParallelIterator: Sized + Send {
         FlatMap::new(self, map_op)
     }
 
-    /// An adaptor that flattens iterable `Item`s into one large iterator
+    /// Applies `map_op` to each item of this iterator to get nested serial iterators,
+    /// producing a new parallel iterator that flattens these back into one.
+    ///
+    /// Each nested iterator will be flattened local to the thread where the mapping takes
+    /// place, which may be desirable if there's little work to do on its items. Consider
+    /// using `flat_map` instead if you need more parallel processing, with further task
+    /// division on the nested iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use std::cell::RefCell;
+    ///
+    /// let a = [[1, 2], [3, 4], [5, 6], [7, 8]];
+    ///
+    /// let par_iter = a.par_iter().flat_map_iter(|a| {
+    ///     // The serial iterator doesn't have to be thread-safe, just its items.
+    ///     let cell_iter = RefCell::new(a.iter().cloned());
+    ///     std::iter::from_fn(move || cell_iter.borrow_mut().next())
+    /// });
+    ///
+    /// let vec: Vec<_> = par_iter.collect();
+    ///
+    /// assert_eq!(&vec[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// ```
+    fn flat_map_iter<F, SI>(self, map_op: F) -> FlatMapIter<Self, F>
+    where
+        F: Fn(Self::Item) -> SI + Sync + Send,
+        SI: IntoIterator,
+        SI::Item: Send,
+    {
+        FlatMapIter::new(self, map_op)
+    }
+
+    /// An adaptor that flattens parallel-iterable `Item`s into one large iterator.
+    ///
+    /// Each nested iterator will go through another round of parallel task division,
+    /// which may not be desirable if there's little work to do on its items. Consider
+    /// using `flatten_iter` instead to keep the flattening local to the thread where each
+    /// `Item` was produced.
     ///
     /// # Examples
     ///
@@ -860,6 +909,32 @@ pub trait ParallelIterator: Sized + Send {
         Self::Item: IntoParallelIterator,
     {
         Flatten::new(self)
+    }
+
+    /// An adaptor that flattens serial-iterable `Item`s into one large iterator.
+    ///
+    /// Each nested iterator will be flattened local to the thread where that `Item` was
+    /// produced, which may be desirable if there's little work to do on its items.
+    /// Consider using `flatten` instead if you need more parallel processing, with
+    /// further task division on the nested iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let x: Vec<Vec<_>> = vec![vec![1, 2], vec![3, 4]];
+    /// let iters: Vec<_> = x.into_iter().map(Vec::into_iter).collect();
+    /// let y: Vec<_> = iters.into_par_iter().flatten_iter().collect();
+    ///
+    /// assert_eq!(y, vec![1, 2, 3, 4]);
+    /// ```
+    fn flatten_iter(self) -> FlattenIter<Self>
+    where
+        Self::Item: IntoIterator,
+        <Self::Item as IntoIterator>::Item: Send,
+    {
+        FlattenIter::new(self)
     }
 
     /// Reduces the items in the iterator into one item using `op`.

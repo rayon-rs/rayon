@@ -117,7 +117,9 @@ fn clone_adaptors() {
     check(v.par_iter().filter(|_| true));
     check(v.par_iter().filter_map(|x| *x));
     check(v.par_iter().flat_map(|x| *x));
+    check(v.par_iter().flat_map_iter(|x| *x));
     check(v.par_iter().flatten());
+    check(v.par_iter().flatten_iter());
     check(v.par_iter().with_max_len(1).fold(|| 0, |x, _| x));
     check(v.par_iter().with_max_len(1).fold_with(0, |x, _| x));
     check(v.par_iter().with_max_len(1).try_fold(|| 0, |_, &x| x));
