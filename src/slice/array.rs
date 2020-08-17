@@ -1,7 +1,7 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
 
-use super::{Iter, IterMut};
+use super::{Iter, IterMut, ParallelSlice};
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice
 #[derive(Debug)]
@@ -168,5 +168,69 @@ impl<'data, T: Send + 'data, const N: usize> IndexedParallelIterator
         CB: ProducerCallback<Self::Item>,
     {
         self.iter.with_producer(callback)
+    }
+}
+
+/// Parallel iterator over immutable overlapping windows of a slice
+#[derive(Debug)]
+pub struct ArrayWindows<'data, T: Sync, const N: usize> {
+    slice: &'data [T],
+}
+
+impl<'data, T: Sync, const N: usize> ArrayWindows<'data, T, N> {
+    pub(super) fn new(slice: &'data [T]) -> Self {
+        ArrayWindows { slice }
+    }
+}
+
+impl<'data, T: Sync, const N: usize> Clone for ArrayWindows<'data, T, N> {
+    fn clone(&self) -> Self {
+        ArrayWindows { ..*self }
+    }
+}
+
+impl<'data, T: Sync + 'data, const N: usize> ParallelIterator for ArrayWindows<'data, T, N> {
+    type Item = &'data [T; N];
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        bridge(self, consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.len())
+    }
+}
+
+impl<'data, T: Sync + 'data, const N: usize> IndexedParallelIterator for ArrayWindows<'data, T, N> {
+    fn drive<C>(self, consumer: C) -> C::Result
+    where
+        C: Consumer<Self::Item>,
+    {
+        bridge(self, consumer)
+    }
+
+    fn len(&self) -> usize {
+        assert!(N >= 1);
+        self.slice.len().saturating_sub(N - 1)
+    }
+
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<Self::Item>,
+    {
+        fn array<T, const N: usize>(slice: &[T]) -> &[T; N] {
+            debug_assert_eq!(slice.len(), N);
+            let ptr = slice.as_ptr() as *const [T; N];
+            unsafe { &*ptr }
+        }
+
+        // FIXME: use our own producer and the standard `array_windows`, rust-lang/rust#75027
+        self.slice
+            .par_windows(N)
+            .map(array::<T, N>)
+            .with_producer(callback)
     }
 }

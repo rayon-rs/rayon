@@ -329,6 +329,15 @@ fn slice_windows() {
 }
 
 #[test]
+fn slice_array_windows() {
+    use std::convert::TryInto;
+    let s: Vec<_> = (0..10).collect();
+    // FIXME: use the standard `array_windows`, rust-lang/rust#75027
+    let v: Vec<&[_; 2]> = s.windows(2).map(|s| s.try_into().unwrap()).collect();
+    check(&v, || s.par_array_windows::<2>());
+}
+
+#[test]
 fn vec() {
     let v: Vec<_> = (0..10).collect();
     check(&v, || v.clone());
