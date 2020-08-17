@@ -12,7 +12,7 @@ mod quicksort;
 mod test;
 
 #[cfg(min_const_generics)]
-pub use self::array::{ArrayChunks, ArrayChunksMut};
+pub use self::array::{ArrayChunks, ArrayChunksMut, ArrayWindows};
 
 use self::mergesort::par_mergesort;
 use self::quicksort::par_quicksort;
@@ -69,6 +69,21 @@ pub trait ParallelSlice<T: Sync> {
             window_size,
             slice: self.as_parallel_slice(),
         }
+    }
+
+    /// Returns a parallel iterator over all contiguous array windows of
+    /// length `N`. The windows overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let windows: Vec<_> = [1, 2, 3].par_array_windows().collect();
+    /// assert_eq!(vec![&[1, 2], &[2, 3]], windows);
+    /// ```
+    #[cfg(min_const_generics)]
+    fn par_array_windows<const N: usize>(&self) -> ArrayWindows<'_, T, N> {
+        ArrayWindows::new(self.as_parallel_slice())
     }
 
     /// Returns a parallel iterator over at most `chunk_size` elements of
