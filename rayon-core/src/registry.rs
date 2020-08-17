@@ -758,32 +758,39 @@ impl WorkerThread {
         debug_assert!(self.local_deque_is_empty());
 
         // otherwise, try to steal
-        let num_threads = self.registry.thread_infos.len();
+        let thread_infos = &self.registry.thread_infos.as_slice();
+        let num_threads = thread_infos.len();
         if num_threads <= 1 {
             return None;
         }
 
-        let start = self.rng.next_usize(num_threads);
-        (start..num_threads)
-            .chain(0..start)
-            .filter(|&i| i != self.index)
-            .filter_map(|victim_index| {
-                let victim = &self.registry.thread_infos[victim_index];
-                loop {
+        loop {
+            let mut retry = false;
+            let start = self.rng.next_usize(num_threads);
+            let job = (start..num_threads)
+                .chain(0..start)
+                .filter(move |&i| i != self.index)
+                .find_map(|victim_index| {
+                    let victim = &thread_infos[victim_index];
                     match victim.stealer.steal() {
-                        Steal::Empty => return None,
-                        Steal::Success(d) => {
+                        Steal::Success(job) => {
                             self.log(|| JobStolen {
                                 worker: self.index,
                                 victim: victim_index,
                             });
-                            return Some(d);
+                            Some(job)
                         }
-                        Steal::Retry => {}
+                        Steal::Empty => None,
+                        Steal::Retry => {
+                            retry = true;
+                            None
+                        }
                     }
-                }
-            })
-            .next()
+                });
+            if job.is_some() || !retry {
+                return job;
+            }
+        }
     }
 }
 
