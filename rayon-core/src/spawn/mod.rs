@@ -21,8 +21,7 @@ use std::sync::Arc;
 ///
 /// This API assumes that the closure is executed purely for its
 /// side-effects (i.e., it might send messages, modify data protected
-/// by a mutex, or some such thing). If you want to compute a result,
-/// consider `spawn_future()`.
+/// by a mutex, or some such thing).
 ///
 /// There is no guaranteed order of execution for spawns, given that
 /// other threads may steal tasks at any time. However, they are
