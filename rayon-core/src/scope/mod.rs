@@ -285,7 +285,7 @@ struct ScopeBase<'scope> {
 /// propagated at that point.
 pub fn scope<'scope, OP, R>(op: OP) -> R
 where
-    OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send,
+    OP: FnOnce(&Scope<'scope>) -> R + Send,
     R: Send,
 {
     in_worker(|owner_thread, _| {
@@ -376,7 +376,7 @@ where
 /// panics are propagated at that point.
 pub fn scope_fifo<'scope, OP, R>(op: OP) -> R
 where
-    OP: for<'s> FnOnce(&'s ScopeFifo<'scope>) -> R + 'scope + Send,
+    OP: FnOnce(&ScopeFifo<'scope>) -> R + Send,
     R: Send,
 {
     in_worker(|owner_thread, _| {

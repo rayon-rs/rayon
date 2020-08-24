@@ -4,12 +4,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use crate::join;
-use crate::thread_pool::ThreadPool;
-
 #[allow(deprecated)]
 use crate::Configuration;
-use crate::ThreadPoolBuilder;
+use crate::{join, Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder};
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
@@ -266,4 +263,76 @@ fn spawn_fifo_order() {
     let vec = test_spawn_order!(spawn_fifo);
     let expected: Vec<i32> = (0..10).collect(); // FIFO -> natural order
     assert_eq!(vec, expected);
+}
+
+#[test]
+fn nested_scopes() {
+    // Create matching scopes for every thread pool.
+    fn nest<'scope, OP>(pools: &[ThreadPool], scopes: Vec<&Scope<'scope>>, op: OP)
+    where
+        OP: FnOnce(&[&Scope<'scope>]) + Send,
+    {
+        if let Some((pool, tail)) = pools.split_first() {
+            pool.scope(move |s| {
+                // This move reduces the reference lifetimes by variance to match s,
+                // but the actual scopes are still tied to the invariant 'scope.
+                let mut scopes = scopes;
+                scopes.push(s);
+                nest(tail, scopes, op)
+            })
+        } else {
+            (op)(&scopes)
+        }
+    }
+
+    let pools: Vec<_> = (0..10)
+        .map(|_| ThreadPoolBuilder::new().num_threads(1).build().unwrap())
+        .collect();
+
+    let counter = AtomicUsize::new(0);
+    nest(&pools, vec![], |scopes| {
+        for &s in scopes {
+            s.spawn(|_| {
+                // Our 'scope lets us borrow the counter in every pool.
+                counter.fetch_add(1, Ordering::Relaxed);
+            });
+        }
+    });
+    assert_eq!(counter.into_inner(), pools.len());
+}
+
+#[test]
+fn nested_fifo_scopes() {
+    // Create matching fifo scopes for every thread pool.
+    fn nest<'scope, OP>(pools: &[ThreadPool], scopes: Vec<&ScopeFifo<'scope>>, op: OP)
+    where
+        OP: FnOnce(&[&ScopeFifo<'scope>]) + Send,
+    {
+        if let Some((pool, tail)) = pools.split_first() {
+            pool.scope_fifo(move |s| {
+                // This move reduces the reference lifetimes by variance to match s,
+                // but the actual scopes are still tied to the invariant 'scope.
+                let mut scopes = scopes;
+                scopes.push(s);
+                nest(tail, scopes, op)
+            })
+        } else {
+            (op)(&scopes)
+        }
+    }
+
+    let pools: Vec<_> = (0..10)
+        .map(|_| ThreadPoolBuilder::new().num_threads(1).build().unwrap())
+        .collect();
+
+    let counter = AtomicUsize::new(0);
+    nest(&pools, vec![], |scopes| {
+        for &s in scopes {
+            s.spawn_fifo(|_| {
+                // Our 'scope lets us borrow the counter in every pool.
+                counter.fetch_add(1, Ordering::Relaxed);
+            });
+        }
+    });
+    assert_eq!(counter.into_inner(), pools.len());
 }

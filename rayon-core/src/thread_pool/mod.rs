@@ -200,7 +200,7 @@ impl ThreadPool {
     /// [scope]: fn.scope.html
     pub fn scope<'scope, OP, R>(&self, op: OP) -> R
     where
-        OP: for<'s> FnOnce(&'s Scope<'scope>) -> R + 'scope + Send,
+        OP: FnOnce(&Scope<'scope>) -> R + Send,
         R: Send,
     {
         self.install(|| scope(op))
@@ -215,7 +215,7 @@ impl ThreadPool {
     /// [scope_fifo]: fn.scope_fifo.html
     pub fn scope_fifo<'scope, OP, R>(&self, op: OP) -> R
     where
-        OP: for<'s> FnOnce(&'s ScopeFifo<'scope>) -> R + 'scope + Send,
+        OP: FnOnce(&ScopeFifo<'scope>) -> R + Send,
         R: Send,
     {
         self.install(|| scope_fifo(op))

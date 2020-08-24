@@ -1,6 +1,6 @@
 use crate::unwind;
 use crate::ThreadPoolBuilder;
-use crate::{scope, scope_fifo, Scope};
+use crate::{scope, scope_fifo, Scope, ScopeFifo};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::cmp;
@@ -432,4 +432,84 @@ fn mixed_fifo_lifo_order() {
     let vec = test_mixed_order!(scope_fifo => spawn_fifo, scope => spawn);
     let expected = vec![-3, 0, -2, 1, -1, 2, 3];
     assert_eq!(vec, expected);
+}
+
+#[test]
+fn static_scope() {
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    let mut range = 0..100;
+    let sum = range.clone().sum();
+    let iter = &mut range;
+
+    COUNTER.store(0, Ordering::Relaxed);
+    scope(|s: &Scope<'static>| {
+        // While we're allowed the locally borrowed iterator,
+        // the spawns must be static.
+        for i in iter {
+            s.spawn(move |_| {
+                COUNTER.fetch_add(i, Ordering::Relaxed);
+            });
+        }
+    });
+
+    assert_eq!(COUNTER.load(Ordering::Relaxed), sum);
+}
+
+#[test]
+fn static_scope_fifo() {
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    let mut range = 0..100;
+    let sum = range.clone().sum();
+    let iter = &mut range;
+
+    COUNTER.store(0, Ordering::Relaxed);
+    scope_fifo(|s: &ScopeFifo<'static>| {
+        // While we're allowed the locally borrowed iterator,
+        // the spawns must be static.
+        for i in iter {
+            s.spawn_fifo(move |_| {
+                COUNTER.fetch_add(i, Ordering::Relaxed);
+            });
+        }
+    });
+
+    assert_eq!(COUNTER.load(Ordering::Relaxed), sum);
+}
+
+#[test]
+fn mixed_lifetime_scope() {
+    fn increment<'slice, 'counter>(counters: &'slice [&'counter AtomicUsize]) {
+        scope(move |s: &Scope<'counter>| {
+            // We can borrow 'slice here, but the spawns can only borrow 'counter.
+            for &c in counters {
+                s.spawn(move |_| {
+                    c.fetch_add(1, Ordering::Relaxed);
+                });
+            }
+        });
+    }
+
+    let counter = AtomicUsize::new(0);
+    increment(&[&counter; 100]);
+    assert_eq!(counter.into_inner(), 100);
+}
+
+#[test]
+fn mixed_lifetime_scope_fifo() {
+    fn increment<'slice, 'counter>(counters: &'slice [&'counter AtomicUsize]) {
+        scope_fifo(move |s: &ScopeFifo<'counter>| {
+            // We can borrow 'slice here, but the spawns can only borrow 'counter.
+            for &c in counters {
+                s.spawn_fifo(move |_| {
+                    c.fetch_add(1, Ordering::Relaxed);
+                });
+            }
+        });
+    }
+
+    let counter = AtomicUsize::new(0);
+    increment(&[&counter; 100]);
+    assert_eq!(counter.into_inner(), 100);
 }
