@@ -1,3 +1,25 @@
+# Release rayon 1.4.0 / rayon-core 1.8.0 (2020-08-24)
+
+- Implemented a new thread scheduler, [RFC 5], which uses targeted wakeups for
+  new work and for notifications of completed stolen work, reducing wasteful
+  CPU usage in idle threads.
+- Implemented `IntoParallelIterator for Range<char>` and `RangeInclusive<char>`
+  with the same iteration semantics as Rust 1.45.
+- Relaxed the lifetime requirements of the initial `scope` closure.
+
+[RFC 5]: https://github.com/rayon-rs/rfcs/pull/5
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @CAD97
+- @cuviper
+- @kmaork
+- @nikomatsakis
+- @SuperFluffy
+
+
 # Release rayon 1.3.1 / rayon-core 1.7.1 (2020-06-15)
 
 - Fixed a use-after-free race in calls blocked between two rayon thread pools.
