@@ -2621,13 +2621,13 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// let primes = vec![2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
     ///
-    /// // indices of primes congruent to 1 modulo 6
+    /// // Find the positions of primes congruent to 1 modulo 6
     /// let p1mod6: Vec<_> = primes.par_iter().positions(|&p| p % 6 == 1).collect();
-    /// assert_eq!(p1mod6, [3, 5, 7]);
+    /// assert_eq!(p1mod6, [3, 5, 7]); // primes 7, 13, and 19
     ///
-    /// // indices of primes congruent to 5 modulo 6
+    /// // Find the positions of primes congruent to 5 modulo 6
     /// let p5mod6: Vec<_> = primes.par_iter().positions(|&p| p % 6 == 5).collect();
-    /// assert_eq!(p5mod6, [2, 4, 6, 8, 9]);
+    /// assert_eq!(p5mod6, [2, 4, 6, 8, 9]); // primes 5, 11, 17, 23, and 29
     /// ```
     fn positions<P>(self, predicate: P) -> Positions<Self, P>
     where
