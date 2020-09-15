@@ -90,6 +90,38 @@ jobs:
           command: test
           args: --verbose --package rayon-demo
 
+  i686:
+    name: Test (ubuntu-latest, stable-i686)
+    runs-on: ubuntu-latest
+    steps:
+      - name: System install
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-multilib
+      - name: Rust install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable-i686-unknown-linux-gnu
+          profile: minimal
+          override: true
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose
+      - name: Test rayon
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --package rayon
+      - name: Test rayon-core
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --package rayon-core
+
   # wasm won't actually work without threading, but it builds
   wasm:
     name: WebAssembly
