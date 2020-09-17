@@ -1,3 +1,9 @@
+# Release rayon-core 1.8.1 (2020-09-17)
+
+- Fixed an overflow panic on high-contention workloads, for a counter that was
+  meant to simply wrap. This panic only occurred with debug assertions enabled,
+  and was much more likely on 32-bit targets.
+
 # Release rayon 1.4.0 / rayon-core 1.8.0 (2020-08-24)
 
 - Implemented a new thread scheduler, [RFC 5], which uses targeted wakeups for
