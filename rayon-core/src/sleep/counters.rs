@@ -126,7 +126,7 @@ impl AtomicCounters {
         loop {
             let old_value = self.load(Ordering::SeqCst);
             if increment_when(old_value.jobs_counter()) {
-                let new_value = old_value.plus(ONE_JEC);
+                let new_value = old_value.increment_jobs_counter();
                 if self.try_exchange(old_value, new_value, Ordering::SeqCst) {
                     return new_value;
                 }
@@ -221,9 +221,11 @@ impl Counters {
     }
 
     #[inline]
-    fn plus(self, word: usize) -> Counters {
+    fn increment_jobs_counter(self) -> Counters {
+        // We can freely add to JEC because it occupies the most significant bits.
+        // Thus it doesn't overflow into the other counters, just wraps itself.
         Counters {
-            word: self.word + word,
+            word: self.word.wrapping_add(ONE_JEC),
         }
     }
 
