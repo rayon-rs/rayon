@@ -157,6 +157,7 @@ fn debug_adaptors() {
     check(v.par_iter().map_with(0, |_, x| x));
     check(v.par_iter().map_init(|| 0, |_, x| x));
     check(v.par_iter().panic_fuse());
+    check(v.par_iter().positions(|_| true));
     check(v.par_iter().rev());
     check(v.par_iter().skip(1));
     check(v.par_iter().take(1));

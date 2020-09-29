@@ -54,6 +54,7 @@ must_use! {
     map_with            /** v.par_iter().map_with(0, |_, x| x); */
     map_init            /** v.par_iter().map_init(|| 0, |_, x| x); */
     panic_fuse          /** v.par_iter().panic_fuse(); */
+    positions           /** v.par_iter().positions(|_| true); */
     rev                 /** v.par_iter().rev(); */
     skip                /** v.par_iter().skip(1); */
     take                /** v.par_iter().take(1); */

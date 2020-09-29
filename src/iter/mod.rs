@@ -133,6 +133,7 @@ mod noop;
 mod once;
 mod panic_fuse;
 mod par_bridge;
+mod positions;
 mod product;
 mod reduce;
 mod repeat;
@@ -175,6 +176,7 @@ pub use self::{
     once::{once, Once},
     panic_fuse::PanicFuse,
     par_bridge::{IterBridge, ParallelBridge},
+    positions::Positions,
     repeat::{repeat, repeatn, Repeat, RepeatN},
     rev::Rev,
     skip::Skip,
@@ -2686,6 +2688,31 @@ pub trait IndexedParallelIterator: ParallelIterator {
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
         self.position_any(predicate)
+    }
+
+    /// Searches for items in the parallel iterator that match the given
+    /// predicate, and returns their indices.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let primes = vec![2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
+    ///
+    /// // Find the positions of primes congruent to 1 modulo 6
+    /// let p1mod6: Vec<_> = primes.par_iter().positions(|&p| p % 6 == 1).collect();
+    /// assert_eq!(p1mod6, [3, 5, 7]); // primes 7, 13, and 19
+    ///
+    /// // Find the positions of primes congruent to 5 modulo 6
+    /// let p5mod6: Vec<_> = primes.par_iter().positions(|&p| p % 6 == 5).collect();
+    /// assert_eq!(p5mod6, [2, 4, 6, 8, 9]); // primes 5, 11, 17, 23, and 29
+    /// ```
+    fn positions<P>(self, predicate: P) -> Positions<Self, P>
+    where
+        P: Fn(Self::Item) -> bool + Sync + Send,
+    {
+        Positions::new(self, predicate)
     }
 
     /// Produces a new iterator with the elements of this iterator in
