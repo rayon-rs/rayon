@@ -1,3 +1,15 @@
+# Release rayon 1.4.1 (2020-09-29)
+
+- The new `flat_map_iter` and `flatten_iter` methods can be used to flatten
+  sequential iterators, which may perform better in cases that don't need the
+  nested parallelism of `flat_map` and `flatten`.
+- The new `par_drain` method is a parallel version of the standard `drain` for
+  collections, removing items while keeping the original capacity. Collections
+  that implement this through `ParallelDrainRange` support draining items from
+  arbitrary index ranges, while `ParallelDrainFull` always drains everything.
+- The new `positions` method finds all items that match the given predicate and
+  returns their indices in a new iterator.
+
 # Release rayon-core 1.8.1 (2020-09-17)
 
 - Fixed an overflow panic on high-contention workloads, for a counter that was
