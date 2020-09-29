@@ -826,10 +826,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Applies `map_op` to each item of this iterator to get nested parallel iterators,
     /// producing a new parallel iterator that flattens these back into one.
     ///
-    /// Each nested iterator will go through another round of parallel task division,
-    /// which may not be desirable if there's little work to do on its items. Consider
-    /// using `flat_map_iter` instead to keep the flattening local to the thread where
-    /// each mapping takes place.
+    /// See also [`flat_map_iter`](#method.flat_map_iter).
     ///
     /// # Examples
     ///
@@ -855,10 +852,22 @@ pub trait ParallelIterator: Sized + Send {
     /// Applies `map_op` to each item of this iterator to get nested serial iterators,
     /// producing a new parallel iterator that flattens these back into one.
     ///
-    /// Each nested iterator will be flattened local to the thread where the mapping takes
-    /// place, which may be desirable if there's little work to do on its items. Consider
-    /// using `flat_map` instead if you need more parallel processing, with further task
-    /// division on the nested iterator.
+    /// # `flat_map_iter` versus `flat_map`
+    ///
+    /// These two methods are similar but behave slightly differently. With [`flat_map`],
+    /// each of the nested iterators must be a parallel iterator, and they will be further
+    /// split up with nested parallelism. With `flat_map_iter`, each nested iterator is a
+    /// sequential `Iterator`, and we only parallelize _between_ them, while the items
+    /// produced by each nested iterator are processed sequentially.
+    ///
+    /// When choosing between these methods, consider whether nested parallelism suits the
+    /// potential iterators at hand. If there's little computation involved, or its length
+    /// is much less than the outer parallel iterator, then it may perform better to avoid
+    /// the overhead of parallelism, just flattening sequentially with `flat_map_iter`.
+    /// If there is a lot of computation, potentially outweighing the outer parallel
+    /// iterator, then the nested parallelism of `flat_map` may be worthwhile.
+    ///
+    /// [`flat_map`]: #method.flat_map
     ///
     /// # Examples
     ///
@@ -889,10 +898,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens parallel-iterable `Item`s into one large iterator.
     ///
-    /// Each nested iterator will go through another round of parallel task division,
-    /// which may not be desirable if there's little work to do on its items. Consider
-    /// using `flatten_iter` instead to keep the flattening local to the thread where each
-    /// `Item` was produced.
+    /// See also [`flatten_iter`](#method.flatten_iter).
     ///
     /// # Examples
     ///
@@ -913,10 +919,8 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens serial-iterable `Item`s into one large iterator.
     ///
-    /// Each nested iterator will be flattened local to the thread where that `Item` was
-    /// produced, which may be desirable if there's little work to do on its items.
-    /// Consider using `flatten` instead if you need more parallel processing, with
-    /// further task division on the nested iterator.
+    /// See also [`flatten`](#method.flatten) and the analagous comparison of
+    /// [`flat_map_iter` versus `flat_map`](#flat_map_iter-versus-flat_map).
     ///
     /// # Examples
     ///
