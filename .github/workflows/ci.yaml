@@ -8,7 +8,7 @@ on:
 jobs:
 
   check:
-    name: Check (1.31.0)
+    name: Check (1.36.0)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,7 +16,7 @@ jobs:
       - name: Install
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.31.0
+          toolchain: 1.36.0
           profile: minimal
           override: true
       - name: Prepare Cargo.lock
