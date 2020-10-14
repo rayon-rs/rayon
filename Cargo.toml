@@ -20,7 +20,7 @@ exclude = ["ci"]
 
 [dependencies]
 rayon-core = { version = "1.8.1", path = "rayon-core" }
-crossbeam-deque = "0.7.2"
+crossbeam-deque = "0.8.0"
 
 # This is a public dependency!
 [dependencies.either]
