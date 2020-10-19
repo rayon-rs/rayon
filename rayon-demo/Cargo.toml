@@ -10,7 +10,7 @@ rayon = { path = "../" }
 cgmath = "0.17"
 docopt = "1"
 fixedbitset = "0.3.0"
-glium = "0.27.0"
+glium = "0.28.0"
 lazy_static = "1"
 rand = "0.7"
 rand_xorshift = "0.2"
