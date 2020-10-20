@@ -1,5 +1,30 @@
+//! Rayon-core houses the core stable APIs of Rayon.
 //!
-//! [Under construction](https://github.com/rayon-rs/rayon/issues/231)
+//! These APIs have been mirrored in the Rayon crate and it is recommended to use these from there.
+//!
+//! [`join`] is used to take two closures and potentially run them in parallel.
+//!   - It will run in parallel if task B gets stolen before task A can finish.
+//!   - It will run sequentially if task A finishes before task B is stolen and can continue on task B.
+//!
+//! [`scope`] creates a scope in which you can run any number of parallel tasks.
+//! These tasks can spawn nested tasks and scopes, but given the nature of work stealing, the order of execution can not be guaranteed.
+//! The scope will exist until all tasks spawned within the scope have been completed.
+//!
+//! [`spawn`] add a task into the 'static' or 'global' scope, or a local scope created by the [`scope()`] function.
+//!
+//! [`ThreadPool`] can be used to create your own thread pools (using [`ThreadPoolBuilder`]) or to customize the global one.
+//! Tasks spawned within the pool (using [`install()`], [`join()`], etc.) will be added to a deque,
+//! where it becomes available for work stealing from other threads in the local threadpool.
+//!
+//! [`join`]: fn.join.html
+//! [`scope`]: fn.scope.html
+//! [`scope()`]: fn.scope.html
+//! [`spawn`]: fn.spawn.html
+//! [`ThreadPool`]: struct.threadpool.html
+//! [`install()`]: struct.ThreadPool.html#method.install
+//! [`spawn()`]: struct.ThreadPool.html#method.spawn
+//! [`join()`]: struct.ThreadPool.html#method.join
+//! [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
 //!
 //! ## Restricting multiple versions
 //!
