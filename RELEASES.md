@@ -1,3 +1,16 @@
+# Release rayon 1.5.0 / rayon-core 1.9.0 (2020-10-21)
+
+- Update crossbeam dependencies.
+- The minimum supported `rustc` is now 1.36.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @cuviper
+- @mbrubeck
+- @mrksu
+
 # Release rayon 1.4.1 (2020-09-29)
 
 - The new `flat_map_iter` and `flatten_iter` methods can be used to flatten
