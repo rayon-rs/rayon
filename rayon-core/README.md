@@ -8,4 +8,4 @@ Please see [Rayon Docs] for details about using Rayon.
 
 [Rayon Docs]: https://docs.rs/rayon/
 
-Rayon-core currently requires `rustc 1.31.0` or greater.
+Rayon-core currently requires `rustc 1.36.0` or greater.
