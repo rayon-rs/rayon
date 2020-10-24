@@ -1,12 +1,17 @@
 use crossbeam_deque::{Steal, Stealer, Worker};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Mutex, TryLockError};
+use std::sync::{RwLock, TryLockError};
 use std::thread::yield_now;
 
 use crate::current_num_threads;
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::iter::ParallelIterator;
+
+/// A wrapper around rwlock where the user basically pinky-promises to never call read()
+struct ReentrantMutex<T>(RwLock<T>);
+unsafe impl<T> Send for ReentrantMutex<T> where T: Send {}
+unsafe impl<T> Sync for ReentrantMutex<T> where T: Send {}
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
@@ -82,7 +87,7 @@ where
         let worker = Worker::new_fifo();
         let stealer = worker.stealer();
         let done = AtomicBool::new(false);
-        let iter = Mutex::new((self.iter, worker));
+        let iter = ReentrantMutex(RwLock::new((self.iter, worker)));
 
         bridge_unindexed(
             IterParallelProducer {
@@ -99,7 +104,7 @@ where
 struct IterParallelProducer<'a, Iter: Iterator> {
     split_count: &'a AtomicUsize,
     done: &'a AtomicBool,
-    iter: &'a Mutex<(Iter, Worker<Iter::Item>)>,
+    iter: &'a ReentrantMutex<(Iter, Worker<Iter::Item>)>,
     items: Stealer<Iter::Item>,
 }
 
@@ -162,7 +167,7 @@ where
                         return folder;
                     } else {
                         // our cache is out of items, time to load more from the iterator
-                        match self.iter.try_lock() {
+                        match self.iter.0.try_write() {
                             Ok(mut guard) => {
                                 let count = current_num_threads();
                                 let count = (count * count) * 2;
