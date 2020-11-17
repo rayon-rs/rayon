@@ -4,7 +4,6 @@ use crate::log::Event::*;
 use crate::log::Logger;
 use crate::sleep::Sleep;
 use crate::unwind;
-use crate::util::leak;
 use crate::{
     ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder,
 };
@@ -159,7 +158,7 @@ pub(super) struct Registry {
 /// ////////////////////////////////////////////////////////////////////////
 /// Initialization
 
-static mut THE_REGISTRY: Option<&'static Arc<Registry>> = None;
+static mut THE_REGISTRY: Option<Arc<Registry>> = None;
 static THE_REGISTRY_SET: Once = Once::new();
 
 /// Starts the worker threads (if that has not already happened). If
@@ -167,7 +166,7 @@ static THE_REGISTRY_SET: Once = Once::new();
 /// configuration.
 fn global_registry() -> &'static Arc<Registry> {
     set_global_registry(|| Registry::new(ThreadPoolBuilder::new()))
-        .or_else(|err| unsafe { THE_REGISTRY.ok_or(err) })
+        .or_else(|err| unsafe { THE_REGISTRY.as_ref().ok_or(err) })
         .expect("The global thread pool has not been initialized.")
 }
 
@@ -191,15 +190,15 @@ where
     let mut result = Err(ThreadPoolBuildError::new(
         ErrorKind::GlobalPoolAlreadyInitialized,
     ));
+
     THE_REGISTRY_SET.call_once(|| {
-        result = registry().map(|registry| {
-            let registry = leak(registry);
-            unsafe {
+        result = registry()
+            .map(|registry: Arc<Registry>| unsafe {
                 THE_REGISTRY = Some(registry);
-            }
-            registry
-        });
+            })
+            .map(|_| unsafe { THE_REGISTRY.as_ref().unwrap() })
     });
+
     result
 }
 

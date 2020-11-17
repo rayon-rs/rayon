@@ -72,7 +72,6 @@ mod sleep;
 mod spawn;
 mod thread_pool;
 mod unwind;
-mod util;
 
 mod compile_fail;
 mod test;
