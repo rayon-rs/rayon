@@ -193,10 +193,7 @@ where
 
     THE_REGISTRY_SET.call_once(|| {
         result = registry()
-            .map(|registry: Arc<Registry>| unsafe {
-                THE_REGISTRY = Some(registry);
-            })
-            .map(|_| unsafe { THE_REGISTRY.as_ref().unwrap() })
+            .map(|registry: Arc<Registry>| unsafe { &*THE_REGISTRY.get_or_insert(registry) })
     });
 
     result
