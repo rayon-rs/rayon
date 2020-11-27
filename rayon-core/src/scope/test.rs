@@ -1,12 +1,12 @@
 use crate::unwind;
 use crate::ThreadPoolBuilder;
 use crate::{scope, scope_fifo, Scope, ScopeFifo};
+use parking_lot::Mutex;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
 use std::vec;
 
 #[test]

@@ -1,7 +1,7 @@
 use crate::scope;
+use parking_lot::Mutex;
 use std::any::Any;
 use std::sync::mpsc::channel;
-use std::sync::Mutex;
 
 use super::{spawn, spawn_fifo};
 use crate::ThreadPoolBuilder;

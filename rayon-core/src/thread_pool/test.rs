@@ -1,8 +1,8 @@
 #![cfg(test)]
 
+use parking_lot::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
-use std::sync::{Arc, Mutex};
 
 #[allow(deprecated)]
 use crate::Configuration;

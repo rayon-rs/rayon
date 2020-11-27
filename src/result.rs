@@ -7,7 +7,7 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use crate::option;
 
@@ -107,7 +107,7 @@ where
                     // We don't need a blocking `lock()`, as anybody
                     // else holding the lock will also be writing
                     // `Some(error)`, and then ours is irrelevant.
-                    if let Ok(mut guard) = saved.try_lock() {
+                    if let Some(mut guard) = saved.try_lock() {
                         if guard.is_none() {
                             *guard = Some(error);
                         }
@@ -124,7 +124,7 @@ where
             .while_some()
             .collect();
 
-        match saved_error.into_inner().unwrap() {
+        match saved_error.into_inner() {
             Some(error) => Err(error),
             None => Ok(collection),
         }
