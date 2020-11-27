@@ -28,7 +28,7 @@ fn panic_fwd() {
 
     let tx = Mutex::new(tx);
     let panic_handler = move |err: Box<dyn Any + Send>| {
-        let tx = tx.lock().unwrap();
+        let tx = tx.lock();
         if let Some(&msg) = err.downcast_ref::<&str>() {
             if msg == "Hello, world!" {
                 tx.send(1).unwrap();
@@ -88,7 +88,7 @@ fn custom_panic_handler_and_spawn() {
     // with itself, we have to wrap `tx` in a mutex.
     let tx = Mutex::new(tx);
     let panic_handler = move |e: Box<dyn Any + Send>| {
-        tx.lock().unwrap().send(e).unwrap();
+        tx.lock().send(e).unwrap();
     };
 
     // Execute an async that will panic.
@@ -115,7 +115,7 @@ fn custom_panic_handler_and_nested_spawn() {
     // with itself, we have to wrap `tx` in a mutex.
     let tx = Mutex::new(tx);
     let panic_handler = move |e| {
-        tx.lock().unwrap().send(e).unwrap();
+        tx.lock().send(e).unwrap();
     };
 
     // Execute an async that will (eventually) panic.

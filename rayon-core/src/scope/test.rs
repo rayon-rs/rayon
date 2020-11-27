@@ -155,10 +155,10 @@ fn linear_stack_growth() {
         let mut max_diff = Mutex::new(0);
         let bottom_of_stack = 0;
         scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 5));
-        let diff_when_5 = *max_diff.get_mut().unwrap() as f64;
+        let diff_when_5 = *max_diff.get_mut() as f64;
 
         scope(|s| the_final_countdown(s, &bottom_of_stack, &max_diff, 500));
-        let diff_when_500 = *max_diff.get_mut().unwrap() as f64;
+        let diff_when_500 = *max_diff.get_mut() as f64;
 
         let ratio = diff_when_5 / diff_when_500;
         assert!(
@@ -180,7 +180,7 @@ fn the_final_countdown<'scope>(
     let q = &top_of_stack as *const i32 as usize;
     let diff = if p > q { p - q } else { q - p };
 
-    let mut data = max.lock().unwrap();
+    let mut data = max.lock();
     *data = cmp::max(diff, *data);
 
     if n > 0 {
@@ -280,13 +280,13 @@ macro_rules! test_order {
                     scope.$spawn(move |scope| {
                         for j in 0..10 {
                             scope.$spawn(move |_| {
-                                vec.lock().unwrap().push(i * 10 + j);
+                                vec.lock().push(i * 10 + j);
                             });
                         }
                     });
                 }
             });
-            vec.into_inner().unwrap()
+            vec.into_inner()
         })
     }};
 }
@@ -321,14 +321,14 @@ macro_rules! test_nested_order {
                         $inner_scope(|scope| {
                             for j in 0..10 {
                                 scope.$inner_spawn(move |_| {
-                                    vec.lock().unwrap().push(i * 10 + j);
+                                    vec.lock().push(i * 10 + j);
                                 });
                             }
                         });
                     });
                 }
             });
-            vec.into_inner().unwrap()
+            vec.into_inner()
         })
     }};
 }
@@ -372,7 +372,7 @@ fn nested_fifo_lifo_order() {
 
 macro_rules! spawn_push {
     ($scope:ident . $spawn:ident, $vec:ident, $i:expr) => {{
-        $scope.$spawn(move |_| $vec.lock().unwrap().push($i));
+        $scope.$spawn(move |_| $vec.lock().push($i));
     }};
 }
 
@@ -397,7 +397,7 @@ macro_rules! test_mixed_order {
                 });
                 spawn_push!(outer_scope.$outer_spawn, vec, 3);
             });
-            vec.into_inner().unwrap()
+            vec.into_inner()
         })
     }};
 }
