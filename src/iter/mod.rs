@@ -2130,7 +2130,7 @@ pub trait ParallelIterator: Sized + Send {
     /// See the [README] for more details on the internals of parallel
     /// iterators.
     ///
-    /// [README]: README.md
+    /// [README]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
         C: UnindexedConsumer<Self::Item>;
@@ -2817,7 +2817,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// See the [README] for more details on the internals of parallel
     /// iterators.
     ///
-    /// [README]: README.md
+    /// [README]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result;
 
     /// Internal method used to define the behavior of this parallel
@@ -2834,7 +2834,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// See the [README] for more details on the internals of parallel
     /// iterators.
     ///
-    /// [README]: README.md
+    /// [README]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
     fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output;
 }
 
