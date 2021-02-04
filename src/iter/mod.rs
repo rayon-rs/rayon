@@ -103,6 +103,7 @@ mod test;
 //   e.g. `find::find()`, are always used **prefixed**, so that they
 //   can be readily distinguished.
 
+mod blocks;
 mod chain;
 mod chunks;
 mod cloned;
@@ -161,6 +162,7 @@ mod zip;
 mod zip_eq;
 
 pub use self::{
+    blocks::ByBlocks,
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -1678,6 +1680,9 @@ pub trait ParallelIterator: Sized + Send {
     /// will be stopped, while attempts to the left must continue in case
     /// an earlier match is found.
     ///
+    /// For added performances, you might consider using `find_first`
+    /// in conjunction with [`by_blocks()`].
+    ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
     /// just want the first match that discovered anywhere in the iterator,
@@ -1694,6 +1699,8 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// assert_eq!(a.par_iter().find_first(|&&x| x == 100), None);
     /// ```
+    ///
+    /// [`by_blocks()`]: trait.IndexedParallelIterator.html#method.by_blocks
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
     where
         P: Fn(&Self::Item) -> bool + Sync + Send,
@@ -2444,6 +2451,39 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 // Waiting for `ExactSizeIterator::is_empty` to be stabilized. See rust-lang/rust#35428
 #[allow(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
+    /// Normally, parallel iterators are recursively divided into tasks in parallel.
+    /// This adaptor changes the default behavior by splitting the iterator into a **sequence**
+    /// of parallel iterators of given `sizes`.
+    ///
+    /// This can have many applications but the most notable ones are:
+    /// - better performances with [`find_first()`]
+    /// - more predictable performances with [`find_any()`]
+    /// - better locality (especially if the reduce operation re-use folded data)
+    ///
+    /// [`find_first()`]: trait.ParallelIterator.html#method.find_first
+    /// [`find_any()`]: trait.ParallelIterator.html#method.find_any
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// assert_eq!((0..10_000).into_par_iter()
+    ///                       .by_blocks(std::iter::successors(Some(10usize), |s| Some(s.saturating_mul(2))))
+    ///                       .find_first(|&e| e==4_999), Some(4_999))
+    /// ```
+    ///
+    /// In this example, without blocks, rayon will split the initial range into two but all work
+    /// on the right hand side (from 5,000 onwards) is **useless** since the sequential algorithm
+    /// never goes there. This means that if two threads are used there will be **no** speedup **at
+    /// all**.
+    /// `by_blocks` on the other hand will start with the leftmost range from 0 to 10, continue
+    /// with 10 to 30, the 30 to 70, 70 to 150, ...
+    /// Each subrange is treated in parallel, while all subranges are treated sequentially.
+    /// We therefore ensure a logarithmic number of blocks (and overhead) while guaranteeing
+    /// we stop at the first block containing the searched data.
+    fn by_blocks<S: IntoIterator<Item = usize>>(self, sizes: S) -> ByBlocks<Self, S> {
+        ByBlocks::new(self, sizes)
+    }
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always cleared before execution
     /// begins. If possible, reusing the vector across calls can lead
