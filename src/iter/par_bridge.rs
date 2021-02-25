@@ -128,13 +128,14 @@ where
             let done = self.done.load(Ordering::SeqCst);
             match count.checked_sub(1) {
                 Some(new_count) if !done => {
-                    let last_count =
-                        self.split_count
-                            .compare_and_swap(count, new_count, Ordering::SeqCst);
-                    if last_count == count {
-                        return (self.clone(), Some(self));
-                    } else {
-                        count = last_count;
+                    match self.split_count.compare_exchange_weak(
+                        count,
+                        new_count,
+                        Ordering::SeqCst,
+                        Ordering::SeqCst,
+                    ) {
+                        Ok(_) => return (self.clone(), Some(self)),
+                        Err(last_count) => count = last_count,
                     }
                 }
                 _ => {
