@@ -50,7 +50,12 @@ fn gen_strings(len: usize) -> Vec<String> {
     let mut v = vec![];
     for _ in 0..len {
         let n = rng.sample(&len_dist);
-        v.push(rng.sample_iter(&Alphanumeric).take(n).collect());
+        v.push(
+            rng.sample_iter(&Alphanumeric)
+                .map(char::from)
+                .take(n)
+                .collect(),
+        );
     }
     v
 }

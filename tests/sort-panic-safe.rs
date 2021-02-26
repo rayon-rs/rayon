@@ -132,7 +132,7 @@ fn sort_panic_safe() {
                 let mut rng = thread_rng();
                 let mut input = (0..len)
                     .map(|id| DropCounter {
-                        x: rng.gen_range(0, modulus),
+                        x: rng.gen_range(0..modulus),
                         id,
                         version: Cell::new(0),
                     })

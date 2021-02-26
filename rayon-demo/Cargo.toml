@@ -7,13 +7,13 @@ publish = false
 
 [dependencies]
 rayon = { path = "../" }
-cgmath = "0.17"
+cgmath = "0.18"
 docopt = "1"
-fixedbitset = "0.3.0"
-glium = "0.28.0"
+fixedbitset = "0.3"
+glium = "0.29"
 lazy_static = "1"
-rand = "0.7"
-rand_xorshift = "0.2"
+rand = "0.8"
+rand_xorshift = "0.3"
 regex = "1"
 
 [dependencies.serde]
@@ -28,4 +28,4 @@ winapi = { version = "0.3", features = ["processthreadsapi"] }
 
 [dev-dependencies]
 doc-comment = "0.3"
-num = "0.2"
+num = "0.3"

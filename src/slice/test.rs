@@ -10,7 +10,7 @@ macro_rules! sort {
     ($f:ident, $name:ident) => {
         #[test]
         fn $name() {
-            let mut rng = thread_rng();
+            let ref mut rng = thread_rng();
 
             for len in (0..25).chain(500..501) {
                 for &modulus in &[5, 10, 100] {
@@ -105,7 +105,7 @@ fn test_par_sort_stability() {
             let mut rng = thread_rng();
             let mut v: Vec<_> = (0..len)
                 .map(|_| {
-                    let n: usize = rng.gen_range(0, 10);
+                    let n: usize = rng.gen_range(0..10);
                     counts[n] += 1;
                     (n, counts[n])
                 })

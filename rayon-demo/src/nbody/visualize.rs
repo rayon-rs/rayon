@@ -127,9 +127,9 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
     let instances: Vec<_> = (0..num_bodies)
         .map(|_| Instance {
             color: [
-                rng.gen_range(0.5, 1.0),
-                rng.gen_range(0.5, 1.0),
-                rng.gen_range(0.5, 1.0),
+                rng.gen_range(0.5..1.0),
+                rng.gen_range(0.5..1.0),
+                rng.gen_range(0.5..1.0),
             ],
             world_position: [0.0, 0.0, 0.0],
         })
@@ -171,7 +171,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
             let aspect = width as f32 / height as f32;
 
             let proj = cgmath::perspective(Rad::full_turn() / 6.0, aspect, 0.1, 3000.0);
-            let view = Matrix4::look_at(
+            let view = Matrix4::look_at_rh(
                 Point3::new(10.0, 10.0, 10.0),
                 Point3::origin(),
                 Vector3::unit_z(),

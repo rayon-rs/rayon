@@ -739,12 +739,12 @@ mod tests {
         check(&[1, 2, 2, 2, 2, 3], &[]);
         check(&[], &[1, 2, 2, 2, 2, 3]);
 
-        let mut rng = thread_rng();
+        let ref mut rng = thread_rng();
 
         for _ in 0..100 {
-            let limit: u32 = rng.gen_range(1, 21);
-            let left_len: usize = rng.gen_range(0, 20);
-            let right_len: usize = rng.gen_range(0, 20);
+            let limit: u32 = rng.gen_range(1..21);
+            let left_len: usize = rng.gen_range(0..20);
+            let right_len: usize = rng.gen_range(0..20);
 
             let mut left = rng
                 .sample_iter(&Uniform::new(0, limit))

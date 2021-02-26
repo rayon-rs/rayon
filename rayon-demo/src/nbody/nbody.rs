@@ -54,9 +54,9 @@ impl NBodyBenchmark {
     pub fn new<R: Rng>(num_bodies: usize, rng: &mut R) -> NBodyBenchmark {
         let bodies0: Vec<_> = (0..num_bodies)
             .map(|_| {
-                let r = rng.gen_range(0.0, 10_000.0);
-                let theta = rng.gen_range(0.0, PI);
-                let phi = rng.gen_range(0.0, 2.0 * PI);
+                let r = rng.gen_range(0.0..10_000.0);
+                let theta = rng.gen_range(0.0..PI);
+                let phi = rng.gen_range(0.0..2.0 * PI);
                 let position = Point3 {
                     x: r * theta.sin() * phi.cos(),
                     y: r * theta.sin() * phi.sin(),
@@ -64,14 +64,14 @@ impl NBodyBenchmark {
                 };
 
                 let velocity = Vector3 {
-                    x: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
-                    y: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
+                    x: rng.gen_range(-0.5..0.5) * INITIAL_VELOCITY,
+                    y: rng.gen_range(-0.5..0.5) * INITIAL_VELOCITY,
                     z: rng.gen::<f64>() * INITIAL_VELOCITY + 10.0,
                 };
 
                 let velocity2 = Vector3 {
-                    x: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
-                    y: rng.gen_range(-0.5, 0.5) * INITIAL_VELOCITY,
+                    x: rng.gen_range(-0.5..0.5) * INITIAL_VELOCITY,
+                    y: rng.gen_range(-0.5..0.5) * INITIAL_VELOCITY,
                     z: rng.gen::<f64>() * INITIAL_VELOCITY,
                 };
 
