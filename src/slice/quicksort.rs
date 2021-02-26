@@ -766,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_heapsort() {
-        let rng = thread_rng();
+        let ref mut rng = thread_rng();
 
         for len in (0..25).chain(500..501) {
             for &modulus in &[5, 10, 100] {

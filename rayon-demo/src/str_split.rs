@@ -11,7 +11,7 @@ lazy_static::lazy_static! {
         bytes.shuffle(&mut rng);
         String::from_utf8(bytes).unwrap()
     };
-    static ref COUNT: usize = { HAYSTACK.split(' ').count() };
+    static ref COUNT: usize = HAYSTACK.split(' ').count();
 }
 
 fn get_string_count() -> (&'static str, usize) {
