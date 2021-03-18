@@ -19,10 +19,11 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use std::char;
+use std::convert::TryFrom;
 use std::ops::Range;
 use std::usize;
 
-/// Parallel iterator over a range, implemented for all integer types.
+/// Parallel iterator over a range, implemented for all integer types and `char`.
 ///
 /// **Note:** The `zip` operation requires `IndexedParallelIterator`
 /// which is not implemented for `u64`, `i64`, `u128`, or `i128`.
@@ -48,6 +49,7 @@ pub struct Iter<T> {
     range: Range<T>,
 }
 
+/// Implemented for ranges of all primitive integer types and `char`.
 impl<T> IntoParallelIterator for Range<T>
 where
     Iter<T>: ParallelIterator,
@@ -76,40 +78,117 @@ where
     }
 }
 
+/// These traits help drive integer type inference. Without them, an unknown `{integer}` type only
+/// has constraints on `Iter<{integer}>`, which will probably give up and use `i32`. By adding
+/// these traits on the item type, the compiler can see a more direct constraint to infer like
+/// `{integer}: RangeInteger`, which works better. See `test_issue_833` for an example.
+///
+/// They have to be `pub` since they're seen in the public `impl ParallelIterator` constraints, but
+/// we put them in a private modules so they're not actually reachable in our public API.
+mod private {
+    use super::*;
+
+    /// Implementation details of `ParallelIterator for Iter<Self>`
+    pub trait RangeInteger: Sized + Send {
+        private_decl! {}
+
+        fn drive_unindexed<C>(iter: Iter<Self>, consumer: C) -> C::Result
+        where
+            C: UnindexedConsumer<Self>;
+
+        fn opt_len(iter: &Iter<Self>) -> Option<usize>;
+    }
+
+    /// Implementation details of `IndexedParallelIterator for Iter<Self>`
+    pub trait IndexedRangeInteger: RangeInteger {
+        private_decl! {}
+
+        fn drive<C>(iter: Iter<Self>, consumer: C) -> C::Result
+        where
+            C: Consumer<Self>;
+
+        fn len(iter: &Iter<Self>) -> usize;
+
+        fn with_producer<CB>(iter: Iter<Self>, callback: CB) -> CB::Output
+        where
+            CB: ProducerCallback<Self>;
+    }
+}
+use private::{IndexedRangeInteger, RangeInteger};
+
+impl<T: RangeInteger> ParallelIterator for Iter<T> {
+    type Item = T;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<T>,
+    {
+        T::drive_unindexed(self, consumer)
+    }
+
+    #[inline]
+    fn opt_len(&self) -> Option<usize> {
+        T::opt_len(self)
+    }
+}
+
+impl<T: IndexedRangeInteger> IndexedParallelIterator for Iter<T> {
+    fn drive<C>(self, consumer: C) -> C::Result
+    where
+        C: Consumer<T>,
+    {
+        T::drive(self, consumer)
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        T::len(self)
+    }
+
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<T>,
+    {
+        T::with_producer(self, callback)
+    }
+}
+
 macro_rules! indexed_range_impl {
     ( $t:ty ) => {
-        impl ParallelIterator for Iter<$t> {
-            type Item = $t;
+        impl RangeInteger for $t {
+            private_impl! {}
 
-            fn drive_unindexed<C>(self, consumer: C) -> C::Result
+            fn drive_unindexed<C>(iter: Iter<$t>, consumer: C) -> C::Result
             where
-                C: UnindexedConsumer<Self::Item>,
+                C: UnindexedConsumer<$t>,
             {
-                bridge(self, consumer)
+                bridge(iter, consumer)
             }
 
-            fn opt_len(&self) -> Option<usize> {
-                Some(self.len())
+            fn opt_len(iter: &Iter<$t>) -> Option<usize> {
+                Some(iter.range.len())
             }
         }
 
-        impl IndexedParallelIterator for Iter<$t> {
-            fn drive<C>(self, consumer: C) -> C::Result
+        impl IndexedRangeInteger for $t {
+            private_impl! {}
+
+            fn drive<C>(iter: Iter<$t>, consumer: C) -> C::Result
             where
-                C: Consumer<Self::Item>,
+                C: Consumer<$t>,
             {
-                bridge(self, consumer)
+                bridge(iter, consumer)
             }
 
-            fn len(&self) -> usize {
-                self.range.len()
+            fn len(iter: &Iter<$t>) -> usize {
+                iter.range.len()
             }
 
-            fn with_producer<CB>(self, callback: CB) -> CB::Output
+            fn with_producer<CB>(iter: Iter<$t>, callback: CB) -> CB::Output
             where
-                CB: ProducerCallback<Self::Item>,
+                CB: ProducerCallback<$t>,
             {
-                callback.callback(IterProducer { range: self.range })
+                callback.callback(IterProducer { range: iter.range })
             }
         }
 
@@ -150,36 +229,31 @@ macro_rules! unindexed_range_impl {
             }
         }
 
-        impl ParallelIterator for Iter<$t> {
-            type Item = $t;
+        impl RangeInteger for $t {
+            private_impl! {}
 
-            fn drive_unindexed<C>(self, consumer: C) -> C::Result
+            fn drive_unindexed<C>(iter: Iter<$t>, consumer: C) -> C::Result
             where
-                C: UnindexedConsumer<Self::Item>,
+                C: UnindexedConsumer<$t>,
             {
                 #[inline]
                 fn offset(start: $t) -> impl Fn(usize) -> $t {
                     move |i| start.wrapping_add(i as $t)
                 }
 
-                if let Some(len) = self.opt_len() {
+                if let Some(len) = iter.opt_len() {
                     // Drive this in indexed mode for better `collect`.
                     (0..len)
                         .into_par_iter()
-                        .map(offset(self.range.start))
+                        .map(offset(iter.range.start))
                         .drive(consumer)
                 } else {
-                    bridge_unindexed(IterProducer { range: self.range }, consumer)
+                    bridge_unindexed(IterProducer { range: iter.range }, consumer)
                 }
             }
 
-            fn opt_len(&self) -> Option<usize> {
-                let len = self.range.len();
-                if len <= usize::MAX as $len_t {
-                    Some(len as usize)
-                } else {
-                    None
-                }
+            fn opt_len(iter: &Iter<$t>) -> Option<usize> {
+                usize::try_from(iter.range.len()).ok()
             }
         }
 
@@ -365,4 +439,24 @@ fn test_usize_i64_overflow() {
     // always run with multiple threads to split into, or this will take forever...
     let pool = ThreadPoolBuilder::new().num_threads(8).build().unwrap();
     pool.install(|| assert_eq!(iter.find_last(|_| true), Some(i64::MAX - 1)));
+}
+
+#[test]
+fn test_issue_833() {
+    fn is_even(n: i64) -> bool {
+        n % 2 == 0
+    }
+
+    // The integer type should be inferred from `is_even`
+    let v: Vec<_> = (1..100).into_par_iter().filter(|&x| is_even(x)).collect();
+    assert!(v.into_iter().eq((2..100).step_by(2)));
+
+    // Try examples with indexed iterators too
+    let pos = (0..100).into_par_iter().position_any(|x| x == 50i16);
+    assert_eq!(pos, Some(50usize));
+
+    assert!((0..100)
+        .into_par_iter()
+        .zip(0..100)
+        .all(|(a, b)| i16::eq(&a, &b)));
 }
