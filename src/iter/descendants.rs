@@ -129,6 +129,8 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 
 /// Create a tree like parallel iterator from an initial root state.
 /// Thre `breed` function should take a state and iterate on all of its children states.
+/// The best parallelization is obtained when the tree is balanced
+/// but we should also be able to handle harder cases.
 ///
 /// # Example
 ///
@@ -143,26 +145,26 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///
 /// # Example
 ///
-/// Here we loop on the following tree:
-///                 4
-///               /   \
-///              /     \
-///             2       3
-///                    / \
-///                   /   \
-///                  1     2
-///
-/// The best parallelization is obtained when the tree is balanced
-/// but we should also be able to handle harder cases.
-///
 ///    ```
 ///    use rayon::prelude::*;
 ///    use rayon::iter::descendants;
+///
 ///    struct Node {
 ///        content: u32,
 ///        left: Option<Box<Node>>,
 ///        right: Option<Box<Node>>,
 ///    }
+///
+/// // Here we loop on the following tree:
+/// //
+/// //       10
+/// //      /  \
+/// //     /    \
+/// //    3     14
+/// //            \
+/// //             \
+/// //              18
+///
 ///    let root = Node {
 ///        content: 10,
 ///        left: Some(Box::new(Node {
@@ -180,17 +182,17 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///            })),
 ///        })),
 ///    };
-///    let v: Vec<&Node> = descendants(&root, |r| {
+///    let mut v: Vec<u32> = descendants(&root, |r| {
 ///        r.left
 ///            .as_ref()
 ///            .into_iter()
 ///            .chain(r.right.as_ref())
 ///            .map(|n| &**n)
 ///    })
+///    .map(|node| node.content)
 ///    .collect();
-///    assert_eq!(v.iter().filter(|n| n.content == 10).count(), 1);
-///    assert_eq!(v.iter().filter(|n| n.content == 18).count(), 1);
-///    assert_eq!(v.len(), 4);
+///    v.sort_unstable();
+///    assert_eq!(v, vec![3, 10, 14, 18]);
 ///    ```
 ///
 pub fn descendants<S, B, I>(root: S, breed: B) -> Descendants<S, B, I>
