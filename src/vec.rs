@@ -8,11 +8,30 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use crate::math::simplify_range;
+use crate::slice::{Iter, IterMut};
 use std::iter;
 use std::mem;
 use std::ops::{Range, RangeBounds};
 use std::ptr;
 use std::slice;
+
+impl<'data, T: Sync + 'data> IntoParallelIterator for &'data Vec<T> {
+    type Item = &'data T;
+    type Iter = Iter<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        <&[T]>::into_par_iter(self)
+    }
+}
+
+impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
+    type Item = &'data mut T;
+    type Iter = IterMut<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        <&mut [T]>::into_par_iter(self)
+    }
+}
 
 /// Parallel iterator that moves out of a vector.
 #[derive(Debug, Clone)]

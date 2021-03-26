@@ -91,6 +91,7 @@ mod private;
 
 mod split_producer;
 
+pub mod array;
 pub mod collections;
 pub mod iter;
 pub mod option;

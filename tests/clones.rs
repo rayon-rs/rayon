@@ -108,6 +108,12 @@ fn clone_vec() {
 }
 
 #[test]
+fn clone_array() {
+    let a = [0i32; 100];
+    check(a.into_par_iter());
+}
+
+#[test]
 fn clone_adaptors() {
     let v: Vec<_> = (0..1000).map(Some).collect();
     check(v.par_iter().chain(&v));
