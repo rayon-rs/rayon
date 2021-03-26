@@ -131,6 +131,12 @@ fn debug_vec() {
 }
 
 #[test]
+fn debug_array() {
+    let a = [0i32; 10];
+    check(a.into_par_iter());
+}
+
+#[test]
 fn debug_adaptors() {
     let v: Vec<_> = (0..10).collect();
     check(v.par_iter().chain(&v));
