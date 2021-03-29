@@ -4,9 +4,11 @@ use super::*;
 /// `ByBlocks` is a parallel iterator that consumes itself as a sequence
 /// of parallel blocks.
 ///
-/// This struct is created by the [`by_blocks()`] method on [`IndexedParallelIterator`]
+/// This struct is created by the [`by_uniform_blocks()`]
+/// and the [`by_doubling_blocks`] methods on [`IndexedParallelIterator`]
 ///
-/// [`by_blocks()`]: trait.IndexedParallelIterator.html#method.by_blocks
+/// [`by_uniform_blocks()`]: trait.IndexedParallelIterator.html#method.by_uniform_blocks
+/// [`by_doubling_blocks()`]: trait.IndexedParallelIterator.html#method.by_doubling_blocks
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
