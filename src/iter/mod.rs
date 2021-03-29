@@ -108,7 +108,6 @@ mod chunks;
 mod cloned;
 mod collect;
 mod copied;
-mod descendants;
 mod empty;
 mod enumerate;
 mod extend;
@@ -156,6 +155,7 @@ mod try_reduce;
 mod try_reduce_with;
 mod unzip;
 mod update;
+mod walk_tree;
 mod while_some;
 mod zip;
 mod zip_eq;
@@ -165,7 +165,6 @@ pub use self::{
     chunks::Chunks,
     cloned::Cloned,
     copied::Copied,
-    descendants::{descendants, Descendants},
     empty::{empty, Empty},
     enumerate::Enumerate,
     filter::Filter,
@@ -201,6 +200,7 @@ pub use self::{
     take_any_while::TakeAnyWhile,
     try_fold::{TryFold, TryFoldWith},
     update::Update,
+    walk_tree::{walk_tree, WalkTree},
     while_some::WhileSome,
     zip::Zip,
     zip_eq::ZipEq,

@@ -4,14 +4,15 @@ use std::collections::VecDeque;
 use std::iter::once;
 use std::marker::PhantomData;
 
-struct DescendantsProducer<'b, S, B, I> {
+#[derive(Debug)]
+struct WalkTreeProducer<'b, S, B, I> {
     to_explore: VecDeque<Vec<S>>, // we do a depth first exploration so we need a stack
     seen: Vec<S>,                 // nodes which have already been explored
     breed: &'b B,                 // function generating children
     phantom: PhantomData<I>,
 }
 
-impl<'b, S, B, I> UnindexedProducer for DescendantsProducer<'b, S, B, I>
+impl<'b, S, B, I> UnindexedProducer for WalkTreeProducer<'b, S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -37,7 +38,7 @@ where
         let f = self.to_explore.front_mut();
         let right_children = f.and_then(|f| split_vec(f));
         let right = right_children
-            .map(|c| DescendantsProducer {
+            .map(|c| WalkTreeProducer {
                 to_explore: once(c).collect(),
                 seen: Vec::new(),
                 breed: self.breed,
@@ -46,7 +47,7 @@ where
             .or_else(|| {
                 // we can still try to divide 'seen'
                 let right_seen = split_vec(&mut self.seen);
-                right_seen.map(|s| DescendantsProducer {
+                right_seen.map(|s| WalkTreeProducer {
                     to_explore: Default::default(),
                     seen: s,
                     breed: self.breed,
@@ -69,7 +70,11 @@ where
         // now do all remaining explorations
         for mut e in self.to_explore {
             while let Some(s) = e.pop() {
-                e.extend((self.breed)(&s));
+                // TODO: this is not very nice,
+                // in order to maintain order i need
+                // to reverse the order of children.
+                let children = (self.breed)(&s).into_iter().collect::<Vec<_>>();
+                e.extend(children.into_iter().rev());
                 folder = folder.consume(s);
                 if folder.full() {
                     return folder;
@@ -81,16 +86,16 @@ where
 }
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
-/// Returned by the [`descendants()`] function.
-/// [`descendants()`]: fn.descendants.html
+/// Returned by the [`walk_tree()`] function.
+/// [`walk_tree()`]: fn.walk_tree.html
 #[derive(Debug)]
-pub struct Descendants<S, B, I> {
+pub struct WalkTree<S, B, I> {
     initial_state: S,
     breed: B,
     phantom: PhantomData<I>,
 }
 
-impl<S, B, I> ParallelIterator for Descendants<S, B, I>
+impl<S, B, I> ParallelIterator for WalkTree<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -101,7 +106,7 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        let producer = DescendantsProducer {
+        let producer = WalkTreeProducer {
             to_explore: once(vec![self.initial_state]).collect(),
             seen: Vec::new(),
             breed: &self.breed,
@@ -112,18 +117,14 @@ where
 }
 
 /// Divide given vector in two equally sized vectors.
-/// Return `None` if initial size is <=1
+/// Return `None` if initial size is <=1.
+/// We return the first half and keep the last half in `v`.
 fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
     if v.len() <= 1 {
         None
     } else {
         let n = v.len() / 2;
-
-        let mut left_vec = Vec::with_capacity(n);
-        for _ in 0..n {
-            left_vec.push(v.pop().unwrap());
-        }
-        Some(left_vec)
+        Some(v.split_off(n))
     }
 }
 
@@ -136,9 +137,9 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///
 /// ```
 /// use rayon::prelude::*;
-/// use rayon::iter::descendants;
+/// use rayon::iter::walk_tree;
 /// assert_eq!(
-///     descendants(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
+///     walk_tree(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
 ///         .sum::<u32>(),
 ///     12);
 /// ```
@@ -147,7 +148,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///
 ///    ```
 ///    use rayon::prelude::*;
-///    use rayon::iter::descendants;
+///    use rayon::iter::walk_tree;
 ///
 ///    struct Node {
 ///        content: u32,
@@ -182,7 +183,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///            })),
 ///        })),
 ///    };
-///    let mut v: Vec<u32> = descendants(&root, |r| {
+///    let mut v: Vec<u32> = walk_tree(&root, |r| {
 ///        r.left
 ///            .as_ref()
 ///            .into_iter()
@@ -191,17 +192,16 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///    })
 ///    .map(|node| node.content)
 ///    .collect();
-///    v.sort_unstable();
-///    assert_eq!(v, vec![3, 10, 14, 18]);
+///    assert_eq!(v, vec![10, 3, 14, 18]);
 ///    ```
 ///
-pub fn descendants<S, B, I>(root: S, breed: B) -> Descendants<S, B, I>
+pub fn walk_tree<S, B, I>(root: S, breed: B) -> WalkTree<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
     I: IntoIterator<Item = S> + Send,
 {
-    Descendants {
+    WalkTree {
         initial_state: root,
         breed,
         phantom: PhantomData,

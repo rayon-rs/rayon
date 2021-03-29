@@ -2240,3 +2240,18 @@ fn check_update() {
 
     assert_eq!(v, vec![vec![1, 0], vec![3, 2, 1, 0]]);
 }
+
+#[test]
+fn walk_tree() {
+    let v: Vec<u32> = crate::iter::walk_tree(0u32..100, |r| {
+        // root is smallest
+        let mid = (r.start + 1 + r.end) / 2;
+        // small indices to the left, large to the right
+        std::iter::once((r.start + 1)..mid)
+            .chain(std::iter::once(mid..r.end))
+            .filter(|r| !r.is_empty())
+    })
+    .map(|r| r.start)
+    .collect();
+    assert!(v.into_iter().eq(0..100));
+}
