@@ -252,6 +252,14 @@ impl ThreadPool {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_fifo_in(op, &self.registry) }
     }
+
+    /// Returns the current threadpool.
+    pub fn current() -> ThreadPool {
+        let registry = crate::registry::Registry::current();
+
+        registry.increment_terminate_count();
+        ThreadPool { registry }
+    }
 }
 
 impl Drop for ThreadPool {

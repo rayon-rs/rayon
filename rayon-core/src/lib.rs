@@ -109,6 +109,15 @@ pub fn current_num_threads() -> usize {
     crate::registry::Registry::current_num_threads()
 }
 
+/// Returns the current threadpool.
+///
+/// It is a shorthand for [`Threadpool::current()`][tc].
+///
+/// [tc]: struct.ThreadPool.html#method.current
+pub fn current() -> ThreadPool {
+    ThreadPool::current()
+}
+
 /// Error when initializing a thread pool.
 #[derive(Debug)]
 pub struct ThreadPoolBuildError {
