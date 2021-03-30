@@ -1,27 +1,14 @@
 use super::plumbing::*;
 use super::*;
 
-/// `ByBlocks` is a parallel iterator that consumes itself as a sequence
-/// of parallel blocks.
-///
-/// This struct is created by the [`by_uniform_blocks()`]
-/// and the [`by_doubling_blocks`] methods on [`IndexedParallelIterator`]
-///
-/// [`by_uniform_blocks()`]: trait.IndexedParallelIterator.html#method.by_uniform_blocks
-/// [`by_doubling_blocks()`]: trait.IndexedParallelIterator.html#method.by_doubling_blocks
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct ByBlocks<I, S> {
+struct ByBlocks<I, S> {
     base: I,
     sizes: S,
 }
 
-impl<I, S> ByBlocks<I, S>
-where
-    I: IndexedParallelIterator,
-    S: IntoIterator<Item = usize>,
-{
+impl<I, S> ByBlocks<I, S> {
     /// Creates a new `ByBlocks` iterator.
     pub(super) fn new(base: I, sizes: S) -> Self {
         ByBlocks { base, sizes }
@@ -40,6 +27,7 @@ where
     S: Iterator<Item = usize>,
 {
     type Output = C::Result;
+
     fn callback<P: Producer<Item = T>>(mut self, mut producer: P) -> Self::Output {
         let mut remaining_len = self.len;
         let mut consumer = self.consumer;
@@ -77,6 +65,7 @@ where
     S: Iterator<Item = usize> + Send,
 {
     type Item = I::Item;
+
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
         C: UnindexedConsumer<Self::Item>,
@@ -88,5 +77,71 @@ where
             len,
         };
         self.base.with_producer(callback)
+    }
+}
+
+/// `ExponentialBlocks` is a parallel iterator that consumes itself as a sequence
+/// of parallel blocks of increasing sizes (exponentially).
+///
+/// This struct is created by the [`by_exponential_blocks()`] method on [`IndexedParallelIterator`]
+/// [`by_exponential_blocks()`]: trait.IndexedParallelIterator.html#method.by_exponential_blocks
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug, Clone)]
+pub struct ExponentialBlocks<I>(
+    ByBlocks<I, std::iter::Successors<usize, fn(&usize) -> Option<usize>>>,
+);
+
+impl<I> ExponentialBlocks<I> {
+    pub(super) fn new(base: I) -> Self {
+        let first = crate::current_num_threads();
+        ExponentialBlocks(ByBlocks::new(
+            base,
+            std::iter::successors(Some(first), |s| Some(s.saturating_mul(2))),
+        ))
+    }
+}
+
+impl<I> ParallelIterator for ExponentialBlocks<I>
+where
+    I: IndexedParallelIterator,
+{
+    type Item = I::Item;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        self.0.drive_unindexed(consumer)
+    }
+}
+
+/// `UniformBlocks` is a parallel iterator that consumes itself as a sequence
+/// of parallel blocks of constant sizes.
+///
+/// This struct is created by the [`by_uniform_blocks()`] method on [`IndexedParallelIterator`]
+/// [`by_uniform_blocks()`]: trait.IndexedParallelIterator.html#method.by_uniform_blocks
+/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug, Clone)]
+pub struct UniformBlocks<I>(ByBlocks<I, std::iter::Repeat<usize>>);
+
+impl<I> UniformBlocks<I> {
+    pub(super) fn new(base: I, blocks_size: usize) -> Self {
+        UniformBlocks(ByBlocks::new(base, std::iter::repeat(blocks_size)))
+    }
+}
+
+impl<I> ParallelIterator for UniformBlocks<I>
+where
+    I: IndexedParallelIterator,
+{
+    type Item = I::Item;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        self.0.drive_unindexed(consumer)
     }
 }

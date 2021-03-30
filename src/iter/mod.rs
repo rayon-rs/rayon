@@ -162,7 +162,7 @@ mod zip;
 mod zip_eq;
 
 pub use self::{
-    blocks::ByBlocks,
+    blocks::{ExponentialBlocks, UniformBlocks},
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -2475,20 +2475,15 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// on the right hand side (from 5,000 onwards) is **useless** since the sequential algorithm
     /// never goes there. This means that if two threads are used there will be **no** speedup **at
     /// all**.
-    /// `by_doubling_blocks` on the other hand will start with the leftmost range from 0 to `p` (threads number), continue
+    /// `by_exponential_blocks` on the other hand will start with the leftmost range from 0 to `p` (threads number), continue
     /// with p to 3p, the 3p to 7p...
     /// Each subrange is treated in parallel, while all subranges are treated sequentially.
     /// We therefore ensure a logarithmic number of blocks (and overhead) while guaranteeing
     /// we stop at the first block containing the searched data.
-    fn by_doubling_blocks(
-        self,
-    ) -> ByBlocks<Self, std::iter::Successors<usize, fn(&usize) -> Option<usize>>> {
-        let first = crate::current_num_threads();
-        ByBlocks::new(
-            self,
-            std::iter::successors(Some(first), |s| Some(s.saturating_mul(2))),
-        )
+    fn by_exponental_blocks(self) -> ExponentialBlocks<Self> {
+        ExponentialBlocks::new(self)
     }
+
     /// Normally, parallel iterators are recursively divided into tasks in parallel.
     /// This adaptor changes the default behavior by splitting the iterator into a **sequence**
     /// of parallel iterators of given `blocks_size`.
@@ -2505,9 +2500,10 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///     .reduce(Vec::new, |mut v1, mut v2| { v1.append(&mut v2); v1});
     /// assert_eq!(v, (0u32..10_000_000).collect::<Vec<u32>>());
     /// ```
-    fn by_uniform_blocks(self, blocks_size: usize) -> ByBlocks<Self, std::iter::Repeat<usize>> {
-        ByBlocks::new(self, std::iter::repeat(blocks_size))
+    fn by_uniform_blocks(self, blocks_size: usize) -> UniformBlocks<Self> {
+        UniformBlocks::new(self, blocks_size)
     }
+
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always cleared before execution
     /// begins. If possible, reusing the vector across calls can lead
