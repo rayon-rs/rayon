@@ -1681,7 +1681,7 @@ pub trait ParallelIterator: Sized + Send {
     /// an earlier match is found.
     ///
     /// For added performances, you might consider using `find_first`
-    /// in conjunction with [`by_doubling_blocks()`].
+    /// in conjunction with [`by_exponential_blocks()`].
     ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
@@ -1700,7 +1700,7 @@ pub trait ParallelIterator: Sized + Send {
     /// assert_eq!(a.par_iter().find_first(|&&x| x == 100), None);
     /// ```
     ///
-    /// [`by_doubling_blocks()`]: trait.IndexedParallelIterator.html#method.by_doubling_blocks
+    /// [`by_exponential_blocks()`]: trait.IndexedParallelIterator.html#method.by_exponential_blocks
     fn find_first<P>(self, predicate: P) -> Option<Self::Item>
     where
         P: Fn(&Self::Item) -> bool + Sync + Send,
@@ -2453,7 +2453,9 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Normally, parallel iterators are recursively divided into tasks in parallel.
     /// This adaptor changes the default behavior by splitting the iterator into a **sequence**
-    /// of parallel iterators of doubling sizes.
+    /// of parallel iterators of increasing sizes.
+    /// Sizes grow exponentially in order to avoid creating
+    /// too many blocks. This also allows to balance the current block with all previous ones.
     ///
     /// This can have many applications but the most notable ones are:
     /// - better performances with [`find_first()`]
@@ -2467,7 +2469,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     /// use rayon::prelude::*;
     /// assert_eq!((0..10_000).into_par_iter()
-    ///                       .by_doubling_blocks()
+    ///                       .by_exponential_blocks()
     ///                       .find_first(|&e| e==4_999), Some(4_999))
     /// ```
     ///
@@ -2480,7 +2482,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// Each subrange is treated in parallel, while all subranges are treated sequentially.
     /// We therefore ensure a logarithmic number of blocks (and overhead) while guaranteeing
     /// we stop at the first block containing the searched data.
-    fn by_exponental_blocks(self) -> ExponentialBlocks<Self> {
+    fn by_exponential_blocks(self) -> ExponentialBlocks<Self> {
         ExponentialBlocks::new(self)
     }
 
