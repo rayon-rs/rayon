@@ -110,6 +110,18 @@ where
 ///
 /// This guarantees a prefix ordering.
 /// Between siblings, last bred child comes first.
+/// For example a perfect binary tree of 7 nodes will reduced in the following order:
+///
+/// ```text
+///      1
+///     / \
+///    /   \
+///   5     2
+///  / \   / \
+/// 7   6 4   3
+/// ```
+///
+///
 /// For a postfix ordering see the (faster) [`walk_tree_postfix()`] function.
 ///
 /// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
@@ -328,6 +340,18 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///
 /// This guarantees a postfix ordering.
 /// Between siblings, first bred child comes first.
+///
+/// For example a perfect binary tree of 7 nodes will reduced in the following order:
+///
+/// ```text
+///      7
+///     / \
+///    /   \
+///   3     6
+///  / \   / \
+/// 1   2 4   5
+/// ```
+///
 /// For a prefix ordering see the (slower) [`walk_tree_prefix()`] function.
 ///
 /// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
