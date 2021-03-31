@@ -2242,8 +2242,8 @@ fn check_update() {
 }
 
 #[test]
-fn walk_tree() {
-    let v: Vec<u32> = crate::iter::walk_tree(0u32..100, |r| {
+fn walk_tree_prefix() {
+    let v: Vec<u32> = crate::iter::walk_tree_prefix(0u32..100, |r| {
         // root is smallest
         let mid = (r.start + 1 + r.end) / 2;
         // small indices to the left, large to the right
