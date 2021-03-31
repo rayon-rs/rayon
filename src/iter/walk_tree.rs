@@ -6,9 +6,9 @@ use std::marker::PhantomData;
 
 #[derive(Debug)]
 struct WalkTreeProducer<'b, S, B, I> {
-    to_explore: VecDeque<Vec<S>>, // we do a depth first exploration so we need a stack
-    seen: Vec<S>,                 // nodes which have already been explored
-    breed: &'b B,                 // function generating children
+    to_explore: VecDeque<S>, // nodes (and subtrees) we have to process
+    seen: Vec<S>,            // nodes which have already been explored
+    breed: &'b B,            // function generating children
     phantom: PhantomData<I>,
 }
 
@@ -20,26 +20,18 @@ where
 {
     type Item = S;
     fn split(mut self) -> (Self, Option<Self>) {
+        debug_assert!(self.to_explore.len() <= 1);
         // explore while front is of size one.
-        while self
-            .to_explore
-            .front()
-            .map(|f| f.len() == 1)
-            .unwrap_or(false)
-        {
-            let front_node = self.to_explore.pop_front().unwrap().pop().unwrap();
-            let next_to_explore: Vec<_> = (self.breed)(&front_node).into_iter().collect();
-            if !next_to_explore.is_empty() {
-                self.to_explore.push_back(next_to_explore);
-            }
+        while self.to_explore.len() == 1 {
+            let front_node = self.to_explore.pop_front().unwrap();
+            self.to_explore = (self.breed)(&front_node).into_iter().collect();
             self.seen.push(front_node);
         }
         // now take half of the front.
-        let f = self.to_explore.front_mut();
-        let right_children = f.and_then(|f| split_vec(f));
+        let right_children = split_vecdeque(&mut self.to_explore);
         let right = right_children
             .map(|c| WalkTreeProducer {
-                to_explore: once(c).collect(),
+                to_explore: c,
                 seen: Vec::new(),
                 breed: self.breed,
                 phantom: PhantomData,
@@ -68,13 +60,14 @@ where
             }
         }
         // now do all remaining explorations
-        for mut e in self.to_explore {
-            while let Some(s) = e.pop() {
+        for e in self.to_explore {
+            let mut stack = vec![e];
+            while let Some(s) = stack.pop() {
                 // TODO: this is not very nice,
                 // in order to maintain order i need
                 // to reverse the order of children.
                 let children = (self.breed)(&s).into_iter().collect::<Vec<_>>();
-                e.extend(children.into_iter().rev());
+                stack.extend(children.into_iter().rev());
                 folder = folder.consume(s);
                 if folder.full() {
                     return folder;
@@ -107,12 +100,24 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let producer = WalkTreeProducer {
-            to_explore: once(vec![self.initial_state]).collect(),
+            to_explore: once(self.initial_state).collect(),
             seen: Vec::new(),
             breed: &self.breed,
             phantom: PhantomData,
         };
         bridge_unindexed(producer, consumer)
+    }
+}
+
+/// Divide given vector in two equally sized vectors.
+/// Return `None` if initial size is <=1.
+/// We return the first half and keep the last half in `v`.
+fn split_vecdeque<T>(v: &mut VecDeque<T>) -> Option<VecDeque<T>> {
+    if v.len() <= 1 {
+        None
+    } else {
+        let n = v.len() / 2;
+        Some(v.split_off(n))
     }
 }
 
