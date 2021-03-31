@@ -58,33 +58,26 @@ where
             }
         }
         // now do all remaining explorations
+        let mut stack = Vec::new();
         for e in self.to_explore {
-            folder = consume_rec_prefix(&self.breed, e, folder);
-            if folder.full() {
-                return folder;
+            stack.push(e);
+            while let Some(e) = stack.pop() {
+                extend_reversed(&mut stack, (self.breed)(&e));
+                folder = folder.consume(e);
+                if folder.full() {
+                    return folder;
+                }
             }
         }
         folder
     }
 }
 
-fn consume_rec_prefix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S>>(
-    breed: &B,
-    s: S,
-    mut folder: F,
-) -> F {
-    let children = (breed)(&s).into_iter().collect::<Vec<_>>();
-    folder = folder.consume(s);
-    if folder.full() {
-        return folder;
-    }
-    for child in children {
-        folder = consume_rec_prefix(breed, child, folder);
-        if folder.full() {
-            return folder;
-        }
-    }
-    folder
+fn extend_reversed<T, I: IntoIterator<Item = T>>(v: &mut Vec<T>, iter: I) {
+    let old_size = v.len();
+    v.extend(iter);
+    let new_len = v.len();
+    (0..(new_len - old_size) / 2).for_each(|i| v.swap(old_size + i, new_len - i - 1))
 }
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
