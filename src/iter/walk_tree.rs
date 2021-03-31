@@ -28,11 +28,14 @@ where
         // now take half of the front.
         let right_children = split_vec(&mut self.to_explore);
         let right = right_children
-            .map(|c| WalkTreePrefixProducer {
-                to_explore: c,
-                seen: Vec::new(),
-                breed: self.breed,
-                phantom: PhantomData,
+            .map(|mut c| {
+                std::mem::swap(&mut c, &mut self.to_explore);
+                WalkTreePrefixProducer {
+                    to_explore: c,
+                    seen: Vec::new(),
+                    breed: self.breed,
+                    phantom: PhantomData,
+                }
             })
             .or_else(|| {
                 // we can still try to divide 'seen'
@@ -46,7 +49,7 @@ where
             });
         (self, right)
     }
-    fn fold_with<F>(self, mut folder: F) -> F
+    fn fold_with<F>(mut self, mut folder: F) -> F
     where
         F: Folder<Self::Item>,
     {
@@ -58,26 +61,15 @@ where
             }
         }
         // now do all remaining explorations
-        let mut stack = Vec::new();
-        for e in self.to_explore {
-            stack.push(e);
-            while let Some(e) = stack.pop() {
-                extend_reversed(&mut stack, (self.breed)(&e));
-                folder = folder.consume(e);
-                if folder.full() {
-                    return folder;
-                }
+        while let Some(e) = self.to_explore.pop() {
+            self.to_explore.extend((self.breed)(&e));
+            folder = folder.consume(e);
+            if folder.full() {
+                return folder;
             }
         }
         folder
     }
-}
-
-fn extend_reversed<T, I: IntoIterator<Item = T>>(v: &mut Vec<T>, iter: I) {
-    let old_size = v.len();
-    v.extend(iter);
-    let new_len = v.len();
-    (0..(new_len - old_size) / 2).for_each(|i| v.swap(old_size + i, new_len - i - 1))
 }
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
@@ -116,7 +108,9 @@ where
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
 ///
-/// This guarantees a prefix ordering. For a postfix ordering see the (faster) [`walk_tree_postfix()`] function.
+/// This guarantees a prefix ordering.
+/// Between siblings, last bred child comes first.
+/// For a postfix ordering see the (faster) [`walk_tree_postfix()`] function.
 ///
 /// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
 ///
@@ -179,7 +173,7 @@ where
 ///    })
 ///    .map(|node| node.content)
 ///    .collect();
-///    assert_eq!(v, vec![10, 3, 14, 18]);
+///    assert_eq!(v, vec![10, 14, 18, 3]);
 ///    ```
 ///
 pub fn walk_tree_prefix<S, B, I>(root: S, breed: B) -> WalkTreePrefix<S, B, I>
@@ -332,7 +326,9 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
 ///
-/// This guarantees a postfix ordering. For a prefix ordering see the (slower) [`walk_tree_prefix()`] function.
+/// This guarantees a postfix ordering.
+/// Between siblings, first bred child comes first.
+/// For a prefix ordering see the (slower) [`walk_tree_prefix()`] function.
 ///
 /// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
 ///
