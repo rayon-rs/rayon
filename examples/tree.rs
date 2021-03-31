@@ -18,6 +18,23 @@ fn prefix_collect() {
     println!("prefix collect took {:?}", start.elapsed());
     assert!(v.into_iter().eq(0..SIZE));
 }
+
+fn postfix_collect() {
+    let start = std::time::Instant::now();
+    let v: Vec<_> = rayon::iter::walk_tree_postfix(0u64..SIZE, |r| {
+        // root is largest
+        let mid = (r.start + r.end - 1) / 2;
+        // small indices to the left, large to the right
+        std::iter::once(r.start..mid)
+            .chain(std::iter::once(mid..(r.end - 1)))
+            .filter(|r| !r.is_empty())
+    })
+    .map(|r| r.end - 1)
+    .collect();
+    println!("postfix collect took {:?}", start.elapsed());
+    assert!(v.into_iter().eq(0..SIZE));
+}
+
 fn prefix_sum() {
     let start = std::time::Instant::now();
     let s = rayon::iter::walk_tree_prefix(0u64..SIZE, |r| {
@@ -51,6 +68,7 @@ fn postfix_sum() {
 
 fn main() {
     prefix_collect();
+    postfix_collect();
     prefix_sum();
     postfix_sum();
 }

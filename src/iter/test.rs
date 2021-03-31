@@ -2255,3 +2255,18 @@ fn walk_tree_prefix() {
     .collect();
     assert!(v.into_iter().eq(0..100));
 }
+
+#[test]
+fn walk_tree_postfix() {
+    let v: Vec<_> = crate::iter::walk_tree_postfix(0u64..100, |r| {
+        // root is largest
+        let mid = (r.start + r.end - 1) / 2;
+        // small indices to the left, large to the right
+        std::iter::once(r.start..mid)
+            .chain(std::iter::once(mid..(r.end - 1)))
+            .filter(|r| !r.is_empty())
+    })
+    .map(|r| r.end - 1)
+    .collect();
+    assert!(v.into_iter().eq(0..100));
+}

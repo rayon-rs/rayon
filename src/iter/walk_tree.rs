@@ -1,14 +1,13 @@
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::prelude::*;
-use std::collections::VecDeque;
 use std::iter::once;
 use std::marker::PhantomData;
 
 #[derive(Debug)]
 struct WalkTreePrefixProducer<'b, S, B, I> {
-    to_explore: VecDeque<S>, // nodes (and subtrees) we have to process
-    seen: Vec<S>,            // nodes which have already been explored
-    breed: &'b B,            // function generating children
+    to_explore: Vec<S>, // nodes (and subtrees) we have to process
+    seen: Vec<S>,       // nodes which have already been explored
+    breed: &'b B,       // function generating children
     phantom: PhantomData<I>,
 }
 
@@ -22,12 +21,12 @@ where
     fn split(mut self) -> (Self, Option<Self>) {
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
-            let front_node = self.to_explore.pop_front().unwrap();
+            let front_node = self.to_explore.pop().unwrap();
             self.to_explore = (self.breed)(&front_node).into_iter().collect();
             self.seen.push(front_node);
         }
         // now take half of the front.
-        let right_children = split_vecdeque(&mut self.to_explore);
+        let right_children = split_vec(&mut self.to_explore);
         let right = right_children
             .map(|c| WalkTreePrefixProducer {
                 to_explore: c,
@@ -207,9 +206,9 @@ where
 
 #[derive(Debug)]
 struct WalkTreePostfixProducer<'b, S, B, I> {
-    to_explore: VecDeque<S>, // nodes (and subtrees) we have to process
-    seen: Vec<S>,            // nodes which have already been explored
-    breed: &'b B,            // function generating children
+    to_explore: Vec<S>, // nodes (and subtrees) we have to process
+    seen: Vec<S>,       // nodes which have already been explored
+    breed: &'b B,       // function generating children
     phantom: PhantomData<I>,
 }
 
@@ -223,12 +222,12 @@ where
     fn split(mut self) -> (Self, Option<Self>) {
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
-            let front_node = self.to_explore.pop_front().unwrap();
+            let front_node = self.to_explore.pop().unwrap();
             self.to_explore = (self.breed)(&front_node).into_iter().collect();
             self.seen.push(front_node);
         }
         // now take half of the front.
-        let right_children = split_vecdeque(&mut self.to_explore);
+        let right_children = split_vec(&mut self.to_explore);
         let right = right_children
             .map(|c| {
                 let mut right_seen = Vec::new();
@@ -320,18 +319,6 @@ where
             phantom: PhantomData,
         };
         bridge_unindexed(producer, consumer)
-    }
-}
-
-/// Divide given deque in two equally sized deques.
-/// Return `None` if initial size is <=1.
-/// We return the first half and keep the last half in `v`.
-fn split_vecdeque<T>(v: &mut VecDeque<T>) -> Option<VecDeque<T>> {
-    if v.len() <= 1 {
-        None
-    } else {
-        let n = v.len() / 2;
-        Some(v.split_off(n))
     }
 }
 
