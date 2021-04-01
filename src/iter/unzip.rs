@@ -462,3 +462,64 @@ where
         }
     }
 }
+
+impl<A, B, FromA, FromB> FromParallelIterator<(A, B)> for (FromA, FromB)
+where
+    A: Send,
+    B: Send,
+    FromA: Send + FromParallelIterator<A>,
+    FromB: Send + FromParallelIterator<B>,
+{
+    fn from_par_iter<I>(pi: I) -> Self
+    where
+        I: IntoParallelIterator<Item = (A, B)>,
+    {
+        let (a, b): (Collector<FromA>, Collector<FromB>) = pi.into_par_iter().unzip();
+        (a.result.unwrap(), b.result.unwrap())
+    }
+}
+
+impl<L, R, A, B> FromParallelIterator<Either<L, R>> for (A, B)
+where
+    L: Send,
+    R: Send,
+    A: Send + FromParallelIterator<L>,
+    B: Send + FromParallelIterator<R>,
+{
+    fn from_par_iter<I>(pi: I) -> Self
+    where
+        I: IntoParallelIterator<Item = Either<L, R>>,
+    {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+
+        let (a, b): (Collector<A>, Collector<B>) = pi.into_par_iter().partition_map(identity);
+        (a.result.unwrap(), b.result.unwrap())
+    }
+}
+
+/// Shim to implement a one-time `ParallelExtend` using `FromParallelIterator`.
+struct Collector<FromT> {
+    result: Option<FromT>,
+}
+
+impl<FromT> Default for Collector<FromT> {
+    fn default() -> Self {
+        Collector { result: None }
+    }
+}
+
+impl<T, FromT> ParallelExtend<T> for Collector<FromT>
+where
+    T: Send,
+    FromT: Send + FromParallelIterator<T>,
+{
+    fn par_extend<I>(&mut self, pi: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        debug_assert!(self.result.is_none());
+        self.result = Some(pi.into_par_iter().collect());
+    }
+}
