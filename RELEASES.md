@@ -606,7 +606,7 @@ Thanks to the following people for their contributions to this release:
 This release includes a lot of progress towards the goal of parity
 with the sequential iterator API, though there are still a few methods
 that are not yet complete. If you'd like to help with that effort,
-[check out the milestone](https://github.com/nikomatsakis/rayon/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22Parity+with+the+%60Iterator%60+trait%22)
+[check out the milestone](https://github.com/rayon-rs/rayon/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22Parity+with+the+%60Iterator%60+trait%22)
 to see the remaining issues.
 
 **Announcement:** @cuviper has been added as a collaborator to the
@@ -672,7 +672,7 @@ API. Thanks @cuviper! Keep it up.
   - We are considering removing weights or changing the weight mechanism
     before 1.0. Examples of scenarios where you still need weights even
     with this adaptive mechanism would be great. Join the discussion
-    at <https://github.com/nikomatsakis/rayon/issues/111>.
+    at <https://github.com/rayon-rs/rayon/issues/111>.
 - New (unstable) scoped threads API, see `rayon::scope` for details.
   - You will need to supply the [cargo feature] `unstable`.
 - The various demos and benchmarks have been consolidated into one
@@ -682,7 +682,7 @@ API. Thanks @cuviper! Keep it up.
 - Various internal cleanup in the implementation and typo fixes.
   Thanks @cuviper, @Eh2406, and @spacejam!
 
-[cargo feature]: http://doc.crates.io/manifest.html#the-features-section
+[cargo feature]: https://doc.rust-lang.org/cargo/reference/features.html#the-features-section
 
 
 # Release 0.4.2 (2016-09-15)

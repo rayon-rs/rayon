@@ -15,7 +15,7 @@ Belt Rust conference.) Rayon is
 [available on crates.io](https://crates.io/crates/rayon), and
 [API Documentation is available on docs.rs](https://docs.rs/rayon/).
 
-[blog]: http://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
+[blog]: https://smallcultfollowing.com/babysteps/blog/2015/12/18/rayon-data-parallelism-in-rust/
 [video]: https://www.youtube.com/watch?v=gof_OEv71Aw
 
 ## Parallel iterators and more

@@ -7,7 +7,7 @@ use super::weight::Weight;
 
 // Parses "TSPLIB" files from sources like
 //
-// http://www.math.uwaterloo.ca/tsp/world/dj38.tsp
+// https://www.math.uwaterloo.ca/tsp/world/dj38.tsp
 //
 // The format looks roughly like this, at least for EUC_2D cases:
 //
