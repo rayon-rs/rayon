@@ -86,7 +86,7 @@ tscounter.store(value + 1, Ordering::SeqCst);
 
 You can already see that the `AtomicUsize` API is a bit more complex,
 as it requires you to specify an
-[ordering](http://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html). (I
+[ordering](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html). (I
 won't go into the details on ordering here, but suffice to say that if
 you don't know what an ordering is, and probably even if you do, you
 should use `Ordering::SeqCst`.) The danger in this parallel version of

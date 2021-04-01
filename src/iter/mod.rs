@@ -61,7 +61,7 @@
 //! If you'd like to build a custom parallel iterator, or to write your own
 //! combinator, then check out the [split] function and the [plumbing] module.
 //!
-//! [regular iterator]: http://doc.rust-lang.org/std/iter/trait.Iterator.html
+//! [regular iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 //! [`ParallelIterator`]: trait.ParallelIterator.html
 //! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 //! [split]: fn.split.html
