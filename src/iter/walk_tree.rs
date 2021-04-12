@@ -111,7 +111,7 @@ where
 /// # Ordering
 ///
 /// This function guarantees a prefix ordering. See also [`walk_tree_postfix`], which guarantees a postfix order. If you don't care about ordering, you should use `walk_tree`, which will use whatever is believed to be fastest.
-/// Between siblings, last bred child comes first.
+/// Between siblings, children are reduced in reverse order -- that is, the children that returned last are reduced first.
 /// For example a perfect binary tree of 7 nodes will reduced in the following order:
 ///
 /// ```text
