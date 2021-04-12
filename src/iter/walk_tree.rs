@@ -103,7 +103,7 @@ where
     }
 }
 
-/// Create a tree like parallel iterator from an initial root state.
+/// Create a tree-like parallel iterator from an initial root node.
 /// The `children_of` function should take a node and return an iterator over its child nodes.
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
