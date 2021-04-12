@@ -74,6 +74,7 @@ where
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree_prefix()`] function.
+///
 /// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
 #[derive(Debug)]
 pub struct WalkTreePrefix<S, B, I> {
@@ -103,14 +104,17 @@ where
     }
 }
 
-/// Create a tree-like parallel iterator from an initial root node.
+/// Create a tree-like prefix parallel iterator from an initial root node.
 /// The `children_of` function should take a node and return an iterator over its child nodes.
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
 ///
 /// # Ordering
 ///
-/// This function guarantees a prefix ordering. See also [`walk_tree_postfix`], which guarantees a postfix order. If you don't care about ordering, you should use `walk_tree`, which will use whatever is believed to be fastest.
+/// This function guarantees a prefix ordering. See also [`walk_tree_postfix`],
+/// which guarantees a postfix order.
+/// If you don't care about ordering, you should use [`walk_tree`],
+/// which will use whatever is believed to be fastest.
 /// Between siblings, children are reduced in reverse order -- that is, the children that returned last are reduced first.
 /// For example a perfect binary tree of 7 nodes will reduced in the following order:
 ///
@@ -127,8 +131,18 @@ where
 /// For a postfix ordering see the (faster) [`walk_tree_postfix()`] function.
 ///
 /// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
+/// [`walk_tree()`]: fn.walk_tree.html
 ///
 /// # Example
+///
+/// ```text
+///      4
+///     / \
+///    /   \
+///   2     3
+///        / \
+///       1   2
+/// ```
 ///
 /// ```
 /// use rayon::prelude::*;
@@ -294,6 +308,7 @@ fn consume_rec_postfix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree_postfix()`] function.
+///
 /// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
 #[derive(Debug)]
 pub struct WalkTreePostfix<S, B, I> {
@@ -335,13 +350,18 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
     }
 }
 
-/// Create a tree like parallel iterator from an initial root state.
-/// Thre `breed` function should take a state and iterate on all of its children states.
+/// Create a tree like postfix parallel iterator from an initial root node.
+/// Thre `children_of` function should take a node and iterate on all of its child nodes.
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
 ///
-/// This guarantees a postfix ordering.
-/// Between siblings, first bred child comes first.
+/// # Ordering
+///
+/// This function guarantees a postfix ordering. See also [`walk_tree_prefix`] which guarantees a
+/// prefix order. If you don't care about ordering, you should use [`walk_tree`], which will use
+/// whatever is believed to be fastest.
+///
+/// Between siblings, children are reduced in order -- that is first children are reduced first.
 ///
 /// For example a perfect binary tree of 7 nodes will reduced in the following order:
 ///
@@ -357,8 +377,18 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// For a prefix ordering see the (slower) [`walk_tree_prefix()`] function.
 ///
 /// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
+/// [`walk_tree()`]: fn.walk_tree.html
 ///
 /// # Example
+///
+/// ```text
+///      4
+///     / \
+///    /   \
+///   2     3
+///        / \
+///       1   2
+/// ```
 ///
 /// ```
 /// use rayon::prelude::*;
@@ -430,5 +460,74 @@ where
         initial_state: root,
         breed,
         phantom: PhantomData,
+    }
+}
+
+/// ParallelIterator for arbitrary tree-shaped patterns.
+/// Returned by the [`walk_tree()`] function.
+///
+/// [`walk_tree()`]: fn.walk_tree_prefix.html
+#[derive(Debug)]
+pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
+
+/// Create a tree like parallel iterator from an initial root node.
+/// Thre `children_of` function should take a node and iterate on all of its child nodes.
+/// The best parallelization is obtained when the tree is balanced
+/// but we should also be able to handle harder cases.
+///
+/// # Ordering
+///
+/// This function does not guarantee any ordering.
+/// See also [`walk_tree_prefix`] which guarantees a
+/// prefix order and [`walk_tree_postfix`] which guarantees a postfix order.
+///
+/// # Example
+///
+/// ```text
+///      4
+///     / \
+///    /   \
+///   2     3
+///        / \
+///       1   2
+/// ```
+///
+/// ```
+/// use rayon::prelude::*;
+/// use rayon::iter::walk_tree_postfix;
+/// assert_eq!(
+///     walk_tree_postfix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
+///         .sum::<u32>(),
+///     12);
+/// ```
+///
+/// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
+/// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
+pub fn walk_tree<S, B, I>(root: S, breed: B) -> WalkTree<S, B, I>
+where
+    S: Send,
+    B: Fn(&S) -> I + Send + Sync,
+    I: IntoIterator<Item = S> + Send,
+{
+    let walker = WalkTreePostfix {
+        initial_state: root,
+        breed,
+        phantom: PhantomData,
+    };
+    WalkTree(walker)
+}
+
+impl<S, B, I> ParallelIterator for WalkTree<S, B, I>
+where
+    S: Send,
+    B: Fn(&S) -> I + Send + Sync,
+    I: IntoIterator<Item = S> + Send,
+{
+    type Item = S;
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        self.0.drive_unindexed(consumer)
     }
 }
