@@ -1,12 +1,13 @@
 //! Methods for custom fork-join scopes, created by the [`scope()`]
-//! function. These are a more flexible alternative to [`join()`].
+//! and [`in_place_scope()`] functions. These are a more flexible alternative to [`join()`].
 //!
 //! [`scope()`]: fn.scope.html
+//! [`in_place_scope()`]: fn.in_place_scope.html
 //! [`join()`]: ../join/join.fn.html
 
 use crate::job::{HeapJob, JobFifo};
-use crate::latch::CountLatch;
-use crate::registry::{in_worker, Registry, WorkerThread};
+use crate::latch::{CountLatch, CountLockLatch, Latch};
+use crate::registry::{global_registry, in_worker, Registry, WorkerThread};
 use crate::unwind;
 use std::any::Any;
 use std::fmt;
@@ -37,21 +38,37 @@ pub struct ScopeFifo<'scope> {
     fifos: Vec<JobFifo>,
 }
 
-struct ScopeBase<'scope> {
-    /// thread where `scope()` was executed (note that individual jobs
-    /// may be executing on different worker threads, though they
-    /// should always be within the same pool of threads)
-    owner_thread_index: usize,
+enum ScopeLatch {
+    /// A latch for scopes created on a rayon thread which will participate in work-
+    /// stealing while it waits for completion. This thread is not necessarily part
+    /// of the same registry as the scope itself!
+    Stealing {
+        latch: CountLatch,
+        /// If a worker thread in registry A calls `in_place_scope` on a ThreadPool
+        /// with registry B, when a job completes in a thread of registry B, we may
+        /// need to call `latch.set_and_tickle_one()` to wake the thread in registry A.
+        /// That means we need a reference to registry A (since at that point we will
+        /// only have a reference to registry B), so we stash it here.
+        registry: Arc<Registry>,
+        /// The index of the worker to wake in `registry`
+        worker_index: usize,
+    },
 
-    /// thread registry where `scope()` was executed.
+    /// A latch for scopes created on a non-rayon thread which will block to wait.
+    Blocking { latch: CountLockLatch },
+}
+
+struct ScopeBase<'scope> {
+    /// thread registry where `scope()` was executed or where `in_place_scope()`
+    /// should spawn jobs.
     registry: Arc<Registry>,
 
     /// if some job panicked, the error is stored here; it will be
     /// propagated to the one who created the scope
     panic: AtomicPtr<Box<dyn Any + Send + 'static>>,
 
-    /// latch to set when the counter drops to zero (and hence this scope is complete)
-    job_completed_latch: CountLatch,
+    /// latch to track job counts
+    job_completed_latch: ScopeLatch,
 
     /// You can think of a scope as containing a list of closures to execute,
     /// all of which outlive `'scope`.  They're not actually required to be
@@ -289,8 +306,10 @@ where
     R: Send,
 {
     in_worker(|owner_thread, _| {
-        let scope = Scope::<'scope>::new(owner_thread);
-        unsafe { scope.base.complete(owner_thread, || op(&scope)) }
+        let scope = Scope {
+            base: ScopeBase::new(owner_thread, owner_thread.registry().clone()),
+        };
+        unsafe { scope.base.complete(Some(owner_thread), || op(&scope)) }
     })
 }
 
@@ -381,17 +400,70 @@ where
 {
     in_worker(|owner_thread, _| {
         let scope = ScopeFifo::<'scope>::new(owner_thread);
-        unsafe { scope.base.complete(owner_thread, || op(&scope)) }
+        unsafe { scope.base.complete(Some(owner_thread), || op(&scope)) }
     })
 }
 
-impl<'scope> Scope<'scope> {
-    fn new(owner_thread: &WorkerThread) -> Self {
-        Scope {
-            base: ScopeBase::new(owner_thread),
+/// Creates a "fork-join" scope `s` and invokes the closure with a
+/// reference to `s`. This closure can then spawn asynchronous tasks
+/// into `s`. Those tasks may run asynchronously with respect to the
+/// closure; they may themselves spawn additional tasks into `s`. When
+/// the closure returns, it will block until all tasks that have been
+/// spawned into `s` complete.
+///
+/// This is just like `scope()` except the closure runs on the same thread
+/// that calls `in_place_scope()`. Only work that it spawns runs in the
+/// thread pool.
+///
+/// # Panics
+///
+/// If a panic occurs, either in the closure given to `scope()` or in
+/// any of the spawned jobs, that panic will be propagated and the
+/// call to `scope()` will panic. If multiple panics occurs, it is
+/// non-deterministic which of their panic values will propagate.
+/// Regardless, once a task is spawned using `scope.spawn()`, it will
+/// execute, even if the spawning task should later panic. `scope()`
+/// returns once all spawned jobs have completed, and any panics are
+/// propagated at that point.
+pub fn in_place_scope<'scope, OP, R>(op: OP) -> R
+where
+    OP: FnOnce(&Scope<'scope>) -> R,
+{
+    let worker_thread = WorkerThread::current();
+    let (scope_base, thread) = if worker_thread.is_null() {
+        (ScopeBase::new_blocking(global_registry().clone()), None)
+    } else {
+        unsafe {
+            (
+                ScopeBase::new(&*worker_thread, (*worker_thread).registry().clone()),
+                Some(&*worker_thread),
+            )
         }
-    }
+    };
+    let scope = Scope { base: scope_base };
+    unsafe { scope.base.complete(thread, || op(&scope)) }
+}
 
+pub(crate) fn do_in_place_scope<'scope, OP, R>(registry: Arc<Registry>, op: OP) -> R
+where
+    OP: FnOnce(&Scope<'scope>) -> R,
+{
+    let worker_thread = WorkerThread::current();
+    let (scope_base, thread) = if worker_thread.is_null() {
+        (ScopeBase::new_blocking(registry), None)
+    } else {
+        unsafe {
+            (
+                ScopeBase::new(&*worker_thread, registry),
+                Some(&*worker_thread),
+            )
+        }
+    };
+    let scope = Scope { base: scope_base };
+    unsafe { scope.base.complete(thread, || op(&scope)) }
+}
+
+impl<'scope> Scope<'scope> {
     /// Spawns a job into the fork-join scope `self`. This job will
     /// execute sometime before the fork-join scope completes.  The
     /// job is specified as a closure, and this closure receives its
@@ -457,6 +529,7 @@ impl<'scope> Scope<'scope> {
 
             // Since `Scope` implements `Sync`, we can't be sure that we're still in a
             // thread of this pool, so we can't just push to the local worker thread.
+            // Also, this might be an in-place scope.
             self.base.registry.inject_or_push(job_ref);
         }
     }
@@ -466,7 +539,7 @@ impl<'scope> ScopeFifo<'scope> {
     fn new(owner_thread: &WorkerThread) -> Self {
         let num_threads = owner_thread.registry().num_threads();
         ScopeFifo {
-            base: ScopeBase::new(owner_thread),
+            base: ScopeBase::new(owner_thread, owner_thread.registry().clone()),
             fifos: (0..num_threads).map(|_| JobFifo::new()).collect(),
         }
     }
@@ -511,12 +584,20 @@ impl<'scope> ScopeFifo<'scope> {
 
 impl<'scope> ScopeBase<'scope> {
     /// Creates the base of a new scope for the given worker thread
-    fn new(owner_thread: &WorkerThread) -> Self {
+    fn new(owner: &WorkerThread, registry: Arc<Registry>) -> Self {
         ScopeBase {
-            owner_thread_index: owner_thread.index(),
-            registry: owner_thread.registry().clone(),
+            registry: registry,
             panic: AtomicPtr::new(ptr::null_mut()),
-            job_completed_latch: CountLatch::new(),
+            job_completed_latch: ScopeLatch::new(owner),
+            marker: PhantomData,
+        }
+    }
+
+    fn new_blocking(registry: Arc<Registry>) -> Self {
+        ScopeBase {
+            registry: registry,
+            panic: AtomicPtr::new(ptr::null_mut()),
+            job_completed_latch: ScopeLatch::new_blocking(),
             marker: PhantomData,
         }
     }
@@ -529,12 +610,13 @@ impl<'scope> ScopeBase<'scope> {
     /// appropriate.
     ///
     /// Unsafe because it must be executed on a worker thread.
-    unsafe fn complete<FUNC, R>(&self, owner_thread: &WorkerThread, func: FUNC) -> R
+    unsafe fn complete<FUNC, R>(&self, owner: Option<&WorkerThread>, func: FUNC) -> R
     where
         FUNC: FnOnce() -> R,
     {
         let result = self.execute_job_closure(func);
-        self.steal_till_jobs_complete(owner_thread);
+        self.job_completed_latch.wait(owner);
+        self.maybe_propagate_panic();
         result.unwrap() // only None if `op` panicked, and that would have been propagated
     }
 
@@ -560,11 +642,12 @@ impl<'scope> ScopeBase<'scope> {
     {
         match unwind::halt_unwinding(func) {
             Ok(r) => {
-                self.job_completed_ok();
+                self.job_completed_latch.set();
                 Some(r)
             }
             Err(err) => {
                 self.job_panicked(err);
+                self.job_completed_latch.set();
                 None
             }
         }
@@ -581,20 +664,9 @@ impl<'scope> ScopeBase<'scope> {
         {
             mem::forget(err); // ownership now transferred into self.panic
         }
-
-        self.job_completed_latch
-            .set_and_tickle_one(&self.registry, self.owner_thread_index);
     }
 
-    unsafe fn job_completed_ok(&self) {
-        self.job_completed_latch
-            .set_and_tickle_one(&self.registry, self.owner_thread_index);
-    }
-
-    unsafe fn steal_till_jobs_complete(&self, owner_thread: &WorkerThread) {
-        // wait for job counter to reach 0:
-        owner_thread.wait_until(&self.job_completed_latch);
-
+    unsafe fn maybe_propagate_panic(&self) {
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed
         // ordering:
@@ -606,11 +678,60 @@ impl<'scope> ScopeBase<'scope> {
     }
 }
 
+impl ScopeLatch {
+    fn new(owner: &WorkerThread) -> Self {
+        ScopeLatch::Stealing {
+            latch: CountLatch::new(),
+            registry: owner.registry().clone(),
+            worker_index: owner.index(),
+        }
+    }
+
+    fn new_blocking() -> Self {
+        ScopeLatch::Blocking {
+            latch: CountLockLatch::new(),
+        }
+    }
+
+    fn increment(&self) {
+        match self {
+            ScopeLatch::Stealing { latch, .. } => latch.increment(),
+            ScopeLatch::Blocking { latch } => latch.increment(),
+        }
+    }
+
+    fn set(&self) {
+        match self {
+            ScopeLatch::Stealing {
+                latch,
+                registry,
+                worker_index,
+            } => latch.set_and_tickle_one(registry, *worker_index),
+            ScopeLatch::Blocking { latch } => latch.set(),
+        }
+    }
+
+    fn wait(&self, owner: Option<&WorkerThread>) {
+        match self {
+            ScopeLatch::Stealing {
+                latch,
+                registry,
+                worker_index,
+            } => unsafe {
+                let owner = owner.expect("owner thread");
+                debug_assert_eq!(registry.id(), owner.registry().id());
+                debug_assert_eq!(*worker_index, owner.index());
+                owner.wait_until(latch);
+            },
+            ScopeLatch::Blocking { latch } => latch.wait(),
+        }
+    }
+}
+
 impl<'scope> fmt::Debug for Scope<'scope> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Scope")
             .field("pool_id", &self.base.registry.id())
-            .field("owner_thread_index", &self.base.owner_thread_index)
             .field("panic", &self.base.panic)
             .field("job_completed_latch", &self.base.job_completed_latch)
             .finish()
@@ -622,9 +743,23 @@ impl<'scope> fmt::Debug for ScopeFifo<'scope> {
         fmt.debug_struct("ScopeFifo")
             .field("num_fifos", &self.fifos.len())
             .field("pool_id", &self.base.registry.id())
-            .field("owner_thread_index", &self.base.owner_thread_index)
             .field("panic", &self.base.panic)
             .field("job_completed_latch", &self.base.job_completed_latch)
             .finish()
+    }
+}
+
+impl fmt::Debug for ScopeLatch {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ScopeLatch::Stealing { latch, .. } => fmt
+                .debug_tuple("ScopeLatch::Stealing")
+                .field(latch)
+                .finish(),
+            ScopeLatch::Blocking { latch } => fmt
+                .debug_tuple("ScopeLatch::Blocking")
+                .field(latch)
+                .finish(),
+        }
     }
 }

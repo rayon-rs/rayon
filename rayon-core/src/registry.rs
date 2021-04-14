@@ -164,7 +164,7 @@ static THE_REGISTRY_SET: Once = Once::new();
 /// Starts the worker threads (if that has not already happened). If
 /// initialization has not already occurred, use the default
 /// configuration.
-fn global_registry() -> &'static Arc<Registry> {
+pub(super) fn global_registry() -> &'static Arc<Registry> {
     set_global_registry(|| Registry::new(ThreadPoolBuilder::new()))
         .or_else(|err| unsafe { THE_REGISTRY.as_ref().ok_or(err) })
         .expect("The global thread pool has not been initialized.")
