@@ -218,6 +218,7 @@ impl<'r> Latch for SpinLatch<'r> {
 
 /// A Latch starts as false and eventually becomes true. You can block
 /// until it becomes true.
+#[derive(Debug)]
 pub(super) struct LockLatch {
     m: Mutex<bool>,
     v: Condvar,
