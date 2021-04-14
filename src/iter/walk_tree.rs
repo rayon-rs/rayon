@@ -119,12 +119,15 @@ where
 /// For example a perfect binary tree of 7 nodes will reduced in the following order:
 ///
 /// ```text
-///      1
+///      a
 ///     / \
 ///    /   \
-///   5     2
+///   b     c
 ///  / \   / \
-/// 7   6 4   3
+/// d   e f   g
+///
+/// reduced as  a,c,g,f,b,e,d
+///
 /// ```
 ///
 ///
@@ -366,12 +369,15 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// For example a perfect binary tree of 7 nodes will reduced in the following order:
 ///
 /// ```text
-///      7
+///      a
 ///     / \
 ///    /   \
-///   3     6
+///   b     c
 ///  / \   / \
-/// 1   2 4   5
+/// d   e f   g
+///
+/// reduced as d,e,b,f,g,c,a
+///
 /// ```
 ///
 /// For a prefix ordering see the (slower) [`walk_tree_prefix()`] function.
@@ -477,7 +483,8 @@ pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 ///
 /// # Ordering
 ///
-/// This function does not guarantee any ordering.
+/// This function does not guarantee any ordering but will
+/// use whatever algorithm is thought to achieve the fastest traversal.
 /// See also [`walk_tree_prefix`] which guarantees a
 /// prefix order and [`walk_tree_postfix`] which guarantees a postfix order.
 ///
