@@ -11,18 +11,20 @@ struct WalkTreePrefixProducer<'b, S, B, I> {
     phantom: PhantomData<I>,
 }
 
-impl<'b, S, B, I> UnindexedProducer for WalkTreePrefixProducer<'b, S, B, I>
+impl<'b, S, B, I, IT> UnindexedProducer for WalkTreePrefixProducer<'b, S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    I: IntoIterator<Item = S> + Send,
+    IT: DoubleEndedIterator<Item = S>,
+    I: IntoIterator<Item = S, IntoIter = IT> + Send,
 {
     type Item = S;
     fn split(mut self) -> (Self, Option<Self>) {
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
             let front_node = self.to_explore.pop().unwrap();
-            self.to_explore = (self.breed)(&front_node).into_iter().collect();
+            self.to_explore
+                .extend((self.breed)(&front_node).into_iter().rev());
             self.seen.push(front_node);
         }
         // now take half of the front.
@@ -62,7 +64,7 @@ where
         }
         // now do all remaining explorations
         while let Some(e) = self.to_explore.pop() {
-            self.to_explore.extend((self.breed)(&e));
+            self.to_explore.extend((self.breed)(&e).into_iter().rev());
             folder = folder.consume(e);
             if folder.full() {
                 return folder;
@@ -83,11 +85,12 @@ pub struct WalkTreePrefix<S, B, I> {
     phantom: PhantomData<I>,
 }
 
-impl<S, B, I> ParallelIterator for WalkTreePrefix<S, B, I>
+impl<S, B, I, IT> ParallelIterator for WalkTreePrefix<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    I: IntoIterator<Item = S> + Send,
+    IT: DoubleEndedIterator<Item = S>,
+    I: IntoIterator<Item = S, IntoIter = IT> + Send,
 {
     type Item = S;
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -126,7 +129,7 @@ where
 ///  / \   / \
 /// d   e f   g
 ///
-/// reduced as  a,c,g,f,b,e,d
+/// reduced as  a,b,d,e,c,f,g
 ///
 /// ```
 ///
@@ -204,14 +207,15 @@ where
 ///    })
 ///    .map(|node| node.content)
 ///    .collect();
-///    assert_eq!(v, vec![10, 14, 18, 3]);
+///    assert_eq!(v, vec![10, 3, 14, 18]);
 ///    ```
 ///
-pub fn walk_tree_prefix<S, B, I>(root: S, breed: B) -> WalkTreePrefix<S, B, I>
+pub fn walk_tree_prefix<S, B, I, IT>(root: S, breed: B) -> WalkTreePrefix<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    I: IntoIterator<Item = S> + Send,
+    IT: DoubleEndedIterator<Item = S>,
+    I: IntoIterator<Item = S, IntoIter = IT> + Send,
 {
     WalkTreePrefix {
         initial_state: root,
@@ -241,7 +245,8 @@ where
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
             let front_node = self.to_explore.pop().unwrap();
-            self.to_explore = (self.breed)(&front_node).into_iter().collect();
+            self.to_explore
+                .extend((self.breed)(&front_node).into_iter());
             self.seen.push(front_node);
         }
         // now take half of the front.

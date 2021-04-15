@@ -2246,9 +2246,9 @@ fn walk_tree_prefix() {
     let v: Vec<u32> = crate::iter::walk_tree_prefix(0u32..100, |r| {
         // root is smallest
         let mid = (r.start + 1 + r.end) / 2;
-        // small indices to the right, large to the left
-        std::iter::once(mid..r.end)
-            .chain(std::iter::once((r.start + 1)..mid))
+        // small indices to the left, large to the right
+        std::iter::once((r.start + 1)..mid)
+            .chain(std::iter::once(mid..r.end))
             .filter(|r| !r.is_empty())
     })
     .map(|r| r.start)
@@ -2268,5 +2268,19 @@ fn walk_tree_postfix() {
     })
     .map(|r| r.end - 1)
     .collect();
+    assert!(v.into_iter().eq(0..100));
+}
+
+#[test]
+fn walk_flat_tree_prefix() {
+    let v: Vec<_> =
+        crate::iter::walk_tree_prefix(0, |&e| if e < 99 { Some(e + 1) } else { None }).collect();
+    assert!(v.into_iter().eq(0..100));
+}
+
+#[test]
+fn walk_flat_tree_postfix() {
+    let v: Vec<_> =
+        crate::iter::walk_tree_postfix(99, |&e| if e > 0 { Some(e - 1) } else { None }).collect();
     assert!(v.into_iter().eq(0..100));
 }

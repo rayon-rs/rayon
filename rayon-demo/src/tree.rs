@@ -12,9 +12,9 @@ fn tree_prefix_collect(b: &mut ::test::Bencher) {
             rayon::iter::walk_tree_prefix(0u64..SIZE, |r| {
                 // root is smallest
                 let mid = (r.start + 1 + r.end) / 2;
-                // large indices to the left, small to the right
-                std::iter::once(mid..r.end)
-                    .chain(std::iter::once((r.start + 1)..mid))
+                // small indices to the left, large to the right
+                std::iter::once((r.start + 1)..mid)
+                    .chain(std::iter::once(mid..r.end))
                     .filter(|r| !r.is_empty())
             })
             .map(|r| r.start)
