@@ -2284,3 +2284,35 @@ fn walk_flat_tree_postfix() {
         crate::iter::walk_tree_postfix(99, |&e| if e > 0 { Some(e - 1) } else { None }).collect();
     assert!(v.into_iter().eq(0..100));
 }
+
+#[test]
+fn walk_tree_prefix_degree5() {
+    let depth = 5;
+    let nodes_number = (1 - 5i32.pow(depth)) / (1 - 5);
+    let nodes = (0..nodes_number).collect::<Vec<_>>();
+    let v: Vec<i32> = crate::iter::walk_tree_prefix(nodes.as_slice(), |&r| {
+        r.split_first()
+            .into_iter()
+            .filter_map(|(_, r)| if r.is_empty() { None } else { Some(r) })
+            .flat_map(|r| r.chunks(r.len() / 5))
+    })
+    .filter_map(|r| r.first().copied())
+    .collect();
+    assert_eq!(v, nodes);
+}
+
+#[test]
+fn walk_tree_postfix_degree5() {
+    let depth = 5;
+    let nodes_number = (1 - 5i32.pow(depth)) / (1 - 5);
+    let nodes = (0..nodes_number).collect::<Vec<_>>();
+    let v: Vec<i32> = crate::iter::walk_tree_postfix(nodes.as_slice(), |&r| {
+        r.split_last()
+            .into_iter()
+            .filter_map(|(_, r)| if r.is_empty() { None } else { Some(r) })
+            .flat_map(|r| r.chunks(r.len() / 5))
+    })
+    .filter_map(|r| r.last().copied())
+    .collect();
+    assert_eq!(v, nodes)
+}
