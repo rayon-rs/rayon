@@ -27,6 +27,8 @@ pub(super) struct CollectResult<'c, T> {
     target: &'c mut [MaybeUninit<T>],
     /// The current initialized length in `target`
     len: usize,
+    /// Lifetime invariance guarantees that the data flows from consumer to result,
+    /// especially for the `scope_fn` callback in `Collect::with_consumer`.
     invariant_lifetime: PhantomData<&'c mut &'c mut [T]>,
 }
 
