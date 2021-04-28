@@ -1,11 +1,12 @@
 use super::super::plumbing::*;
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 use std::ptr;
 use std::slice;
 
 pub(super) struct CollectConsumer<'c, T: Send> {
     /// A slice covering the target memory, not yet initialized!
-    target: &'c mut [T],
+    target: &'c mut [MaybeUninit<T>],
 }
 
 pub(super) struct CollectFolder<'c, T: Send> {
@@ -20,7 +21,7 @@ pub(super) struct CollectFolder<'c, T: Send> {
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without reading or dropping existing values.
-    pub(super) fn new(target: &'c mut [T]) -> Self {
+    pub(super) fn new(target: &'c mut [MaybeUninit<T>]) -> Self {
         CollectConsumer { target }
     }
 }
@@ -86,7 +87,8 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
         CollectFolder {
             final_len: self.target.len(),
             result: CollectResult {
-                start: self.target.as_mut_ptr(),
+                // TODO: use `MaybeUninit::slice_as_mut_ptr`
+                start: self.target.as_mut_ptr() as *mut T,
                 len: 0,
                 invariant_lifetime: PhantomData,
             },

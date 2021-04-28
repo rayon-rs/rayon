@@ -1,4 +1,5 @@
 use super::{IndexedParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
+use std::mem::MaybeUninit;
 use std::slice;
 
 mod consumer;
@@ -129,14 +130,16 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     /// and return a slice to the uninitialized tail of the vector
     ///
     /// Safety: The tail slice is uninitialized
-    unsafe fn reserve_get_tail_slice(vec: &mut Vec<T>, len: usize) -> &mut [T] {
+    unsafe fn reserve_get_tail_slice(vec: &mut Vec<T>, len: usize) -> &mut [MaybeUninit<T>] {
         // Reserve the new space.
         vec.reserve(len);
 
-        // Get a correct borrow, then extend it for the newly added length.
+        // TODO: use `Vec::spare_capacity_mut` instead
+        // SAFETY: `MaybeUninit<T>` is guaranteed to have the same layout
+        // as `T`, and we already made sure to have the additional space.
         let start = vec.len();
-        let slice = &mut vec[start..];
-        slice::from_raw_parts_mut(slice.as_mut_ptr(), len)
+        let tail_ptr = vec[start..].as_mut_ptr() as *mut MaybeUninit<T>;
+        slice::from_raw_parts_mut(tail_ptr, len)
     }
 }
 
