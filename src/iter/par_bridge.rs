@@ -125,7 +125,9 @@ where
         let mut count = self.split_count.load(Ordering::SeqCst);
 
         loop {
-            let done = self.done.load(Ordering::SeqCst);
+            // Check if the iterator is exhausted *and* we've consumed every item from it.
+            let done = self.done.load(Ordering::SeqCst) && self.items.is_empty();
+
             match count.checked_sub(1) {
                 Some(new_count) if !done => {
                     match self.split_count.compare_exchange_weak(
@@ -158,13 +160,26 @@ where
                     }
                 }
                 Steal::Empty => {
+                    // Don't storm the mutex if we're already done.
                     if self.done.load(Ordering::SeqCst) {
-                        // the iterator is out of items, no use in continuing
-                        return folder;
+                        // Someone might have pushed more between our `steal()` and `done.load()`
+                        if self.items.is_empty() {
+                            // The iterator is out of items, no use in continuing
+                            return folder;
+                        }
                     } else {
                         // our cache is out of items, time to load more from the iterator
                         match self.iter.try_lock() {
                             Ok(mut guard) => {
+                                // Check `done` again in case we raced with the previous lock
+                                // holder on its way out.
+                                if self.done.load(Ordering::SeqCst) {
+                                    if self.items.is_empty() {
+                                        return folder;
+                                    }
+                                    continue;
+                                }
+
                                 let count = current_num_threads();
                                 let count = (count * count) * 2;
 
@@ -185,7 +200,7 @@ where
                             }
                             Err(TryLockError::WouldBlock) => {
                                 // someone else has the mutex, just sit tight until it's ready
-                                yield_now(); //TODO: use a thread=pool-aware yield? (#548)
+                                yield_now(); //TODO: use a thread-pool-aware yield? (#548)
                             }
                             Err(TryLockError::Poisoned(_)) => {
                                 // any panics from other threads will have been caught by the pool,
