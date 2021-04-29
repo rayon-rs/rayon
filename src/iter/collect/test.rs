@@ -24,7 +24,7 @@ fn produce_too_many_items() {
         let mut folder = consumer.into_folder();
         folder = folder.consume(22);
         folder = folder.consume(23);
-        folder.consume(24);
+        folder = folder.consume(24);
         unreachable!("folder does not complete")
     });
 }

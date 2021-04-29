@@ -141,12 +141,16 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
             let start = self.range.start;
             self.vec.set_len(start);
 
-            // Get a correct borrow lifetime, then extend it to the original length.
-            let mut slice = &mut self.vec[start..];
-            slice = slice::from_raw_parts_mut(slice.as_mut_ptr(), self.range.len());
+            // Create the producer as the exclusive "owner" of the slice.
+            let producer = {
+                // Get a correct borrow lifetime, then extend it to the original length.
+                let mut slice = &mut self.vec[start..];
+                slice = slice::from_raw_parts_mut(slice.as_mut_ptr(), self.range.len());
+                DrainProducer::new(slice)
+            };
 
             // The producer will move or drop each item from the drained range.
-            callback.callback(DrainProducer::new(slice))
+            callback.callback(producer)
         }
     }
 }
@@ -227,7 +231,9 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        let ptr = self.iter.next()?;
+        // Coerce the pointer early, so we don't keep the
+        // reference that's about to be invalidated.
+        let ptr: *const T = self.iter.next()?;
         Some(unsafe { ptr::read(ptr) })
     }
 
@@ -242,7 +248,9 @@ impl<'data, T: 'data> Iterator for SliceDrain<'data, T> {
 
 impl<'data, T: 'data> DoubleEndedIterator for SliceDrain<'data, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let ptr = self.iter.next_back()?;
+        // Coerce the pointer early, so we don't keep the
+        // reference that's about to be invalidated.
+        let ptr: *const T = self.iter.next_back()?;
         Some(unsafe { ptr::read(ptr) })
     }
 }

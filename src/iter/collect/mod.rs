@@ -1,4 +1,5 @@
 use super::{IndexedParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
+use std::mem::MaybeUninit;
 use std::slice;
 
 mod consumer;
@@ -88,55 +89,56 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     where
         F: FnOnce(CollectConsumer<'_, T>) -> CollectResult<'_, T>,
     {
+        let slice = Self::reserve_get_tail_slice(&mut self.vec, self.len);
+        let result = scope_fn(CollectConsumer::new(slice));
+
+        // The CollectResult represents a contiguous part of the
+        // slice, that has been written to.
+        // On unwind here, the CollectResult will be dropped.
+        // If some producers on the way did not produce enough elements,
+        // partial CollectResults may have been dropped without
+        // being reduced to the final result, and we will see
+        // that as the length coming up short.
+        //
+        // Here, we assert that `slice` is fully initialized. This is
+        // checked by the following assert, which verifies if a
+        // complete CollectResult was produced; if the length is
+        // correct, it is necessarily covering the target slice.
+        // Since we know that the consumer cannot have escaped from
+        // `drive` (by parametricity, essentially), we know that any
+        // stores that will happen, have happened. Unless some code is buggy,
+        // that means we should have seen `len` total writes.
+        let actual_writes = result.len();
+        assert!(
+            actual_writes == self.len,
+            "expected {} total writes, but got {}",
+            self.len,
+            actual_writes
+        );
+
+        // Release the result's mutable borrow and "proxy ownership"
+        // of the elements, before the vector takes it over.
+        result.release_ownership();
+
+        let new_len = self.vec.len() + self.len;
+
         unsafe {
-            let slice = Self::reserve_get_tail_slice(&mut self.vec, self.len);
-            let result = scope_fn(CollectConsumer::new(slice));
-
-            // The CollectResult represents a contiguous part of the
-            // slice, that has been written to.
-            // On unwind here, the CollectResult will be dropped.
-            // If some producers on the way did not produce enough elements,
-            // partial CollectResults may have been dropped without
-            // being reduced to the final result, and we will see
-            // that as the length coming up short.
-            //
-            // Here, we assert that `slice` is fully initialized. This is
-            // checked by the following assert, which verifies if a
-            // complete CollectResult was produced; if the length is
-            // correct, it is necessarily covering the target slice.
-            // Since we know that the consumer cannot have escaped from
-            // `drive` (by parametricity, essentially), we know that any
-            // stores that will happen, have happened. Unless some code is buggy,
-            // that means we should have seen `len` total writes.
-            let actual_writes = result.len();
-            assert!(
-                actual_writes == self.len,
-                "expected {} total writes, but got {}",
-                self.len,
-                actual_writes
-            );
-
-            // Release the result's mutable borrow and "proxy ownership"
-            // of the elements, before the vector takes it over.
-            result.release_ownership();
-
-            let new_len = self.vec.len() + self.len;
             self.vec.set_len(new_len);
         }
     }
 
     /// Reserve space for `len` more elements in the vector,
     /// and return a slice to the uninitialized tail of the vector
-    ///
-    /// Safety: The tail slice is uninitialized
-    unsafe fn reserve_get_tail_slice(vec: &mut Vec<T>, len: usize) -> &mut [T] {
+    fn reserve_get_tail_slice(vec: &mut Vec<T>, len: usize) -> &mut [MaybeUninit<T>] {
         // Reserve the new space.
         vec.reserve(len);
 
-        // Get a correct borrow, then extend it for the newly added length.
+        // TODO: use `Vec::spare_capacity_mut` instead
+        // SAFETY: `MaybeUninit<T>` is guaranteed to have the same layout
+        // as `T`, and we already made sure to have the additional space.
         let start = vec.len();
-        let slice = &mut vec[start..];
-        slice::from_raw_parts_mut(slice.as_mut_ptr(), len)
+        let tail_ptr = vec[start..].as_mut_ptr() as *mut MaybeUninit<T>;
+        unsafe { slice::from_raw_parts_mut(tail_ptr, len) }
     }
 }
 
