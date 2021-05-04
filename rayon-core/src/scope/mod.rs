@@ -306,10 +306,8 @@ where
     R: Send,
 {
     in_worker(|owner_thread, _| {
-        let scope = Scope {
-            base: ScopeBase::new(owner_thread, owner_thread.registry().clone()),
-        };
-        unsafe { scope.base.complete(Some(owner_thread), || op(&scope)) }
+        let scope = Scope::<'scope>::new(Some(owner_thread), None);
+        scope.base.complete(Some(owner_thread), || op(&scope))
     })
 }
 
@@ -399,8 +397,8 @@ where
     R: Send,
 {
     in_worker(|owner_thread, _| {
-        let scope = ScopeFifo::<'scope>::new(owner_thread);
-        unsafe { scope.base.complete(Some(owner_thread), || op(&scope)) }
+        let scope = ScopeFifo::<'scope>::new(Some(owner_thread), None);
+        scope.base.complete(Some(owner_thread), || op(&scope))
     })
 }
 
@@ -417,53 +415,73 @@ where
 ///
 /// # Panics
 ///
-/// If a panic occurs, either in the closure given to `scope()` or in
+/// If a panic occurs, either in the closure given to `in_place_scope()` or in
 /// any of the spawned jobs, that panic will be propagated and the
-/// call to `scope()` will panic. If multiple panics occurs, it is
+/// call to `in_place_scope()` will panic. If multiple panics occurs, it is
 /// non-deterministic which of their panic values will propagate.
 /// Regardless, once a task is spawned using `scope.spawn()`, it will
-/// execute, even if the spawning task should later panic. `scope()`
+/// execute, even if the spawning task should later panic. `in_place_scope()`
 /// returns once all spawned jobs have completed, and any panics are
 /// propagated at that point.
 pub fn in_place_scope<'scope, OP, R>(op: OP) -> R
 where
     OP: FnOnce(&Scope<'scope>) -> R,
 {
-    let worker_thread = WorkerThread::current();
-    let (scope_base, thread) = if worker_thread.is_null() {
-        (ScopeBase::new_blocking(global_registry().clone()), None)
-    } else {
-        unsafe {
-            (
-                ScopeBase::new(&*worker_thread, (*worker_thread).registry().clone()),
-                Some(&*worker_thread),
-            )
-        }
-    };
-    let scope = Scope { base: scope_base };
-    unsafe { scope.base.complete(thread, || op(&scope)) }
+    do_in_place_scope(None, op)
 }
 
-pub(crate) fn do_in_place_scope<'scope, OP, R>(registry: Arc<Registry>, op: OP) -> R
+pub(crate) fn do_in_place_scope<'scope, OP, R>(registry: Option<&Arc<Registry>>, op: OP) -> R
 where
     OP: FnOnce(&Scope<'scope>) -> R,
 {
-    let worker_thread = WorkerThread::current();
-    let (scope_base, thread) = if worker_thread.is_null() {
-        (ScopeBase::new_blocking(registry), None)
-    } else {
-        unsafe {
-            (
-                ScopeBase::new(&*worker_thread, registry),
-                Some(&*worker_thread),
-            )
-        }
-    };
-    let scope = Scope { base: scope_base };
-    unsafe { scope.base.complete(thread, || op(&scope)) }
+    let thread = unsafe { WorkerThread::current().as_ref() };
+    let scope = Scope::<'scope>::new(thread, registry);
+    scope.base.complete(thread, || op(&scope))
+}
+
+/// Creates a "fork-join" scope `s` with FIFO order, and invokes the
+/// closure with a reference to `s`. This closure can then spawn
+/// asynchronous tasks into `s`. Those tasks may run asynchronously with
+/// respect to the closure; they may themselves spawn additional tasks
+/// into `s`. When the closure returns, it will block until all tasks
+/// that have been spawned into `s` complete.
+///
+/// This is just like `scope_fifo()` except the closure runs on the same thread
+/// that calls `in_place_scope_fifo()`. Only work that it spawns runs in the
+/// thread pool.
+///
+/// # Panics
+///
+/// If a panic occurs, either in the closure given to `in_place_scope_fifo()` or in
+/// any of the spawned jobs, that panic will be propagated and the
+/// call to `in_place_scope_fifo()` will panic. If multiple panics occurs, it is
+/// non-deterministic which of their panic values will propagate.
+/// Regardless, once a task is spawned using `scope.spawn_fifo()`, it will
+/// execute, even if the spawning task should later panic. `in_place_scope_fifo()`
+/// returns once all spawned jobs have completed, and any panics are
+/// propagated at that point.
+pub fn in_place_scope_fifo<'scope, OP, R>(op: OP) -> R
+where
+    OP: FnOnce(&ScopeFifo<'scope>) -> R,
+{
+    do_in_place_scope_fifo(None, op)
+}
+
+pub(crate) fn do_in_place_scope_fifo<'scope, OP, R>(registry: Option<&Arc<Registry>>, op: OP) -> R
+where
+    OP: FnOnce(&ScopeFifo<'scope>) -> R,
+{
+    let thread = unsafe { WorkerThread::current().as_ref() };
+    let scope = ScopeFifo::<'scope>::new(thread, registry);
+    scope.base.complete(thread, || op(&scope))
 }
 
 impl<'scope> Scope<'scope> {
+    fn new(owner: Option<&WorkerThread>, registry: Option<&Arc<Registry>>) -> Self {
+        let base = ScopeBase::new(owner, registry);
+        Scope { base }
+    }
+
     /// Spawns a job into the fork-join scope `self`. This job will
     /// execute sometime before the fork-join scope completes.  The
     /// job is specified as a closure, and this closure receives its
@@ -536,12 +554,11 @@ impl<'scope> Scope<'scope> {
 }
 
 impl<'scope> ScopeFifo<'scope> {
-    fn new(owner_thread: &WorkerThread) -> Self {
-        let num_threads = owner_thread.registry().num_threads();
-        ScopeFifo {
-            base: ScopeBase::new(owner_thread, owner_thread.registry().clone()),
-            fifos: (0..num_threads).map(|_| JobFifo::new()).collect(),
-        }
+    fn new(owner: Option<&WorkerThread>, registry: Option<&Arc<Registry>>) -> Self {
+        let base = ScopeBase::new(owner, registry);
+        let num_threads = base.registry.num_threads();
+        let fifos = (0..num_threads).map(|_| JobFifo::new()).collect();
+        ScopeFifo { base, fifos }
     }
 
     /// Spawns a job into the fork-join scope `self`. This job will
@@ -583,21 +600,17 @@ impl<'scope> ScopeFifo<'scope> {
 }
 
 impl<'scope> ScopeBase<'scope> {
-    /// Creates the base of a new scope for the given worker thread
-    fn new(owner: &WorkerThread, registry: Arc<Registry>) -> Self {
+    /// Creates the base of a new scope for the given registry
+    fn new(owner: Option<&WorkerThread>, registry: Option<&Arc<Registry>>) -> Self {
+        let registry = registry.unwrap_or_else(|| match owner {
+            Some(owner) => owner.registry(),
+            None => global_registry(),
+        });
+
         ScopeBase {
-            registry: registry,
+            registry: Arc::clone(registry),
             panic: AtomicPtr::new(ptr::null_mut()),
             job_completed_latch: ScopeLatch::new(owner),
-            marker: PhantomData,
-        }
-    }
-
-    fn new_blocking(registry: Arc<Registry>) -> Self {
-        ScopeBase {
-            registry: registry,
-            panic: AtomicPtr::new(ptr::null_mut()),
-            job_completed_latch: ScopeLatch::new_blocking(),
             marker: PhantomData,
         }
     }
@@ -608,9 +621,7 @@ impl<'scope> ScopeBase<'scope> {
 
     /// Executes `func` as a job, either aborting or executing as
     /// appropriate.
-    ///
-    /// Unsafe because it must be executed on a worker thread.
-    unsafe fn complete<FUNC, R>(&self, owner: Option<&WorkerThread>, func: FUNC) -> R
+    fn complete<FUNC, R>(&self, owner: Option<&WorkerThread>, func: FUNC) -> R
     where
         FUNC: FnOnce() -> R,
     {
@@ -622,9 +633,7 @@ impl<'scope> ScopeBase<'scope> {
 
     /// Executes `func` as a job, either aborting or executing as
     /// appropriate.
-    ///
-    /// Unsafe because it must be executed on a worker thread.
-    unsafe fn execute_job<FUNC>(&self, func: FUNC)
+    fn execute_job<FUNC>(&self, func: FUNC)
     where
         FUNC: FnOnce(),
     {
@@ -634,9 +643,7 @@ impl<'scope> ScopeBase<'scope> {
     /// Executes `func` as a job in scope. Adjusts the "job completed"
     /// counters and also catches any panic and stores it into
     /// `scope`.
-    ///
-    /// Unsafe because this must be executed on a worker thread.
-    unsafe fn execute_job_closure<FUNC, R>(&self, func: FUNC) -> Option<R>
+    fn execute_job_closure<FUNC, R>(&self, func: FUNC) -> Option<R>
     where
         FUNC: FnOnce() -> R,
     {
@@ -653,7 +660,7 @@ impl<'scope> ScopeBase<'scope> {
         }
     }
 
-    unsafe fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
+    fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
         // capture the first error we see, free the rest
         let nil = ptr::null_mut();
         let mut err = Box::new(err); // box up the fat ptr
@@ -666,30 +673,29 @@ impl<'scope> ScopeBase<'scope> {
         }
     }
 
-    unsafe fn maybe_propagate_panic(&self) {
+    fn maybe_propagate_panic(&self) {
         // propagate panic, if any occurred; at this point, all
         // outstanding jobs have completed, so we can use a relaxed
         // ordering:
         let panic = self.panic.swap(ptr::null_mut(), Ordering::Relaxed);
         if !panic.is_null() {
-            let value: Box<Box<dyn Any + Send + 'static>> = mem::transmute(panic);
+            let value = unsafe { Box::from_raw(panic) };
             unwind::resume_unwinding(*value);
         }
     }
 }
 
 impl ScopeLatch {
-    fn new(owner: &WorkerThread) -> Self {
-        ScopeLatch::Stealing {
-            latch: CountLatch::new(),
-            registry: owner.registry().clone(),
-            worker_index: owner.index(),
-        }
-    }
-
-    fn new_blocking() -> Self {
-        ScopeLatch::Blocking {
-            latch: CountLockLatch::new(),
+    fn new(owner: Option<&WorkerThread>) -> Self {
+        match owner {
+            Some(owner) => ScopeLatch::Stealing {
+                latch: CountLatch::new(),
+                registry: Arc::clone(owner.registry()),
+                worker_index: owner.index(),
+            },
+            None => ScopeLatch::Blocking {
+                latch: CountLockLatch::new(),
+            },
         }
     }
 
