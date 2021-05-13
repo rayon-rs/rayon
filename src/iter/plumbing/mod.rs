@@ -273,9 +273,8 @@ impl Splitter {
         let Splitter { splits } = *self;
 
         if stolen {
-            // This job was stolen!  Reset the number of desired splits to the
-            // thread count, if that's more than we had remaining anyway.
-            self.splits = cmp::max(crate::current_num_threads(), self.splits / 2);
+            // This job was stolen! Leave the `splits` count alone while we go ahead and split
+            // anyway, so we dynamically get more splitting for jobs that are moving a lot.
             true
         } else if splits > 0 {
             // We have splits remaining, make it so.
