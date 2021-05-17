@@ -9,7 +9,7 @@ publish = false
 rayon = { path = "../" }
 cgmath = "0.18"
 docopt = "1"
-fixedbitset = "0.3"
+fixedbitset = "0.4"
 glium = "0.29"
 lazy_static = "1"
 rand = "0.8"
@@ -28,4 +28,4 @@ winapi = { version = "0.3", features = ["processthreadsapi"] }
 
 [dev-dependencies]
 doc-comment = "0.3"
-num = "0.3"
+num = "0.4"
