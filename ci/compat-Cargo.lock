@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "autocfg 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-deque 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1031,13 +1031,13 @@ dependencies = [
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_xorshift 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon-core 1.9.0",
+ "rayon-core 1.9.1",
  "serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rayon-core"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "crossbeam-channel 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-deque 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1064,7 +1064,7 @@ dependencies = [
  "num 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_xorshift 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon 1.5.0",
+ "rayon 1.5.1",
  "regex 1.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",

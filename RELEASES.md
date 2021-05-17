@@ -1,3 +1,30 @@
+# Release rayon 1.5.1 / rayon-core 1.9.1 (2021-05-21)
+
+- The new `in_place_scope` and `in_place_scope_fifo` are variations of `scope`
+  and `scope_fifo`, running the initial non-`Send` callback directly on the
+  current thread, rather than moving execution to the thread pool.
+- With Rust 1.51 or later, arrays now implement `IntoParallelIterator`.
+- New implementations of `FromParallelIterator` make it possible to `collect`
+  complicated nestings of items.
+  - `FromParallelIterator<(A, B)> for (FromA, FromB)` works like `unzip`.
+  - `FromParallelIterator<Either<L, R>> for (A, B)` works like `partition_map`.
+- Type inference now works better with parallel `Range` and `RangeInclusive`.
+- The implementation of `FromParallelIterator` and `ParallelExtend` for
+  `Vec<T>` now uses `MaybeUninit<T>` internally to avoid creating any
+  references to uninitialized data.
+- `ParallelBridge` fixed a bug with threads missing available work.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @atouchet
+- @cuviper
+- @Hywan
+- @iRaiko
+- @Qwaz
+- @rocallahan
+
 # Release rayon 1.5.0 / rayon-core 1.9.0 (2020-10-21)
 
 - Update crossbeam dependencies.
