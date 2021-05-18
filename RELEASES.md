@@ -1,4 +1,4 @@
-# Release rayon 1.5.1 / rayon-core 1.9.1 (2021-05-21)
+# Release rayon 1.5.1 / rayon-core 1.9.1 (2021-05-18)
 
 - The new `in_place_scope` and `in_place_scope_fifo` are variations of `scope`
   and `scope_fifo`, running the initial non-`Send` callback directly on the
