@@ -1,7 +1,7 @@
 [package]
 name = "rayon"
 # Reminder to update html_rool_url in lib.rs when updating version
-version = "1.5.0"
+version = "1.5.1"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
@@ -19,7 +19,7 @@ members = ["rayon-demo", "rayon-core"]
 exclude = ["ci"]
 
 [dependencies]
-rayon-core = { version = "1.9.0", path = "rayon-core" }
+rayon-core = { version = "1.9.1", path = "rayon-core" }
 crossbeam-deque = "0.8.0"
 
 # This is a public dependency!
