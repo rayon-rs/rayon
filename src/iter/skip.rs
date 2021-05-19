@@ -79,9 +79,16 @@ where
             where
                 P: Producer<Item = T>,
             {
-                let (before_skip, after_skip) = base.split_at(self.n);
-                bridge_producer_consumer(self.n, before_skip, NoopConsumer);
-                self.callback.callback(after_skip)
+                crate::in_place_scope(|scope| {
+                    let Self { callback, n } = self;
+                    let (before_skip, after_skip) = base.split_at(n);
+
+                    // Run the skipped part separately for side effects.
+                    // We'll still get any panics propagated back by the scope.
+                    scope.spawn(move |_| bridge_producer_consumer(n, before_skip, NoopConsumer));
+
+                    callback.callback(after_skip)
+                })
             }
         }
     }
