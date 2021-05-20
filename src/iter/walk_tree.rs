@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 struct WalkTreePrefixProducer<'b, S, B, I> {
     to_explore: Vec<S>, // nodes (and subtrees) we have to process
     seen: Vec<S>,       // nodes which have already been explored
-    breed: &'b B,       // function generating children
+    children_of: &'b B, // function generating children
     phantom: PhantomData<I>,
 }
 
@@ -24,7 +24,7 @@ where
         while self.to_explore.len() == 1 {
             let front_node = self.to_explore.pop().unwrap();
             self.to_explore
-                .extend((self.breed)(&front_node).into_iter().rev());
+                .extend((self.children_of)(&front_node).into_iter().rev());
             self.seen.push(front_node);
         }
         // now take half of the front.
@@ -35,7 +35,7 @@ where
                 WalkTreePrefixProducer {
                     to_explore: c,
                     seen: Vec::new(),
-                    breed: self.breed,
+                    children_of: self.children_of,
                     phantom: PhantomData,
                 }
             })
@@ -45,7 +45,7 @@ where
                 right_seen.map(|s| WalkTreePrefixProducer {
                     to_explore: Default::default(),
                     seen: s,
-                    breed: self.breed,
+                    children_of: self.children_of,
                     phantom: PhantomData,
                 })
             });
@@ -56,15 +56,14 @@ where
         F: Folder<Self::Item>,
     {
         // start by consuming everything seen
-        for s in self.seen {
-            folder = folder.consume(s);
-            if folder.full() {
-                return folder;
-            }
+        folder = folder.consume_iter(self.seen);
+        if folder.full() {
+            return folder;
         }
         // now do all remaining explorations
         while let Some(e) = self.to_explore.pop() {
-            self.to_explore.extend((self.breed)(&e).into_iter().rev());
+            self.to_explore
+                .extend((self.children_of)(&e).into_iter().rev());
             folder = folder.consume(e);
             if folder.full() {
                 return folder;
@@ -81,7 +80,7 @@ where
 #[derive(Debug)]
 pub struct WalkTreePrefix<S, B, I> {
     initial_state: S,
-    breed: B,
+    children_of: B,
     phantom: PhantomData<I>,
 }
 
@@ -100,7 +99,7 @@ where
         let producer = WalkTreePrefixProducer {
             to_explore: once(self.initial_state).collect(),
             seen: Vec::new(),
-            breed: &self.breed,
+            children_of: &self.children_of,
             phantom: PhantomData,
         };
         bridge_unindexed(producer, consumer)
@@ -118,7 +117,6 @@ where
 /// which guarantees a postfix order.
 /// If you don't care about ordering, you should use [`walk_tree`],
 /// which will use whatever is believed to be fastest.
-/// Between siblings, children are reduced in reverse order -- that is, the children that returned last are reduced first.
 /// For example a perfect binary tree of 7 nodes will reduced in the following order:
 ///
 /// ```text
@@ -210,16 +208,16 @@ where
 ///    assert_eq!(v, vec![10, 3, 14, 18]);
 ///    ```
 ///
-pub fn walk_tree_prefix<S, B, I, IT>(root: S, breed: B) -> WalkTreePrefix<S, B, I>
+pub fn walk_tree_prefix<S, B, I>(root: S, children_of: B) -> WalkTreePrefix<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    IT: DoubleEndedIterator<Item = S>,
-    I: IntoIterator<Item = S, IntoIter = IT> + Send,
+    I::IntoIter: DoubleEndedIterator<Item = S>,
+    I: IntoIterator<Item = S> + Send,
 {
     WalkTreePrefix {
         initial_state: root,
-        breed,
+        children_of,
         phantom: PhantomData,
     }
 }
@@ -230,7 +228,7 @@ where
 struct WalkTreePostfixProducer<'b, S, B, I> {
     to_explore: Vec<S>, // nodes (and subtrees) we have to process
     seen: Vec<S>,       // nodes which have already been explored
-    breed: &'b B,       // function generating children
+    children_of: &'b B, // function generating children
     phantom: PhantomData<I>,
 }
 
@@ -246,7 +244,7 @@ where
         while self.to_explore.len() == 1 {
             let front_node = self.to_explore.pop().unwrap();
             self.to_explore
-                .extend((self.breed)(&front_node).into_iter());
+                .extend((self.children_of)(&front_node).into_iter());
             self.seen.push(front_node);
         }
         // now take half of the front.
@@ -258,7 +256,7 @@ where
                 WalkTreePostfixProducer {
                     to_explore: c,
                     seen: right_seen,
-                    breed: self.breed,
+                    children_of: self.children_of,
                     phantom: PhantomData,
                 }
             })
@@ -270,7 +268,7 @@ where
                     WalkTreePostfixProducer {
                         to_explore: Default::default(),
                         seen: s,
-                        breed: self.breed,
+                        children_of: self.children_of,
                         phantom: PhantomData,
                     }
                 })
@@ -283,30 +281,24 @@ where
     {
         // now do all remaining explorations
         for e in self.to_explore {
-            folder = consume_rec_postfix(&self.breed, e, folder);
+            folder = consume_rec_postfix(&self.children_of, e, folder);
             if folder.full() {
                 return folder;
             }
         }
         // end by consuming everything seen
-        for s in self.seen.into_iter().rev() {
-            folder = folder.consume(s);
-            if folder.full() {
-                return folder;
-            }
-        }
-        folder
+        folder.consume_iter(self.seen.into_iter().rev())
     }
 }
 
 fn consume_rec_postfix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S>>(
-    breed: &B,
+    children_of: &B,
     s: S,
     mut folder: F,
 ) -> F {
-    let children = (breed)(&s).into_iter();
+    let children = (children_of)(&s).into_iter();
     for child in children {
-        folder = consume_rec_postfix(breed, child, folder);
+        folder = consume_rec_postfix(children_of, child, folder);
         if folder.full() {
             return folder;
         }
@@ -321,7 +313,7 @@ fn consume_rec_postfix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S
 #[derive(Debug)]
 pub struct WalkTreePostfix<S, B, I> {
     initial_state: S,
-    breed: B,
+    children_of: B,
     phantom: PhantomData<I>,
 }
 
@@ -339,7 +331,7 @@ where
         let producer = WalkTreePostfixProducer {
             to_explore: once(self.initial_state).collect(),
             seen: Vec::new(),
-            breed: &self.breed,
+            children_of: &self.children_of,
             phantom: PhantomData,
         };
         bridge_unindexed(producer, consumer)
@@ -359,7 +351,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 }
 
 /// Create a tree like postfix parallel iterator from an initial root node.
-/// Thre `children_of` function should take a node and iterate on all of its child nodes.
+/// The `children_of` function should take a node and iterate on all of its child nodes.
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
 ///
@@ -461,7 +453,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///    assert_eq!(v, vec![3, 18, 14, 10]);
 ///    ```
 ///
-pub fn walk_tree_postfix<S, B, I>(root: S, breed: B) -> WalkTreePostfix<S, B, I>
+pub fn walk_tree_postfix<S, B, I>(root: S, children_of: B) -> WalkTreePostfix<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -469,7 +461,7 @@ where
 {
     WalkTreePostfix {
         initial_state: root,
-        breed,
+        children_of,
         phantom: PhantomData,
     }
 }
@@ -482,7 +474,7 @@ where
 pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 
 /// Create a tree like parallel iterator from an initial root node.
-/// Thre `children_of` function should take a node and iterate on all of its child nodes.
+/// The `children_of` function should take a node and iterate on all of its child nodes.
 /// The best parallelization is obtained when the tree is balanced
 /// but we should also be able to handle harder cases.
 ///
@@ -515,7 +507,7 @@ pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 ///
 /// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
 /// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
-pub fn walk_tree<S, B, I>(root: S, breed: B) -> WalkTree<S, B, I>
+pub fn walk_tree<S, B, I>(root: S, children_of: B) -> WalkTree<S, B, I>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -523,7 +515,7 @@ where
 {
     let walker = WalkTreePostfix {
         initial_state: root,
-        breed,
+        children_of,
         phantom: PhantomData,
     };
     WalkTree(walker)
