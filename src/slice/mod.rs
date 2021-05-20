@@ -8,6 +8,7 @@
 mod chunks;
 mod mergesort;
 mod quicksort;
+mod rchunks;
 
 mod test;
 
@@ -21,6 +22,7 @@ use std::cmp::Ordering;
 use std::fmt::{self, Debug};
 
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
+pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
@@ -105,6 +107,44 @@ pub trait ParallelSlice<T: Sync> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksExact::new(chunk_size, self.as_parallel_slice())
     }
+
+    /// Returns a parallel iterator over at most `chunk_size` elements of `self` at a time,
+    /// starting at the end. The chunks do not overlap.
+    ///
+    /// If the number of elements in the iterator is not divisible by
+    /// `chunk_size`, the last chunk may be shorter than `chunk_size`.  All
+    /// other chunks will have that exact length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_rchunks(2).collect();
+    /// assert_eq!(chunks, vec![&[4, 5][..], &[2, 3], &[1]]);
+    /// ```
+    fn par_rchunks(&self, chunk_size: usize) -> RChunks<'_, T> {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
+        RChunks::new(chunk_size, self.as_parallel_slice())
+    }
+
+    /// Returns a parallel iterator over `chunk_size` elements of `self` at a time,
+    /// starting at the end. The chunks do not overlap.
+    ///
+    /// If `chunk_size` does not divide the length of the slice, then the
+    /// last up to `chunk_size-1` elements will be omitted and can be
+    /// retrieved from the remainder function of the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_rchunks_exact(2).collect();
+    /// assert_eq!(chunks, vec![&[4, 5][..], &[2, 3]]);
+    /// ```
+    fn par_rchunks_exact(&self, chunk_size: usize) -> RChunksExact<'_, T> {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
+        RChunksExact::new(chunk_size, self.as_parallel_slice())
+    }
 }
 
 impl<T: Sync> ParallelSlice<T> for [T] {
@@ -182,6 +222,48 @@ pub trait ParallelSliceMut<T: Send> {
     fn par_chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksExactMut::new(chunk_size, self.as_parallel_slice_mut())
+    }
+
+    /// Returns a parallel iterator over at most `chunk_size` elements of `self` at a time,
+    /// starting at the end. The chunks are mutable and do not overlap.
+    ///
+    /// If the number of elements in the iterator is not divisible by
+    /// `chunk_size`, the last chunk may be shorter than `chunk_size`.  All
+    /// other chunks will have that exact length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 4, 5];
+    /// array.par_rchunks_mut(2)
+    ///      .for_each(|slice| slice.reverse());
+    /// assert_eq!(array, [1, 3, 2, 5, 4]);
+    /// ```
+    fn par_rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<'_, T> {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
+        RChunksMut::new(chunk_size, self.as_parallel_slice_mut())
+    }
+
+    /// Returns a parallel iterator over `chunk_size` elements of `self` at a time,
+    /// starting at the end. The chunks are mutable and do not overlap.
+    ///
+    /// If `chunk_size` does not divide the length of the slice, then the
+    /// last up to `chunk_size-1` elements will be omitted and can be
+    /// retrieved from the remainder function of the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 4, 5];
+    /// array.par_rchunks_exact_mut(3)
+    ///      .for_each(|slice| slice.reverse());
+    /// assert_eq!(array, [1, 2, 5, 4, 3]);
+    /// ```
+    fn par_rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<'_, T> {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
+        RChunksExactMut::new(chunk_size, self.as_parallel_slice_mut())
     }
 
     /// Sorts the slice in parallel.
