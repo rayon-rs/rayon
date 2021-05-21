@@ -214,6 +214,50 @@ fn slice_chunks_exact_mut() {
 }
 
 #[test]
+fn slice_rchunks() {
+    let s: Vec<_> = (0..10).collect();
+    for len in 1..s.len() + 2 {
+        let v: Vec<_> = s.rchunks(len).collect();
+        check(&v, || s.par_rchunks(len));
+    }
+}
+
+#[test]
+fn slice_rchunks_exact() {
+    let s: Vec<_> = (0..10).collect();
+    for len in 1..s.len() + 2 {
+        let v: Vec<_> = s.rchunks_exact(len).collect();
+        check(&v, || s.par_rchunks_exact(len));
+    }
+}
+
+#[test]
+fn slice_rchunks_mut() {
+    let mut s: Vec<_> = (0..10).collect();
+    let mut v: Vec<_> = s.clone();
+    for len in 1..s.len() + 2 {
+        let expected: Vec<_> = v.rchunks_mut(len).collect();
+        map_triples(expected.len() + 1, |i, j, k| {
+            Split::forward(s.par_rchunks_mut(len), i, j, k, &expected);
+            Split::reverse(s.par_rchunks_mut(len), i, j, k, &expected);
+        });
+    }
+}
+
+#[test]
+fn slice_rchunks_exact_mut() {
+    let mut s: Vec<_> = (0..10).collect();
+    let mut v: Vec<_> = s.clone();
+    for len in 1..s.len() + 2 {
+        let expected: Vec<_> = v.rchunks_exact_mut(len).collect();
+        map_triples(expected.len() + 1, |i, j, k| {
+            Split::forward(s.par_rchunks_exact_mut(len), i, j, k, &expected);
+            Split::reverse(s.par_rchunks_exact_mut(len), i, j, k, &expected);
+        });
+    }
+}
+
+#[test]
 fn slice_windows() {
     let s: Vec<_> = (0..10).collect();
     let v: Vec<_> = s.windows(2).collect();
