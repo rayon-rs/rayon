@@ -35,6 +35,8 @@ mod sort;
 #[cfg(test)]
 mod str_split;
 #[cfg(test)]
+mod tree;
+#[cfg(test)]
 mod vec_collect;
 
 #[cfg(test)]

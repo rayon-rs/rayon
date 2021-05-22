@@ -147,6 +147,7 @@ mod try_reduce;
 mod try_reduce_with;
 mod unzip;
 mod update;
+mod walk_tree;
 mod while_some;
 mod zip;
 mod zip_eq;
@@ -184,6 +185,9 @@ pub use self::{
     take::Take,
     try_fold::{TryFold, TryFoldWith},
     update::Update,
+    walk_tree::{
+        walk_tree, walk_tree_postfix, walk_tree_prefix, WalkTree, WalkTreePostfix, WalkTreePrefix,
+    },
     while_some::WhileSome,
     zip::Zip,
     zip_eq::ZipEq,
