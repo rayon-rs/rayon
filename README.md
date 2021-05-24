@@ -48,7 +48,7 @@ using Rayon's default, global threadpool.
 ## No data races
 
 You may have heard that parallel execution can produce all kinds of
-crazy bugs. Well, rest easy. Rayon's APIs all guarantee **data-race
+crazy bugs. Well, Rust easy. Rayon's APIs all guarantee **data-race
 freedom**, which generally rules out most parallel bugs (though not
 all). In other words, **if your code compiles**, it typically does the
 same thing it did before.
