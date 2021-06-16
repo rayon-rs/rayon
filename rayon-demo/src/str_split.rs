@@ -14,6 +14,9 @@ lazy_static::lazy_static! {
     static ref COUNT: usize = HAYSTACK.split(' ').count();
 }
 
+// Try multiple kinds of whitespace, but HAYSTACK only contains plain spaces.
+const WHITESPACE: &[char] = &['\r', '\n', ' ', '\t'];
+
 fn get_string_count() -> (&'static str, usize) {
     (&HAYSTACK, *COUNT)
 }
@@ -22,6 +25,12 @@ fn get_string_count() -> (&'static str, usize) {
 fn parallel_space_char(b: &mut Bencher) {
     let (string, count) = get_string_count();
     b.iter(|| assert_eq!(string.par_split(' ').count(), count))
+}
+
+#[bench]
+fn parallel_space_chars(b: &mut Bencher) {
+    let (string, count) = get_string_count();
+    b.iter(|| assert_eq!(string.par_split(WHITESPACE).count(), count))
 }
 
 #[bench]
@@ -34,6 +43,12 @@ fn parallel_space_fn(b: &mut Bencher) {
 fn serial_space_char(b: &mut Bencher) {
     let (string, count) = get_string_count();
     b.iter(|| assert_eq!(string.split(' ').count(), count))
+}
+
+#[bench]
+fn serial_space_chars(b: &mut Bencher) {
+    let (string, count) = get_string_count();
+    b.iter(|| assert_eq!(string.split(WHITESPACE).count(), count))
 }
 
 #[bench]
