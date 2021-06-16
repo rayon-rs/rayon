@@ -35,11 +35,11 @@ fn find_char_midpoint(chars: &str) -> usize {
     // character boundary.  So we look at the raw bytes, first scanning
     // forward from the midpoint for a boundary, then trying backward.
     let (left, right) = chars.as_bytes().split_at(mid);
-    match right.iter().cloned().position(is_char_boundary) {
+    match right.iter().copied().position(is_char_boundary) {
         Some(i) => mid + i,
         None => left
             .iter()
-            .cloned()
+            .copied()
             .rposition(is_char_boundary)
             .unwrap_or(0),
     }
@@ -97,7 +97,7 @@ pub trait ParallelString {
     /// Note that multi-byte sequences (for code points greater than `U+007F`)
     /// are produced as separate items, but will not be split across threads.
     /// If you would prefer an indexed iterator without that guarantee, consider
-    /// `string.as_bytes().par_iter().cloned()` instead.
+    /// `string.as_bytes().par_iter().copied()` instead.
     ///
     /// # Examples
     ///
