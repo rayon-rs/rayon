@@ -19,7 +19,7 @@ categories = ["concurrency"]
 num_cpus = "1.2"
 lazy_static = "1"
 crossbeam-channel = "0.5.0"
-crossbeam-deque = "0.8.0"
+crossbeam-deque = "0.8.1"
 crossbeam-utils = "0.8.0"
 
 [dev-dependencies]
