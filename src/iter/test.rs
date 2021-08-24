@@ -117,13 +117,10 @@ fn fold_map_reduce() {
     let r1 = (0_i32..32)
         .into_par_iter()
         .with_max_len(1)
-        .fold(
-            std::vec::Vec::new,
-            |mut v, e| {
-                v.push(e);
-                v
-            },
-        )
+        .fold(std::vec::Vec::new, |mut v, e| {
+            v.push(e);
+            v
+        })
         .map(|v| vec![v])
         .reduce_with(|mut v_a, v_b| {
             v_a.extend(v_b);

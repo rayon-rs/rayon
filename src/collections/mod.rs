@@ -33,7 +33,7 @@ use self::drain_guard::DrainGuard;
 
 mod drain_guard {
     use crate::iter::ParallelDrainRange;
-    
+
     use std::ops::RangeBounds;
 
     /// A proxy for draining a collection by converting to a `Vec` and back.
