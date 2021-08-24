@@ -98,7 +98,7 @@ where
     P: Fn(T) -> Option<U> + Sync + 'p,
 {
     fn split_off_left(&self) -> Self {
-        FilterMapConsumer::new(self.base.split_off_left(), &self.filter_op)
+        FilterMapConsumer::new(self.base.split_off_left(), self.filter_op)
     }
 
     fn to_reducer(&self) -> Self::Reducer {

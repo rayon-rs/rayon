@@ -118,7 +118,7 @@ fn fold_map_reduce() {
         .into_par_iter()
         .with_max_len(1)
         .fold(
-            || vec![],
+            std::vec::Vec::new,
             |mut v, e| {
                 v.push(e);
                 v
@@ -394,7 +394,7 @@ fn check_slice_mut_indexed() {
 #[test]
 fn check_vec_indexed() {
     let a = vec![1, 2, 3];
-    is_indexed(a.clone().into_par_iter());
+    is_indexed(a.into_par_iter());
 }
 
 #[test]
@@ -1371,10 +1371,10 @@ fn check_find_is_present() {
     let counter = AtomicUsize::new(0);
     let value: Option<i32> = (0_i32..2048).into_par_iter().find_any(|&p| {
         counter.fetch_add(1, Ordering::SeqCst);
-        p >= 1024 && p < 1096
+        (1024..1096).contains(&p)
     });
     let q = value.unwrap();
-    assert!(q >= 1024 && q < 1096);
+    assert!((1024..1096).contains(&q));
     assert!(counter.load(Ordering::SeqCst) < 2048); // should not have visited every single one
 }
 
@@ -1892,7 +1892,7 @@ fn check_either() {
 
     // try an indexed iterator
     let left: E = Either::Left(v.clone().into_par_iter());
-    assert!(left.enumerate().eq(v.clone().into_par_iter().enumerate()));
+    assert!(left.enumerate().eq(v.into_par_iter().enumerate()));
 }
 
 #[test]

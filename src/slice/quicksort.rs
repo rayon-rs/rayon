@@ -108,7 +108,7 @@ where
             ptr::copy_nonoverlapping(v.get_unchecked(len - 2), v.get_unchecked_mut(len - 1), 1);
 
             for i in (0..len - 2).rev() {
-                if !is_less(&tmp.value.as_ref().unwrap(), v.get_unchecked(i)) {
+                if !is_less(tmp.value.as_ref().unwrap(), v.get_unchecked(i)) {
                     break;
                 }
 
@@ -766,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_heapsort() {
-        let ref mut rng = thread_rng();
+        let rng = &mut thread_rng();
 
         for len in (0..25).chain(500..501) {
             for &modulus in &[5, 10, 100] {

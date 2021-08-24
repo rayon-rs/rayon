@@ -157,7 +157,7 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
 
 impl<'data, T: Send> Drop for Drain<'data, T> {
     fn drop(&mut self) {
-        if self.range.len() > 0 {
+        if !self.range.is_empty() {
             let Range { start, end } = self.range;
             if self.vec.len() != start {
                 // We must not have produced, so just call a normal drain to remove the items.

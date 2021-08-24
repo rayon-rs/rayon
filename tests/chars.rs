@@ -8,7 +8,7 @@ fn half_open_correctness() {
 
     let range = low..high;
     let mut chars: Vec<char> = range.into_par_iter().collect();
-    chars.sort();
+    chars.sort_unstable();
 
     assert_eq!(
         chars,
@@ -26,7 +26,7 @@ fn closed_correctness() {
 
     let range = low..=high;
     let mut chars: Vec<char> = range.into_par_iter().collect();
-    chars.sort();
+    chars.sort_unstable();
 
     assert_eq!(
         chars,

@@ -50,8 +50,8 @@ fn collect_drop_on_unwind() {
 
         assert_eq!(inserts.len(), drops.len(), "Incorrect number of drops");
         // sort to normalize order
-        inserts.sort();
-        drops.sort();
+        inserts.sort_unstable();
+        drops.sort_unstable();
         assert_eq!(inserts, drops, "Incorrect elements were dropped");
     };
 

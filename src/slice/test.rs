@@ -10,7 +10,7 @@ macro_rules! sort {
     ($f:ident, $name:ident) => {
         #[test]
         fn $name() {
-            let ref mut rng = thread_rng();
+            let rng = &mut thread_rng();
 
             for len in (0..25).chain(500..501) {
                 for &modulus in &[5, 10, 100] {
@@ -49,7 +49,7 @@ macro_rules! sort {
                     let dist = Uniform::new(0, modulus);
                     let mut v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
-                    v.sort();
+                    v.sort_unstable();
                     v.reverse();
 
                     for _ in 0..5 {
