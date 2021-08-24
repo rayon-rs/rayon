@@ -57,7 +57,7 @@ const THREADS_BITS: usize = 10;
 
 /// Bits to shift to select the sleeping threads
 /// (used with `select_bits`).
-const SLEEPING_SHIFT: usize = 0 * THREADS_BITS;
+const SLEEPING_SHIFT: usize = 0;
 
 /// Bits to shift to select the inactive threads
 /// (used with `select_bits`).
