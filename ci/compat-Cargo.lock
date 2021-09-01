@@ -1019,7 +1019,6 @@ dependencies = [
  "crossbeam-channel 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-deque 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.8.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.100 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
