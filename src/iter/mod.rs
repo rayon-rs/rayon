@@ -3173,6 +3173,32 @@ mod private {
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output>;
     }
 
+    #[cfg(has_control_flow)]
+    impl<B, C> Try for ControlFlow<B, C> {
+        private_impl! {}
+
+        type Output = C;
+        type Residual = ControlFlow<B, Infallible>;
+
+        fn from_output(output: Self::Output) -> Self {
+            ControlFlow::Continue(output)
+        }
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                ControlFlow::Break(b) => ControlFlow::Break(b),
+                ControlFlow::Continue(_) => unreachable!(),
+            }
+        }
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                ControlFlow::Continue(c) => ControlFlow::Continue(c),
+                ControlFlow::Break(b) => ControlFlow::Break(ControlFlow::Break(b)),
+            }
+        }
+    }
+
     impl<T> Try for Option<T> {
         private_impl! {}
 
