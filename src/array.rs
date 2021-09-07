@@ -1,4 +1,4 @@
-#![cfg(min_const_generics)]
+#![cfg(has_min_const_generics)]
 //! Parallel iterator types for [arrays] (`[T; N]`)
 //!
 //! You will rarely need to interact with this module directly unless you need

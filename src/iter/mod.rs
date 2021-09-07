@@ -190,7 +190,7 @@ pub use self::{
 };
 
 mod step_by;
-#[cfg(step_by)]
+#[cfg(has_step_by_rev)]
 pub use self::step_by::StepBy;
 
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
@@ -2605,7 +2605,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// # Compatibility
     ///
     /// This method is only available on Rust 1.38 or greater.
-    #[cfg(step_by)]
+    #[cfg(has_step_by_rev)]
     fn step_by(self, step: usize) -> StepBy<Self> {
         StepBy::new(self, step)
     }
