@@ -3146,6 +3146,7 @@ pub trait ParallelDrainRange<Idx = usize> {
 /// stable clone of the standard library's `Try` trait, as yet unstable.
 mod private {
     use std::convert::Infallible;
+    use std::task::Poll;
 
     #[cfg(has_control_flow)]
     pub(crate) use std::ops::ControlFlow;
@@ -3245,6 +3246,62 @@ mod private {
             match self {
                 Ok(c) => ControlFlow::Continue(c),
                 Err(e) => ControlFlow::Break(Err(e)),
+            }
+        }
+    }
+
+    impl<T, E> Try for Poll<Result<T, E>> {
+        private_impl! {}
+
+        type Output = Poll<T>;
+        type Residual = Result<Infallible, E>;
+
+        fn from_output(output: Self::Output) -> Self {
+            output.map(Ok)
+        }
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                Err(e) => Poll::Ready(Err(e)),
+                Ok(_) => unreachable!(),
+            }
+        }
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Poll::Pending => ControlFlow::Continue(Poll::Pending),
+                Poll::Ready(Ok(c)) => ControlFlow::Continue(Poll::Ready(c)),
+                Poll::Ready(Err(e)) => ControlFlow::Break(Err(e)),
+            }
+        }
+    }
+
+    impl<T, E> Try for Poll<Option<Result<T, E>>> {
+        private_impl! {}
+
+        type Output = Poll<Option<T>>;
+        type Residual = Result<Infallible, E>;
+
+        fn from_output(output: Self::Output) -> Self {
+            match output {
+                Poll::Ready(o) => Poll::Ready(o.map(Ok)),
+                Poll::Pending => Poll::Pending,
+            }
+        }
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                Err(e) => Poll::Ready(Some(Err(e))),
+                Ok(_) => unreachable!(),
+            }
+        }
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Poll::Pending => ControlFlow::Continue(Poll::Pending),
+                Poll::Ready(None) => ControlFlow::Continue(Poll::Ready(None)),
+                Poll::Ready(Some(Ok(c))) => ControlFlow::Continue(Poll::Ready(Some(c))),
+                Poll::Ready(Some(Err(e))) => ControlFlow::Break(Err(e)),
             }
         }
     }
