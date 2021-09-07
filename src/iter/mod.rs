@@ -3158,6 +3158,8 @@ mod private {
         Break(B),
     }
 
+    use self::ControlFlow::{Break, Continue};
+
     /// Clone of `std::ops::Try`.
     ///
     /// Implementing this trait is not permitted outside of `rayon`.
@@ -3182,20 +3184,20 @@ mod private {
         type Residual = ControlFlow<B, Infallible>;
 
         fn from_output(output: Self::Output) -> Self {
-            ControlFlow::Continue(output)
+            Continue(output)
         }
 
         fn from_residual(residual: Self::Residual) -> Self {
             match residual {
-                ControlFlow::Break(b) => ControlFlow::Break(b),
-                ControlFlow::Continue(_) => unreachable!(),
+                Break(b) => Break(b),
+                Continue(_) => unreachable!(),
             }
         }
 
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
             match self {
-                ControlFlow::Continue(c) => ControlFlow::Continue(c),
-                ControlFlow::Break(b) => ControlFlow::Break(ControlFlow::Break(b)),
+                Continue(c) => Continue(c),
+                Break(b) => Break(Break(b)),
             }
         }
     }
@@ -3219,8 +3221,8 @@ mod private {
 
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
             match self {
-                Some(c) => ControlFlow::Continue(c),
-                None => ControlFlow::Break(None),
+                Some(c) => Continue(c),
+                None => Break(None),
             }
         }
     }
@@ -3244,8 +3246,8 @@ mod private {
 
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
             match self {
-                Ok(c) => ControlFlow::Continue(c),
-                Err(e) => ControlFlow::Break(Err(e)),
+                Ok(c) => Continue(c),
+                Err(e) => Break(Err(e)),
             }
         }
     }
@@ -3269,9 +3271,9 @@ mod private {
 
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
             match self {
-                Poll::Pending => ControlFlow::Continue(Poll::Pending),
-                Poll::Ready(Ok(c)) => ControlFlow::Continue(Poll::Ready(c)),
-                Poll::Ready(Err(e)) => ControlFlow::Break(Err(e)),
+                Poll::Pending => Continue(Poll::Pending),
+                Poll::Ready(Ok(c)) => Continue(Poll::Ready(c)),
+                Poll::Ready(Err(e)) => Break(Err(e)),
             }
         }
     }
@@ -3298,10 +3300,10 @@ mod private {
 
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
             match self {
-                Poll::Pending => ControlFlow::Continue(Poll::Pending),
-                Poll::Ready(None) => ControlFlow::Continue(Poll::Ready(None)),
-                Poll::Ready(Some(Ok(c))) => ControlFlow::Continue(Poll::Ready(Some(c))),
-                Poll::Ready(Some(Err(e))) => ControlFlow::Break(Err(e)),
+                Poll::Pending => Continue(Poll::Pending),
+                Poll::Ready(None) => Continue(Poll::Ready(None)),
+                Poll::Ready(Some(Ok(c))) => Continue(Poll::Ready(Some(c))),
+                Poll::Ready(Some(Err(e))) => Break(Err(e)),
             }
         }
     }
