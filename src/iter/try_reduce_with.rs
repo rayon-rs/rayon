@@ -1,13 +1,15 @@
 use super::plumbing::*;
 use super::ParallelIterator;
+use super::Try;
 
-use super::private::Try;
+use super::private::ControlFlow::{self, Break, Continue};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub(super) fn try_reduce_with<PI, R, T>(pi: PI, reduce_op: R) -> Option<T>
 where
     PI: ParallelIterator<Item = T>,
-    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    R: Fn(T::Output, T::Output) -> T + Sync,
     T: Try + Send,
 {
     let full = AtomicBool::new(false);
@@ -33,7 +35,7 @@ impl<'r, R> Clone for TryReduceWithConsumer<'r, R> {
 
 impl<'r, R, T> Consumer<T> for TryReduceWithConsumer<'r, R>
 where
-    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    R: Fn(T::Output, T::Output) -> T + Sync,
     T: Try + Send,
 {
     type Folder = TryReduceWithFolder<'r, R, T>;
@@ -47,7 +49,7 @@ where
     fn into_folder(self) -> Self::Folder {
         TryReduceWithFolder {
             reduce_op: self.reduce_op,
-            opt_result: None,
+            opt_control: None,
             full: self.full,
         }
     }
@@ -59,7 +61,7 @@ where
 
 impl<'r, R, T> UnindexedConsumer<T> for TryReduceWithConsumer<'r, R>
 where
-    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    R: Fn(T::Output, T::Output) -> T + Sync,
     T: Try + Send,
 {
     fn split_off_left(&self) -> Self {
@@ -73,62 +75,59 @@ where
 
 impl<'r, R, T> Reducer<Option<T>> for TryReduceWithConsumer<'r, R>
 where
-    R: Fn(T::Ok, T::Ok) -> T + Sync,
+    R: Fn(T::Output, T::Output) -> T + Sync,
     T: Try,
 {
     fn reduce(self, left: Option<T>, right: Option<T>) -> Option<T> {
         let reduce_op = self.reduce_op;
         match (left, right) {
-            (None, x) | (x, None) => x,
-            (Some(a), Some(b)) => match (a.into_result(), b.into_result()) {
-                (Ok(a), Ok(b)) => Some(reduce_op(a, b)),
-                (Err(e), _) | (_, Err(e)) => Some(T::from_error(e)),
+            (Some(left), Some(right)) => match (left.branch(), right.branch()) {
+                (Continue(left), Continue(right)) => Some(reduce_op(left, right)),
+                (Break(r), _) | (_, Break(r)) => Some(T::from_residual(r)),
             },
+            (None, x) | (x, None) => x,
         }
     }
 }
 
 struct TryReduceWithFolder<'r, R, T: Try> {
     reduce_op: &'r R,
-    opt_result: Option<Result<T::Ok, T::Error>>,
+    opt_control: Option<ControlFlow<T::Residual, T::Output>>,
     full: &'r AtomicBool,
 }
 
 impl<'r, R, T> Folder<T> for TryReduceWithFolder<'r, R, T>
 where
-    R: Fn(T::Ok, T::Ok) -> T,
+    R: Fn(T::Output, T::Output) -> T,
     T: Try,
 {
     type Result = Option<T>;
 
-    fn consume(self, item: T) -> Self {
+    fn consume(mut self, item: T) -> Self {
         let reduce_op = self.reduce_op;
-        let result = match self.opt_result {
-            None => item.into_result(),
-            Some(Ok(a)) => match item.into_result() {
-                Ok(b) => reduce_op(a, b).into_result(),
-                Err(e) => Err(e),
-            },
-            Some(Err(e)) => Err(e),
+        let control = match (self.opt_control, item.branch()) {
+            (Some(Continue(left)), Continue(right)) => reduce_op(left, right).branch(),
+            (Some(control @ Break(_)), _) | (_, control) => control,
         };
-        if result.is_err() {
+        if let Break(_) = control {
             self.full.store(true, Ordering::Relaxed)
         }
-        TryReduceWithFolder {
-            opt_result: Some(result),
-            ..self
-        }
+        self.opt_control = Some(control);
+        self
     }
 
     fn complete(self) -> Option<T> {
-        let result = self.opt_result?;
-        Some(match result {
-            Ok(ok) => T::from_ok(ok),
-            Err(error) => T::from_error(error),
-        })
+        match self.opt_control {
+            Some(Continue(c)) => Some(T::from_output(c)),
+            Some(Break(r)) => Some(T::from_residual(r)),
+            None => None,
+        }
     }
 
     fn full(&self) -> bool {
-        self.full.load(Ordering::Relaxed)
+        match self.opt_control {
+            Some(Break(_)) => true,
+            _ => self.full.load(Ordering::Relaxed),
+        }
     }
 }

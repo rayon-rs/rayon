@@ -190,7 +190,7 @@ pub use self::{
 };
 
 mod step_by;
-#[cfg(step_by)]
+#[cfg(has_step_by_rev)]
 pub use self::step_by::StepBy;
 
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
@@ -457,10 +457,10 @@ pub trait ParallelIterator: Sized + Send {
     fn try_for_each<OP, R>(self, op: OP) -> R
     where
         OP: Fn(Self::Item) -> R + Sync + Send,
-        R: Try<Ok = ()> + Send,
+        R: Try<Output = ()> + Send,
     {
-        fn ok<R: Try<Ok = ()>>(_: (), _: ()) -> R {
-            R::from_ok(())
+        fn ok<R: Try<Output = ()>>(_: (), _: ()) -> R {
+            R::from_output(())
         }
 
         self.map(op).try_reduce(<()>::default, ok)
@@ -497,10 +497,10 @@ pub trait ParallelIterator: Sized + Send {
     where
         OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
         T: Send + Clone,
-        R: Try<Ok = ()> + Send,
+        R: Try<Output = ()> + Send,
     {
-        fn ok<R: Try<Ok = ()>>(_: (), _: ()) -> R {
-            R::from_ok(())
+        fn ok<R: Try<Output = ()>>(_: (), _: ()) -> R {
+            R::from_output(())
         }
 
         self.map_with(init, op).try_reduce(<()>::default, ok)
@@ -539,10 +539,10 @@ pub trait ParallelIterator: Sized + Send {
     where
         OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
         INIT: Fn() -> T + Sync + Send,
-        R: Try<Ok = ()> + Send,
+        R: Try<Output = ()> + Send,
     {
-        fn ok<R: Try<Ok = ()>>(_: (), _: ()) -> R {
-            R::from_ok(())
+        fn ok<R: Try<Output = ()>>(_: (), _: ()) -> R {
+            R::from_output(())
         }
 
         self.map_init(init, op).try_reduce(<()>::default, ok)
@@ -1065,7 +1065,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         OP: Fn(T, T) -> Self::Item + Sync + Send,
         ID: Fn() -> T + Sync + Send,
-        Self::Item: Try<Ok = T>,
+        Self::Item: Try<Output = T>,
     {
         try_reduce::try_reduce(self, identity, op)
     }
@@ -1108,7 +1108,7 @@ pub trait ParallelIterator: Sized + Send {
     fn try_reduce_with<T, OP>(self, op: OP) -> Option<Self::Item>
     where
         OP: Fn(T, T) -> Self::Item + Sync + Send,
-        Self::Item: Try<Ok = T>,
+        Self::Item: Try<Output = T>,
     {
         try_reduce_with::try_reduce_with(self, op)
     }
@@ -1311,7 +1311,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         F: Fn(T, Self::Item) -> R + Sync + Send,
         ID: Fn() -> T + Sync + Send,
-        R: Try<Ok = T> + Send,
+        R: Try<Output = T> + Send,
     {
         TryFold::new(self, identity, fold_op)
     }
@@ -1337,7 +1337,7 @@ pub trait ParallelIterator: Sized + Send {
     fn try_fold_with<F, T, R>(self, init: T, fold_op: F) -> TryFoldWith<Self, R, F>
     where
         F: Fn(T, Self::Item) -> R + Sync + Send,
-        R: Try<Ok = T> + Send,
+        R: Try<Output = T> + Send,
         T: Clone + Send,
     {
         TryFoldWith::new(self, init, fold_op)
@@ -2605,7 +2605,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// # Compatibility
     ///
     /// This method is only available on Rust 1.38 or greater.
-    #[cfg(step_by)]
+    #[cfg(has_step_by_rev)]
     fn step_by(self, step: usize) -> StepBy<Self> {
         StepBy::new(self, step)
     }
@@ -3145,50 +3145,166 @@ pub trait ParallelDrainRange<Idx = usize> {
 /// We hide the `Try` trait in a private module, as it's only meant to be a
 /// stable clone of the standard library's `Try` trait, as yet unstable.
 mod private {
+    use std::convert::Infallible;
+    use std::task::Poll;
+
+    #[cfg(has_control_flow)]
+    pub(crate) use std::ops::ControlFlow;
+
+    #[cfg(not(has_control_flow))]
+    #[allow(missing_debug_implementations)]
+    pub enum ControlFlow<B, C = ()> {
+        Continue(C),
+        Break(B),
+    }
+
+    use self::ControlFlow::{Break, Continue};
+
     /// Clone of `std::ops::Try`.
     ///
     /// Implementing this trait is not permitted outside of `rayon`.
     pub trait Try {
         private_decl! {}
 
-        type Ok;
-        type Error;
-        fn into_result(self) -> Result<Self::Ok, Self::Error>;
-        fn from_ok(v: Self::Ok) -> Self;
-        fn from_error(v: Self::Error) -> Self;
+        type Output;
+        type Residual;
+
+        fn from_output(output: Self::Output) -> Self;
+
+        fn from_residual(residual: Self::Residual) -> Self;
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output>;
+    }
+
+    #[cfg(has_control_flow)]
+    impl<B, C> Try for ControlFlow<B, C> {
+        private_impl! {}
+
+        type Output = C;
+        type Residual = ControlFlow<B, Infallible>;
+
+        fn from_output(output: Self::Output) -> Self {
+            Continue(output)
+        }
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                Break(b) => Break(b),
+                Continue(_) => unreachable!(),
+            }
+        }
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Continue(c) => Continue(c),
+                Break(b) => Break(Break(b)),
+            }
+        }
     }
 
     impl<T> Try for Option<T> {
         private_impl! {}
 
-        type Ok = T;
-        type Error = ();
+        type Output = T;
+        type Residual = Option<Infallible>;
 
-        fn into_result(self) -> Result<T, ()> {
-            self.ok_or(())
+        fn from_output(output: Self::Output) -> Self {
+            Some(output)
         }
-        fn from_ok(v: T) -> Self {
-            Some(v)
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                None => None,
+                Some(_) => unreachable!(),
+            }
         }
-        fn from_error(_: ()) -> Self {
-            None
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Some(c) => Continue(c),
+                None => Break(None),
+            }
         }
     }
 
     impl<T, E> Try for Result<T, E> {
         private_impl! {}
 
-        type Ok = T;
-        type Error = E;
+        type Output = T;
+        type Residual = Result<Infallible, E>;
 
-        fn into_result(self) -> Result<T, E> {
-            self
+        fn from_output(output: Self::Output) -> Self {
+            Ok(output)
         }
-        fn from_ok(v: T) -> Self {
-            Ok(v)
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                Err(e) => Err(e),
+                Ok(_) => unreachable!(),
+            }
         }
-        fn from_error(v: E) -> Self {
-            Err(v)
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Ok(c) => Continue(c),
+                Err(e) => Break(Err(e)),
+            }
+        }
+    }
+
+    impl<T, E> Try for Poll<Result<T, E>> {
+        private_impl! {}
+
+        type Output = Poll<T>;
+        type Residual = Result<Infallible, E>;
+
+        fn from_output(output: Self::Output) -> Self {
+            output.map(Ok)
+        }
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                Err(e) => Poll::Ready(Err(e)),
+                Ok(_) => unreachable!(),
+            }
+        }
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Poll::Pending => Continue(Poll::Pending),
+                Poll::Ready(Ok(c)) => Continue(Poll::Ready(c)),
+                Poll::Ready(Err(e)) => Break(Err(e)),
+            }
+        }
+    }
+
+    impl<T, E> Try for Poll<Option<Result<T, E>>> {
+        private_impl! {}
+
+        type Output = Poll<Option<T>>;
+        type Residual = Result<Infallible, E>;
+
+        fn from_output(output: Self::Output) -> Self {
+            match output {
+                Poll::Ready(o) => Poll::Ready(o.map(Ok)),
+                Poll::Pending => Poll::Pending,
+            }
+        }
+
+        fn from_residual(residual: Self::Residual) -> Self {
+            match residual {
+                Err(e) => Poll::Ready(Some(Err(e))),
+                Ok(_) => unreachable!(),
+            }
+        }
+
+        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+            match self {
+                Poll::Pending => Continue(Poll::Pending),
+                Poll::Ready(None) => Continue(Poll::Ready(None)),
+                Poll::Ready(Some(Ok(c))) => Continue(Poll::Ready(Some(c))),
+                Poll::Ready(Some(Err(e))) => Break(Err(e)),
+            }
         }
     }
 }
