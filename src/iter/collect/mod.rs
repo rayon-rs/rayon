@@ -1,4 +1,4 @@
-use super::{IndexedParallelIterator, IntoParallelIterator, ParallelExtend, ParallelIterator};
+use super::{IndexedParallelIterator, ParallelIterator};
 use std::mem::MaybeUninit;
 use std::slice;
 
@@ -33,7 +33,7 @@ where
 /// *any* `ParallelIterator` here, and `CollectConsumer` has to also implement
 /// `UnindexedConsumer`.  That implementation panics `unreachable!` in case
 /// there's a bug where we actually do try to use this unindexed.
-fn special_extend<I, T>(pi: I, len: usize, v: &mut Vec<T>)
+pub(super) fn special_extend<I, T>(pi: I, len: usize, v: &mut Vec<T>)
 where
     I: ParallelIterator<Item = T>,
     T: Send,
@@ -139,35 +139,5 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         let start = vec.len();
         let tail_ptr = vec[start..].as_mut_ptr() as *mut MaybeUninit<T>;
         unsafe { slice::from_raw_parts_mut(tail_ptr, len) }
-    }
-}
-
-/// Extends a vector with items from a parallel iterator.
-impl<T> ParallelExtend<T> for Vec<T>
-where
-    T: Send,
-{
-    fn par_extend<I>(&mut self, par_iter: I)
-    where
-        I: IntoParallelIterator<Item = T>,
-    {
-        // See the vec_collect benchmarks in rayon-demo for different strategies.
-        let par_iter = par_iter.into_par_iter();
-        match par_iter.opt_len() {
-            Some(len) => {
-                // When Rust gets specialization, we can get here for indexed iterators
-                // without relying on `opt_len`.  Until then, `special_extend()` fakes
-                // an unindexed mode on the promise that `opt_len()` is accurate.
-                special_extend(par_iter, len, self);
-            }
-            None => {
-                // This works like `extend`, but `Vec::append` is more efficient.
-                let list = super::extend::collect(par_iter);
-                self.reserve(super::extend::len(&list));
-                for mut vec in list {
-                    self.append(&mut vec);
-                }
-            }
-        }
     }
 }
