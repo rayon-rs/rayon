@@ -106,6 +106,7 @@ mod chain;
 mod chunks;
 mod cloned;
 mod collect;
+mod concat;
 mod copied;
 mod empty;
 mod enumerate;
@@ -155,6 +156,7 @@ pub use self::{
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
+    concat::{concat, Concat},
     copied::Copied,
     empty::{empty, Empty},
     enumerate::Enumerate,
