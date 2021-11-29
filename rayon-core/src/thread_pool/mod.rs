@@ -277,6 +277,13 @@ impl ThreadPool {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_fifo_in(op, &self.registry) }
     }
+
+    /// Terminates the threads, renders the threadpool unusable.
+    /// This is useful for testing (miri) if the thread-pool is static.
+    /// It should be used upon shutdown only
+    pub unsafe fn terminate(&self) {
+        self.registry.terminate();
+    }
 }
 
 impl Drop for ThreadPool {
