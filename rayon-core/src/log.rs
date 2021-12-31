@@ -377,7 +377,7 @@ impl SimulatorState {
         }
     }
 
-    fn dump(&mut self, w: &mut impl Write, event: &Event) -> io::Result<()> {
+    fn dump(&mut self, w: &mut dyn Write, event: &Event) -> io::Result<()> {
         let num_idle_threads = self
             .thread_states
             .iter()
