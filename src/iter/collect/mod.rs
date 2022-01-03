@@ -90,7 +90,11 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         F: FnOnce(CollectConsumer<'_, T>) -> CollectResult<'_, T>,
     {
         let slice = Self::reserve_get_tail_slice(&mut self.vec, self.len);
-        let result = scope_fn(CollectConsumer::new(slice));
+        let result = scope_fn(CollectConsumer::new(
+            slice.as_mut_ptr(),
+            slice.len(),
+            std::marker::PhantomData,
+        ));
 
         // The CollectResult represents a contiguous part of the
         // slice, that has been written to.
@@ -136,8 +140,12 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
         // TODO: use `Vec::spare_capacity_mut` instead
         // SAFETY: `MaybeUninit<T>` is guaranteed to have the same layout
         // as `T`, and we already made sure to have the additional space.
+        // This pointer is derived from `Vec` directly, not through a `Deref`,
+        // so it has provenance over the whole allocation.
         let start = vec.len();
-        let tail_ptr = vec[start..].as_mut_ptr() as *mut MaybeUninit<T>;
-        unsafe { slice::from_raw_parts_mut(tail_ptr, len) }
+        unsafe {
+            let tail_ptr = vec.as_mut_ptr() as *mut MaybeUninit<T>;
+            slice::from_raw_parts_mut(tail_ptr.add(start), len)
+        }
     }
 }
