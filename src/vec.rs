@@ -144,7 +144,7 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
             // Create the producer as the exclusive "owner" of the slice.
             let producer = {
                 let ptr = self.vec.as_mut_ptr().add(start);
-                let slice = slice::from_raw_parts_mut(ptr, self.range.len());
+                let slice: &'data mut [T] = slice::from_raw_parts_mut(ptr, self.range.len());
                 DrainProducer::new(slice)
             };
 
