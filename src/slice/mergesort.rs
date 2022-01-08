@@ -6,6 +6,7 @@
 
 use crate::iter::*;
 use crate::slice::ParallelSliceMut;
+use crate::SendPtr;
 use std::mem;
 use std::mem::size_of;
 use std::ptr;
@@ -497,12 +498,13 @@ where
         // get copied into `dest_left` and `dest_right``.
         mem::forget(s);
 
-        // Convert the pointers to `usize` because `*mut T` is not `Send`.
-        let dest_l = dest as usize;
-        let dest_r = dest.add(left_l.len() + right_l.len()) as usize;
+        // Wrap pointers in SendPtr so that they can be sent to another thread
+        // See the documentation of SendPtr for a full explanation
+        let dest_l = SendPtr(dest);
+        let dest_r = SendPtr(dest.add(left_l.len() + right_l.len()));
         rayon_core::join(
-            || par_merge(left_l, right_l, dest_l as *mut T, is_less),
-            || par_merge(left_r, right_r, dest_r as *mut T, is_less),
+            || par_merge(left_l, right_l, dest_l.0, is_less),
+            || par_merge(left_r, right_r, dest_r.0, is_less),
         );
     }
     // Finally, `s` gets dropped if we used sequential merge, thus copying the remaining elements
@@ -598,12 +600,13 @@ unsafe fn recurse<T, F>(
         len: end - start,
     };
 
-    // Convert the pointers to `usize` because `*mut T` is not `Send`.
-    let v = v as usize;
-    let buf = buf as usize;
+    // Wrap pointers in SendPtr so that they can be sent to another thread
+    // See the documentation of SendPtr for a full explanation
+    let v = SendPtr(v);
+    let buf = SendPtr(buf);
     rayon_core::join(
-        || recurse(v as *mut T, buf as *mut T, left, !into_buf, is_less),
-        || recurse(v as *mut T, buf as *mut T, right, !into_buf, is_less),
+        || recurse(v.0, buf.0, left, !into_buf, is_less),
+        || recurse(v.0, buf.0, right, !into_buf, is_less),
     );
 
     // Everything went all right - recursive calls didn't panic.
@@ -667,8 +670,9 @@ where
     // Split the slice into chunks and merge sort them in parallel.
     // However, descending chunks will not be sorted - they will be simply left intact.
     let mut iter = {
-        // Convert the pointer to `usize` because `*mut T` is not `Send`.
-        let buf = buf as usize;
+        // Wrap pointer in SendPtr so that it can be sent to another thread
+        // See the documentation of SendPtr for a full explanation
+        let buf = SendPtr(buf);
 
         v.par_chunks_mut(CHUNK_LENGTH)
             .with_max_len(1)
@@ -677,7 +681,7 @@ where
                 let l = CHUNK_LENGTH * i;
                 let r = l + chunk.len();
                 unsafe {
-                    let buf = (buf as *mut T).add(l);
+                    let buf = buf.0.add(l);
                     (l, r, mergesort(chunk, buf, &is_less))
                 }
             })

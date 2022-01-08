@@ -91,7 +91,7 @@ impl<'c, T: Send + 'c> Collect<'c, T> {
     {
         let slice = Self::reserve_get_tail_slice(&mut self.vec, self.len);
         let result = scope_fn(CollectConsumer::new(
-            slice.as_mut_ptr(),
+            slice.as_mut_ptr().cast(),
             slice.len(),
             std::marker::PhantomData,
         ));
