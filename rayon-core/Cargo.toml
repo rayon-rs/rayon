@@ -4,7 +4,7 @@ version = "1.9.1" # reminder to update html_root_url attribute
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
-license = "Apache-2.0/MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
 documentation = "https://docs.rs/rayon/"
 edition = "2018"
