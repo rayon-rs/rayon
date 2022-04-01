@@ -25,7 +25,7 @@ unsafe fn decrement_and_get<T>(ptr: &mut *mut T) -> *mut T {
 
 /// When dropped, copies from `src` into `dest` a sequence of length `len`.
 struct CopyOnDrop<T> {
-    src: *mut T,
+    src: *const T,
     dest: *mut T,
     len: usize,
 }
@@ -64,9 +64,7 @@ where
             //    performance than with the 2nd method.
             //
             // All methods were benchmarked, and the 3rd showed best results. So we chose that one.
-            let mut tmp = NoDrop {
-                value: Some(ptr::read(&v[0])),
-            };
+            let tmp = mem::ManuallyDrop::new(ptr::read(&v[0]));
 
             // Intermediate state of the insertion process is always tracked by `hole`, which
             // serves two purposes:
@@ -79,13 +77,13 @@ where
             // fill the hole in `v` with `tmp`, thus ensuring that `v` still holds every object it
             // initially held exactly once.
             let mut hole = InsertionHole {
-                src: tmp.value.as_mut().unwrap(),
+                src: &*tmp,
                 dest: &mut v[1],
             };
             ptr::copy_nonoverlapping(&v[1], &mut v[0], 1);
 
             for i in 2..v.len() {
-                if !is_less(&v[i], tmp.value.as_ref().unwrap()) {
+                if !is_less(&v[i], &*tmp) {
                     break;
                 }
                 ptr::copy_nonoverlapping(&v[i], &mut v[i - 1], 1);
@@ -95,20 +93,9 @@ where
         }
     }
 
-    // Holds a value, but never drops it.
-    struct NoDrop<T> {
-        value: Option<T>,
-    }
-
-    impl<T> Drop for NoDrop<T> {
-        fn drop(&mut self) {
-            mem::forget(self.value.take());
-        }
-    }
-
     // When dropped, copies from `src` into `dest`.
     struct InsertionHole<T> {
-        src: *mut T,
+        src: *const T,
         dest: *mut T,
     }
 
@@ -220,6 +207,7 @@ where
             // `T` is not a zero-sized type, so it's okay to divide by its size.
             let len = (self.end as usize - self.start as usize) / size_of::<T>();
             unsafe {
+                // TODO 1.47: let len = self.end.offset_from(self.start) as usize;
                 ptr::copy_nonoverlapping(self.start, self.dest, len);
             }
         }
@@ -285,7 +273,7 @@ fn collapse(runs: &[Run]) -> Option<usize> {
 /// Otherwise, it sorts the slice into non-descending order.
 ///
 /// This merge sort borrows some (but not all) ideas from TimSort, which is described in detail
-/// [here](https://svn.python.org/projects/python/trunk/Objects/listsort.txt).
+/// [here](https://github.com/python/cpython/blob/main/Objects/listsort.txt).
 ///
 /// The algorithm identifies strictly descending and non-descending subsequences, which are called
 /// natural runs. There is a stack of pending runs yet to be merged. Each newly found run is pushed
@@ -295,7 +283,7 @@ fn collapse(runs: &[Run]) -> Option<usize> {
 /// 1. for every `i` in `1..runs.len()`: `runs[i - 1].len > runs[i].len`
 /// 2. for every `i` in `2..runs.len()`: `runs[i - 2].len > runs[i - 1].len + runs[i].len`
 ///
-/// The invariants ensure that the total running time is `O(n log n)` worst-case.
+/// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
 ///
 /// # Safety
 ///
