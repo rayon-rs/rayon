@@ -2808,7 +2808,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     }
 
     /// Sets the minimum length of iterators desired to process in each
-    /// thread.  Rayon will not split any smaller than this length, but
+    /// rayon job.  Rayon will not split any smaller than this length, but
     /// of course an iterator could already be smaller to begin with.
     ///
     /// Producers like `zip` and `interleave` will use greater of the two
@@ -2834,7 +2834,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     }
 
     /// Sets the maximum length of iterators desired to process in each
-    /// thread.  Rayon will try to split at least below this length,
+    /// rayon job.  Rayon will try to split at least below this length,
     /// unless that would put it below the length from `with_min_len()`.
     /// For example, given min=10 and max=15, a length of 16 will not be
     /// split any further.
