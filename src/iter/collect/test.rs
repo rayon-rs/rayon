@@ -5,7 +5,7 @@
 // try to drive the "collect consumer" incorrectly. These should
 // result in panics.
 
-use super::Collect;
+use super::collect_with_consumer;
 use crate::iter::plumbing::*;
 use rayon_core::join;
 
@@ -20,7 +20,7 @@ use std::thread::Result as ThreadResult;
 #[should_panic(expected = "too many values")]
 fn produce_too_many_items() {
     let mut v = vec![];
-    Collect::new(&mut v, 2).with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 2, |consumer| {
         let mut folder = consumer.into_folder();
         folder = folder.consume(22);
         folder = folder.consume(23);
@@ -35,8 +35,7 @@ fn produce_too_many_items() {
 #[should_panic(expected = "expected 5 total writes, but got 2")]
 fn produce_fewer_items() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 5);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 5, |consumer| {
         let mut folder = consumer.into_folder();
         folder = folder.consume(22);
         folder = folder.consume(23);
@@ -49,8 +48,7 @@ fn produce_fewer_items() {
 #[should_panic(expected = "expected 4 total writes, but got 2")]
 fn left_produces_items_with_no_complete() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -66,8 +64,7 @@ fn left_produces_items_with_no_complete() {
 #[should_panic(expected = "expected 4 total writes, but got 2")]
 fn right_produces_items_with_no_complete() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -83,8 +80,7 @@ fn produces_items_with_no_complete() {
     let counter = DropCounter::default();
     let mut v = vec![];
     let panic_result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        let collect = Collect::new(&mut v, 2);
-        collect.with_consumer(|consumer| {
+        collect_with_consumer(&mut v, 2, |consumer| {
             let mut folder = consumer.into_folder();
             folder = folder.consume(counter.element());
             folder = folder.consume(counter.element());
@@ -102,8 +98,7 @@ fn produces_items_with_no_complete() {
 #[should_panic(expected = "too many values")]
 fn left_produces_too_many_items() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -120,8 +115,7 @@ fn left_produces_too_many_items() {
 #[should_panic(expected = "too many values")]
 fn right_produces_too_many_items() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -138,8 +132,7 @@ fn right_produces_too_many_items() {
 #[should_panic(expected = "expected 4 total writes, but got 1")]
 fn left_produces_fewer_items() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let reducer = consumer.to_reducer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
@@ -158,8 +151,7 @@ fn left_produces_fewer_items() {
 #[should_panic(expected = "expected 4 total writes, but got 2")]
 fn only_left_result() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -177,8 +169,7 @@ fn only_left_result() {
 #[should_panic(expected = "expected 4 total writes, but got 2")]
 fn only_right_result() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
         let mut right_folder = right_consumer.into_folder();
@@ -195,8 +186,7 @@ fn only_right_result() {
 #[should_panic(expected = "expected 4 total writes, but got 2")]
 fn reducer_does_not_preserve_order() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let reducer = consumer.to_reducer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
@@ -215,8 +205,7 @@ fn reducer_does_not_preserve_order() {
 #[should_panic(expected = "expected 4 total writes, but got 3")]
 fn right_produces_fewer_items() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let reducer = consumer.to_reducer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let mut left_folder = left_consumer.into_folder();
@@ -230,13 +219,12 @@ fn right_produces_fewer_items() {
 }
 
 // The left consumer panics and the right stops short, like `panic_fuse()`.
-// We should get the left panic without finishing `Collect::with_consumer`.
+// We should get the left panic without finishing `collect_with_consumer`.
 #[test]
 #[should_panic(expected = "left consumer panic")]
 fn left_panics() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let reducer = consumer.to_reducer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let (left_result, right_result) = join(
@@ -257,13 +245,12 @@ fn left_panics() {
 }
 
 // The right consumer panics and the left stops short, like `panic_fuse()`.
-// We should get the right panic without finishing `Collect::with_consumer`.
+// We should get the right panic without finishing `collect_with_consumer`.
 #[test]
 #[should_panic(expected = "right consumer panic")]
 fn right_panics() {
     let mut v = vec![];
-    let collect = Collect::new(&mut v, 4);
-    collect.with_consumer(|consumer| {
+    collect_with_consumer(&mut v, 4, |consumer| {
         let reducer = consumer.to_reducer();
         let (left_consumer, right_consumer, _) = consumer.split_at(2);
         let (left_result, right_result) = join(
@@ -290,8 +277,7 @@ fn left_produces_fewer_items_drops() {
     let counter = DropCounter::default();
     let mut v = vec![];
     let panic_result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        let collect = Collect::new(&mut v, 4);
-        collect.with_consumer(|consumer| {
+        collect_with_consumer(&mut v, 4, |consumer| {
             let reducer = consumer.to_reducer();
             let (left_consumer, right_consumer, _) = consumer.split_at(2);
             let mut left_folder = left_consumer.into_folder();

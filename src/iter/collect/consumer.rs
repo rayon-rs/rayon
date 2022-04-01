@@ -11,14 +11,27 @@ pub(super) struct CollectConsumer<'c, T: Send> {
     marker: PhantomData<&'c mut T>,
 }
 
+impl<T: Send> CollectConsumer<'_, T> {
+    /// Create a collector for `len` items in the unused capacity of the vector.
+    pub(super) fn appender(vec: &mut Vec<T>, len: usize) -> CollectConsumer<'_, T> {
+        let start = vec.len();
+        assert!(vec.capacity() - start >= len);
+
+        // SAFETY: We already made sure to have the additional space allocated.
+        // The pointer is derived from `Vec` directly, not through a `Deref`,
+        // so it has provenance over the whole allocation.
+        unsafe { CollectConsumer::new(vec.as_mut_ptr().add(start), len) }
+    }
+}
+
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without reading or dropping existing values.
-    pub(super) fn new(start: *mut T, len: usize, marker: PhantomData<&'c mut T>) -> Self {
+    unsafe fn new(start: *mut T, len: usize) -> Self {
         CollectConsumer {
             start: SendPtr(start),
             len,
-            marker,
+            marker: PhantomData,
         }
     }
 }
@@ -76,15 +89,15 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
     type Result = CollectResult<'c, T>;
 
     fn split_at(self, index: usize) -> (Self, Self, CollectReducer) {
-        let CollectConsumer { start, len, marker } = self;
+        let CollectConsumer { start, len, .. } = self;
 
         // Produce new consumers.
         // SAFETY: This assert checks that `index` is a valid offset for `start`
         unsafe {
             assert!(index <= len);
             (
-                CollectConsumer::new(start.0, index, marker),
-                CollectConsumer::new(start.0.add(index), len - index, marker),
+                CollectConsumer::new(start.0, index),
+                CollectConsumer::new(start.0.add(index), len - index),
                 CollectReducer,
             )
         }
