@@ -1,4 +1,3 @@
-
 use crate::iter::plumbing::*;
 use crate::iter::*;
 
@@ -17,13 +16,11 @@ where
                 if !(1..xs.len()).contains(&start) || !(2..xs.len()).contains(&end) {
                     *cont = false;
                     (0, xs.len())
-                }
-                else {
+                } else {
                     (start, end)
                 },
             )
-        }
-        else {
+        } else {
             None
         }
     }) {
@@ -33,8 +30,7 @@ where
             .find_map(|(i, win)| {
                 if pred(&win[0], &win[1]) {
                     None
-                }
-                else {
+                } else {
                     Some(i)
                 }
             })
@@ -47,8 +43,7 @@ where
     None
 }
 
-struct GroupByProducer<'data, 'p, T, P>
-{
+struct GroupByProducer<'data, 'p, T, P> {
     pred: &'p P,
     slice: &'data [T],
 }
@@ -60,13 +55,20 @@ where
 {
     type Item = &'data [T];
 
-    fn split(self) -> (Self, Option<Self>)
-    {
+    fn split(self) -> (Self, Option<Self>) {
         match find_index(self.slice, self.pred) {
             Some(i) => {
                 let (ys, zs) = self.slice.split_at(i + 1);
-                (Self { pred: self.pred, slice: ys },
-                Some(Self { pred: self.pred, slice: zs }))
+                (
+                    Self {
+                        pred: self.pred,
+                        slice: ys,
+                    },
+                    Some(Self {
+                        pred: self.pred,
+                        slice: zs,
+                    }),
+                )
             }
             None => (self, None),
         }
@@ -89,23 +91,21 @@ where
 pub struct GroupBy<'data, T, F>
 where
     T: Sync,
-    F: Fn(&T, &T) -> bool + Send + Sync
+    F: Fn(&T, &T) -> bool + Send + Sync,
 {
     pred: F,
     slice: &'data [T],
 }
 
-impl<'data, T, F> GroupBy<'data, T, F> 
+impl<'data, T, F> GroupBy<'data, T, F>
 where
     T: Sync,
-    F: Fn(&T, &T) -> bool + Send + Sync
+    F: Fn(&T, &T) -> bool + Send + Sync,
 {
-    pub(super) fn new(slice: &'data [T], pred: F) -> Self
-    {
+    pub(super) fn new(slice: &'data [T], pred: F) -> Self {
         Self { pred, slice }
     }
 }
-
 
 impl<'data, T, F> ParallelIterator for GroupBy<'data, T, F>
 where
@@ -118,7 +118,12 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        bridge_unindexed(GroupByProducer { pred: &self.pred, slice: self.slice }, consumer)
+        bridge_unindexed(
+            GroupByProducer {
+                pred: &self.pred,
+                slice: self.slice,
+            },
+            consumer,
+        )
     }
 }
-        

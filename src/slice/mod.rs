@@ -6,10 +6,10 @@
 //! [std::slice]: https://doc.rust-lang.org/stable/std/slice/
 
 mod chunks;
+mod group_by;
 mod mergesort;
 mod quicksort;
 mod rchunks;
-mod group_by;
 
 mod test;
 
@@ -24,8 +24,8 @@ use std::fmt::{self, Debug};
 use std::mem;
 
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
-pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
 pub use self::group_by::GroupBy;
+pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
