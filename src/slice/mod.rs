@@ -9,6 +9,7 @@ mod chunks;
 mod mergesort;
 mod quicksort;
 mod rchunks;
+mod group_by;
 
 mod test;
 
@@ -24,6 +25,7 @@ use std::mem;
 
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
 pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
+pub use self::group_by::GroupBy;
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
@@ -172,6 +174,29 @@ pub trait ParallelSlice<T: Sync> {
     fn par_rchunks_exact(&self, chunk_size: usize) -> RChunksExact<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunksExact::new(chunk_size, self.as_parallel_slice())
+    }
+
+    /// Returns a parallel iterator over the slice producing non-overlapping runs
+    /// of elements using the predicate to separate them.
+    ///
+    /// The predicate is called on two elements following themselves,
+    /// it means the predicate is called on `slice[0]` and `slice[1]`
+    /// then on `slice[1]` and `slice[2]` and so on.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let groups: Vec<_> = [1, 2, 2, 3, 3, 3].par_group_by(|&x, &y| x == y).collect();
+    /// assert_eq!(groups[0], &[1]);
+    /// assert_eq!(groups[1], &[2, 2]);
+    /// assert_eq!(groups[2], &[3, 3, 3]);
+    /// ```
+    fn par_group_by<F>(&self, pred: F) -> GroupBy<'_, T, F>
+    where
+        F: Fn(&T, &T) -> bool + Send + Sync,
+    {
+        GroupBy::new(self.as_parallel_slice(), pred)
     }
 }
 
