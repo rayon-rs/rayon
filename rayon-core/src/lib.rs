@@ -87,6 +87,17 @@ pub use self::thread_pool::ThreadPool;
 
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
+/// Returns the maximum number of threads that Rayon supports in a single thread-pool.
+///
+/// If a higher thread count is requested by calling `ThreadPoolBuilder::num_threads` or by setting
+/// the `RAYON_NUM_THREADS` environment variable, then it will be reduced to this maximum.
+///
+/// The value may vary between different targets, and is subject to change in new Rayon versions.
+pub fn max_num_threads() -> usize {
+    // We are limited by the bits available in the sleep counter's `AtomicUsize`.
+    crate::sleep::THREADS_MAX
+}
+
 /// Returns the number of threads in the current registry. If this
 /// code is executing within a Rayon thread-pool, then this will be
 /// the number of threads for the thread-pool of the current

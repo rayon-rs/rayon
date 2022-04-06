@@ -114,7 +114,7 @@ pub use rayon_core::ThreadBuilder;
 pub use rayon_core::ThreadPool;
 pub use rayon_core::ThreadPoolBuildError;
 pub use rayon_core::ThreadPoolBuilder;
-pub use rayon_core::{current_num_threads, current_thread_index};
+pub use rayon_core::{current_num_threads, current_thread_index, max_num_threads};
 pub use rayon_core::{in_place_scope, scope, Scope};
 pub use rayon_core::{in_place_scope_fifo, scope_fifo, ScopeFifo};
 pub use rayon_core::{join, join_context};

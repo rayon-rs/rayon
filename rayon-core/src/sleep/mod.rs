@@ -11,6 +11,7 @@ use std::thread;
 use std::usize;
 
 mod counters;
+pub(crate) use self::counters::THREADS_MAX;
 use self::counters::{AtomicCounters, JobsEventCounter};
 
 /// The `Sleep` struct is embedded into each registry. It governs the waking and sleeping
@@ -62,6 +63,7 @@ const ROUNDS_UNTIL_SLEEPING: u32 = ROUNDS_UNTIL_SLEEPY + 1;
 
 impl Sleep {
     pub(super) fn new(logger: Logger, n_threads: usize) -> Sleep {
+        assert!(n_threads <= THREADS_MAX);
         Sleep {
             logger,
             worker_sleep_states: (0..n_threads).map(|_| Default::default()).collect(),
