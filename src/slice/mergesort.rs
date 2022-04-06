@@ -6,6 +6,7 @@
 
 use crate::iter::*;
 use crate::slice::ParallelSliceMut;
+use crate::SendPtr;
 use std::mem;
 use std::mem::size_of;
 use std::ptr;
@@ -24,7 +25,7 @@ unsafe fn decrement_and_get<T>(ptr: &mut *mut T) -> *mut T {
 
 /// When dropped, copies from `src` into `dest` a sequence of length `len`.
 struct CopyOnDrop<T> {
-    src: *mut T,
+    src: *const T,
     dest: *mut T,
     len: usize,
 }
@@ -63,9 +64,7 @@ where
             //    performance than with the 2nd method.
             //
             // All methods were benchmarked, and the 3rd showed best results. So we chose that one.
-            let mut tmp = NoDrop {
-                value: Some(ptr::read(&v[0])),
-            };
+            let tmp = mem::ManuallyDrop::new(ptr::read(&v[0]));
 
             // Intermediate state of the insertion process is always tracked by `hole`, which
             // serves two purposes:
@@ -78,13 +77,13 @@ where
             // fill the hole in `v` with `tmp`, thus ensuring that `v` still holds every object it
             // initially held exactly once.
             let mut hole = InsertionHole {
-                src: tmp.value.as_mut().unwrap(),
+                src: &*tmp,
                 dest: &mut v[1],
             };
             ptr::copy_nonoverlapping(&v[1], &mut v[0], 1);
 
             for i in 2..v.len() {
-                if !is_less(&v[i], tmp.value.as_ref().unwrap()) {
+                if !is_less(&v[i], &*tmp) {
                     break;
                 }
                 ptr::copy_nonoverlapping(&v[i], &mut v[i - 1], 1);
@@ -94,20 +93,9 @@ where
         }
     }
 
-    // Holds a value, but never drops it.
-    struct NoDrop<T> {
-        value: Option<T>,
-    }
-
-    impl<T> Drop for NoDrop<T> {
-        fn drop(&mut self) {
-            mem::forget(self.value.take());
-        }
-    }
-
     // When dropped, copies from `src` into `dest`.
     struct InsertionHole<T> {
-        src: *mut T,
+        src: *const T,
         dest: *mut T,
     }
 
@@ -219,6 +207,7 @@ where
             // `T` is not a zero-sized type, so it's okay to divide by its size.
             let len = (self.end as usize - self.start as usize) / size_of::<T>();
             unsafe {
+                // TODO 1.47: let len = self.end.offset_from(self.start) as usize;
                 ptr::copy_nonoverlapping(self.start, self.dest, len);
             }
         }
@@ -284,7 +273,7 @@ fn collapse(runs: &[Run]) -> Option<usize> {
 /// Otherwise, it sorts the slice into non-descending order.
 ///
 /// This merge sort borrows some (but not all) ideas from TimSort, which is described in detail
-/// [here](https://svn.python.org/projects/python/trunk/Objects/listsort.txt).
+/// [here](https://github.com/python/cpython/blob/main/Objects/listsort.txt).
 ///
 /// The algorithm identifies strictly descending and non-descending subsequences, which are called
 /// natural runs. There is a stack of pending runs yet to be merged. Each newly found run is pushed
@@ -294,7 +283,7 @@ fn collapse(runs: &[Run]) -> Option<usize> {
 /// 1. for every `i` in `1..runs.len()`: `runs[i - 1].len > runs[i].len`
 /// 2. for every `i` in `2..runs.len()`: `runs[i - 2].len > runs[i - 1].len + runs[i].len`
 ///
-/// The invariants ensure that the total running time is `O(n log n)` worst-case.
+/// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
 ///
 /// # Safety
 ///
@@ -497,12 +486,13 @@ where
         // get copied into `dest_left` and `dest_right``.
         mem::forget(s);
 
-        // Convert the pointers to `usize` because `*mut T` is not `Send`.
-        let dest_l = dest as usize;
-        let dest_r = dest.add(left_l.len() + right_l.len()) as usize;
+        // Wrap pointers in SendPtr so that they can be sent to another thread
+        // See the documentation of SendPtr for a full explanation
+        let dest_l = SendPtr(dest);
+        let dest_r = SendPtr(dest.add(left_l.len() + right_l.len()));
         rayon_core::join(
-            || par_merge(left_l, right_l, dest_l as *mut T, is_less),
-            || par_merge(left_r, right_r, dest_r as *mut T, is_less),
+            || par_merge(left_l, right_l, dest_l.0, is_less),
+            || par_merge(left_r, right_r, dest_r.0, is_less),
         );
     }
     // Finally, `s` gets dropped if we used sequential merge, thus copying the remaining elements
@@ -598,12 +588,13 @@ unsafe fn recurse<T, F>(
         len: end - start,
     };
 
-    // Convert the pointers to `usize` because `*mut T` is not `Send`.
-    let v = v as usize;
-    let buf = buf as usize;
+    // Wrap pointers in SendPtr so that they can be sent to another thread
+    // See the documentation of SendPtr for a full explanation
+    let v = SendPtr(v);
+    let buf = SendPtr(buf);
     rayon_core::join(
-        || recurse(v as *mut T, buf as *mut T, left, !into_buf, is_less),
-        || recurse(v as *mut T, buf as *mut T, right, !into_buf, is_less),
+        || recurse(v.0, buf.0, left, !into_buf, is_less),
+        || recurse(v.0, buf.0, right, !into_buf, is_less),
     );
 
     // Everything went all right - recursive calls didn't panic.
@@ -667,8 +658,9 @@ where
     // Split the slice into chunks and merge sort them in parallel.
     // However, descending chunks will not be sorted - they will be simply left intact.
     let mut iter = {
-        // Convert the pointer to `usize` because `*mut T` is not `Send`.
-        let buf = buf as usize;
+        // Wrap pointer in SendPtr so that it can be sent to another thread
+        // See the documentation of SendPtr for a full explanation
+        let buf = SendPtr(buf);
 
         v.par_chunks_mut(CHUNK_LENGTH)
             .with_max_len(1)
@@ -677,7 +669,7 @@ where
                 let l = CHUNK_LENGTH * i;
                 let r = l + chunk.len();
                 unsafe {
-                    let buf = (buf as *mut T).add(l);
+                    let buf = buf.0.add(l);
                     (l, r, mergesort(chunk, buf, &is_less))
                 }
             })

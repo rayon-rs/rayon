@@ -1,19 +1,38 @@
 use super::super::plumbing::*;
+use crate::SendPtr;
 use std::marker::PhantomData;
-use std::mem::MaybeUninit;
 use std::ptr;
 use std::slice;
 
 pub(super) struct CollectConsumer<'c, T: Send> {
-    /// A slice covering the target memory, not yet initialized!
-    target: &'c mut [MaybeUninit<T>],
+    /// See `CollectResult` for explanation of why this is not a slice
+    start: SendPtr<T>,
+    len: usize,
+    marker: PhantomData<&'c mut T>,
+}
+
+impl<T: Send> CollectConsumer<'_, T> {
+    /// Create a collector for `len` items in the unused capacity of the vector.
+    pub(super) fn appender(vec: &mut Vec<T>, len: usize) -> CollectConsumer<'_, T> {
+        let start = vec.len();
+        assert!(vec.capacity() - start >= len);
+
+        // SAFETY: We already made sure to have the additional space allocated.
+        // The pointer is derived from `Vec` directly, not through a `Deref`,
+        // so it has provenance over the whole allocation.
+        unsafe { CollectConsumer::new(vec.as_mut_ptr().add(start), len) }
+    }
 }
 
 impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
     /// The target memory is considered uninitialized, and will be
     /// overwritten without reading or dropping existing values.
-    pub(super) fn new(target: &'c mut [MaybeUninit<T>]) -> Self {
-        CollectConsumer { target }
+    unsafe fn new(start: *mut T, len: usize) -> Self {
+        CollectConsumer {
+            start: SendPtr(start),
+            len,
+            marker: PhantomData,
+        }
     }
 }
 
@@ -23,10 +42,13 @@ impl<'c, T: Send + 'c> CollectConsumer<'c, T> {
 /// the elements will be dropped, unless its ownership is released before then.
 #[must_use]
 pub(super) struct CollectResult<'c, T> {
-    /// A slice covering the target memory, initialized up to our separate `len`.
-    target: &'c mut [MaybeUninit<T>],
-    /// The current initialized length in `target`
-    len: usize,
+    /// This pointer and length has the same representation as a slice,
+    /// but retains the provenance of the entire array so that we can merge
+    /// these regions together in `CollectReducer`.
+    start: SendPtr<T>,
+    total_len: usize,
+    /// The current initialized length after `start`
+    initialized_len: usize,
     /// Lifetime invariance guarantees that the data flows from consumer to result,
     /// especially for the `scope_fn` callback in `Collect::with_consumer`.
     invariant_lifetime: PhantomData<&'c mut &'c mut [T]>,
@@ -37,25 +59,26 @@ unsafe impl<'c, T> Send for CollectResult<'c, T> where T: Send {}
 impl<'c, T> CollectResult<'c, T> {
     /// The current length of the collect result
     pub(super) fn len(&self) -> usize {
-        self.len
+        self.initialized_len
     }
 
     /// Release ownership of the slice of elements, and return the length
     pub(super) fn release_ownership(mut self) -> usize {
-        let ret = self.len;
-        self.len = 0;
+        let ret = self.initialized_len;
+        self.initialized_len = 0;
         ret
     }
 }
 
 impl<'c, T> Drop for CollectResult<'c, T> {
     fn drop(&mut self) {
-        // Drop the first `self.len` elements, which have been recorded
+        // Drop the first `self.initialized_len` elements, which have been recorded
         // to be initialized by the folder.
         unsafe {
-            // TODO: use `MaybeUninit::slice_as_mut_ptr`
-            let start = self.target.as_mut_ptr() as *mut T;
-            ptr::drop_in_place(slice::from_raw_parts_mut(start, self.len));
+            ptr::drop_in_place(slice::from_raw_parts_mut(
+                self.start.0,
+                self.initialized_len,
+            ));
         }
     }
 }
@@ -66,24 +89,27 @@ impl<'c, T: Send + 'c> Consumer<T> for CollectConsumer<'c, T> {
     type Result = CollectResult<'c, T>;
 
     fn split_at(self, index: usize) -> (Self, Self, CollectReducer) {
-        let CollectConsumer { target } = self;
+        let CollectConsumer { start, len, .. } = self;
 
-        // Produce new consumers. Normal slicing ensures that the
-        // memory range given to each consumer is disjoint.
-        let (left, right) = target.split_at_mut(index);
-        (
-            CollectConsumer::new(left),
-            CollectConsumer::new(right),
-            CollectReducer,
-        )
+        // Produce new consumers.
+        // SAFETY: This assert checks that `index` is a valid offset for `start`
+        unsafe {
+            assert!(index <= len);
+            (
+                CollectConsumer::new(start.0, index),
+                CollectConsumer::new(start.0.add(index), len - index),
+                CollectReducer,
+            )
+        }
     }
 
     fn into_folder(self) -> Self::Folder {
         // Create a result/folder that consumes values and writes them
-        // into target. The initial result has length 0.
+        // into the region after start. The initial result has length 0.
         CollectResult {
-            target: self.target,
-            len: 0,
+            start: self.start,
+            total_len: self.len,
+            initialized_len: 0,
             invariant_lifetime: PhantomData,
         }
     }
@@ -97,15 +123,17 @@ impl<'c, T: Send + 'c> Folder<T> for CollectResult<'c, T> {
     type Result = Self;
 
     fn consume(mut self, item: T) -> Self {
-        let dest = self
-            .target
-            .get_mut(self.len)
-            .expect("too many values pushed to consumer");
+        assert!(
+            self.initialized_len < self.total_len,
+            "too many values pushed to consumer"
+        );
 
-        // Write item and increase the initialized length
+        // SAFETY: The assert above is a bounds check for this write, and we
+        // avoid assignment here so we do not drop an uninitialized T.
         unsafe {
-            dest.as_mut_ptr().write(item);
-            self.len += 1;
+            // Write item and increase the initialized length
+            self.start.0.add(self.initialized_len).write(item);
+            self.initialized_len += 1;
         }
 
         self
@@ -146,14 +174,13 @@ impl<'c, T> Reducer<CollectResult<'c, T>> for CollectReducer {
         // Merge if the CollectResults are adjacent and in left to right order
         // else: drop the right piece now and total length will end up short in the end,
         // when the correctness of the collected result is asserted.
-        let left_end = left.target[left.len..].as_ptr();
-        if left_end == right.target.as_ptr() {
-            let len = left.len + right.release_ownership();
-            unsafe {
-                left.target = slice::from_raw_parts_mut(left.target.as_mut_ptr(), len);
+        unsafe {
+            let left_end = left.start.0.add(left.initialized_len);
+            if left_end == right.start.0 {
+                left.total_len += right.total_len;
+                left.initialized_len += right.release_ownership();
             }
-            left.len = len;
+            left
         }
-        left
     }
 }
