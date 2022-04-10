@@ -24,7 +24,7 @@ use std::fmt::{self, Debug};
 use std::mem;
 
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
-pub use self::group_by::GroupBy;
+pub use self::group_by::{GroupBy, GroupByMut};
 pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
 
 /// Parallel extensions for slices.
@@ -728,6 +728,30 @@ pub trait ParallelSliceMut<T: Send> {
         F: Fn(&T) -> K + Sync,
     {
         par_quicksort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
+    }
+
+    /// Returns a parallel iterator over the slice producing non-overlapping mutable 
+    /// runs of elements using the predicate to separate them.
+    ///
+    /// The predicate is called on two elements following themselves,
+    /// it means the predicate is called on `slice[0]` and `slice[1]`
+    /// then on `slice[1]` and `slice[2]` and so on.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut xs = [1, 2, 2, 3, 3, 3];
+    /// let groups: Vec<_> = xs.par_group_by_mut(|&x, &y| x == y).collect();
+    /// assert_eq!(groups[0], &mut [1]);
+    /// assert_eq!(groups[1], &mut [2, 2]);
+    /// assert_eq!(groups[2], &mut [3, 3, 3]);
+    /// ```
+    fn par_group_by_mut<F>(&mut self, pred: F) -> GroupByMut<'_, T, F>
+    where
+        F: Fn(&T, &T) -> bool + Send + Sync,
+    {
+        GroupByMut::new(self.as_parallel_slice_mut(), pred)
     }
 }
 
