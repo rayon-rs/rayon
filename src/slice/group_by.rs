@@ -104,7 +104,7 @@ where
     }
 }
 
-// Mutable 
+// Mutable
 
 struct GroupByMutProducer<'data, 'p, T, P> {
     pred: &'p P,
