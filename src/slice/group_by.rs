@@ -150,7 +150,7 @@ where
 ///
 /// This struct is created by the [`group_by_mut`] method on `&[T]`.
 ///
-/// [`group_by_mut`]: trait.ParallelSlice.html#method.par_group_by_mut
+/// [`group_by_mut`]: trait.ParallelSliceMut.html#method.par_group_by_mut
 #[derive(Debug)]
 pub struct GroupByMut<'data, T, F>
 where
