@@ -214,7 +214,9 @@ impl Registry {
     where
         S: ThreadSpawn,
     {
-        let n_threads = builder.get_num_threads();
+        // Soft-limit the number of threads that we can actually support.
+        let n_threads = Ord::min(builder.get_num_threads(), crate::max_num_threads());
+
         let breadth_first = builder.get_breadth_first();
 
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads)
