@@ -1,3 +1,33 @@
+# Release rayon 1.5.2 / rayon-core 1.9.2 (2022-04-13)
+
+- The new `ParallelSlice::par_rchunks()` and `par_rchunks_exact()` iterate
+  slice chunks in reverse, aligned the against the end of the slice if the
+  length is not a perfect multiple of the chunk size. The new
+  `ParallelSliceMut::par_rchunks_mut()` and `par_rchunks_exact_mut()` are the
+  same for mutable slices.
+- The `ParallelIterator::try_*` methods now support `std::ops::ControlFlow` and
+  `std::task::Poll` items, mirroring the unstable `Try` implementations in the
+  standard library.
+- The `ParallelString` pattern-based methods now support `&[char]` patterns,
+  which match when any character in that slice is found in the string.
+- A soft limit is now enforced on the number of threads allowed in a single
+  thread pool, respecting internal bit limits that already existed. The current
+  maximum is publicly available from the new function `max_num_threads()`.
+- Fixed several Stacked Borrow and provenance issues found by `cargo miri`.
+
+## Contributors
+
+Thanks to all of the contributors for this release!
+
+- @atouchet
+- @bluss
+- @cuviper
+- @fzyzcjy
+- @nyanzebra
+- @paolobarbolini
+- @RReverser
+- @saethlin
+
 # Release rayon 1.5.1 / rayon-core 1.9.1 (2021-05-18)
 
 - The new `in_place_scope` and `in_place_scope_fifo` are variations of `scope`
