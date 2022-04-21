@@ -20,6 +20,7 @@ use crate::split_producer::*;
 use std::cmp;
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
+use std::mem;
 
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
 pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
@@ -374,6 +375,10 @@ pub trait ParallelSliceMut<T: Send> {
     /// This sort is stable (i.e., does not reorder equal elements) and *O*(*m* \* *n* \* log(*n*))
     /// worst-case, where the key function is *O*(*m*).
     ///
+    /// For expensive key functions (e.g. functions that are not simple property accesses or
+    /// basic operations), [`par_sort_by_cached_key`](#method.par_sort_by_cached_key) is likely to
+    /// be significantly faster, as it does not recompute element keys.
+    ///
     /// When applicable, unstable sorting is preferred because it is generally faster than stable
     /// sorting and it doesn't allocate auxiliary memory.
     /// See [`par_sort_unstable_by_key`](#method.par_sort_unstable_by_key).
@@ -409,6 +414,97 @@ pub trait ParallelSliceMut<T: Send> {
         F: Fn(&T) -> K + Sync,
     {
         par_mergesort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
+    }
+
+    /// Sorts the slice in parallel with a key extraction function.
+    ///
+    /// During sorting, the key function is called at most once per element, by using
+    /// temporary storage to remember the results of key evaluation.
+    /// The key function is called in parallel, so the order of calls is completely unspecified.
+    ///
+    /// This sort is stable (i.e., does not reorder equal elements) and *O*(*m* \* *n* + *n* \* log(*n*))
+    /// worst-case, where the key function is *O*(*m*).
+    ///
+    /// For simple key functions (e.g., functions that are property accesses or
+    /// basic operations), [`par_sort_by_key`](#method.par_sort_by_key) is likely to be
+    /// faster.
+    ///
+    /// # Current implementation
+    ///
+    /// The current algorithm is based on [pattern-defeating quicksort][pdqsort] by Orson Peters,
+    /// which combines the fast average case of randomized quicksort with the fast worst case of
+    /// heapsort, while achieving linear time on slices with certain patterns. It uses some
+    /// randomization to avoid degenerate cases, but with a fixed seed to always provide
+    /// deterministic behavior.
+    ///
+    /// In the worst case, the algorithm allocates temporary storage in a `Vec<(K, usize)>` the
+    /// length of the slice.
+    ///
+    /// All quicksorts work in two stages: partitioning into two halves followed by recursive
+    /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
+    /// parallel. Finally, after sorting the cached keys, the item positions are updated sequentially.
+    ///
+    /// [pdqsort]: https://github.com/orlp/pdqsort
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut v = [-5i32, 4, 32, -3, 2];
+    ///
+    /// v.par_sort_by_cached_key(|k| k.to_string());
+    /// assert!(v == [-3, -5, 2, 32, 4]);
+    /// ```
+    fn par_sort_by_cached_key<K, F>(&mut self, f: F)
+    where
+        F: Fn(&T) -> K + Sync,
+        K: Ord + Send,
+    {
+        let slice = self.as_parallel_slice_mut();
+        let len = slice.len();
+        if len < 2 {
+            return;
+        }
+
+        // Helper macro for indexing our vector by the smallest possible type, to reduce allocation.
+        macro_rules! sort_by_key {
+            ($t:ty) => {{
+                let mut indices: Vec<_> = slice
+                    .par_iter_mut()
+                    .enumerate()
+                    .map(|(i, x)| (f(&*x), i as $t))
+                    .collect();
+                // The elements of `indices` are unique, as they are indexed, so any sort will be
+                // stable with respect to the original slice. We use `sort_unstable` here because
+                // it requires less memory allocation.
+                indices.par_sort_unstable();
+                for i in 0..len {
+                    let mut index = indices[i].1;
+                    while (index as usize) < i {
+                        index = indices[index as usize].1;
+                    }
+                    indices[i].1 = index;
+                    slice.swap(i, index as usize);
+                }
+            }};
+        }
+
+        let sz_u8 = mem::size_of::<(K, u8)>();
+        let sz_u16 = mem::size_of::<(K, u16)>();
+        let sz_u32 = mem::size_of::<(K, u32)>();
+        let sz_usize = mem::size_of::<(K, usize)>();
+
+        if sz_u8 < sz_u16 && len <= (std::u8::MAX as usize) {
+            return sort_by_key!(u8);
+        }
+        if sz_u16 < sz_u32 && len <= (std::u16::MAX as usize) {
+            return sort_by_key!(u16);
+        }
+        if sz_u32 < sz_usize && len <= (std::u32::MAX as usize) {
+            return sort_by_key!(u32);
+        }
+        sort_by_key!(usize)
     }
 
     /// Sorts the slice in parallel, but might not preserve the order of equal elements.
@@ -528,8 +624,9 @@ pub trait ParallelSliceMut<T: Send> {
     /// randomization to avoid degenerate cases, but with a fixed seed to always provide
     /// deterministic behavior.
     ///
-    /// It is typically faster than stable sorting, except in a few special cases, e.g., when the
-    /// slice consists of several concatenated sorted sequences.
+    /// Due to its key calling strategy, `par_sort_unstable_by_key` is likely to be slower than
+    /// [`par_sort_by_cached_key`](#method.par_sort_by_cached_key) in cases where the key function
+    /// is expensive.
     ///
     /// All quicksorts work in two stages: partitioning into two halves followed by recursive
     /// calls. The partitioning phase is sequential, but the two recursive calls are performed in
