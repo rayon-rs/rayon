@@ -245,7 +245,7 @@ fn panic_propagate_still_execute_3() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
         scope(|s| {
-            s.spawn(|_| x = true); // spanwed job should still execute despite later panic
+            s.spawn(|_| x = true); // spawned job should still execute despite later panic
             panic!("Hello, world!");
         });
     }) {
@@ -293,7 +293,7 @@ macro_rules! test_order {
 
 #[test]
 fn lifo_order() {
-    // In the absense of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
+    // In the absence of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
     let vec = test_order!(scope => spawn);
     let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
     assert_eq!(vec, expected);
@@ -301,7 +301,7 @@ fn lifo_order() {
 
 #[test]
 fn fifo_order() {
-    // In the absense of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
+    // In the absence of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
     let vec = test_order!(scope_fifo => spawn_fifo);
     let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
     assert_eq!(vec, expected);
@@ -335,7 +335,7 @@ macro_rules! test_nested_order {
 
 #[test]
 fn nested_lifo_order() {
-    // In the absense of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
+    // In the absence of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
     let vec = test_nested_order!(scope => spawn, scope => spawn);
     let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
     assert_eq!(vec, expected);
@@ -343,7 +343,7 @@ fn nested_lifo_order() {
 
 #[test]
 fn nested_fifo_order() {
-    // In the absense of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
+    // In the absence of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
     let vec = test_nested_order!(scope_fifo => spawn_fifo, scope_fifo => spawn_fifo);
     let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
     assert_eq!(vec, expected);

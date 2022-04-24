@@ -921,7 +921,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// An adaptor that flattens serial-iterable `Item`s into one large iterator.
     ///
-    /// See also [`flatten`](#method.flatten) and the analagous comparison of
+    /// See also [`flatten`](#method.flatten) and the analogous comparison of
     /// [`flat_map_iter` versus `flat_map`](#flat_map_iter-versus-flat_map).
     ///
     /// # Examples
@@ -2098,7 +2098,7 @@ pub trait ParallelIterator: Sized + Send {
     /// Note: unlike the standard `Iterator::partition`, this allows distinct
     /// collection types for the left and right items.  This is more flexible,
     /// but may require new type annotations when converting sequential code
-    /// that used type inferrence assuming the two were the same.
+    /// that used type inference assuming the two were the same.
     ///
     /// # Examples
     ///

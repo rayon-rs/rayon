@@ -495,7 +495,7 @@ impl<'scope> Scope<'scope> {
     /// the stack (if those variables outlive the scope) or
     /// communicate through shared channels.
     ///
-    /// (The intention is to eventualy integrate with Rust futures to
+    /// (The intention is to eventually integrate with Rust futures to
     /// support spawns of functions that compute a value.)
     ///
     /// # Examples
