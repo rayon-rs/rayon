@@ -166,7 +166,7 @@ macro_rules! test_order {
 
 #[test]
 fn lifo_order() {
-    // In the absense of stealing, `spawn()` jobs on a thread will run in LIFO order.
+    // In the absence of stealing, `spawn()` jobs on a thread will run in LIFO order.
     let vec = test_order!(spawn, spawn);
     let expected: Vec<i32> = (0..100).rev().collect(); // LIFO -> reversed
     assert_eq!(vec, expected);
@@ -174,7 +174,7 @@ fn lifo_order() {
 
 #[test]
 fn fifo_order() {
-    // In the absense of stealing, `spawn_fifo()` jobs on a thread will run in FIFO order.
+    // In the absence of stealing, `spawn_fifo()` jobs on a thread will run in FIFO order.
     let vec = test_order!(spawn_fifo, spawn_fifo);
     let expected: Vec<i32> = (0..100).collect(); // FIFO -> natural order
     assert_eq!(vec, expected);
