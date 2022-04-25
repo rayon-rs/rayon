@@ -79,6 +79,17 @@ macro_rules! sort {
     };
 }
 
+macro_rules! sort_keys {
+    ($f:ident, $name:ident, $gen:expr, $len:expr) => {
+        #[bench]
+        fn $name(b: &mut Bencher) {
+            let v = $gen($len);
+            b.iter(|| v.clone().$f(ToString::to_string));
+            b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;
+        }
+    };
+}
+
 macro_rules! sort_strings {
     ($f:ident, $name:ident, $gen:expr, $len:expr) => {
         #[bench]
@@ -136,6 +147,13 @@ sort!(par_sort, par_sort_random, gen_random, 50_000);
 sort!(par_sort, par_sort_big, gen_big_random, 50_000);
 sort_strings!(par_sort, par_sort_strings, gen_strings, 50_000);
 sort_expensive!(par_sort_by, par_sort_expensive, gen_random, 50_000);
+sort_keys!(par_sort_by_key, par_sort_by_key, gen_random, 50_000);
+sort_keys!(
+    par_sort_by_cached_key,
+    par_sort_by_cached_key,
+    gen_random,
+    50_000
+);
 
 sort!(
     par_sort_unstable,
@@ -182,6 +200,12 @@ sort_strings!(
 sort_expensive!(
     par_sort_unstable_by,
     par_sort_unstable_expensive,
+    gen_random,
+    50_000
+);
+sort_keys!(
+    par_sort_unstable_by_key,
+    par_sort_unstable_by_key,
     gen_random,
     50_000
 );
