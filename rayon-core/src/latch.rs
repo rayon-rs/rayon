@@ -189,19 +189,21 @@ impl<'r> Latch for SpinLatch<'r> {
     fn set(&self) {
         let cross_registry;
 
-        let registry = if self.cross {
+        let registry: &Registry = if self.cross {
             // Ensure the registry stays alive while we notify it.
             // Otherwise, it would be possible that we set the spin
             // latch and the other thread sees it and exits, causing
             // the registry to be deallocated, all before we get a
             // chance to invoke `registry.notify_worker_latch_is_set`.
             cross_registry = Arc::clone(self.registry);
-            &cross_registry
+            &*cross_registry
         } else {
             // If this is not a "cross-registry" spin-latch, then the
             // thread which is performing `set` is itself ensuring
-            // that the registry stays alive.
-            self.registry
+            // that the registry stays alive. However, that doesn't
+            // include this *particular* `Arc` handle if the waiting
+            // thread then exits, so we must completely dereference it.
+            &**self.registry
         };
         let target_worker_index = self.target_worker_index;
 
