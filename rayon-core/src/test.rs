@@ -22,8 +22,8 @@ fn start_callback_called() {
     // Wait for all the threads in the pool plus the one running tests.
     let barrier = Arc::new(Barrier::new(n_threads + 1));
 
-    let b = barrier.clone();
-    let nc = n_called.clone();
+    let b = Arc::clone(&barrier);
+    let nc = Arc::clone(&n_called);
     let start_handler = move |_| {
         nc.fetch_add(1, Ordering::SeqCst);
         b.wait();
@@ -48,8 +48,8 @@ fn exit_callback_called() {
     // Wait for all the threads in the pool plus the one running tests.
     let barrier = Arc::new(Barrier::new(n_threads + 1));
 
-    let b = barrier.clone();
-    let nc = n_called.clone();
+    let b = Arc::clone(&barrier);
+    let nc = Arc::clone(&n_called);
     let exit_handler = move |_| {
         nc.fetch_add(1, Ordering::SeqCst);
         b.wait();
@@ -85,9 +85,9 @@ fn handler_panics_handled_correctly() {
         panic!("ensure panic handler is called when exiting");
     };
 
-    let sb = start_barrier.clone();
-    let eb = exit_barrier.clone();
-    let nc = n_called.clone();
+    let sb = Arc::clone(&start_barrier);
+    let eb = Arc::clone(&exit_barrier);
+    let nc = Arc::clone(&n_called);
     let panic_handler = move |_| {
         let val = nc.fetch_add(1, Ordering::SeqCst);
         if val < n_threads {

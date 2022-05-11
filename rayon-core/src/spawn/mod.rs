@@ -92,7 +92,7 @@ where
     registry.increment_terminate_count();
 
     Box::new(HeapJob::new({
-        let registry = registry.clone();
+        let registry = Arc::clone(registry);
         move || {
             match unwind::halt_unwinding(func) {
                 Ok(()) => {}

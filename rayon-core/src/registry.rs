@@ -251,7 +251,7 @@ impl Registry {
             let thread = ThreadBuilder {
                 name: builder.get_thread_name(index),
                 stack_size: builder.get_stack_size(),
-                registry: registry.clone(),
+                registry: Arc::clone(&registry),
                 worker,
                 index,
             };
@@ -263,17 +263,18 @@ impl Registry {
         // Returning normally now, without termination.
         mem::forget(t1000);
 
-        Ok(registry.clone())
+        Ok(registry)
     }
 
     pub(super) fn current() -> Arc<Registry> {
         unsafe {
             let worker_thread = WorkerThread::current();
-            if worker_thread.is_null() {
-                global_registry().clone()
+            let registry = if worker_thread.is_null() {
+                global_registry()
             } else {
-                (*worker_thread).registry.clone()
-            }
+                &(*worker_thread).registry
+            };
+            Arc::clone(registry)
         }
     }
 
@@ -804,9 +805,10 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
         fifo: JobFifo::new(),
         index,
         rng: XorShift64Star::new(),
-        registry: registry.clone(),
+        registry,
     };
     WorkerThread::set_current(worker_thread);
+    let registry = &*worker_thread.registry;
 
     // let registry know we are ready to do work
     registry.thread_infos[index].primed.set();
@@ -818,7 +820,6 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     // Inform a user callback that we started a thread.
     if let Some(ref handler) = registry.start_handler {
-        let registry = registry.clone();
         match unwind::halt_unwinding(|| handler(index)) {
             Ok(()) => {}
             Err(err) => {
@@ -847,7 +848,6 @@ unsafe fn main_loop(worker: Worker<JobRef>, registry: Arc<Registry>, index: usiz
 
     // Inform a user callback that we exited a thread.
     if let Some(ref handler) = registry.exit_handler {
-        let registry = registry.clone();
         match unwind::halt_unwinding(|| handler(index)) {
             Ok(()) => {}
             Err(err) => {
