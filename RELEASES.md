@@ -1,3 +1,7 @@
+# Release rayon-core 1.9.3 (2022-05-13)
+
+- Fixed a use-after-free race in job notification.
+
 # Release rayon 1.5.2 / rayon-core 1.9.2 (2022-04-13)
 
 - The new `ParallelSlice::par_rchunks()` and `par_rchunks_exact()` iterate
