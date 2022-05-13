@@ -1,3 +1,8 @@
+# Release rayon 1.5.3 (2022-05-13)
+
+- The new `ParallelSliceMut::par_sort_by_cached_key` is a stable sort that caches
+  the keys for each item -- a parallel version of `slice::sort_by_cached_key`.
+
 # Release rayon-core 1.9.3 (2022-05-13)
 
 - Fixed a use-after-free race in job notification.
