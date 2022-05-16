@@ -73,6 +73,7 @@ use std::fmt;
 use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::thread;
 
 #[macro_use]
 mod log;
@@ -463,7 +464,8 @@ impl<S> ThreadPoolBuilder<S> {
                 .and_then(|s| usize::from_str(&s).ok())
             {
                 Some(x) if x > 0 => return x,
-                Some(x) if x == 0 => return num_cpus::get(),
+                Some(x) if x == 0 =>  return thread::available_parallelism()
+					.map(|n| n.get()).unwrap_or(1),
                 _ => {}
             }
 
@@ -473,7 +475,7 @@ impl<S> ThreadPoolBuilder<S> {
                 .and_then(|s| usize::from_str(&s).ok())
             {
                 Some(x) if x > 0 => x,
-                _ => num_cpus::get(),
+                _ => thread::available_parallelism().map(|n| n.get()).unwrap_or(1)
             }
         }
     }
