@@ -124,7 +124,7 @@ implement `IndexedParallelIterator`.
 
 The `bridge` function will then connect the consumer, which is
 handling the `flat_map` and `for_each`, with the producer, which is
-handling the `zip` and its preecessors. It will split down until the
+handling the `zip` and its predecessors. It will split down until the
 chunks seem reasonably small, then pull items from the producer and
 feed them to the consumer.
 
