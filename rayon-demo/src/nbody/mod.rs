@@ -13,7 +13,7 @@ Usage: nbody bench [--mode MODE --bodies N --ticks N]
        nbody visualize [--mode MODE --bodies N]
        nbody --help
 
-Physics simulation of multiple bodies alternatively attracing and
+Physics simulation of multiple bodies alternatively attracting and
 repelling one another. Visualizable with OpenGL.
 
 Commands:

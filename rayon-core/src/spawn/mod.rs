@@ -73,7 +73,7 @@ where
     F: FnOnce() + Send + 'static,
 {
     // We assert that this does not hold any references (we know
-    // this because of the `'static` bound in the inferface);
+    // this because of the `'static` bound in the interface);
     // moreover, we assert that the code below is not supposed to
     // be able to panic, and hence the data won't leak but will be
     // enqueued into some deque for later execution.
@@ -148,7 +148,7 @@ where
     F: FnOnce() + Send + 'static,
 {
     // We assert that this does not hold any references (we know
-    // this because of the `'static` bound in the inferface);
+    // this because of the `'static` bound in the interface);
     // moreover, we assert that the code below is not supposed to
     // be able to panic, and hence the data won't leak but will be
     // enqueued into some deque for later execution.
