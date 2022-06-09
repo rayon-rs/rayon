@@ -699,7 +699,8 @@ impl ScopeLatch {
         }
     }
 
-    fn increment(&self) {
+    /// Increments the latch counter by one and returns the previous value.
+    fn increment(&self) -> usize {
         match self {
             ScopeLatch::Stealing { latch, .. } => latch.increment(),
             ScopeLatch::Blocking { latch } => latch.increment(),
