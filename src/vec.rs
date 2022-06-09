@@ -181,7 +181,7 @@ pub(crate) struct DrainProducer<'data, T: Send> {
 impl<T: Send> DrainProducer<'_, T> {
     /// Creates a draining producer, which *moves* items from the slice.
     ///
-    /// Unsafe bacause `!Copy` data must not be read after the borrow is released.
+    /// Unsafe because `!Copy` data must not be read after the borrow is released.
     pub(crate) unsafe fn new(slice: &mut [T]) -> DrainProducer<'_, T> {
         DrainProducer { slice }
     }

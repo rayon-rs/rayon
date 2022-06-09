@@ -1,7 +1,7 @@
 use std::ops::{Bound, Range, RangeBounds};
 
 /// Divide `n` by `divisor`, and round up to the nearest integer
-/// if not evenly divisable.
+/// if not evenly divisible.
 #[inline]
 pub(super) fn div_round_up(n: usize, divisor: usize) -> usize {
     debug_assert!(divisor != 0, "Division by zero!");

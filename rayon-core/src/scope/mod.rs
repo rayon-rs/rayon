@@ -241,7 +241,7 @@ struct ScopeBase<'scope> {
 ///     });
 ///
 ///     // That closure is fine, but now we can't use `ok` anywhere else,
-///     // since it is owend by the previous task:
+///     // since it is owned by the previous task:
 ///     // s.spawn(|_| println!("ok: {:?}", ok));
 /// });
 /// ```
