@@ -3,6 +3,7 @@
 //!
 //! [`ThreadPool`]: struct.ThreadPool.html
 
+use crate::broadcast::{broadcast_in, BroadcastContext};
 use crate::join;
 use crate::registry::{Registry, ThreadSpawn, WorkerThread};
 use crate::scope::{do_in_place_scope, do_in_place_scope_fifo};
@@ -107,6 +108,50 @@ impl ThreadPool {
         R: Send,
     {
         self.registry.in_worker(|_, _| op())
+    }
+
+    /// Executes `op` within every thread in the threadpool. Any attempts to use
+    /// `join`, `scope`, or parallel iterators will then operate within that
+    /// threadpool.
+    ///
+    /// # Warning: thread-local data
+    ///
+    /// Because `op` is executing within the Rayon thread-pool,
+    /// thread-local data from the current thread will not be
+    /// accessible.
+    ///
+    /// # Panics
+    ///
+    /// If `op` should panic on one or more threads, exactly one panic
+    /// will be propagated, only after all threads have completed
+    /// (or panicked) their own `op`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///    # use rayon_core as rayon;
+    ///    use std::sync::atomic::{AtomicUsize, Ordering};
+    ///
+    ///    fn main() {
+    ///         let pool = rayon::ThreadPoolBuilder::new().num_threads(5).build().unwrap();
+    ///
+    ///         // The argument gives context, including the index of each thread.
+    ///         let v: Vec<usize> = pool.broadcast(|ctx| ctx.index() * ctx.index());
+    ///         assert_eq!(v, &[0, 1, 4, 9, 16]);
+    ///
+    ///         // The closure can reference the local stack
+    ///         let count = AtomicUsize::new(0);
+    ///         pool.broadcast(|_| count.fetch_add(1, Ordering::Relaxed));
+    ///         assert_eq!(count.into_inner(), 5);
+    ///    }
+    /// ```
+    pub fn broadcast<OP, R>(&self, op: OP) -> Vec<R>
+    where
+        OP: Fn(BroadcastContext<'_>) -> R + Sync,
+        R: Send,
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { broadcast_in(op, &self.registry) }
     }
 
     /// Returns the (current) number of threads in the thread pool.

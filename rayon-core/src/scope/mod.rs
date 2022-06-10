@@ -38,7 +38,7 @@ pub struct ScopeFifo<'scope> {
     fifos: Vec<JobFifo>,
 }
 
-enum ScopeLatch {
+pub(super) enum ScopeLatch {
     /// A latch for scopes created on a rayon thread which will participate in work-
     /// stealing while it waits for completion. This thread is not necessarily part
     /// of the same registry as the scope itself!
@@ -687,14 +687,18 @@ impl<'scope> ScopeBase<'scope> {
 
 impl ScopeLatch {
     fn new(owner: Option<&WorkerThread>) -> Self {
+        Self::with_count(1, owner)
+    }
+
+    pub(super) fn with_count(count: usize, owner: Option<&WorkerThread>) -> Self {
         match owner {
             Some(owner) => ScopeLatch::Stealing {
-                latch: CountLatch::new(),
+                latch: CountLatch::with_count(count),
                 registry: Arc::clone(owner.registry()),
                 worker_index: owner.index(),
             },
             None => ScopeLatch::Blocking {
-                latch: CountLockLatch::new(),
+                latch: CountLockLatch::with_count(count),
             },
         }
     }
@@ -706,18 +710,7 @@ impl ScopeLatch {
         }
     }
 
-    fn set(&self) {
-        match self {
-            ScopeLatch::Stealing {
-                latch,
-                registry,
-                worker_index,
-            } => latch.set_and_tickle_one(registry, *worker_index),
-            ScopeLatch::Blocking { latch } => latch.set(),
-        }
-    }
-
-    fn wait(&self, owner: Option<&WorkerThread>) {
+    pub(super) fn wait(&self, owner: Option<&WorkerThread>) {
         match self {
             ScopeLatch::Stealing {
                 latch,
@@ -730,6 +723,19 @@ impl ScopeLatch {
                 owner.wait_until(latch);
             },
             ScopeLatch::Blocking { latch } => latch.wait(),
+        }
+    }
+}
+
+impl Latch for ScopeLatch {
+    fn set(&self) {
+        match self {
+            ScopeLatch::Stealing {
+                latch,
+                registry,
+                worker_index,
+            } => latch.set_and_tickle_one(registry, *worker_index),
+            ScopeLatch::Blocking { latch } => latch.set(),
         }
     }
 }

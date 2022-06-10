@@ -93,6 +93,9 @@ pub(super) enum Event {
     /// A job was removed from the global queue.
     JobUninjected { worker: usize },
 
+    /// A job was broadcasted to N threads.
+    JobBroadcast { count: usize },
+
     /// When announcing a job, this was the value of the counters we observed.
     ///
     /// No effect on thread state, just a debugging event.
