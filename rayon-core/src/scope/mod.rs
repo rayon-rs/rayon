@@ -543,7 +543,7 @@ impl<'scope> Scope<'scope> {
             let job_ref = Box::new(HeapJob::new(move || {
                 self.base.execute_job(move || body(self))
             }))
-            .as_job_ref();
+            .into_job_ref();
 
             // Since `Scope` implements `Sync`, we can't be sure that we're still in a
             // thread of this pool, so we can't just push to the local worker thread.
@@ -584,7 +584,7 @@ impl<'scope> ScopeFifo<'scope> {
             let job_ref = Box::new(HeapJob::new(move || {
                 self.base.execute_job(move || body(self))
             }))
-            .as_job_ref();
+            .into_job_ref();
 
             // If we're in the pool, use our scope's private fifo for this thread to execute
             // in a locally-FIFO order.  Otherwise, just use the pool's global injector.
@@ -699,7 +699,8 @@ impl ScopeLatch {
         }
     }
 
-    fn increment(&self) {
+    /// Increments the latch counter by one and returns the previous value.
+    fn increment(&self) -> usize {
         match self {
             ScopeLatch::Stealing { latch, .. } => latch.increment(),
             ScopeLatch::Blocking { latch } => latch.increment(),

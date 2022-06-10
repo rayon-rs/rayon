@@ -20,7 +20,7 @@ pub(super) trait Job {
     /// Unsafe: this may be called from a different thread than the one
     /// which scheduled the job, so the implementer must ensure the
     /// appropriate traits are met, whether `Send`, `Sync`, or both.
-    unsafe fn execute(this: *const Self);
+    unsafe fn execute(this: *const ());
 }
 
 /// Effectively a Job trait object. Each JobRef **must** be executed
@@ -45,17 +45,15 @@ impl JobRef {
     where
         T: Job,
     {
-        let fn_ptr: unsafe fn(*const T) = <T as Job>::execute;
-
         // erase types:
         JobRef {
             pointer: data as *const (),
-            execute_fn: mem::transmute(fn_ptr),
+            execute_fn: <T as Job>::execute,
         }
     }
 
     #[inline]
-    pub(super) unsafe fn execute(&self) {
+    pub(super) unsafe fn execute(self) {
         (self.execute_fn)(self.pointer)
     }
 }
@@ -108,18 +106,11 @@ where
     F: FnOnce(bool) -> R + Send,
     R: Send,
 {
-    unsafe fn execute(this: *const Self) {
-        fn call<R>(func: impl FnOnce(bool) -> R) -> impl FnOnce() -> R {
-            move || func(true)
-        }
-
-        let this = &*this;
+    unsafe fn execute(this: *const ()) {
+        let this = &*(this as *const Self);
         let abort = unwind::AbortIfPanic;
         let func = (*this.func.get()).take().unwrap();
-        (*this.result.get()) = match unwind::halt_unwinding(call(func)) {
-            Ok(x) => JobResult::Ok(x),
-            Err(x) => JobResult::Panic(x),
-        };
+        (*this.result.get()) = JobResult::call(func);
         this.latch.set();
         mem::forget(abort);
     }
@@ -135,25 +126,22 @@ pub(super) struct HeapJob<BODY>
 where
     BODY: FnOnce() + Send,
 {
-    job: UnsafeCell<Option<BODY>>,
+    job: BODY,
 }
 
 impl<BODY> HeapJob<BODY>
 where
     BODY: FnOnce() + Send,
 {
-    pub(super) fn new(func: BODY) -> Self {
-        HeapJob {
-            job: UnsafeCell::new(Some(func)),
-        }
+    pub(super) fn new(job: BODY) -> Self {
+        HeapJob { job }
     }
 
     /// Creates a `JobRef` from this job -- note that this hides all
     /// lifetimes, so it is up to you to ensure that this JobRef
     /// doesn't outlive any data that it closes over.
-    pub(super) unsafe fn as_job_ref(self: Box<Self>) -> JobRef {
-        let this: *const Self = mem::transmute(self);
-        JobRef::new(this)
+    pub(super) unsafe fn into_job_ref(self: Box<Self>) -> JobRef {
+        JobRef::new(Box::into_raw(self))
     }
 }
 
@@ -161,14 +149,20 @@ impl<BODY> Job for HeapJob<BODY>
 where
     BODY: FnOnce() + Send,
 {
-    unsafe fn execute(this: *const Self) {
-        let this: Box<Self> = mem::transmute(this);
-        let job = (*this.job.get()).take().unwrap();
-        job();
+    unsafe fn execute(this: *const ()) {
+        let this = Box::from_raw(this as *mut Self);
+        (this.job)();
     }
 }
 
 impl<T> JobResult<T> {
+    fn call(func: impl FnOnce(bool) -> T) -> Self {
+        match unwind::halt_unwinding(|| func(true)) {
+            Ok(x) => JobResult::Ok(x),
+            Err(x) => JobResult::Panic(x),
+        }
+    }
+
     /// Convert the `JobResult` for a job that has finished (and hence
     /// its JobResult is populated) into its return value.
     ///
@@ -204,10 +198,11 @@ impl JobFifo {
 }
 
 impl Job for JobFifo {
-    unsafe fn execute(this: *const Self) {
+    unsafe fn execute(this: *const ()) {
         // We "execute" a queue by executing its first job, FIFO.
+        let this = &*(this as *const Self);
         loop {
-            match (*this).inner.steal() {
+            match this.inner.steal() {
                 Steal::Success(job_ref) => break job_ref.execute(),
                 Steal::Empty => panic!("FIFO is empty"),
                 Steal::Retry => {}
