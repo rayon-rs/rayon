@@ -103,7 +103,7 @@ where
             registry.terminate(); // (*) permit registry to terminate now
         }
     }))
-    .as_job_ref()
+    .into_job_ref()
 }
 
 /// Fires off a task into the Rayon threadpool in the "static" or
