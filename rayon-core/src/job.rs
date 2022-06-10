@@ -4,6 +4,7 @@ use crossbeam_deque::{Injector, Steal};
 use std::any::Any;
 use std::cell::UnsafeCell;
 use std::mem;
+use std::sync::Arc;
 
 pub(super) enum JobResult<T> {
     None,
@@ -133,8 +134,8 @@ impl<BODY> HeapJob<BODY>
 where
     BODY: FnOnce() + Send,
 {
-    pub(super) fn new(job: BODY) -> Self {
-        HeapJob { job }
+    pub(super) fn new(job: BODY) -> Box<Self> {
+        Box::new(HeapJob { job })
     }
 
     /// Creates a `JobRef` from this job -- note that this hides all
@@ -151,6 +152,41 @@ where
 {
     unsafe fn execute(this: *const ()) {
         let this = Box::from_raw(this as *mut Self);
+        (this.job)();
+    }
+}
+
+/// Represents a job stored in an `Arc` -- like `HeapJob`, but may
+/// be turned into multiple `JobRef`s and called multiple times.
+pub(super) struct ArcJob<BODY>
+where
+    BODY: Fn() + Send + Sync,
+{
+    job: BODY,
+}
+
+impl<BODY> ArcJob<BODY>
+where
+    BODY: Fn() + Send + Sync,
+{
+    pub(super) fn new(job: BODY) -> Arc<Self> {
+        Arc::new(ArcJob { job })
+    }
+
+    /// Creates a `JobRef` from this job -- note that this hides all
+    /// lifetimes, so it is up to you to ensure that this JobRef
+    /// doesn't outlive any data that it closes over.
+    pub(super) unsafe fn as_job_ref(this: &Arc<Self>) -> JobRef {
+        JobRef::new(Arc::into_raw(Arc::clone(this)))
+    }
+}
+
+impl<BODY> Job for ArcJob<BODY>
+where
+    BODY: Fn() + Send + Sync,
+{
+    unsafe fn execute(this: *const ()) {
+        let this = Arc::from_raw(this as *mut Self);
         (this.job)();
     }
 }

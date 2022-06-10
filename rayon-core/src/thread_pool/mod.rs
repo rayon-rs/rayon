@@ -3,7 +3,7 @@
 //!
 //! [`ThreadPool`]: struct.ThreadPool.html
 
-use crate::broadcast::{broadcast_in, BroadcastContext};
+use crate::broadcast::{self, BroadcastContext};
 use crate::join;
 use crate::registry::{Registry, ThreadSpawn, WorkerThread};
 use crate::scope::{do_in_place_scope, do_in_place_scope_fifo};
@@ -151,7 +151,7 @@ impl ThreadPool {
         R: Send,
     {
         // We assert that `self.registry` has not terminated.
-        unsafe { broadcast_in(op, &self.registry) }
+        unsafe { broadcast::broadcast_in(op, &self.registry) }
     }
 
     /// Returns the (current) number of threads in the thread pool.
@@ -319,6 +319,18 @@ impl ThreadPool {
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_fifo_in(op, &self.registry) }
+    }
+
+    /// Spawns an asynchronous task on every thread in this thread-pool. This task
+    /// will run in the implicit, global scope, which means that it may outlast the
+    /// current stack frame -- therefore, it cannot capture any references onto the
+    /// stack (you will likely need a `move` closure).
+    pub fn spawn_broadcast<OP>(&self, op: OP)
+    where
+        OP: Fn(BroadcastContext<'_>) + Send + Sync + 'static,
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { broadcast::spawn_broadcast_in(op, &self.registry) }
     }
 }
 

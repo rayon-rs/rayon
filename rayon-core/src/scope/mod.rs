@@ -540,10 +540,8 @@ impl<'scope> Scope<'scope> {
     {
         self.base.increment();
         unsafe {
-            let job_ref = Box::new(HeapJob::new(move || {
-                self.base.execute_job(move || body(self))
-            }))
-            .into_job_ref();
+            let job_ref =
+                HeapJob::new(move || self.base.execute_job(move || body(self))).into_job_ref();
 
             // Since `Scope` implements `Sync`, we can't be sure that we're still in a
             // thread of this pool, so we can't just push to the local worker thread.
@@ -581,10 +579,8 @@ impl<'scope> ScopeFifo<'scope> {
     {
         self.base.increment();
         unsafe {
-            let job_ref = Box::new(HeapJob::new(move || {
-                self.base.execute_job(move || body(self))
-            }))
-            .into_job_ref();
+            let job_ref =
+                HeapJob::new(move || self.base.execute_job(move || body(self))).into_job_ref();
 
             // If we're in the pool, use our scope's private fifo for this thread to execute
             // in a locally-FIFO order.  Otherwise, just use the pool's global injector.

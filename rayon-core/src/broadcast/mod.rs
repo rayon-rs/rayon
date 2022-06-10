@@ -1,6 +1,7 @@
-use crate::job::StackJob;
+use crate::job::{ArcJob, StackJob};
 use crate::registry::{Registry, WorkerThread};
 use crate::scope::ScopeLatch;
+use crate::unwind;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -23,6 +24,22 @@ where
 {
     // We assert that current registry has not terminated.
     unsafe { broadcast_in(op, &Registry::current()) }
+}
+
+/// Spawns an asynchronous task on every thread in this thread-pool. This task
+/// will run in the implicit, global scope, which means that it may outlast the
+/// current stack frame -- therefore, it cannot capture any references onto the
+/// stack (you will likely need a `move` closure).
+///
+/// For more information, see the [`ThreadPool::spawn_broadcast()`][m] method.
+///
+/// [m]: struct.ThreadPool.html#method.spawn_broadcast
+pub fn spawn_broadcast<OP>(op: OP)
+where
+    OP: Fn(BroadcastContext<'_>) + Send + Sync + 'static,
+{
+    // We assert that current registry has not terminated.
+    unsafe { spawn_broadcast_in(op, &Registry::current()) }
 }
 
 /// Provides context to a closure called by `broadcast`.
@@ -98,4 +115,42 @@ where
     // Wait for all jobs to complete, then collect the results, maybe propagating a panic.
     latch.wait(current_thread);
     jobs.into_iter().map(|job| job.into_result()).collect()
+}
+
+/// Execute `op` on every thread in the pool. It will be executed on each
+/// thread when they have nothing else to do locally, before they try to
+/// steal work from other threads. This function returns immediately after
+/// injecting the jobs.
+///
+/// Unsafe because `registry` must not yet have terminated.
+pub(super) unsafe fn spawn_broadcast_in<OP>(op: OP, registry: &Arc<Registry>)
+where
+    OP: Fn(BroadcastContext<'_>) + Send + Sync + 'static,
+{
+    let job = ArcJob::new({
+        let registry = Arc::clone(registry);
+        move || {
+            let worker_thread = WorkerThread::current();
+            assert!(!worker_thread.is_null());
+            let ctx = BroadcastContext::new(&*worker_thread);
+            match unwind::halt_unwinding(|| op(ctx)) {
+                Ok(()) => {}
+                Err(err) => {
+                    registry.handle_panic(err);
+                }
+            }
+            registry.terminate(); // (*) permit registry to terminate now
+        }
+    });
+
+    let n_threads = registry.num_threads();
+    let job_refs = (0..n_threads).map(|_| {
+        // Ensure that registry cannot terminate until this job has executed
+        // on each thread. This ref is decremented at the (*) above.
+        registry.increment_terminate_count();
+
+        ArcJob::as_job_ref(&job)
+    });
+
+    registry.inject_broadcast(job_refs);
 }
