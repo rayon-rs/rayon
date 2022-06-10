@@ -292,11 +292,10 @@ impl CountLatch {
         }
     }
 
-    /// Increments the latch counter by one and returns the previous value.
     #[inline]
-    pub(super) fn increment(&self) -> usize {
+    pub(super) fn increment(&self) {
         debug_assert!(!self.core_latch.probe());
-        self.counter.fetch_add(1, Ordering::Relaxed)
+        self.counter.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Decrements the latch counter by one. If this is the final
@@ -345,12 +344,10 @@ impl CountLockLatch {
         }
     }
 
-    /// Increments the latch counter by one and returns the previous value.
     #[inline]
-    pub(super) fn increment(&self) -> usize {
+    pub(super) fn increment(&self) {
         let old_counter = self.counter.fetch_add(1, Ordering::Relaxed);
         debug_assert!(old_counter != 0);
-        old_counter
     }
 
     pub(super) fn wait(&self) {
