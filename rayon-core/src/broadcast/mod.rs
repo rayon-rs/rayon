@@ -51,11 +51,13 @@ pub struct BroadcastContext<'a> {
 }
 
 impl<'a> BroadcastContext<'a> {
-    fn new(worker: &WorkerThread) -> BroadcastContext<'_> {
-        BroadcastContext {
-            worker,
+    pub(super) fn with<R>(f: impl FnOnce(BroadcastContext<'_>) -> R) -> R {
+        let worker_thread = WorkerThread::current();
+        assert!(!worker_thread.is_null());
+        f(BroadcastContext {
+            worker: unsafe { &*worker_thread },
             _marker: PhantomData,
-        }
+        })
     }
 
     /// Our index amongst the broadcast threads (ranges from `0..self.num_threads()`).
@@ -98,10 +100,9 @@ where
     OP: Fn(BroadcastContext<'_>) -> R + Sync,
     R: Send,
 {
-    let f = move |injected| {
-        let worker_thread = WorkerThread::current();
-        assert!(injected && !worker_thread.is_null());
-        op(BroadcastContext::new(&*worker_thread))
+    let f = move |injected: bool| {
+        debug_assert!(injected);
+        BroadcastContext::with(&op)
     };
 
     let n_threads = registry.num_threads();
@@ -130,10 +131,7 @@ where
     let job = ArcJob::new({
         let registry = Arc::clone(registry);
         move || {
-            let worker_thread = WorkerThread::current();
-            assert!(!worker_thread.is_null());
-            let ctx = BroadcastContext::new(&*worker_thread);
-            match unwind::halt_unwinding(|| op(ctx)) {
+            match unwind::halt_unwinding(|| BroadcastContext::with(&op)) {
                 Ok(()) => {}
                 Err(err) => {
                     registry.handle_panic(err);

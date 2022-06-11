@@ -5,7 +5,8 @@
 //! [`in_place_scope()`]: fn.in_place_scope.html
 //! [`join()`]: ../join/join.fn.html
 
-use crate::job::{HeapJob, JobFifo};
+use crate::broadcast::BroadcastContext;
+use crate::job::{ArcJob, HeapJob, JobFifo};
 use crate::latch::{CountLatch, CountLockLatch, Latch};
 use crate::registry::{global_registry, in_worker, Registry, WorkerThread};
 use crate::unwind;
@@ -549,6 +550,22 @@ impl<'scope> Scope<'scope> {
             self.base.registry.inject_or_push(job_ref);
         }
     }
+
+    /// Spawns a job into every thread of the fork-join scope `self`. This job will
+    /// execute on each thread sometime before the fork-join scope completes.  The
+    /// job is specified as a closure, and this closure receives its own reference
+    /// to the scope `self` as argument, as well as a `BroadcastContext`.
+    pub fn spawn_broadcast<BODY>(&self, body: BODY)
+    where
+        BODY: Fn(&Scope<'scope>, BroadcastContext<'_>) + Send + Sync + 'scope,
+    {
+        let job = ArcJob::new(move || {
+            let body = &body;
+            self.base
+                .execute_job(move || BroadcastContext::with(move |ctx| body(self, ctx)))
+        });
+        unsafe { self.base.inject_broadcast(job) }
+    }
 }
 
 impl<'scope> ScopeFifo<'scope> {
@@ -593,6 +610,22 @@ impl<'scope> ScopeFifo<'scope> {
             }
         }
     }
+
+    /// Spawns a job into every thread of the fork-join scope `self`. This job will
+    /// execute on each thread sometime before the fork-join scope completes.  The
+    /// job is specified as a closure, and this closure receives its own reference
+    /// to the scope `self` as argument, as well as a `BroadcastContext`.
+    pub fn spawn_broadcast<BODY>(&self, body: BODY)
+    where
+        BODY: Fn(&ScopeFifo<'scope>, BroadcastContext<'_>) + Send + Sync + 'scope,
+    {
+        let job = ArcJob::new(move || {
+            let body = &body;
+            self.base
+                .execute_job(move || BroadcastContext::with(move |ctx| body(self, ctx)))
+        });
+        unsafe { self.base.inject_broadcast(job) }
+    }
 }
 
 impl<'scope> ScopeBase<'scope> {
@@ -613,6 +646,19 @@ impl<'scope> ScopeBase<'scope> {
 
     fn increment(&self) {
         self.job_completed_latch.increment();
+    }
+
+    unsafe fn inject_broadcast<FUNC>(&self, job: Arc<ArcJob<FUNC>>)
+    where
+        FUNC: Fn() + Send + Sync,
+    {
+        let n_threads = self.registry.num_threads();
+        let job_refs = (0..n_threads).map(|_| {
+            self.increment();
+            ArcJob::as_job_ref(&job)
+        });
+
+        self.registry.inject_broadcast(job_refs);
     }
 
     /// Executes `func` as a job, either aborting or executing as
