@@ -141,7 +141,7 @@ where
         // on each thread. This ref is decremented at the (*) above.
         registry.increment_terminate_count();
 
-        ArcJob::as_job_ref(&job)
+        ArcJob::as_static_job_ref(&job)
     });
 
     registry.inject_broadcast(job_refs);

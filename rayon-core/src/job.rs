@@ -144,6 +144,14 @@ where
     pub(super) unsafe fn into_job_ref(self: Box<Self>) -> JobRef {
         JobRef::new(Box::into_raw(self))
     }
+
+    /// Creates a static `JobRef` from this job.
+    pub(super) fn into_static_job_ref(self: Box<Self>) -> JobRef
+    where
+        BODY: 'static,
+    {
+        unsafe { self.into_job_ref() }
+    }
 }
 
 impl<BODY> Job for HeapJob<BODY>
@@ -178,6 +186,14 @@ where
     /// doesn't outlive any data that it closes over.
     pub(super) unsafe fn as_job_ref(this: &Arc<Self>) -> JobRef {
         JobRef::new(Arc::into_raw(Arc::clone(this)))
+    }
+
+    /// Creates a static `JobRef` from this job.
+    pub(super) fn as_static_job_ref(this: &Arc<Self>) -> JobRef
+    where
+        BODY: 'static,
+    {
+        unsafe { Self::as_job_ref(this) }
     }
 }
 
