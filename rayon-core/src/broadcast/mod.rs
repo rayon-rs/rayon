@@ -1,7 +1,6 @@
 use crate::job::{ArcJob, StackJob};
 use crate::registry::{Registry, WorkerThread};
 use crate::scope::ScopeLatch;
-use crate::unwind;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -131,12 +130,7 @@ where
     let job = ArcJob::new({
         let registry = Arc::clone(registry);
         move || {
-            match unwind::halt_unwinding(|| BroadcastContext::with(&op)) {
-                Ok(()) => {}
-                Err(err) => {
-                    registry.handle_panic(err);
-                }
-            }
+            registry.catch_unwind(|| BroadcastContext::with(&op));
             registry.terminate(); // (*) permit registry to terminate now
         }
     });

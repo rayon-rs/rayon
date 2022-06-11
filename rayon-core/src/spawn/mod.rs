@@ -94,12 +94,7 @@ where
     HeapJob::new({
         let registry = Arc::clone(registry);
         move || {
-            match unwind::halt_unwinding(func) {
-                Ok(()) => {}
-                Err(err) => {
-                    registry.handle_panic(err);
-                }
-            }
+            registry.catch_unwind(func);
             registry.terminate(); // (*) permit registry to terminate now
         }
     })

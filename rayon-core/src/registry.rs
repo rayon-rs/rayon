@@ -8,7 +8,6 @@ use crate::{
     ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder,
 };
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
-use std::any::Any;
 use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
@@ -332,18 +331,13 @@ impl Registry {
         self.thread_infos.len()
     }
 
-    pub(super) fn handle_panic(&self, err: Box<dyn Any + Send>) {
-        match self.panic_handler {
-            Some(ref handler) => {
-                // If the customizable panic handler itself panics,
-                // then we abort.
-                let abort_guard = unwind::AbortIfPanic;
+    pub(super) fn catch_unwind(&self, f: impl FnOnce()) {
+        if let Err(err) = unwind::halt_unwinding(f) {
+            // If there is no handler, or if that handler itself panics, then we abort.
+            let abort_guard = unwind::AbortIfPanic;
+            if let Some(ref handler) = self.panic_handler {
                 handler(err);
                 mem::forget(abort_guard);
-            }
-            None => {
-                // Default panic handler aborts.
-                let _ = unwind::AbortIfPanic; // let this drop.
             }
         }
     }
@@ -880,12 +874,7 @@ unsafe fn main_loop(
 
     // Inform a user callback that we started a thread.
     if let Some(ref handler) = registry.start_handler {
-        match unwind::halt_unwinding(|| handler(index)) {
-            Ok(()) => {}
-            Err(err) => {
-                registry.handle_panic(err);
-            }
-        }
+        registry.catch_unwind(|| handler(index));
     }
 
     let my_terminate_latch = &registry.thread_infos[index].terminate;
@@ -908,12 +897,7 @@ unsafe fn main_loop(
 
     // Inform a user callback that we exited a thread.
     if let Some(ref handler) = registry.exit_handler {
-        match unwind::halt_unwinding(|| handler(index)) {
-            Ok(()) => {}
-            Err(err) => {
-                registry.handle_panic(err);
-            }
-        }
+        registry.catch_unwind(|| handler(index));
         // We're already exiting the thread, there's nothing else to do.
     }
 }
