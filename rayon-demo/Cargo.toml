@@ -8,17 +8,13 @@ publish = false
 [dependencies]
 rayon = { path = "../" }
 cgmath = "0.18"
-docopt = "1"
+clap = { version = "3.2.3", features = ["derive"] }
 fixedbitset = "0.4"
 glium = "0.31"
 lazy_static = "1"
 rand = "0.8"
 rand_xorshift = "0.3"
 regex = "1"
-
-[dependencies.serde]
-version = "1.0.85"
-features = ["derive"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

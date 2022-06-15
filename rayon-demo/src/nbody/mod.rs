@@ -1,4 +1,4 @@
-use docopt::Docopt;
+use clap::{Parser, Subcommand, ValueEnum};
 use std::time::Instant;
 
 #[cfg(test)]
@@ -8,70 +8,59 @@ mod visualize;
 use self::nbody::NBodyBenchmark;
 use self::visualize::visualize_benchmarks;
 
-const USAGE: &str = "
-Usage: nbody bench [--mode MODE --bodies N --ticks N]
-       nbody visualize [--mode MODE --bodies N]
-       nbody --help
-
+const ABOUT: &str = "
 Physics simulation of multiple bodies alternatively attracting and
 repelling one another. Visualizable with OpenGL.
-
-Commands:
-    bench              Run the benchmark and print the timings.
-    visualize          Show the graphical visualizer.
-
-Options:
-    -h, --help         Show this message.
-    --mode MODE        Execution mode for the benchmark/visualizer.
-    --bodies N         Use N bodies [default: 4000].
-    --ticks N          Simulate for N ticks [default: 100].
-
-
-Commands:
-    bench              Run the benchmark and print the timings.
-    visualize          Show the graphical visualizer.
-
-Options:
-    -h, --help         Show this message.
-    --mode MODE        Execution mode for the benchmark/visualizer.
-                       MODE can one of 'par', 'seq', or 'parreduce'.
-    --bodies N         Use N bodies [default: 4000].
-    --ticks N          Simulate for N ticks [default: 100].
 
 Ported from the RiverTrail demo found at:
     https://github.com/IntelLabs/RiverTrail/tree/master/examples/nbody-webgl
 ";
 
-#[derive(Copy, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the benchmark and print the timings
+    Bench,
+    /// Show the graphical visualizer
+    Visualize,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "lower")]
 pub enum ExecutionMode {
     Par,
     ParReduce,
     Seq,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Parser)]
+#[clap(about = ABOUT)]
 pub struct Args {
-    cmd_bench: bool,
-    cmd_visualize: bool,
-    flag_mode: Option<ExecutionMode>,
-    flag_bodies: usize,
-    flag_ticks: usize,
+    #[clap(subcommand)]
+    command: Commands,
+
+    /// Use N bodies
+    #[clap(long, default_value_t = 4000)]
+    bodies: usize,
+
+    /// Simulate for N ticks
+    #[clap(long, default_value_t = 100)]
+    ticks: usize,
+
+    /// Execution mode for the benchmark/visualizer
+    #[clap(value_enum, long)]
+    mode: Option<ExecutionMode>,
 }
 
 pub fn main(args: &[String]) {
-    let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(args).deserialize())
-        .unwrap_or_else(|e| e.exit());
+    let args: Args = Parser::parse_from(args);
 
-    if args.cmd_bench {
-        run_benchmarks(args.flag_mode, args.flag_bodies, args.flag_ticks);
-    }
-
-    if args.cmd_visualize {
-        visualize_benchmarks(
-            args.flag_bodies,
-            args.flag_mode.unwrap_or(ExecutionMode::Par),
-        );
+    match args.command {
+        Commands::Bench => {
+            run_benchmarks(args.mode, args.bodies, args.ticks);
+        }
+        Commands::Visualize => {
+            visualize_benchmarks(args.bodies, args.mode.unwrap_or(ExecutionMode::Par));
+        }
     }
 }
 

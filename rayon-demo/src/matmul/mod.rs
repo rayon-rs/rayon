@@ -1,25 +1,7 @@
-const USAGE: &str = "
-Usage: matmul bench [--size N]
-       matmul --help
-Parallel matrix multiplication.
-
-Commands:
-    bench           Run the benchmark in different modes and print the timings.
-Options:
-    --size N        Row-size of matrices (rounded up to power of 2) [default: 1024]
-    -h, --help      Show this message.
-";
-
-#[derive(serde::Deserialize)]
-pub struct Args {
-    cmd_bench: bool,
-    flag_size: usize,
-}
-
-use docopt::Docopt;
-use rayon::prelude::*;
-
+use clap::{Parser, Subcommand};
 use std::time::Instant;
+
+use rayon::prelude::*;
 
 // TODO: Investigate other cache patterns for row-major order that may be more
 // parallelizable.
@@ -398,25 +380,42 @@ fn timed_matmul<F: FnOnce(&[f32], &[f32], &mut [f32])>(size: usize, f: F, name: 
     nanos
 }
 
-pub fn main(args: &[String]) {
-    let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(args).deserialize())
-        .unwrap_or_else(|e| e.exit());
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the benchmark in different modes and print the timings
+    Bench,
+}
 
-    if args.cmd_bench {
-        if args.flag_size <= 1024 {
-            // Crappy algorithm takes several minutes on larger inputs.
-            timed_matmul(args.flag_size, seq_matmul, "seq row-major");
+#[derive(Parser)]
+#[clap(about = "Parallel matrix multiplication")]
+pub struct Args {
+    #[clap(subcommand)]
+    command: Commands,
+
+    /// Row-size of matrices (rounded up to power of 2)
+    #[clap(long, default_value_t = 1024)]
+    size: usize,
+}
+
+pub fn main(args: &[String]) {
+    let args: Args = Parser::parse_from(args);
+
+    match args.command {
+        Commands::Bench => {
+            if args.size <= 1024 {
+                // Crappy algorithm takes several minutes on larger inputs.
+                timed_matmul(args.size, seq_matmul, "seq row-major");
+            }
+            let seq = if args.size <= 2048 {
+                timed_matmul(args.size, seq_matmulz, "seq z-order")
+            } else {
+                0
+            };
+            let par = timed_matmul(args.size, matmulz, "par z-order");
+            timed_matmul(args.size, matmul_strassen, "par strassen");
+            let speedup = seq as f64 / par as f64;
+            println!("speedup: {:.2}x", speedup);
         }
-        let seq = if args.flag_size <= 2048 {
-            timed_matmul(args.flag_size, seq_matmulz, "seq z-order")
-        } else {
-            0
-        };
-        let par = timed_matmul(args.flag_size, matmulz, "par z-order");
-        timed_matmul(args.flag_size, matmul_strassen, "par strassen");
-        let speedup = seq as f64 / par as f64;
-        println!("speedup: {:.2}x", speedup);
     }
 }
 

@@ -1,21 +1,5 @@
-const USAGE: &str = "
-Usage: life bench [--size N] [--gens N] [--skip-bridge]
-       life play [--size N] [--gens N] [--fps N] [--skip-bridge]
-       life --help
-Conway's Game of Life.
-
-Commands:
-    bench           Run the benchmark in different modes and print the timings.
-    play            Run with a max frame rate and monitor CPU resources.
-Options:
-    --size N        Size of the game board (N x N) [default: 200]
-    --gens N        Simulate N generations [default: 100]
-    --fps N         Maximum frame rate [default: 60]
-    --skip-bridge   Skips the tests with par-bridge, as it is much slower.
-    -h, --help      Show this message.
-";
-
 use crate::cpu_time::{self, CpuMeasure};
+use clap::{Parser, Subcommand};
 use rand::distributions::Standard;
 use rand::{thread_rng, Rng};
 use std::iter::repeat;
@@ -24,21 +8,41 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use docopt::Docopt;
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 
 #[cfg(test)]
 mod bench;
 
-#[derive(serde::Deserialize)]
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the benchmark in different modes and print the timings
+    Bench,
+    /// Run with a max frame rate and monitor CPU resources
+    Play,
+}
+
+#[derive(Parser)]
+#[clap(about = "Conway's Game of Life")]
 pub struct Args {
-    cmd_bench: bool,
-    cmd_play: bool,
-    flag_size: usize,
-    flag_gens: usize,
-    flag_fps: usize,
-    flag_skip_bridge: bool,
+    #[clap(subcommand)]
+    command: Commands,
+
+    /// Size of the game board (N x N)
+    #[clap(long, default_value_t = 200)]
+    size: usize,
+
+    /// Simulate N generations
+    #[clap(long, default_value_t = 100)]
+    gens: usize,
+
+    /// Maximum frame rate
+    #[clap(long, default_value_t = 60)]
+    fps: usize,
+
+    /// Skips the tests with par-bridge, as it is much slower
+    #[clap(long)]
+    skip_bridge: bool,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -233,7 +237,7 @@ fn par_bridge_generations_limited(board: Board, gens: usize, min_interval: Durat
 }
 
 fn measure(f: fn(Board, usize) -> (), args: &Args) -> Duration {
-    let (n, gens) = (args.flag_size, args.flag_gens);
+    let (n, gens) = (args.size, args.gens);
     let brd = Board::new(n, n).random();
     let start = Instant::now();
 
@@ -248,7 +252,7 @@ struct CpuResult {
 }
 
 fn measure_cpu(f: fn(Board, usize, Duration) -> (), args: &Args) -> CpuResult {
-    let (n, gens, rate) = (args.flag_size, args.flag_gens, args.flag_fps);
+    let (n, gens, rate) = (args.size, args.gens, args.fps);
     let interval = Duration::from_secs_f64(1.0 / rate as f64);
     let brd = Board::new(n, n).random();
 
@@ -264,49 +268,47 @@ fn measure_cpu(f: fn(Board, usize, Duration) -> (), args: &Args) -> CpuResult {
 }
 
 pub fn main(args: &[String]) {
-    let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(args).deserialize())
-        .unwrap_or_else(|e| e.exit());
+    let args: Args = Parser::parse_from(args);
+    match args.command {
+        Commands::Bench => {
+            let serial = measure(generations, &args).as_nanos();
+            println!("  serial: {:10} ns", serial);
 
-    if args.cmd_bench {
-        let serial = measure(generations, &args).as_nanos();
-        println!("  serial: {:10} ns", serial);
-
-        let parallel = measure(parallel_generations, &args).as_nanos();
-        println!(
-            "parallel: {:10} ns -> {:.2}x speedup",
-            parallel,
-            serial as f64 / parallel as f64
-        );
-
-        if !args.flag_skip_bridge {
-            let par_bridge = measure(par_bridge_generations, &args).as_nanos();
+            let parallel = measure(parallel_generations, &args).as_nanos();
             println!(
-                "par_bridge: {:10} ns -> {:.2}x speedup",
-                par_bridge,
-                serial as f64 / par_bridge as f64
+                "parallel: {:10} ns -> {:.2}x speedup",
+                parallel,
+                serial as f64 / parallel as f64
             );
-        }
-    }
 
-    if args.cmd_play {
-        let serial = measure_cpu(generations_limited, &args);
-        println!("  serial: {:.2} fps", serial.actual_fps);
-        if let Some(cpu_usage) = serial.cpu_usage_percent {
-            println!("    cpu usage: {:.1}%", cpu_usage);
+            if !args.skip_bridge {
+                let par_bridge = measure(par_bridge_generations, &args).as_nanos();
+                println!(
+                    "par_bridge: {:10} ns -> {:.2}x speedup",
+                    par_bridge,
+                    serial as f64 / par_bridge as f64
+                );
+            }
         }
+        Commands::Play => {
+            let serial = measure_cpu(generations_limited, &args);
+            println!("  serial: {:.2} fps", serial.actual_fps);
+            if let Some(cpu_usage) = serial.cpu_usage_percent {
+                println!("    cpu usage: {:.1}%", cpu_usage);
+            }
 
-        let parallel = measure_cpu(parallel_generations_limited, &args);
-        println!("parallel: {:.2} fps", parallel.actual_fps);
-        if let Some(cpu_usage) = parallel.cpu_usage_percent {
-            println!("  cpu usage: {:.1}%", cpu_usage);
-        }
-
-        if !args.flag_skip_bridge {
-            let par_bridge = measure_cpu(par_bridge_generations_limited, &args);
-            println!("par_bridge: {:.2} fps", par_bridge.actual_fps);
-            if let Some(cpu_usage) = par_bridge.cpu_usage_percent {
+            let parallel = measure_cpu(parallel_generations_limited, &args);
+            println!("parallel: {:.2} fps", parallel.actual_fps);
+            if let Some(cpu_usage) = parallel.cpu_usage_percent {
                 println!("  cpu usage: {:.1}%", cpu_usage);
+            }
+
+            if !args.skip_bridge {
+                let par_bridge = measure_cpu(par_bridge_generations_limited, &args);
+                println!("par_bridge: {:.2} fps", par_bridge.actual_fps);
+                if let Some(cpu_usage) = par_bridge.cpu_usage_percent {
+                    println!("  cpu usage: {:.1}%", cpu_usage);
+                }
             }
         }
     }

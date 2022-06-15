@@ -1,7 +1,4 @@
-const USAGE: &str = "
-Usage: sieve bench
-       sieve --help
-
+const ABOUT: &str = "
 Sieve of Eratosthenes
 
 A sieve finds prime numbers by first assuming all candidates are prime,
@@ -23,27 +20,15 @@ locality.  Since the sieve has to sweep repeatedly over the same memory,
 it's helpful that the chunk size can fit entirely in the CPU cache.  Then
 `sieve_parallel` also benefits from this as long as there's cache room for
 multiple chunks, for the separate jobs in each thread.
-
-Commands:
-    bench              Run the benchmark in different modes and print the timings.
-
-Options:
-    -h, --help         Show this message.
 ";
-
-#[derive(serde::Deserialize)]
-pub struct Args {
-    cmd_bench: bool,
-}
+const CHUNK_SIZE: usize = 100_000;
 
 #[cfg(test)]
 mod bench;
 
-use docopt::Docopt;
+use clap::{Parser, Subcommand};
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
-
-const CHUNK_SIZE: usize = 100_000;
 
 // Number of Primes < 10^n
 // https://oeis.org/A006880
@@ -181,27 +166,40 @@ fn measure(f: fn(usize) -> Vec<bool>) -> Duration {
     duration
 }
 
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the benchmark in different modes and print the timings
+    Bench,
+}
+
+#[derive(Parser)]
+#[clap(about = ABOUT)]
+pub struct Args {
+    #[clap(subcommand)]
+    command: Commands,
+}
+
 pub fn main(args: &[String]) {
-    let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(args).deserialize())
-        .unwrap_or_else(|e| e.exit());
+    let args: Args = Parser::parse_from(args);
 
-    if args.cmd_bench {
-        let serial = measure(sieve_serial).as_nanos();
-        println!("  serial: {:10} ns", serial);
+    match args.command {
+        Commands::Bench => {
+            let serial = measure(sieve_serial).as_nanos();
+            println!("  serial: {:10} ns", serial);
 
-        let chunks = measure(sieve_chunks).as_nanos();
-        println!(
-            "  chunks: {:10} ns -> {:.2}x speedup",
-            chunks,
-            serial as f64 / chunks as f64
-        );
+            let chunks = measure(sieve_chunks).as_nanos();
+            println!(
+                "  chunks: {:10} ns -> {:.2}x speedup",
+                chunks,
+                serial as f64 / chunks as f64
+            );
 
-        let parallel = measure(sieve_parallel).as_nanos();
-        println!(
-            "parallel: {:10} ns -> {:.2}x speedup",
-            parallel,
-            chunks as f64 / parallel as f64
-        );
+            let parallel = measure(sieve_parallel).as_nanos();
+            println!(
+                "parallel: {:10} ns -> {:.2}x speedup",
+                parallel,
+                chunks as f64 / parallel as f64
+            );
+        }
     }
 }

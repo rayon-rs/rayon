@@ -3,11 +3,11 @@
 //! Based on code developed at ETH by Christoph von Praun, Florian
 //! Schneider, Nicholas Matsakis, and Thomas Gross.
 
-use docopt::Docopt;
+use clap::{Parser, Subcommand};
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 #[cfg(test)]
@@ -22,45 +22,46 @@ mod weight;
 use self::graph::{Graph, Node};
 use self::solver::SolverCx;
 
-const USAGE: &str = "
-Usage: tsp bench [--seq-threshold N] [--from N] <datafile>
-
+const ABOUT: &str = "
 Parallel traveling salesman problem solver. Data input is expected to
 be in TSPLIB format.
 
 Suggested command:
     cargo run --release -- tsp bench data/tsp/dj15.tsp --seq-threshold 8
-
-Commands:
-    bench              Run the benchmark and print the timings.
-
-Options:
-    -h, --help         Show this message.
-    --seq-threshold N  Adjust sequential fallback threshold [default: 10].
-                       Fall back to seq search when there are N or fewer nodes remaining.
-                       Lower values of N mean more parallelism.
-    --from N           Node index from which to start the search [default: 0].
 ";
 
-#[derive(serde::Deserialize)]
-pub struct Args {
-    cmd_bench: bool,
-    arg_datafile: String,
-    flag_seq_threshold: usize,
-    flag_from: usize,
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the benchmark and print the timings
+    Bench {
+        #[clap(value_parser)]
+        datafile: PathBuf,
+    },
+}
+
+#[derive(Parser)]
+#[clap(about = ABOUT)]
+struct Args {
+    #[clap(subcommand)]
+    command: Commands,
+
+    /// Node index from which to start the search
+    #[clap(long, default_value_t = 0)]
+    from: usize,
+
+    /// Adjust sequential fallback threshold. Fall back to seq search when there
+    /// are N or fewer nodes remaining. Lower values of N mean more parallelism.
+    #[clap(long, default_value_t = 10)]
+    seq_threshold: usize,
 }
 
 pub fn main(args: &[String]) {
-    let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(args).deserialize())
-        .unwrap_or_else(|e| e.exit());
+    let args: Args = Parser::parse_from(args);
 
-    if args.cmd_bench {
-        let _ = run_solver(
-            Path::new(&args.arg_datafile),
-            args.flag_seq_threshold,
-            args.flag_from,
-        );
+    match args.command {
+        Commands::Bench { datafile } => {
+            let _ = run_solver(&datafile, args.seq_threshold, args.from);
+        }
     }
 }
 
