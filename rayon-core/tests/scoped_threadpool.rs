@@ -93,7 +93,7 @@ fn build_scoped_tls_threadpool() {
                     },
                 )
                 .expect("thread pool created");
-            // Internally, `crossbeam::scope` will wait for the threads to exit before returning.
+            // Internally, `std::thread::scope` will wait for the threads to exit before returning.
         });
     });
 }
