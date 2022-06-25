@@ -127,7 +127,7 @@ struct ScopeBase<'scope> {
 /// Task execution potentially starts as soon as `spawn()` is called.
 /// The task will end sometime before `scope()` returns. Note that the
 /// *closure* given to scope may return much earlier. In general
-/// the lifetime of a scope created like `scope(body) goes something like this:
+/// the lifetime of a scope created like `scope(body)` goes something like this:
 ///
 /// - Scope begins when `scope(body)` is called
 /// - Scope body `body()` is invoked
