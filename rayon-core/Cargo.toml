@@ -14,12 +14,18 @@ readme = "README.md"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
+[features]
+crossbeam-epoch-reduced-collection-frequency = ["crossbeam-deque/epoch-reduced-collection-frequency"]
+
 # Some dependencies may not be their latest version, in order to support older rustc.
 [dependencies]
 num_cpus = "1.2"
 crossbeam-channel = "0.5.0"
-crossbeam-deque = "0.8.1"
 crossbeam-utils = "0.8.0"
+
+[dependencies.crossbeam-deque]
+git = "https://github.com/ryoqun/crossbeam"
+rev = "340232bf3fd76786836105b0c5e3b4fee05b1895"
 
 [dev-dependencies]
 rand = "0.8"
