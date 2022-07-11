@@ -2,9 +2,7 @@
 
 use std::rc::Rc;
 
-fn main() {
-    rayon_core::join(|| Rc::new(22), || ()); //~ ERROR
-}
+rayon_core::join(|| Rc::new(22), || ()); //~ ERROR
 
 ``` */
 mod left {}
@@ -13,9 +11,7 @@ mod left {}
 
 use std::rc::Rc;
 
-fn main() {
-    rayon_core::join(|| (), || Rc::new(23)); //~ ERROR
-}
+rayon_core::join(|| (), || Rc::new(23)); //~ ERROR
 
 ``` */
 mod right {}

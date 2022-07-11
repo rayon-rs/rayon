@@ -1,3 +1,5 @@
+#![allow(clippy::needless_lifetimes)]
+
 use regex::Regex;
 use std::collections::HashMap;
 use std::str::{FromStr, Lines};

@@ -310,16 +310,16 @@ where
 {
     #[inline]
     fn next_back(&mut self) -> Option<I::Item> {
-        if self.i.len() == self.j.len() {
-            if self.i_next {
-                self.i.next_back()
-            } else {
-                self.j.next_back()
+        match self.i.len().cmp(&self.j.len()) {
+            Ordering::Less => self.j.next_back(),
+            Ordering::Equal => {
+                if self.i_next {
+                    self.i.next_back()
+                } else {
+                    self.j.next_back()
+                }
             }
-        } else if self.i.len() < self.j.len() {
-            self.j.next_back()
-        } else {
-            self.i.next_back()
+            Ordering::Greater => self.i.next_back(),
         }
     }
 }

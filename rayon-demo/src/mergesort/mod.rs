@@ -1,3 +1,5 @@
+#![allow(clippy::uninit_vec)]
+
 use rand::distributions::Standard;
 use rand::Rng;
 

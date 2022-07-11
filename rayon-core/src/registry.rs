@@ -41,7 +41,7 @@ impl ThreadBuilder {
 
     /// Gets the string that was specified by `ThreadPoolBuilder::name()`.
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(String::as_str)
+        self.name.as_deref()
     }
 
     /// Gets the value that was specified by `ThreadPoolBuilder::stack_size()`.

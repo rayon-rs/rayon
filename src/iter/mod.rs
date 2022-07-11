@@ -2877,6 +2877,23 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn len(&self) -> usize;
 
+    /// Determines whether this iterator is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let par_iter1 = (0..100).into_par_iter();
+    /// assert!(!par_iter1.is_empty());
+    ///
+    /// let par_iter2 = (0..0).into_par_iter();
+    /// assert!(par_iter2.is_empty());
+    /// ```
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
     ///

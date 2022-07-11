@@ -42,7 +42,7 @@ fn scope_divide_and_conquer() {
     scope(|s| s.spawn(move |s| divide_and_conquer(s, counter_p, 1024)));
 
     let counter_s = &AtomicUsize::new(0);
-    divide_and_conquer_seq(&counter_s, 1024);
+    divide_and_conquer_seq(counter_s, 1024);
 
     let p = counter_p.load(Ordering::SeqCst);
     let s = counter_s.load(Ordering::SeqCst);
@@ -75,7 +75,7 @@ struct Tree<T: Send> {
 }
 
 impl<T: Send> Tree<T> {
-    fn iter<'s>(&'s self) -> vec::IntoIter<&'s T> {
+    fn iter(&self) -> vec::IntoIter<&T> {
         once(&self.value)
             .chain(self.children.iter().flat_map(Tree::iter))
             .collect::<Vec<_>>() // seems like it shouldn't be needed... but prevents overflow

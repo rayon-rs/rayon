@@ -689,8 +689,8 @@ pub struct Lines<'ch>(&'ch str);
 
 #[inline]
 fn no_carriage_return(line: &str) -> &str {
-    if line.ends_with('\r') {
-        &line[..line.len() - 1]
+    if let Some(remainder) = line.strip_suffix('\r') {
+        remainder
     } else {
         line
     }

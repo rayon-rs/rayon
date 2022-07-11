@@ -731,7 +731,7 @@ mod tests {
         check(&[1, 2, 2, 2, 2, 3], &[]);
         check(&[], &[1, 2, 2, 2, 2, 3]);
 
-        let ref mut rng = thread_rng();
+        let rng = &mut thread_rng();
 
         for _ in 0..100 {
             let limit: u32 = rng.gen_range(1..21);

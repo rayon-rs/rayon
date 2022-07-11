@@ -124,15 +124,15 @@ impl Logger {
 
         let (sender, receiver) = crossbeam_channel::unbounded();
 
-        if env_log.starts_with("tail:") {
-            let filename = env_log["tail:".len()..].to_string();
+        if let Some(filename) = env_log.strip_prefix("tail:") {
+            let filename = filename.to_string();
             ::std::thread::spawn(move || {
                 Self::tail_logger_thread(num_workers, filename, 10_000, receiver)
             });
         } else if env_log == "all" {
             ::std::thread::spawn(move || Self::all_logger_thread(num_workers, receiver));
-        } else if env_log.starts_with("profile:") {
-            let filename = env_log["profile:".len()..].to_string();
+        } else if let Some(filename) = env_log.strip_prefix("profile:") {
+            let filename = filename.to_string();
             ::std::thread::spawn(move || {
                 Self::profile_logger_thread(num_workers, filename, 10_000, receiver)
             });
@@ -140,9 +140,9 @@ impl Logger {
             panic!("RAYON_LOG should be 'tail:<file>' or 'profile:<file>'");
         }
 
-        return Logger {
+        Logger {
             sender: Some(sender),
-        };
+        }
     }
 
     fn disabled() -> Logger {
@@ -219,31 +219,25 @@ impl Logger {
         let mut skipped = false;
 
         loop {
-            loop {
-                match receiver.recv_timeout(timeout) {
-                    Ok(event) => {
-                        if let Event::Flush = event {
-                            // We ignore Flush events in tail mode --
-                            // we're really just looking for
-                            // deadlocks.
-                            continue;
-                        } else {
-                            if events.len() == capacity {
-                                let event = events.pop_front().unwrap();
-                                state.simulate(&event);
-                                skipped = true;
-                            }
-
-                            events.push_back(event);
-                        }
+            while let Ok(event) = receiver.recv_timeout(timeout) {
+                if let Event::Flush = event {
+                    // We ignore Flush events in tail mode --
+                    // we're really just looking for
+                    // deadlocks.
+                    continue;
+                } else {
+                    if events.len() == capacity {
+                        let event = events.pop_front().unwrap();
+                        state.simulate(&event);
+                        skipped = true;
                     }
 
-                    Err(_) => break,
+                    events.push_back(event);
                 }
             }
 
             if skipped {
-                write!(writer, "...\n").unwrap();
+                writeln!(writer, "...").unwrap();
                 skipped = false;
             }
 
@@ -417,7 +411,7 @@ impl SimulatorState {
             }
         }
 
-        write!(w, "\n")?;
+        writeln!(w)?;
         Ok(())
     }
 }

@@ -47,6 +47,6 @@ fn iter_panic_fuse() {
         assert!(count(iter.clone().panic_fuse().inspect(check)) < expected);
 
         // Try in reverse to be sure we hit the producer case.
-        assert!(count(iter.clone().panic_fuse().inspect(check).rev()) < expected);
+        assert!(count(iter.panic_fuse().inspect(check).rev()) < expected);
     });
 }

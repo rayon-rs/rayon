@@ -426,7 +426,7 @@ where
             // safe. Otherwise, the debug assertions in the `is_done` case guarantee that
             // `width(l, r) == block_l + block_r`, namely, that the block sizes have been adjusted to account
             // for the smaller number of remaining elements.
-            l = unsafe { l.offset(block_l as isize) };
+            l = unsafe { l.add(block_l) };
         }
 
         if start_r == end_r {
@@ -676,6 +676,7 @@ where
     let len = v.len();
 
     // Three indices near which we are going to choose a pivot.
+    #[allow(clippy::identity_op)]
     let mut a = len / 4 * 1;
     let mut b = len / 4 * 2;
     let mut c = len / 4 * 3;
@@ -864,7 +865,7 @@ mod tests {
 
     #[test]
     fn test_heapsort() {
-        let ref mut rng = thread_rng();
+        let rng = &mut thread_rng();
 
         for len in (0..25).chain(500..501) {
             for &modulus in &[5, 10, 100] {
@@ -891,8 +892,8 @@ mod tests {
         heapsort(&mut v, &|_, _| thread_rng().gen());
         heapsort(&mut v, &|a, b| a < b);
 
-        for i in 0..v.len() {
-            assert_eq!(v[i], i);
+        for (i, &entry) in v.iter().enumerate() {
+            assert_eq!(entry, i);
         }
     }
 }

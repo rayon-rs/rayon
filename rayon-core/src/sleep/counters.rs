@@ -61,10 +61,12 @@ const THREADS_BITS: usize = 8;
 
 /// Bits to shift to select the sleeping threads
 /// (used with `select_bits`).
+#[allow(clippy::erasing_op)]
 const SLEEPING_SHIFT: usize = 0 * THREADS_BITS;
 
 /// Bits to shift to select the inactive threads
 /// (used with `select_bits`).
+#[allow(clippy::identity_op)]
 const INACTIVE_SHIFT: usize = 1 * THREADS_BITS;
 
 /// Bits to shift to select the JEC
