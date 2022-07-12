@@ -151,7 +151,8 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
 
 impl<'data, T: Send> Drop for Drain<'data, T> {
     fn drop(&mut self) {
-        if !self.range.is_empty() {
+        #![allow(clippy::len_zero)]
+        if self.range.len() > 0 {
             let Range { start, end } = self.range;
             if self.vec.len() != start {
                 // We must not have produced, so just call a normal drain to remove the items.
@@ -207,7 +208,7 @@ impl<'data, T: 'data + Send> Producer for DrainProducer<'data, T> {
 
     fn into_iter(mut self) -> Self::IntoIter {
         // replace the slice so we don't drop it twice
-        let slice = mem::take(&mut self.slice);
+        let slice = mem::replace(&mut self.slice, &mut []);
         SliceDrain {
             iter: slice.iter_mut(),
         }
@@ -215,7 +216,7 @@ impl<'data, T: 'data + Send> Producer for DrainProducer<'data, T> {
 
     fn split_at(mut self, index: usize) -> (Self, Self) {
         // replace the slice so we don't drop it twice
-        let slice = mem::take(&mut self.slice);
+        let slice = mem::replace(&mut self.slice, &mut []);
         let (left, right) = slice.split_at_mut(index);
         unsafe { (DrainProducer::new(left), DrainProducer::new(right)) }
     }

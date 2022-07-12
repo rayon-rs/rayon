@@ -689,8 +689,10 @@ pub struct Lines<'ch>(&'ch str);
 
 #[inline]
 fn no_carriage_return(line: &str) -> &str {
-    if let Some(remainder) = line.strip_suffix('\r') {
-        remainder
+    // `String::strip_suffix` was only stabilized in 1.45
+    #![allow(clippy::manual_strip)]
+    if line.ends_with('\r') {
+        &line[..line.len() - 1]
     } else {
         line
     }
