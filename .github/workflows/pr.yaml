@@ -14,11 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.36.0
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@1.36.0
       - name: Prepare Cargo.lock
         run: cp ci/compat-Cargo.lock ./Cargo.lock
       - name: Check
@@ -34,11 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -64,11 +56,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@1.62.0
         with:
-          profile: minimal
-          toolchain: 1.59.0
-          override: true
           components: rustfmt
       - name: Check formatting
         uses: actions-rs/cargo@v1
