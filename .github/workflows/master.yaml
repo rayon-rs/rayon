@@ -12,28 +12,13 @@ jobs:
     name: Test (stable)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           profile: minimal
           override: true
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
-      - name: Test rayon
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon
-      - name: Test rayon-core
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon-core
-      - name: Test multiple rayon-core
-        run: ./ci/highlander.sh
+      - run: cargo build --verbose
+      - run: cargo test --verbose --package rayon
+      - run: cargo test --verbose --package rayon-core
+      - run: ./ci/highlander.sh
