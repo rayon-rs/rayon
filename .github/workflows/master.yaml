@@ -21,19 +21,10 @@ jobs:
           profile: minimal
           override: true
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        run: cargo build --verbose
       - name: Test rayon
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon
+        run: cargo test --verbose --package rayon
       - name: Test rayon-core
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon-core
+        run: cargo test --verbose --package rayon-core
       - name: Test multiple rayon-core
         run: ./ci/highlander.sh

@@ -18,10 +18,7 @@ jobs:
       - name: Prepare Cargo.lock
         run: cp ci/compat-Cargo.lock ./Cargo.lock
       - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --verbose --locked
+        run: cargo check --verbose --locked
 
   test:
     name: Test
@@ -38,20 +35,11 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        run: cargo build --verbose
       - name: Test rayon
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon
+        run: cargo test --verbose --package rayon
       - name: Test rayon-core
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon-core
+        run: cargo test --verbose --package rayon-core
       - name: Test multiple rayon-core
         run: ./ci/highlander.sh
 
@@ -71,16 +59,10 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --package rayon-demo
+        run: cargo build --verbose --package rayon-demo
       - name: Test
-        uses: actions-rs/cargo@v1
         if: matrix.rust == 'nightly'
-        with:
-          command: test
-          args: --verbose --package rayon-demo
+        run: cargo test --verbose --package rayon-demo
 
   i686:
     name: Test (ubuntu-latest, stable-i686)
@@ -97,20 +79,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        run: cargo build --verbose
       - name: Test rayon
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon
+        run: cargo test --verbose --package rayon
       - name: Test rayon-core
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon-core
+        run: cargo test --verbose --package rayon-core
 
   # wasm won't actually work without threading, but it builds
   wasm:
@@ -124,10 +97,7 @@ jobs:
         with:
           target: wasm32-unknown-unknown
       - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --verbose --target wasm32-unknown-unknown
+        run: cargo check --verbose --target wasm32-unknown-unknown
 
   fmt:
     name: Format
@@ -140,7 +110,4 @@ jobs:
         with:
           components: rustfmt
       - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check

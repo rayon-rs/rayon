@@ -18,10 +18,7 @@ jobs:
       - name: Prepare Cargo.lock
         run: cp ci/compat-Cargo.lock ./Cargo.lock
       - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --verbose --locked
+        run: cargo check --verbose --locked
 
   test:
     name: Test (stable)
@@ -32,20 +29,11 @@ jobs:
       - name: Install
         uses: dtolnay/rust-toolchain@stable
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        run: cargo build --verbose
       - name: Test rayon
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon
+        run: cargo test --verbose --package rayon
       - name: Test rayon-core
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --package rayon-core
+        run: cargo test --verbose --package rayon-core
       - name: Test multiple rayon-core
         run: ./ci/highlander.sh
 
@@ -60,7 +48,4 @@ jobs:
         with:
           components: rustfmt
       - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
