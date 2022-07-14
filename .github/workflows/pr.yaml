@@ -11,41 +11,28 @@ jobs:
     name: Check (1.36.0)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@1.36.0
-      - name: Prepare Cargo.lock
-        run: cp ci/compat-Cargo.lock ./Cargo.lock
-      - name: Check
-        run: cargo check --verbose --locked
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.36.0
+      - run: cp ci/compat-Cargo.lock ./Cargo.lock
+      - run: cargo check --verbose --locked
 
   test:
     name: Test (stable)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@stable
-      - name: Build
-        run: cargo build --verbose
-      - name: Test rayon
-        run: cargo test --verbose --package rayon
-      - name: Test rayon-core
-        run: cargo test --verbose --package rayon-core
-      - name: Test multiple rayon-core
-        run: ./ci/highlander.sh
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --verbose
+      - run: cargo test --verbose --package rayon
+      - run: cargo test --verbose --package rayon-core
+      - run: ./ci/highlander.sh
 
   fmt:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@1.62.0
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.62.0
         with:
           components: rustfmt
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - run: cargo fmt --all --check

@@ -11,14 +11,10 @@ jobs:
     name: Check (1.36.0)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@1.36.0
-      - name: Prepare Cargo.lock
-        run: cp ci/compat-Cargo.lock ./Cargo.lock
-      - name: Check
-        run: cargo check --verbose --locked
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.36.0
+      - run: cp ci/compat-Cargo.lock ./Cargo.lock
+      - run: cargo check --verbose --locked
 
   test:
     name: Test
@@ -28,20 +24,14 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         rust: [stable, beta, nightly]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-      - name: Build
-        run: cargo build --verbose
-      - name: Test rayon
-        run: cargo test --verbose --package rayon
-      - name: Test rayon-core
-        run: cargo test --verbose --package rayon-core
-      - name: Test multiple rayon-core
-        run: ./ci/highlander.sh
+      - run: cargo build --verbose
+      - run: cargo test --verbose --package rayon
+      - run: cargo test --verbose --package rayon-core
+      - run: ./ci/highlander.sh
 
   # rayon-demo has huge dependencies, so limit its testing.
   # build on stable, test on nightly (because of #[bench])
@@ -52,62 +42,46 @@ jobs:
       matrix:
         rust: [stable, nightly]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-      - name: Build
-        run: cargo build --verbose --package rayon-demo
-      - name: Test
+      - run: cargo build --verbose --package rayon-demo
+      - run: cargo test --verbose --package rayon-demo
         if: matrix.rust == 'nightly'
-        run: cargo test --verbose --package rayon-demo
 
   i686:
     name: Test (ubuntu-latest, stable-i686)
     runs-on: ubuntu-latest
     steps:
-      - name: System install
-        run: |
+      - run: |
           sudo apt-get update
           sudo apt-get install gcc-multilib
-      - name: Rust install
-        uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable-i686-unknown-linux-gnu
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Build
-        run: cargo build --verbose
-      - name: Test rayon
-        run: cargo test --verbose --package rayon
-      - name: Test rayon-core
-        run: cargo test --verbose --package rayon-core
+      - run: cargo build --verbose
+      - run: cargo test --verbose --package rayon
+      - run: cargo test --verbose --package rayon-core
 
   # wasm won't actually work without threading, but it builds
   wasm:
     name: WebAssembly
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
           target: wasm32-unknown-unknown
-      - name: Check
-        run: cargo check --verbose --target wasm32-unknown-unknown
+      - run: cargo check --verbose --target wasm32-unknown-unknown
 
   fmt:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install
-        uses: dtolnay/rust-toolchain@1.62.0
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.62.0
         with:
           components: rustfmt
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - run: cargo fmt --all --check
