@@ -1,5 +1,3 @@
-#![allow(clippy::uninit_vec)]
-
 const USAGE: &str = "
 Usage: matmul bench [--size N]
        matmul --help
@@ -256,12 +254,8 @@ pub fn matmul_strassen(a: &[f32], b: &[f32], dest: &mut [f32]) {
 }
 
 fn raw_buffer(n: usize) -> Vec<f32> {
-    let mut tmp = Vec::with_capacity(n);
-    // We always overwrite the buffer (using `rcopy`) before reading from it.
-    unsafe {
-        tmp.set_len(n);
-    }
-    tmp
+    // A zero-initialized buffer is fast enough for our purposes.
+    vec![0f32; n]
 }
 
 fn strassen_add2_mul(a1: &[f32], a2: &[f32], b1: &[f32], b2: &[f32]) -> Vec<f32> {
