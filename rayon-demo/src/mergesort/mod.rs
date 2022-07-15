@@ -1,5 +1,3 @@
-#![allow(clippy::uninit_vec)]
-
 use rand::distributions::Standard;
 use rand::Rng;
 
@@ -29,13 +27,14 @@ pub struct Args {
 use docopt::Docopt;
 
 use std::cmp::max;
+use std::mem::MaybeUninit;
+use std::slice;
 use std::time::Instant;
 
 pub fn merge_sort<T: Ord + Send + Copy>(v: &mut [T]) {
     let n = v.len();
-    let mut buf = Vec::with_capacity(n);
-    // We always overwrite the buffer before reading to it, and letting rust
-    // initialize it would increase the critical path to O(n).
+    let mut buf: Vec<MaybeUninit<T>> = Vec::with_capacity(n);
+    // SAFETY: MaybeUninit can be uninitialized
     unsafe {
         buf.set_len(n);
     }
@@ -46,8 +45,25 @@ pub fn merge_sort<T: Ord + Send + Copy>(v: &mut [T]) {
 const SORT_CHUNK: usize = 32 * 1024;
 const MERGE_CHUNK: usize = 64 * 1024;
 
+fn as_uninit_slice<T: Copy>(slice: &[T]) -> &[MaybeUninit<T>] {
+    let len = slice.len();
+    // SAFETY: MaybeUninit is transparent to T, and we're only dealing with T: Copy
+    unsafe { slice::from_raw_parts(slice.as_ptr().cast(), len) }
+}
+
+fn as_uninit_slice_mut<T: Copy>(slice: &mut [T]) -> &mut [MaybeUninit<T>] {
+    let len = slice.len();
+    // SAFETY: MaybeUninit is transparent to T, and we're only dealing with T: Copy
+    unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr().cast(), len) }
+}
+
+unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
+    let len = slice.len();
+    slice::from_raw_parts_mut(slice.as_mut_ptr().cast(), len)
+}
+
 // Sort src, possibly making use of identically sized buf.
-fn rsort<T: Ord + Send + Copy>(src: &mut [T], buf: &mut [T]) {
+fn rsort<T: Ord + Send + Copy>(src: &mut [T], buf: &mut [MaybeUninit<T>]) {
     if src.len() <= SORT_CHUNK {
         src.sort();
         return;
@@ -55,18 +71,19 @@ fn rsort<T: Ord + Send + Copy>(src: &mut [T], buf: &mut [T]) {
 
     // Sort each half into half of the buffer.
     let mid = src.len() / 2;
+    let (sa, sb) = src.split_at_mut(mid);
     let (bufa, bufb) = buf.split_at_mut(mid);
-    {
-        let (sa, sb) = src.split_at_mut(mid);
-        rayon::join(|| rsort_into(sa, bufa), || rsort_into(sb, bufb));
-    }
+    let (sorta, sortb) = rayon::join(|| rsort_into(sa, bufa), || rsort_into(sb, bufb));
 
     // Merge the buffer halves back into the original.
-    rmerge(bufa, bufb, src);
+    rmerge(sorta, sortb, as_uninit_slice_mut(src));
 }
 
 // Sort src, putting the result into dest.
-fn rsort_into<T: Ord + Send + Copy>(src: &mut [T], dest: &mut [T]) {
+fn rsort_into<'dest, T: Ord + Send + Copy>(
+    src: &mut [T],
+    dest: &'dest mut [MaybeUninit<T>],
+) -> &'dest mut [T] {
     let mid = src.len() / 2;
     let (s1, s2) = src.split_at_mut(mid);
     {
@@ -77,6 +94,7 @@ fn rsort_into<T: Ord + Send + Copy>(src: &mut [T], dest: &mut [T]) {
 
     // Merge the halves into dest.
     rmerge(s1, s2, dest);
+    unsafe { slice_assume_init_mut(dest) }
 }
 
 // Merge sorted inputs a and b, putting result in dest.
@@ -85,7 +103,7 @@ fn rsort_into<T: Ord + Send + Copy>(src: &mut [T], dest: &mut [T]) {
 // not want to require a `T: Sync` bound. Using `&mut` references
 // proves to the compiler that we are not sharing `a` and `b` across
 // threads and thus we only need a `T: Send` bound.
-fn rmerge<T: Ord + Send + Copy>(a: &mut [T], b: &mut [T], dest: &mut [T]) {
+fn rmerge<T: Ord + Send + Copy>(a: &mut [T], b: &mut [T], dest: &mut [MaybeUninit<T>]) {
     // Swap so a is always longer.
     let (a, b) = if a.len() > b.len() { (a, b) } else { (b, a) };
     if dest.len() <= MERGE_CHUNK {
@@ -109,9 +127,9 @@ fn rmerge<T: Ord + Send + Copy>(a: &mut [T], b: &mut [T], dest: &mut [T]) {
 
 // Merges sorted a and b into sorted dest.
 #[inline(never)]
-fn seq_merge<T: Ord + Copy>(a: &[T], b: &[T], dest: &mut [T]) {
+fn seq_merge<T: Ord + Copy>(a: &[T], b: &[T], dest: &mut [MaybeUninit<T>]) {
     if b.is_empty() {
-        dest.copy_from_slice(a);
+        dest.copy_from_slice(as_uninit_slice(a));
         return;
     }
     let biggest = max(*a.last().unwrap(), *b.last().unwrap());
@@ -121,13 +139,13 @@ fn seq_merge<T: Ord + Copy>(a: &[T], b: &[T], dest: &mut [T]) {
     let mut bn = *bi.next().unwrap();
     for d in dest.iter_mut() {
         if an < bn {
-            *d = an;
+            *d = MaybeUninit::new(an);
             an = match ai.next() {
                 Some(x) => *x,
                 None => biggest,
             }
         } else {
-            *d = bn;
+            *d = MaybeUninit::new(bn);
             bn = match bi.next() {
                 Some(x) => *x,
                 None => biggest,
@@ -153,9 +171,8 @@ fn test_merge_sort() {
 
 pub fn seq_merge_sort<T: Ord + Copy>(v: &mut [T]) {
     let n = v.len();
-    let mut buf = Vec::with_capacity(n);
-    // We always overwrite the buffer before reading to it, and we want to
-    // duplicate the behavior of parallel sort.
+    let mut buf: Vec<MaybeUninit<T>> = Vec::with_capacity(n);
+    // SAFETY: MaybeUninit can be uninitialized
     unsafe {
         buf.set_len(n);
     }
@@ -163,7 +180,7 @@ pub fn seq_merge_sort<T: Ord + Copy>(v: &mut [T]) {
 }
 
 // Sort src, possibly making use of identically sized buf.
-fn seq_sort<T: Ord + Copy>(src: &mut [T], buf: &mut [T]) {
+fn seq_sort<T: Ord + Copy>(src: &mut [T], buf: &mut [MaybeUninit<T>]) {
     if src.len() <= SORT_CHUNK {
         src.sort();
         return;
@@ -171,19 +188,19 @@ fn seq_sort<T: Ord + Copy>(src: &mut [T], buf: &mut [T]) {
 
     // Sort each half into half of the buffer.
     let mid = src.len() / 2;
+    let (sa, sb) = src.split_at_mut(mid);
     let (bufa, bufb) = buf.split_at_mut(mid);
-    {
-        let (sa, sb) = src.split_at_mut(mid);
-        seq_sort_into(sa, bufa);
-        seq_sort_into(sb, bufb);
-    }
+    let (sorta, sortb) = (seq_sort_into(sa, bufa), seq_sort_into(sb, bufb));
 
     // Merge the buffer halves back into the original.
-    seq_merge(bufa, bufb, src);
+    seq_merge(sorta, sortb, as_uninit_slice_mut(src));
 }
 
 // Sort src, putting the result into dest.
-fn seq_sort_into<T: Ord + Copy>(src: &mut [T], dest: &mut [T]) {
+fn seq_sort_into<'dest, T: Ord + Copy>(
+    src: &mut [T],
+    dest: &'dest mut [MaybeUninit<T>],
+) -> &'dest mut [T] {
     let mid = src.len() / 2;
     let (s1, s2) = src.split_at_mut(mid);
     {
@@ -195,6 +212,7 @@ fn seq_sort_into<T: Ord + Copy>(src: &mut [T], dest: &mut [T]) {
 
     // Merge the halves into dest.
     seq_merge(s1, s2, dest);
+    unsafe { slice_assume_init_mut(dest) }
 }
 
 pub fn is_sorted<T: Send + Ord>(v: &mut [T]) -> bool {
