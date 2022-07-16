@@ -2241,6 +2241,8 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// those points.
 ///
 /// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
+// Waiting for `ExactSizeIterator::is_empty` to be stabilized. See rust-lang/rust#35428
+#[allow(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution
@@ -2876,23 +2878,6 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(vec.len(), 10);
     /// ```
     fn len(&self) -> usize;
-
-    /// Determines whether this iterator is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rayon::prelude::*;
-    ///
-    /// let par_iter1 = (0..100).into_par_iter();
-    /// assert!(!par_iter1.is_empty());
-    ///
-    /// let par_iter2 = (0..0).into_par_iter();
-    /// assert!(par_iter2.is_empty());
-    /// ```
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 
     /// Internal method used to define the behavior of this parallel
     /// iterator. You should not need to call this directly.
