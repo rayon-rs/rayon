@@ -151,6 +151,7 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
 
 impl<'data, T: Send> Drop for Drain<'data, T> {
     fn drop(&mut self) {
+        // `Range::is_empty` was only stabilized in 1.47
         #![allow(clippy::len_zero)]
         if self.range.len() > 0 {
             let Range { start, end } = self.range;
