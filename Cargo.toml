@@ -5,6 +5,7 @@ version = "1.5.3"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
+rust-version = "1.56"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
