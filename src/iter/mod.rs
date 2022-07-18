@@ -140,6 +140,7 @@ mod repeat;
 mod rev;
 mod skip;
 mod splitter;
+mod step_by;
 mod sum;
 mod take;
 mod try_fold;
@@ -181,6 +182,7 @@ pub use self::{
     rev::Rev,
     skip::Skip,
     splitter::{split, Split},
+    step_by::StepBy,
     take::Take,
     try_fold::{TryFold, TryFoldWith},
     update::Update,
@@ -188,10 +190,6 @@ pub use self::{
     zip::Zip,
     zip_eq::ZipEq,
 };
-
-mod step_by;
-#[cfg(has_step_by_rev)]
-pub use self::step_by::StepBy;
 
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
 ///
@@ -2608,11 +2606,6 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// assert_eq!(result, [3, 6, 9])
     /// ```
-    ///
-    /// # Compatibility
-    ///
-    /// This method is only available on Rust 1.38 or greater.
-    #[cfg(has_step_by_rev)]
     fn step_by(self, step: usize) -> StepBy<Self> {
         StepBy::new(self, step)
     }
