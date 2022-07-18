@@ -175,19 +175,12 @@ impl Logger {
         let timeout = std::time::Duration::from_secs(30);
 
         loop {
-            loop {
-                match receiver.recv_timeout(timeout) {
-                    Ok(event) => {
-                        if let Event::Flush = event {
-                            break;
-                        } else {
-                            events.push(event);
-                        }
-                    }
-
-                    Err(_) => break,
+            while let Ok(event) = receiver.recv_timeout(timeout) {
+                if let Event::Flush = event {
+                    break;
                 }
 
+                events.push(event);
                 if events.len() == capacity {
                     break;
                 }
