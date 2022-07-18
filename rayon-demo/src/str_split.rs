@@ -60,5 +60,6 @@ fn serial_space_fn(b: &mut Bencher) {
 #[bench]
 fn serial_space_str(b: &mut Bencher) {
     let (string, count) = get_string_count();
+    #[allow(clippy::single_char_pattern)]
     b.iter(|| assert_eq!(string.split(" ").count(), count))
 }
