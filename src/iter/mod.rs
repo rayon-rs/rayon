@@ -3146,19 +3146,8 @@ pub trait ParallelDrainRange<Idx = usize> {
 /// stable clone of the standard library's `Try` trait, as yet unstable.
 mod private {
     use std::convert::Infallible;
+    use std::ops::ControlFlow::{self, Break, Continue};
     use std::task::Poll;
-
-    #[cfg(has_control_flow)]
-    pub(crate) use std::ops::ControlFlow;
-
-    #[cfg(not(has_control_flow))]
-    #[allow(missing_debug_implementations)]
-    pub enum ControlFlow<B, C = ()> {
-        Continue(C),
-        Break(B),
-    }
-
-    use self::ControlFlow::{Break, Continue};
 
     /// Clone of `std::ops::Try`.
     ///
@@ -3176,7 +3165,6 @@ mod private {
         fn branch(self) -> ControlFlow<Self::Residual, Self::Output>;
     }
 
-    #[cfg(has_control_flow)]
     impl<B, C> Try for ControlFlow<B, C> {
         private_impl! {}
 

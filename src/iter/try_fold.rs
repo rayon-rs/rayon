@@ -2,10 +2,9 @@ use super::plumbing::*;
 use super::ParallelIterator;
 use super::Try;
 
-use super::private::ControlFlow::{self, Break, Continue};
-
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
+use std::ops::ControlFlow::{self, Break, Continue};
 
 impl<U, I, ID, F> TryFold<I, U, ID, F>
 where
