@@ -112,9 +112,6 @@ pub(super) struct Logger {
 
 impl Logger {
     pub(super) fn new(num_workers: usize) -> Logger {
-        // `String::strip_prefix` was only stabilized in 1.45
-        #![allow(clippy::manual_strip)]
-
         if !LOG_ENABLED {
             return Self::disabled();
         }
@@ -127,15 +124,15 @@ impl Logger {
 
         let (sender, receiver) = crossbeam_channel::unbounded();
 
-        if env_log.starts_with("tail:") {
-            let filename = env_log["tail:".len()..].to_string();
+        if let Some(filename) = env_log.strip_prefix("tail:") {
+            let filename = filename.to_string();
             ::std::thread::spawn(move || {
                 Self::tail_logger_thread(num_workers, filename, 10_000, receiver)
             });
         } else if env_log == "all" {
             ::std::thread::spawn(move || Self::all_logger_thread(num_workers, receiver));
-        } else if env_log.starts_with("profile:") {
-            let filename = env_log["profile:".len()..].to_string();
+        } else if let Some(filename) = env_log.strip_prefix("profile:") {
+            let filename = filename.to_string();
             ::std::thread::spawn(move || {
                 Self::profile_logger_thread(num_workers, filename, 10_000, receiver)
             });

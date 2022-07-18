@@ -3,8 +3,6 @@
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
 #![warn(rust_2018_idioms)]
-// `String::strip_(prefix,suffix)` were only stabilized in 1.45
-#![allow(clippy::manual_strip)]
 // `mem::take` was only stabilized in 1.40
 #![allow(clippy::mem_replace_with_default)]
 
