@@ -94,7 +94,7 @@ where
         self.item = iter
             .into_iter()
             // stop iterating if another thread has found something
-            .take_while(not_full(&self.found))
+            .take_while(not_full(self.found))
             .find(self.find_op);
         if self.item.is_some() {
             self.found.store(true, Ordering::Relaxed)

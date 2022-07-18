@@ -132,7 +132,7 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
         self.range.len()
     }
 
-    fn with_producer<CB>(mut self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
     {
@@ -141,7 +141,7 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
             self.vec.set_len(self.range.start);
 
             // Create the producer as the exclusive "owner" of the slice.
-            let producer = DrainProducer::from_vec(&mut self.vec, self.range.len());
+            let producer = DrainProducer::from_vec(self.vec, self.range.len());
 
             // The producer will move or drop each item from the drained range.
             callback.callback(producer)
@@ -151,6 +151,8 @@ impl<'data, T: Send> IndexedParallelIterator for Drain<'data, T> {
 
 impl<'data, T: Send> Drop for Drain<'data, T> {
     fn drop(&mut self) {
+        // `Range::is_empty` was only stabilized in 1.47
+        #![allow(clippy::len_zero)]
         if self.range.len() > 0 {
             let Range { start, end } = self.range;
             if self.vec.len() != start {

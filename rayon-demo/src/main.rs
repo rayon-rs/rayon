@@ -1,10 +1,7 @@
 #![cfg_attr(test, feature(test))]
 #![warn(rust_2018_idioms)]
 
-use std::env;
-use std::io;
-use std::io::prelude::*;
-use std::process::exit;
+use std::{env, io, io::prelude::*, process::exit};
 
 mod cpu_time;
 mod life;

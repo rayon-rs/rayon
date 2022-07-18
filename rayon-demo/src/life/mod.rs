@@ -19,7 +19,6 @@ use crate::cpu_time::{self, CpuMeasure};
 use rand::distributions::Standard;
 use rand::{thread_rng, Rng};
 use std::iter::repeat;
-use std::num::Wrapping;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -131,14 +130,14 @@ impl Board {
     }
 
     fn living_neighbors(&self, x: usize, y: usize) -> usize {
-        let Wrapping(x_1) = Wrapping(x) - Wrapping(1);
-        let Wrapping(y_1) = Wrapping(y) - Wrapping(1);
+        let x_1 = x.wrapping_sub(1);
+        let y_1 = y.wrapping_sub(1);
         let neighbors = [
             self.cell_live(x_1, y_1),
             self.cell_live(x, y_1),
             self.cell_live(x + 1, y_1),
-            self.cell_live(x_1, y + 0),
-            self.cell_live(x + 1, y + 0),
+            self.cell_live(x_1, y),
+            self.cell_live(x + 1, y),
             self.cell_live(x_1, y + 1),
             self.cell_live(x, y + 1),
             self.cell_live(x + 1, y + 1),

@@ -182,7 +182,7 @@ pub fn parse_tsp_header<'text>(data: &mut Data<'text>) -> Option<Header<'text>> 
     })
 }
 
-pub fn parse_coord_header<'text>(data: &mut Data<'text>) -> Option<()> {
+pub fn parse_coord_header(data: &mut Data<'_>) -> Option<()> {
     data.current_line.and_then(|current_line| {
         if current_line == "NODE_COORD_SECTION" {
             data.advance();
@@ -193,7 +193,7 @@ pub fn parse_coord_header<'text>(data: &mut Data<'text>) -> Option<()> {
     })
 }
 
-pub fn parse_coord<'text>(data: &mut Data<'text>) -> Option<(Node, f64, f64)> {
+pub fn parse_coord(data: &mut Data<'_>) -> Option<(Node, f64, f64)> {
     // 1 11003.611100 42102.500000
     data.current_line.and_then(|current_line| {
         COORD.captures(current_line).and_then(|captures| {
@@ -219,7 +219,7 @@ pub fn parse_coord<'text>(data: &mut Data<'text>) -> Option<(Node, f64, f64)> {
     })
 }
 
-pub fn parse_blank<'text>(data: &mut Data<'text>) -> Option<()> {
+pub fn parse_blank(data: &mut Data<'_>) -> Option<()> {
     data.current_line.and_then(|current_line| {
         if current_line.trim().is_empty() {
             data.advance();

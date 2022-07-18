@@ -5,6 +5,7 @@
 
 use docopt::Docopt;
 use std::error::Error;
+use std::fmt::Write;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
@@ -93,7 +94,7 @@ fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), 
         println!("Cheapest path cost: {}", weight.to_usize());
         let mut output = "Cheapest path:".to_string();
         for node in path {
-            output.push_str(&format!(" {}", node.index()));
+            let _ = write!(output, " {}", node.index());
         }
         println!("{}", output);
     } else {

@@ -209,7 +209,7 @@ where
     F: Fn(&T) + Sync,
 {
     fn split_off_left(&self) -> Self {
-        InspectConsumer::new(self.base.split_off_left(), &self.inspect_op)
+        InspectConsumer::new(self.base.split_off_left(), self.inspect_op)
     }
 
     fn to_reducer(&self) -> Self::Reducer {

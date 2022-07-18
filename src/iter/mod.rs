@@ -2241,6 +2241,8 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 /// those points.
 ///
 /// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
+// Waiting for `ExactSizeIterator::is_empty` to be stabilized. See rust-lang/rust#35428
+#[allow(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always truncated before execution

@@ -55,7 +55,7 @@ impl Graph {
         }
     }
 
-    pub fn edges<'a>(&'a self, source: Node) -> impl Iterator<Item = Edge> + 'a {
+    pub fn edges(&self, source: Node) -> impl Iterator<Item = Edge> + '_ {
         self.all_nodes().filter_map(move |target| {
             self.edge_weight(source, target).map(|weight| Edge {
                 source,

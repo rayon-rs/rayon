@@ -4,7 +4,7 @@ use std::error::Error;
 #[test]
 fn double_init_fail() {
     let result1 = ThreadPoolBuilder::new().build_global();
-    assert_eq!(result1.unwrap(), ());
+    assert!(result1.is_ok());
     let err = ThreadPoolBuilder::new().build_global().unwrap_err();
     assert!(err.source().is_none());
     assert_eq!(

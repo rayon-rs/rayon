@@ -213,7 +213,7 @@ where
     R: Send,
 {
     fn split_off_left(&self) -> Self {
-        MapConsumer::new(self.base.split_off_left(), &self.map_op)
+        MapConsumer::new(self.base.split_off_left(), self.map_op)
     }
 
     fn to_reducer(&self) -> Self::Reducer {

@@ -210,7 +210,7 @@ where
     F: Fn(&mut T) + Send + Sync,
 {
     fn split_off_left(&self) -> Self {
-        UpdateConsumer::new(self.base.split_off_left(), &self.update_op)
+        UpdateConsumer::new(self.base.split_off_left(), self.update_op)
     }
 
     fn to_reducer(&self) -> Self::Reducer {

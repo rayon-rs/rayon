@@ -112,6 +112,9 @@ pub(super) struct Logger {
 
 impl Logger {
     pub(super) fn new(num_workers: usize) -> Logger {
+        // `String::strip_prefix` was only stabilized in 1.45
+        #![allow(clippy::manual_strip)]
+
         if !LOG_ENABLED {
             return Self::disabled();
         }
@@ -140,9 +143,9 @@ impl Logger {
             panic!("RAYON_LOG should be 'tail:<file>' or 'profile:<file>'");
         }
 
-        return Logger {
+        Logger {
             sender: Some(sender),
-        };
+        }
     }
 
     fn disabled() -> Logger {
@@ -219,31 +222,25 @@ impl Logger {
         let mut skipped = false;
 
         loop {
-            loop {
-                match receiver.recv_timeout(timeout) {
-                    Ok(event) => {
-                        if let Event::Flush = event {
-                            // We ignore Flush events in tail mode --
-                            // we're really just looking for
-                            // deadlocks.
-                            continue;
-                        } else {
-                            if events.len() == capacity {
-                                let event = events.pop_front().unwrap();
-                                state.simulate(&event);
-                                skipped = true;
-                            }
-
-                            events.push_back(event);
-                        }
+            while let Ok(event) = receiver.recv_timeout(timeout) {
+                if let Event::Flush = event {
+                    // We ignore Flush events in tail mode --
+                    // we're really just looking for
+                    // deadlocks.
+                    continue;
+                } else {
+                    if events.len() == capacity {
+                        let event = events.pop_front().unwrap();
+                        state.simulate(&event);
+                        skipped = true;
                     }
 
-                    Err(_) => break,
+                    events.push_back(event);
                 }
             }
 
             if skipped {
-                write!(writer, "...\n").unwrap();
+                writeln!(writer, "...").unwrap();
                 skipped = false;
             }
 
@@ -417,7 +414,7 @@ impl SimulatorState {
             }
         }
 
-        write!(w, "\n")?;
+        writeln!(w)?;
         Ok(())
     }
 }

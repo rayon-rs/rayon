@@ -180,7 +180,7 @@ fn complete_tour(solver: &SolverCx<'_>, path: &mut Vec<Node>, weight: Weight) {
     let last = *path.last().unwrap();
     if let Some(home_weight) = graph.edge_weight(last, home) {
         path.push(home);
-        solver.add_complete_tour(&path, weight + home_weight);
+        solver.add_complete_tour(path, weight + home_weight);
         path.pop();
     }
 }
