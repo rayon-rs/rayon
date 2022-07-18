@@ -629,8 +629,7 @@ fn break_patterns<T>(v: &mut [T]) {
             random
         };
         let mut gen_usize = || {
-            // TODO 1.53: if usize::BITS <= 32 {
-            if mem::size_of::<usize>() <= 4 {
+            if usize::BITS <= 32 {
                 gen_u32() as usize
             } else {
                 (((gen_u32() as u64) << 32) | (gen_u32() as u64)) as usize
@@ -851,8 +850,7 @@ where
     }
 
     // Limit the number of imbalanced partitions to `floor(log2(len)) + 1`.
-    // TODO 1.53: let limit = usize::BITS - v.len().leading_zeros();
-    let limit = mem::size_of::<usize>() as u32 * 8 - v.len().leading_zeros();
+    let limit = usize::BITS - v.len().leading_zeros();
 
     recurse(v, &is_less, None, limit);
 }
