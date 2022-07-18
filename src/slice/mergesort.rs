@@ -491,8 +491,8 @@ where
         let dest_l = SendPtr(dest);
         let dest_r = SendPtr(dest.add(left_l.len() + right_l.len()));
         rayon_core::join(
-            || par_merge(left_l, right_l, dest_l.0, is_less),
-            || par_merge(left_r, right_r, dest_r.0, is_less),
+            move || par_merge(left_l, right_l, dest_l.get(), is_less),
+            move || par_merge(left_r, right_r, dest_r.get(), is_less),
         );
     }
     // Finally, `s` gets dropped if we used sequential merge, thus copying the remaining elements
@@ -593,8 +593,8 @@ unsafe fn recurse<T, F>(
     let v = SendPtr(v);
     let buf = SendPtr(buf);
     rayon_core::join(
-        || recurse(v.0, buf.0, left, !into_buf, is_less),
-        || recurse(v.0, buf.0, right, !into_buf, is_less),
+        move || recurse(v.get(), buf.get(), left, !into_buf, is_less),
+        move || recurse(v.get(), buf.get(), right, !into_buf, is_less),
     );
 
     // Everything went all right - recursive calls didn't panic.
@@ -661,16 +661,17 @@ where
         // Wrap pointer in SendPtr so that it can be sent to another thread
         // See the documentation of SendPtr for a full explanation
         let buf = SendPtr(buf);
+        let is_less = &is_less;
 
         v.par_chunks_mut(CHUNK_LENGTH)
             .with_max_len(1)
             .enumerate()
-            .map(|(i, chunk)| {
+            .map(move |(i, chunk)| {
                 let l = CHUNK_LENGTH * i;
                 let r = l + chunk.len();
                 unsafe {
-                    let buf = buf.0.add(l);
-                    (l, r, mergesort(chunk, buf, &is_less))
+                    let buf = buf.get().add(l);
+                    (l, r, mergesort(chunk, buf, is_less))
                 }
             })
             .collect::<Vec<_>>()
