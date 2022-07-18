@@ -3,8 +3,6 @@
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
 #![warn(rust_2018_idioms)]
-// `mem::take` was only stabilized in 1.40
-#![allow(clippy::mem_replace_with_default)]
 
 //! Data-parallelism library that makes it easy to convert sequential
 //! computations into parallel
