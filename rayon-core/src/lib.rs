@@ -270,7 +270,7 @@ impl ThreadPoolBuilder {
     /// The threads in this pool will start by calling `wrapper`, which should
     /// do initialization and continue by calling `ThreadBuilder::run()`.
     ///
-    /// [`crossbeam::scope`]: https://docs.rs/crossbeam/0.7/crossbeam/fn.scope.html
+    /// [`crossbeam::scope`]: https://docs.rs/crossbeam/0.8/crossbeam/fn.scope.html
     ///
     /// # Examples
     ///
@@ -340,7 +340,7 @@ impl<S> ThreadPoolBuilder<S> {
     /// if the pool is leaked. Furthermore, the global thread pool doesn't terminate
     /// until the entire process exits!
     ///
-    /// [`crossbeam::scope`]: https://docs.rs/crossbeam/0.7/crossbeam/fn.scope.html
+    /// [`crossbeam::scope`]: https://docs.rs/crossbeam/0.8/crossbeam/fn.scope.html
     ///
     /// # Examples
     ///
@@ -383,6 +383,39 @@ impl<S> ThreadPoolBuilder<S> {
     ///
     ///     pool.install(|| println!("Hello from my fully custom thread!"));
     ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// This can also be used for a pool of scoped threads like [`crossbeam::scope`],
+    /// or [`std::thread::scope`] introduced in Rust 1.63, which is encapsulated in
+    /// [`build_scoped`](#method.build_scoped).
+    ///
+    /// [`std::thread::scope`]: https://doc.rust-lang.org/std/thread/fn.scope.html
+    ///
+    /// ```
+    /// # use rayon_core as rayon;
+    /// fn main() -> Result<(), rayon::ThreadPoolBuildError> {
+    ///     std::thread::scope(|scope| {
+    ///         let pool = rayon::ThreadPoolBuilder::new()
+    ///             .spawn_handler(|thread| {
+    ///                 let mut builder = std::thread::Builder::new();
+    ///                 if let Some(name) = thread.name() {
+    ///                     builder = builder.name(name.to_string());
+    ///                 }
+    ///                 if let Some(size) = thread.stack_size() {
+    ///                     builder = builder.stack_size(size);
+    ///                 }
+    ///                 builder.spawn_scoped(scope, || {
+    ///                     // Add any scoped initialization here, then run!
+    ///                     thread.run()
+    ///                 })?;
+    ///                 Ok(())
+    ///             })
+    ///             .build()?;
+    ///
+    ///         pool.install(|| println!("Hello from my custom scoped thread!"));
+    ///         Ok(())
+    ///     })
     /// }
     /// ```
     pub fn spawn_handler<F>(self, spawn: F) -> ThreadPoolBuilder<CustomSpawn<F>>
