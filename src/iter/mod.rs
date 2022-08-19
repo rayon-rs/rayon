@@ -119,6 +119,8 @@ mod flat_map_iter;
 mod flatten;
 mod flatten_iter;
 mod fold;
+mod fold_chunks;
+mod fold_chunks_with;
 mod for_each;
 mod from_par_iter;
 mod inspect;
@@ -165,6 +167,8 @@ pub use self::{
     flatten::Flatten,
     flatten_iter::FlattenIter,
     fold::{Fold, FoldWith},
+    fold_chunks::FoldChunks,
+    fold_chunks_with::FoldChunksWith,
     inspect::Inspect,
     interleave::Interleave,
     interleave_shortest::InterleaveShortest,
@@ -2415,6 +2419,67 @@ pub trait IndexedParallelIterator: ParallelIterator {
     fn chunks(self, chunk_size: usize) -> Chunks<Self> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks::new(self, chunk_size)
+    }
+
+    /// Splits an iterator into fixed-size chunks, performing a sequential [`fold()`] on
+    /// each chunk.
+    ///
+    /// Returns an iterator that produces a folded result for each chunk of items
+    /// produced by this iterator.
+    ///
+    /// This works essentially like:
+    ///
+    ///     iter.chunks(chunk_size)
+    ///         .map(|chunk| chunk.into_iter().fold(identity, fold_op)),
+    ///
+    /// except there is no per-chunk allocation overhead.
+    ///
+    /// [`fold()`]: std::iter::Iterator#method.fold
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let nums = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    /// let chunk_sums = nums.into_par_iter().fold_chunks(2, || 0, |a, n| a + n).collect::<Vec<_>>();
+    /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
+    /// ```
+    fn fold_chunks<ID, F, U>(self, chunk_size: usize, identity: ID, fold_op: F) -> FoldChunks<Self, ID, F>
+    where
+        ID: Fn() -> U + Send + Sync,
+        F: Fn(U, Self::Item) -> U + Send + Sync,
+    {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
+        FoldChunks::new(self, chunk_size, identity, fold_op)
+    }
+
+    /// Splits an iterator into fixed-size chunks, performing a sequential [`fold()`] on
+    /// each chunk.
+    ///
+    /// Returns an iterator that produces a folded result for each chunk of items
+    /// produced by this iterator.
+    ///
+    /// This works essentially like `fold_chunks(chunk_size, || init.clone(), fold_op)`,
+    /// except it doesn't require the `init` type to be `Sync`, nor any other form of
+    /// added synchronization.
+    ///
+    /// [`fold()`]: std::iter::Iterator#method.fold
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let nums = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    /// let chunk_sums = nums.into_par_iter().fold_chunks_with(2, 0, |a, n| a + n).collect::<Vec<_>>();
+    /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
+    /// ```
+    fn fold_chunks_with<T, F>(self, chunk_size: usize, init: T, fold_op: F) -> FoldChunksWith<Self, T, F>
+    where
+        T: Send + Clone,
+        F: Fn(T, Self::Item) -> T + Send + Sync,
+    {
+        assert!(chunk_size != 0, "chunk_size must not be zero");
+        FoldChunksWith::new(self, chunk_size, init, fold_op)
     }
 
     /// Lexicographically compares the elements of this `ParallelIterator` with those of
