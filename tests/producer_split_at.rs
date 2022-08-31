@@ -344,6 +344,29 @@ fn chunks() {
 }
 
 #[test]
+fn arrays() {
+    use std::convert::TryInto;
+    fn check_len<const N: usize>(s: &[i32]) {
+        let v: Vec<[_; N]> = s.chunks_exact(N).map(|c| c.try_into().unwrap()).collect();
+        check(&v, || s.par_iter().copied().arrays::<N>());
+    }
+
+    let s: Vec<_> = (0..10).collect();
+    check_len::<1>(&s);
+    check_len::<2>(&s);
+    check_len::<3>(&s);
+    check_len::<4>(&s);
+    check_len::<5>(&s);
+    check_len::<6>(&s);
+    check_len::<7>(&s);
+    check_len::<8>(&s);
+    check_len::<9>(&s);
+    check_len::<10>(&s);
+    check_len::<11>(&s);
+    check_len::<12>(&s);
+}
+
+#[test]
 fn map() {
     let v: Vec<_> = (0..10).collect();
     check(&v, || v.par_iter().map(Clone::clone));

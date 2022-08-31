@@ -151,6 +151,7 @@ fn clone_adaptors() {
     check(v.par_iter().interleave_shortest(&v));
     check(v.par_iter().intersperse(&None));
     check(v.par_iter().chunks(3));
+    check(v.par_iter().arrays::<3>());
     check(v.par_iter().map(|x| x));
     check(v.par_iter().map_with(0, |_, x| x));
     check(v.par_iter().map_init(|| 0, |_, x| x));
