@@ -2449,7 +2449,12 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// let chunk_sums = nums.into_par_iter().fold_chunks(2, || 0, |a, n| a + n).collect::<Vec<_>>();
     /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
     /// ```
-    fn fold_chunks<ID, F, U>(self, chunk_size: usize, identity: ID, fold_op: F) -> FoldChunks<Self, ID, F>
+    fn fold_chunks<ID, F, U>(
+        self,
+        chunk_size: usize,
+        identity: ID,
+        fold_op: F,
+    ) -> FoldChunks<Self, ID, F>
     where
         ID: Fn() -> U + Send + Sync,
         F: Fn(U, Self::Item) -> U + Send + Sync,
@@ -2478,7 +2483,12 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// let chunk_sums = nums.into_par_iter().fold_chunks_with(2, 0, |a, n| a + n).collect::<Vec<_>>();
     /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
     /// ```
-    fn fold_chunks_with<T, F>(self, chunk_size: usize, init: T, fold_op: F) -> FoldChunksWith<Self, T, F>
+    fn fold_chunks_with<T, F>(
+        self,
+        chunk_size: usize,
+        init: T,
+        fold_op: F,
+    ) -> FoldChunksWith<Self, T, F>
     where
         T: Send + Clone,
         F: Fn(T, Self::Item) -> T + Send + Sync,

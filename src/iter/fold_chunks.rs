@@ -30,8 +30,13 @@ where
     F: Fn(U, I::Item) -> U + Send + Sync,
 {
     /// Creates a new `FoldChunks` iterator
-    pub(super) fn new(base: I, chunk_size: usize, identity: ID, fold_op: F, ) -> Self {
-        FoldChunks { base, chunk_size, identity, fold_op }
+    pub(super) fn new(base: I, chunk_size: usize, identity: ID, fold_op: F) -> Self {
+        FoldChunks {
+            base,
+            chunk_size,
+            identity,
+            fold_op,
+        }
     }
 }
 
@@ -258,9 +263,14 @@ where
 
 #[test]
 fn check_fold_chunks() {
-    let words = "bishbashbosh!".chars().collect::<Vec<_>>()
+    let words = "bishbashbosh!"
+        .chars()
+        .collect::<Vec<_>>()
         .into_par_iter()
-        .fold_chunks(4, String::new, |mut s, c| { s.push(c); s } )
+        .fold_chunks(4, String::new, |mut s, c| {
+            s.push(c);
+            s
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(words, vec!["bish", "bash", "bosh", "!"]);
