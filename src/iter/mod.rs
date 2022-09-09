@@ -2429,8 +2429,13 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// This works essentially like:
     ///
-    ///     iter.chunks(chunk_size)
-    ///         .map(|chunk| chunk.into_iter().fold(identity, fold_op)),
+    /// ```text
+    /// iter.chunks(chunk_size)
+    ///     .map(|chunk|
+    ///         chunk.into_iter()
+    ///             .fold(identity, fold_op)
+    ///     )
+    /// ```
     ///
     /// except there is no per-chunk allocation overhead.
     ///
