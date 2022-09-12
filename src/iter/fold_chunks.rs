@@ -1,4 +1,5 @@
 use std::cmp::min;
+use std::fmt::{self, Debug};
 
 use super::plumbing::*;
 use super::*;
@@ -12,7 +13,7 @@ use crate::math::div_round_up;
 /// [`fold_chunks()`]: trait.IndexedParallelIterator.html#method.fold_chunks
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FoldChunks<I, ID, F>
 where
     I: IndexedParallelIterator,
@@ -21,6 +22,15 @@ where
     chunk_size: usize,
     fold_op: F,
     identity: ID,
+}
+
+impl<I: IndexedParallelIterator + Debug, ID, F> Debug for FoldChunks<I, ID, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Fold")
+            .field("base", &self.base)
+            .field("chunk_size", &self.chunk_size)
+            .finish()
+    }
 }
 
 impl<I, ID, U, F> FoldChunks<I, ID, F>
