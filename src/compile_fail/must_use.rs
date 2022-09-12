@@ -33,6 +33,8 @@ must_use! {
     step_by             /** v.par_iter().step_by(2); */
     chain               /** v.par_iter().chain(&v); */
     chunks              /** v.par_iter().chunks(2); */
+    fold_chunks         /** v.par_iter().fold_chunks(2, || 0, |x, _| x); */
+    fold_chunks_with    /** v.par_iter().fold_chunks_with(2, 0, |x, _| x); */
     cloned              /** v.par_iter().cloned(); */
     copied              /** v.par_iter().copied(); */
     enumerate           /** v.par_iter().enumerate(); */
