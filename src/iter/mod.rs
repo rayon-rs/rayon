@@ -2341,13 +2341,14 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// // we should never get here
     /// assert_eq!(1, zipped.len());
     /// ```
+    #[track_caller]
     fn zip_eq<Z>(self, zip_op: Z) -> ZipEq<Self, Z::Iter>
     where
         Z: IntoParallelIterator,
         Z::Iter: IndexedParallelIterator,
     {
         let zip_op_iter = zip_op.into_par_iter();
-        assert_eq!(self.len(), zip_op_iter.len());
+        assert_eq!(self.len(), zip_op_iter.len(), "iterators must have the same length");
         ZipEq::new(self, zip_op_iter)
     }
 
