@@ -570,7 +570,7 @@ unsafe fn recurse<T, F>(
 
     // After recursive calls finish we'll have to merge chunks `(start, mid)` and `(mid, end)` from
     // `src` into `dest`. If the current invocation has to store the result into `buf`, we'll
-    // merge chunks from `v` into `buf`, and viceversa.
+    // merge chunks from `v` into `buf`, and vice versa.
     //
     // Recursive calls flip `into_buf` at each level of recursion. More concretely, `par_merge`
     // merges chunks from `buf` into `v` at the first level, from `v` into `buf` at the second

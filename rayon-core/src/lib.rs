@@ -560,7 +560,7 @@ impl<S> ThreadPoolBuilder<S> {
     /// to true, however, workers will prefer to execute in a
     /// *breadth-first* fashion -- that is, they will search for jobs at
     /// the *bottom* of their local deque. (At present, workers *always*
-    /// steal from the bottom of other worker's deques, regardless of
+    /// steal from the bottom of other workers' deques, regardless of
     /// the setting of this flag.)
     ///
     /// If you think of the tasks as a tree, where a parent task
