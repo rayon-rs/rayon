@@ -85,6 +85,7 @@ pub trait ParallelSlice<T: Sync> {
     /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_chunks(2).collect();
     /// assert_eq!(chunks, vec![&[1, 2][..], &[3, 4], &[5]]);
     /// ```
+    #[track_caller]
     fn par_chunks(&self, chunk_size: usize) -> Chunks<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks::new(chunk_size, self.as_parallel_slice())
@@ -104,6 +105,7 @@ pub trait ParallelSlice<T: Sync> {
     /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_chunks_exact(2).collect();
     /// assert_eq!(chunks, vec![&[1, 2][..], &[3, 4]]);
     /// ```
+    #[track_caller]
     fn par_chunks_exact(&self, chunk_size: usize) -> ChunksExact<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksExact::new(chunk_size, self.as_parallel_slice())
@@ -123,6 +125,7 @@ pub trait ParallelSlice<T: Sync> {
     /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_rchunks(2).collect();
     /// assert_eq!(chunks, vec![&[4, 5][..], &[2, 3], &[1]]);
     /// ```
+    #[track_caller]
     fn par_rchunks(&self, chunk_size: usize) -> RChunks<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunks::new(chunk_size, self.as_parallel_slice())
@@ -142,6 +145,7 @@ pub trait ParallelSlice<T: Sync> {
     /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_rchunks_exact(2).collect();
     /// assert_eq!(chunks, vec![&[4, 5][..], &[2, 3]]);
     /// ```
+    #[track_caller]
     fn par_rchunks_exact(&self, chunk_size: usize) -> RChunksExact<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunksExact::new(chunk_size, self.as_parallel_slice())
@@ -199,6 +203,7 @@ pub trait ParallelSliceMut<T: Send> {
     ///      .for_each(|slice| slice.reverse());
     /// assert_eq!(array, [2, 1, 4, 3, 5]);
     /// ```
+    #[track_caller]
     fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksMut::new(chunk_size, self.as_parallel_slice_mut())
@@ -220,6 +225,7 @@ pub trait ParallelSliceMut<T: Send> {
     ///      .for_each(|slice| slice.reverse());
     /// assert_eq!(array, [3, 2, 1, 4, 5]);
     /// ```
+    #[track_caller]
     fn par_chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         ChunksExactMut::new(chunk_size, self.as_parallel_slice_mut())
@@ -241,6 +247,7 @@ pub trait ParallelSliceMut<T: Send> {
     ///      .for_each(|slice| slice.reverse());
     /// assert_eq!(array, [1, 3, 2, 5, 4]);
     /// ```
+    #[track_caller]
     fn par_rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunksMut::new(chunk_size, self.as_parallel_slice_mut())
@@ -262,6 +269,7 @@ pub trait ParallelSliceMut<T: Send> {
     ///      .for_each(|slice| slice.reverse());
     /// assert_eq!(array, [1, 2, 5, 4, 3]);
     /// ```
+    #[track_caller]
     fn par_rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunksExactMut::new(chunk_size, self.as_parallel_slice_mut())
