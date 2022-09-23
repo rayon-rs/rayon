@@ -2348,7 +2348,11 @@ pub trait IndexedParallelIterator: ParallelIterator {
         Z::Iter: IndexedParallelIterator,
     {
         let zip_op_iter = zip_op.into_par_iter();
-        assert_eq!(self.len(), zip_op_iter.len(), "iterators must have the same length");
+        assert_eq!(
+            self.len(),
+            zip_op_iter.len(),
+            "iterators must have the same length"
+        );
         ZipEq::new(self, zip_op_iter)
     }
 
