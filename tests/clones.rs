@@ -131,7 +131,11 @@ fn clone_adaptors() {
     check(v.par_iter().with_max_len(1).fold(|| 0, |x, _| x));
     check(v.par_iter().with_max_len(1).fold_with(0, |x, _| x));
     check(v.par_iter().with_max_len(1).fold_chunks(1, || 0, |x, _| x));
-    check(v.par_iter().with_max_len(1).fold_chunks_with(1, 0, |x, _| x));
+    check(
+        v.par_iter()
+            .with_max_len(1)
+            .fold_chunks_with(1, 0, |x, _| x),
+    );
     check(v.par_iter().with_max_len(1).try_fold(|| 0, |_, &x| x));
     check(v.par_iter().with_max_len(1).try_fold_with(0, |_, &x| x));
     check(v.par_iter().inspect(|_| ()));
