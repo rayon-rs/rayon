@@ -159,7 +159,7 @@ impl Sleep {
         debug_assert!(!*is_blocked);
 
         // Our latch was signalled. We should wake back up fully as we
-        // wil have some stuff to do.
+        // will have some stuff to do.
         if !latch.fall_asleep() {
             self.logger.log(|| ThreadSleepInterruptedByLatch {
                 worker: worker_index,
