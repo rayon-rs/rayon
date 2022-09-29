@@ -2441,6 +2441,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// [`fold()`]: std::iter::Iterator#method.fold
     ///
+    /// **Panics** if `chunk_size` is 0.
+    ///
     /// # Examples
     ///
     /// ```
@@ -2449,6 +2451,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// let chunk_sums = nums.into_par_iter().fold_chunks(2, || 0, |a, n| a + n).collect::<Vec<_>>();
     /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
     /// ```
+    #[track_caller]
     fn fold_chunks<ID, F, U>(
         self,
         chunk_size: usize,
@@ -2475,6 +2478,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// [`fold()`]: std::iter::Iterator#method.fold
     ///
+    /// **Panics** if `chunk_size` is 0.
+    ///
     /// # Examples
     ///
     /// ```
@@ -2483,6 +2488,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// let chunk_sums = nums.into_par_iter().fold_chunks_with(2, 0, |a, n| a + n).collect::<Vec<_>>();
     /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
     /// ```
+    #[track_caller]
     fn fold_chunks_with<T, F>(
         self,
         chunk_size: usize,
