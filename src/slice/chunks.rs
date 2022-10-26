@@ -317,7 +317,7 @@ impl<'data, T: Send> ChunksExactMut<'data, T> {
     /// returned by the iterator. The returned slice has at most `chunk_size-1`
     /// elements. Subsequent calls will return an empty slice.
     pub fn take_remainder(&mut self) -> &'data mut [T] {
-        std::mem::replace(&mut self.rem, &mut [])
+        std::mem::take(&mut self.rem)
     }
 }
 

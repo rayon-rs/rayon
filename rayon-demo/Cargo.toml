@@ -1,5 +1,6 @@
 [package]
-edition = "2018"
+rust-version = "1.56"
+edition = "2021"
 name = "rayon-demo"
 version = "0.0.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]

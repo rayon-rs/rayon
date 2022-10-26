@@ -41,9 +41,7 @@ impl ThreadBuilder {
 
     /// Gets the string that was specified by `ThreadPoolBuilder::name()`.
     pub fn name(&self) -> Option<&str> {
-        // `Option::as_deref` was only stabilized in 1.40
-        #[allow(clippy::option_as_ref_deref)]
-        self.name.as_ref().map(String::as_str)
+        self.name.as_deref()
     }
 
     /// Gets the value that was specified by `ThreadPoolBuilder::stack_size()`.

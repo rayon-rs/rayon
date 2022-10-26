@@ -1,3 +1,7 @@
+# Release rayon 1.6.0 / rayon-core 1.10.0 (pending)
+
+- The minimum supported `rustc` is now 1.56.
+
 # Release rayon 1.5.3 (2022-05-13)
 
 - The new `ParallelSliceMut::par_sort_by_cached_key` is a stable sort that caches

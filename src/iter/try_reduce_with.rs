@@ -2,8 +2,7 @@ use super::plumbing::*;
 use super::ParallelIterator;
 use super::Try;
 
-use super::private::ControlFlow::{self, Break, Continue};
-
+use std::ops::ControlFlow::{self, Break, Continue};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub(super) fn try_reduce_with<PI, R, T>(pi: PI, reduce_op: R) -> Option<T>

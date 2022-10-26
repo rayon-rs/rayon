@@ -1,12 +1,7 @@
-#![doc(html_root_url = "https://docs.rs/rayon/1.5")]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
 #![warn(rust_2018_idioms)]
-// `String::strip_(prefix,suffix)` were only stabilized in 1.45
-#![allow(clippy::manual_strip)]
-// `mem::take` was only stabilized in 1.40
-#![allow(clippy::mem_replace_with_default)]
 
 //! Data-parallelism library that makes it easy to convert sequential
 //! computations into parallel
@@ -139,6 +134,13 @@ unsafe impl<T: Send> Send for SendPtr<T> {}
 
 // SAFETY: !Sync for raw pointers is not for safety, just as a lint
 unsafe impl<T: Send> Sync for SendPtr<T> {}
+
+impl<T> SendPtr<T> {
+    // Helper to avoid disjoint captures of `send_ptr.0`
+    fn get(self) -> *mut T {
+        self.0
+    }
+}
 
 // Implement Clone without the T: Clone bound from the derive
 impl<T> Clone for SendPtr<T> {

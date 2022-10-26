@@ -1,10 +1,7 @@
-#![cfg(has_min_const_generics)]
 //! Parallel iterator types for [arrays] (`[T; N]`)
 //!
 //! You will rarely need to interact with this module directly unless you need
 //! to name one of the iterator types.
-//!
-//! Everything in this module requires const generics, stabilized in Rust 1.51.
 //!
 //! [arrays]: https://doc.rust-lang.org/std/primitive.array.html
 
@@ -14,7 +11,6 @@ use crate::slice::{Iter, IterMut};
 use crate::vec::DrainProducer;
 use std::mem::ManuallyDrop;
 
-/// This implementation requires const generics, stabilized in Rust 1.51.
 impl<'data, T: Sync + 'data, const N: usize> IntoParallelIterator for &'data [T; N] {
     type Item = &'data T;
     type Iter = Iter<'data, T>;
@@ -24,7 +20,6 @@ impl<'data, T: Sync + 'data, const N: usize> IntoParallelIterator for &'data [T;
     }
 }
 
-/// This implementation requires const generics, stabilized in Rust 1.51.
 impl<'data, T: Send + 'data, const N: usize> IntoParallelIterator for &'data mut [T; N] {
     type Item = &'data mut T;
     type Iter = IterMut<'data, T>;
@@ -34,7 +29,6 @@ impl<'data, T: Send + 'data, const N: usize> IntoParallelIterator for &'data mut
     }
 }
 
-/// This implementation requires const generics, stabilized in Rust 1.51.
 impl<T: Send, const N: usize> IntoParallelIterator for [T; N] {
     type Item = T;
     type Iter = IntoIter<T, N>;
