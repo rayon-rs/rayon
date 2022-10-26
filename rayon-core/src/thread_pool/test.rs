@@ -4,8 +4,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-#[allow(deprecated)]
-use crate::Configuration;
 use crate::{join, Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder};
 
 #[test]
@@ -197,7 +195,7 @@ fn mutual_install_sleepy() {
 #[test]
 #[allow(deprecated)]
 fn check_thread_pool_new() {
-    let pool = ThreadPool::new(Configuration::new().num_threads(22)).unwrap();
+    let pool = ThreadPool::new(crate::Configuration::new().num_threads(22)).unwrap();
     assert_eq!(pool.current_num_threads(), 22);
 }
 

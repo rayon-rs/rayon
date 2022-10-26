@@ -16,8 +16,6 @@ use std::hash::Hasher;
 use std::io;
 use std::mem;
 use std::ptr;
-#[allow(deprecated)]
-use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread;
@@ -895,8 +893,7 @@ impl XorShift64Star {
         let mut seed = 0;
         while seed == 0 {
             let mut hasher = DefaultHasher::new();
-            #[allow(deprecated)]
-            static COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+            static COUNTER: AtomicUsize = AtomicUsize::new(0);
             hasher.write_usize(COUNTER.fetch_add(1, Ordering::Relaxed));
             seed = hasher.finish();
         }
