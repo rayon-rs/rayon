@@ -1121,7 +1121,6 @@ dependencies = [
 name = "rayon"
 version = "1.6.0"
 dependencies = [
- "autocfg",
  "crossbeam-deque",
  "either",
  "lazy_static",

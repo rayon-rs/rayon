@@ -31,6 +31,3 @@ default-features = false
 lazy_static = "1"
 rand = "0.8"
 rand_xorshift = "0.3"
-
-[build-dependencies]
-autocfg = "1"
