@@ -1,7 +1,6 @@
 [package]
 name = "rayon"
-# Reminder to update html_root_url in lib.rs when updating version
-version = "1.5.3"
+version = "1.6.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
