@@ -114,6 +114,13 @@ impl ThreadPool {
     /// `join`, `scope`, or parallel iterators will then operate within that
     /// threadpool.
     ///
+    /// Broadcasts are executed on each thread after they have exhausted their
+    /// local work queue, before they attempt work-stealing from other threads.
+    /// The goal of that strategy is to run everywhere in a timely manner
+    /// *without* being too disruptive to current work. There may be alternative
+    /// broadcast styles added in the future for more or less aggressive
+    /// injection, if the need arises.
+    ///
     /// # Warning: thread-local data
     ///
     /// Because `op` is executing within the Rayon thread-pool,
