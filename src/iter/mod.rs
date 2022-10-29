@@ -2452,15 +2452,15 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// assert_eq!(chunk_sums, vec![3, 7, 11, 15, 19]);
     /// ```
     #[track_caller]
-    fn fold_chunks<ID, F, U>(
+    fn fold_chunks<T, ID, F>(
         self,
         chunk_size: usize,
         identity: ID,
         fold_op: F,
     ) -> FoldChunks<Self, ID, F>
     where
-        ID: Fn() -> U + Send + Sync,
-        F: Fn(U, Self::Item) -> U + Send + Sync,
+        ID: Fn() -> T + Send + Sync,
+        F: Fn(T, Self::Item) -> T + Send + Sync,
     {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         FoldChunks::new(self, chunk_size, identity, fold_op)
