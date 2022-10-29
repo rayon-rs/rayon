@@ -271,17 +271,22 @@ where
     }
 }
 
-#[test]
-fn check_fold_chunks() {
-    let words = "bishbashbosh!"
-        .chars()
-        .collect::<Vec<_>>()
-        .into_par_iter()
-        .fold_chunks(4, String::new, |mut s, c| {
-            s.push(c);
-            s
-        })
-        .collect::<Vec<_>>();
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    assert_eq!(words, vec!["bish", "bash", "bosh", "!"]);
+    #[test]
+    fn check_fold_chunks() {
+        let words = "bishbashbosh!"
+            .chars()
+            .collect::<Vec<_>>()
+            .into_par_iter()
+            .fold_chunks(4, String::new, |mut s, c| {
+                s.push(c);
+                s
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(words, vec!["bish", "bash", "bosh", "!"]);
+    }
 }
