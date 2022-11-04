@@ -80,7 +80,7 @@
 //! (This keeps the implementation simpler and allows extra optimizations.)
 
 use self::plumbing::*;
-use self::private::Try;
+use self::private::{Residual, Try};
 pub use either::Either;
 use std::cmp::{self, Ordering};
 use std::iter::{Product, Sum};
@@ -110,6 +110,7 @@ mod copied;
 mod empty;
 mod enumerate;
 mod extend;
+mod fill_slice;
 mod filter;
 mod filter_map;
 mod find;
@@ -143,6 +144,7 @@ mod splitter;
 mod step_by;
 mod sum;
 mod take;
+mod try_fill_slice;
 mod try_fold;
 mod try_reduce;
 mod try_reduce_with;
@@ -2294,6 +2296,67 @@ pub trait IndexedParallelIterator: ParallelIterator {
         collect::unzip_into_vecs(self, left, right);
     }
 
+    /// Fills the contents of the given slice with the data in this parallel
+    /// iterator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of the slice is not the same as the length of this
+    /// iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut data = [-1, -1, -1, -1, -1];
+    ///
+    /// (0..5).into_par_iter().fill_slice(&mut data);
+    ///
+    /// assert_eq!(data, [0, 1, 2, 3, 4]);
+    /// ```
+    fn fill_slice(self, target: &mut [Self::Item]) {
+        fill_slice::fill_slice(self, target);
+    }
+
+    /// Attempts to fill the contents of the given slice with the data in this
+    /// parallel iterator, propagating any errors that occur.
+    ///
+    /// If this function returns `Err`, the contents of the slice may be left
+    /// partially overwritten.
+    ///
+    /// Note that not all errors are collected — even if multiple errors occur,
+    /// only one will be returned by this function and the rest will be ignored.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of the slice is not the same as the length of this
+    /// iterator.
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let mut data = [-1, -1, -1, -1, -1];
+    ///
+    /// let pi = (0..5).into_par_iter().map(Ok::<_, ()>);
+    /// pi.try_fill_slice(&mut data).unwrap();
+    /// assert_eq!(data, [0, 1, 2, 3, 4]);
+    ///
+    /// let pi = [Ok(1), Err("oh no"), Ok(2)].into_par_iter();
+    /// assert_eq!(pi.try_fill_slice(&mut data[..3]), Err("oh no"));
+    /// ```
+    fn try_fill_slice<T>(
+        self,
+        target: &mut [T],
+    ) -> <<Self::Item as Try>::Residual as Residual<()>>::TryType
+    where
+        Self::Item: Try<Output = T>,
+        T: Send,
+        <Self::Item as Try>::Residual: Residual<()> + Send,
+    {
+        try_fill_slice::try_fill_slice(self, target)
+    }
+
     /// Iterates over tuples `(A, B)`, where the items `A` are from
     /// this iterator and `B` are from the iterator given as argument.
     /// Like the `zip` method on ordinary iterators, if the two
@@ -3294,5 +3357,32 @@ mod private {
                 Poll::Ready(Some(Err(e))) => Break(Err(e)),
             }
         }
+    }
+
+    /// Clone of `std::ops::Residual`.
+    ///
+    /// Implementing this trait is not permitted outside of `rayon`.
+    pub trait Residual<O> {
+        private_decl! {}
+
+        type TryType: Try<Output = O, Residual = Self>;
+    }
+
+    impl<B, C> Residual<C> for ControlFlow<B, Infallible> {
+        private_impl! {}
+
+        type TryType = ControlFlow<B, C>;
+    }
+
+    impl<T> Residual<T> for Option<Infallible> {
+        private_impl! {}
+
+        type TryType = Option<T>;
+    }
+
+    impl<T, E> Residual<T> for Result<Infallible, E> {
+        private_impl! {}
+
+        type TryType = Result<T, E>;
     }
 }
