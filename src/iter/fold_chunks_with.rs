@@ -292,19 +292,29 @@ mod test {
 
     // 'closure' value for tests below
     fn sum<T, U>(x: T, y: U) -> T
-        where T: Add<U, Output=T> { x + y }
+    where
+        T: Add<U, Output = T>,
+    {
+        x + y
+    }
 
     #[test]
     #[should_panic(expected = "chunk_size must not be zero")]
     fn check_fold_chunks_zero_size() {
-        let _: Vec<i32> = vec![1, 2, 3].into_par_iter().fold_chunks_with(0, 0, sum).collect();
+        let _: Vec<i32> = vec![1, 2, 3]
+            .into_par_iter()
+            .fold_chunks_with(0, 0, sum)
+            .collect();
     }
 
     #[test]
     fn check_fold_chunks_even_size() {
         assert_eq!(
             vec![1 + 2 + 3, 4 + 5 + 6, 7 + 8 + 9],
-            (1..10).into_par_iter().fold_chunks_with(3, 0, sum).collect::<Vec<i32>>()
+            (1..10)
+                .into_par_iter()
+                .fold_chunks_with(3, 0, sum)
+                .collect::<Vec<i32>>()
         );
     }
 
@@ -314,7 +324,9 @@ mod test {
         let expected: Vec<i32> = vec![];
         assert_eq!(
             expected,
-            v.into_par_iter().fold_chunks_with(2, 0, sum).collect::<Vec<i32>>()
+            v.into_par_iter()
+                .fold_chunks_with(2, 0, sum)
+                .collect::<Vec<i32>>()
         );
     }
 
@@ -343,7 +355,10 @@ mod test {
             assert_eq!(expected, res, "Case {} failed", i);
 
             res.truncate(0);
-            v.into_par_iter().fold_chunks_with(n, 0, sum).rev().collect_into_vec(&mut res);
+            v.into_par_iter()
+                .fold_chunks_with(n, 0, sum)
+                .rev()
+                .collect_into_vec(&mut res);
             assert_eq!(
                 expected.into_iter().rev().collect::<Vec<u32>>(),
                 res,
