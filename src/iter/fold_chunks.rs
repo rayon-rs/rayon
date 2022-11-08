@@ -38,6 +38,7 @@ where
     I: IndexedParallelIterator,
     ID: Fn() -> U + Send + Sync,
     F: Fn(U, I::Item) -> U + Send + Sync,
+    U: Send,
 {
     /// Creates a new `FoldChunks` iterator
     pub(super) fn new(base: I, chunk_size: usize, identity: ID, fold_op: F) -> Self {

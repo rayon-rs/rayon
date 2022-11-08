@@ -2461,6 +2461,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     where
         ID: Fn() -> T + Send + Sync,
         F: Fn(T, Self::Item) -> T + Send + Sync,
+        T: Send,
     {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         FoldChunks::new(self, chunk_size, identity, fold_op)
