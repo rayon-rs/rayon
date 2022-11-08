@@ -34,6 +34,37 @@ fn factorial_par_iter(b: &mut test::Bencher) {
 }
 
 #[bench]
+/// Compute the Factorial using rayon::fold_with.
+fn factorial_fold_with(b: &mut test::Bencher) {
+    fn fact(n: u32) -> BigUint {
+        (1..n + 1)
+            .into_par_iter()
+            .with_min_len(64) // for fair comparison with factorial_fold_chunks_with()
+            .fold_with(BigUint::from(1_u32), |acc, x| acc.mul(x))
+            .reduce_with(Mul::mul)
+            .unwrap()
+    }
+
+    let f = factorial(N);
+    b.iter(|| assert_eq!(fact(test::black_box(N)), f));
+}
+
+#[bench]
+/// Compute the Factorial using rayon::fold_chunks_with.
+fn factorial_fold_chunks_with(b: &mut test::Bencher) {
+    fn fact(n: u32) -> BigUint {
+        (1..n + 1)
+            .into_par_iter()
+            .fold_chunks_with(64, BigUint::from(1_u32), |acc, x| acc.mul(x))
+            .reduce_with(Mul::mul)
+            .unwrap()
+    }
+
+    let f = factorial(N);
+    b.iter(|| assert_eq!(fact(test::black_box(N)), f));
+}
+
+#[bench]
 /// Compute the Factorial using divide-and-conquer serial recursion.
 fn factorial_recursion(b: &mut test::Bencher) {
     fn product(a: u32, b: u32) -> BigUint {
