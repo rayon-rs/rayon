@@ -90,38 +90,46 @@ where
             where
                 P: Producer<Item = T>,
             {
-                self.callback.callback(ChunkProducer {
-                    chunk_size: self.size,
-                    len: self.len,
-                    base,
-                })
+                let producer = ChunkProducer::new(self.size, self.len, base, Vec::from_iter);
+                self.callback.callback(producer)
             }
         }
     }
 }
 
-struct ChunkProducer<P>
-where
-    P: Producer,
-{
+pub(super) struct ChunkProducer<P, F> {
     chunk_size: usize,
     len: usize,
     base: P,
+    map: F,
 }
 
-impl<P> Producer for ChunkProducer<P>
+impl<P, F> ChunkProducer<P, F> {
+    pub(super) fn new(chunk_size: usize, len: usize, base: P, map: F) -> Self {
+        Self {
+            chunk_size,
+            len,
+            base,
+            map,
+        }
+    }
+}
+
+impl<P, F, T> Producer for ChunkProducer<P, F>
 where
     P: Producer,
+    F: Fn(P::IntoIter) -> T + Send + Clone,
 {
-    type Item = Vec<P::Item>;
-    type IntoIter = ChunkSeq<P>;
+    type Item = T;
+    type IntoIter = std::iter::Map<ChunkSeq<P>, F>;
 
     fn into_iter(self) -> Self::IntoIter {
-        ChunkSeq {
+        let chunks = ChunkSeq {
             chunk_size: self.chunk_size,
             len: self.len,
             inner: if self.len > 0 { Some(self.base) } else { None },
-        }
+        };
+        chunks.map(self.map)
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
@@ -132,11 +140,13 @@ where
                 chunk_size: self.chunk_size,
                 len: elem_index,
                 base: left,
+                map: self.map.clone(),
             },
             ChunkProducer {
                 chunk_size: self.chunk_size,
                 len: self.len - elem_index,
                 base: right,
+                map: self.map,
             },
         )
     }
@@ -150,7 +160,7 @@ where
     }
 }
 
-struct ChunkSeq<P> {
+pub(super) struct ChunkSeq<P> {
     chunk_size: usize,
     len: usize,
     inner: Option<P>,
@@ -160,7 +170,7 @@ impl<P> Iterator for ChunkSeq<P>
 where
     P: Producer,
 {
-    type Item = Vec<P::Item>;
+    type Item = P::IntoIter;
 
     fn next(&mut self) -> Option<Self::Item> {
         let producer = self.inner.take()?;
@@ -168,11 +178,11 @@ where
             let (left, right) = producer.split_at(self.chunk_size);
             self.inner = Some(right);
             self.len -= self.chunk_size;
-            Some(left.into_iter().collect())
+            Some(left.into_iter())
         } else {
             debug_assert!(self.len > 0);
             self.len = 0;
-            Some(producer.into_iter().collect())
+            Some(producer.into_iter())
         }
     }
 
@@ -206,11 +216,11 @@ where
             let (left, right) = producer.split_at(self.len - size);
             self.inner = Some(left);
             self.len -= size;
-            Some(right.into_iter().collect())
+            Some(right.into_iter())
         } else {
             debug_assert!(self.len > 0);
             self.len = 0;
-            Some(producer.into_iter().collect())
+            Some(producer.into_iter())
         }
     }
 }

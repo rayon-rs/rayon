@@ -1,6 +1,6 @@
-use std::cmp::min;
 use std::fmt::{self, Debug};
 
+use super::chunks::ChunkProducer;
 use super::plumbing::*;
 use super::*;
 use crate::math::div_round_up;
@@ -123,151 +123,12 @@ where
             where
                 P: Producer<Item = T>,
             {
-                self.callback.callback(FoldChunksProducer {
-                    chunk_size: self.chunk_size,
-                    len: self.len,
-                    identity: &self.identity,
-                    fold_op: &self.fold_op,
-                    base,
-                })
+                let identity = &self.identity;
+                let fold_op = &self.fold_op;
+                let fold_iter = move |iter: P::IntoIter| iter.fold(identity(), fold_op);
+                let producer = ChunkProducer::new(self.chunk_size, self.len, base, fold_iter);
+                self.callback.callback(producer)
             }
-        }
-    }
-}
-
-struct FoldChunksProducer<'f, P, ID, F>
-where
-    P: Producer,
-{
-    chunk_size: usize,
-    len: usize,
-    identity: &'f ID,
-    fold_op: &'f F,
-    base: P,
-}
-
-impl<'f, P, ID, U, F> Producer for FoldChunksProducer<'f, P, ID, F>
-where
-    P: Producer,
-    ID: Fn() -> U + Send + Sync,
-    F: Fn(U, P::Item) -> U + Send + Sync,
-{
-    type Item = F::Output;
-    type IntoIter = FoldChunksSeq<'f, P, ID, F>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        FoldChunksSeq {
-            chunk_size: self.chunk_size,
-            len: self.len,
-            identity: self.identity,
-            fold_op: self.fold_op,
-            inner: if self.len > 0 { Some(self.base) } else { None },
-        }
-    }
-
-    fn min_len(&self) -> usize {
-        div_round_up(self.base.min_len(), self.chunk_size)
-    }
-
-    fn max_len(&self) -> usize {
-        self.base.max_len() / self.chunk_size
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = min(index * self.chunk_size, self.len);
-        let (left, right) = self.base.split_at(elem_index);
-        (
-            FoldChunksProducer {
-                chunk_size: self.chunk_size,
-                len: elem_index,
-                identity: self.identity,
-                fold_op: self.fold_op,
-                base: left,
-            },
-            FoldChunksProducer {
-                chunk_size: self.chunk_size,
-                len: self.len - elem_index,
-                identity: self.identity,
-                fold_op: self.fold_op,
-                base: right,
-            },
-        )
-    }
-}
-
-struct FoldChunksSeq<'f, P, ID, F> {
-    chunk_size: usize,
-    len: usize,
-    identity: &'f ID,
-    fold_op: &'f F,
-    inner: Option<P>,
-}
-
-impl<'f, P, ID, U, F> Iterator for FoldChunksSeq<'f, P, ID, F>
-where
-    P: Producer,
-    ID: Fn() -> U + Send + Sync,
-    F: Fn(U, P::Item) -> U + Send + Sync,
-{
-    type Item = U;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let producer = self.inner.take()?;
-        if self.len > self.chunk_size {
-            let (left, right) = producer.split_at(self.chunk_size);
-            self.inner = Some(right);
-            self.len -= self.chunk_size;
-            let chunk = left.into_iter();
-            Some(chunk.fold((self.identity)(), self.fold_op))
-        } else {
-            debug_assert!(self.len > 0);
-            self.len = 0;
-            let chunk = producer.into_iter();
-            Some(chunk.fold((self.identity)(), self.fold_op))
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
-        (len, Some(len))
-    }
-}
-
-impl<'f, P, ID, U, F> ExactSizeIterator for FoldChunksSeq<'f, P, ID, F>
-where
-    P: Producer,
-    ID: Fn() -> U + Send + Sync,
-    F: Fn(U, P::Item) -> U + Send + Sync,
-{
-    #[inline]
-    fn len(&self) -> usize {
-        div_round_up(self.len, self.chunk_size)
-    }
-}
-
-impl<'f, P, ID, U, F> DoubleEndedIterator for FoldChunksSeq<'f, P, ID, F>
-where
-    P: Producer,
-    ID: Fn() -> U + Send + Sync,
-    F: Fn(U, P::Item) -> U + Send + Sync,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        let producer = self.inner.take()?;
-        if self.len > self.chunk_size {
-            let mut size = self.len % self.chunk_size;
-            if size == 0 {
-                size = self.chunk_size;
-            }
-            let (left, right) = producer.split_at(self.len - size);
-            self.inner = Some(left);
-            self.len -= size;
-            let chunk = right.into_iter();
-            Some(chunk.fold((self.identity)(), self.fold_op))
-        } else {
-            debug_assert!(self.len > 0);
-            self.len = 0;
-            let chunk = producer.into_iter();
-            Some(chunk.fold((self.identity)(), self.fold_op))
         }
     }
 }
