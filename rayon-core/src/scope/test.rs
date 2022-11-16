@@ -6,7 +6,7 @@ use rand_xorshift::XorShiftRng;
 use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Barrier, Mutex};
 use std::vec;
 
 #[test]
@@ -512,4 +512,90 @@ fn mixed_lifetime_scope_fifo() {
     let counter = AtomicUsize::new(0);
     increment(&[&counter; 100]);
     assert_eq!(counter.into_inner(), 100);
+}
+
+#[test]
+fn scope_spawn_broadcast() {
+    let sum = AtomicUsize::new(0);
+    let n = scope(|s| {
+        s.spawn_broadcast(|_, ctx| {
+            sum.fetch_add(ctx.index(), Ordering::Relaxed);
+        });
+        crate::current_num_threads()
+    });
+    assert_eq!(sum.into_inner(), n * (n - 1) / 2);
+}
+
+#[test]
+fn scope_fifo_spawn_broadcast() {
+    let sum = AtomicUsize::new(0);
+    let n = scope_fifo(|s| {
+        s.spawn_broadcast(|_, ctx| {
+            sum.fetch_add(ctx.index(), Ordering::Relaxed);
+        });
+        crate::current_num_threads()
+    });
+    assert_eq!(sum.into_inner(), n * (n - 1) / 2);
+}
+
+#[test]
+fn scope_spawn_broadcast_nested() {
+    let sum = AtomicUsize::new(0);
+    let n = scope(|s| {
+        s.spawn_broadcast(|s, _| {
+            s.spawn_broadcast(|_, ctx| {
+                sum.fetch_add(ctx.index(), Ordering::Relaxed);
+            });
+        });
+        crate::current_num_threads()
+    });
+    assert_eq!(sum.into_inner(), n * n * (n - 1) / 2);
+}
+
+#[test]
+fn scope_spawn_broadcast_barrier() {
+    let barrier = Barrier::new(8);
+    let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
+    pool.in_place_scope(|s| {
+        s.spawn_broadcast(|_, _| {
+            barrier.wait();
+        });
+        barrier.wait();
+    });
+}
+
+#[test]
+fn scope_spawn_broadcast_panic_one() {
+    let count = AtomicUsize::new(0);
+    let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
+    let result = crate::unwind::halt_unwinding(|| {
+        pool.scope(|s| {
+            s.spawn_broadcast(|_, ctx| {
+                count.fetch_add(1, Ordering::Relaxed);
+                if ctx.index() == 3 {
+                    panic!("Hello, world!");
+                }
+            });
+        });
+    });
+    assert_eq!(count.into_inner(), 7);
+    assert!(result.is_err(), "broadcast panic should propagate!");
+}
+
+#[test]
+fn scope_spawn_broadcast_panic_many() {
+    let count = AtomicUsize::new(0);
+    let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
+    let result = crate::unwind::halt_unwinding(|| {
+        pool.scope(|s| {
+            s.spawn_broadcast(|_, ctx| {
+                count.fetch_add(1, Ordering::Relaxed);
+                if ctx.index() % 2 == 0 {
+                    panic!("Hello, world!");
+                }
+            });
+        });
+    });
+    assert_eq!(count.into_inner(), 7);
+    assert!(result.is_err(), "broadcast panic should propagate!");
 }

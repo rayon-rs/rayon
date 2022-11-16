@@ -62,6 +62,7 @@ mod log;
 #[macro_use]
 mod private;
 
+mod broadcast;
 mod job;
 mod join;
 mod latch;
@@ -75,6 +76,7 @@ mod unwind;
 mod compile_fail;
 mod test;
 
+pub use self::broadcast::{broadcast, spawn_broadcast, BroadcastContext};
 pub use self::join::{join, join_context};
 pub use self::registry::ThreadBuilder;
 pub use self::scope::{in_place_scope, scope, Scope};

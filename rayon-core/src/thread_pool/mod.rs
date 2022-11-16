@@ -3,6 +3,7 @@
 //!
 //! [`ThreadPool`]: struct.ThreadPool.html
 
+use crate::broadcast::{self, BroadcastContext};
 use crate::join;
 use crate::registry::{Registry, ThreadSpawn, WorkerThread};
 use crate::scope::{do_in_place_scope, do_in_place_scope_fifo};
@@ -107,6 +108,57 @@ impl ThreadPool {
         R: Send,
     {
         self.registry.in_worker(|_, _| op())
+    }
+
+    /// Executes `op` within every thread in the threadpool. Any attempts to use
+    /// `join`, `scope`, or parallel iterators will then operate within that
+    /// threadpool.
+    ///
+    /// Broadcasts are executed on each thread after they have exhausted their
+    /// local work queue, before they attempt work-stealing from other threads.
+    /// The goal of that strategy is to run everywhere in a timely manner
+    /// *without* being too disruptive to current work. There may be alternative
+    /// broadcast styles added in the future for more or less aggressive
+    /// injection, if the need arises.
+    ///
+    /// # Warning: thread-local data
+    ///
+    /// Because `op` is executing within the Rayon thread-pool,
+    /// thread-local data from the current thread will not be
+    /// accessible.
+    ///
+    /// # Panics
+    ///
+    /// If `op` should panic on one or more threads, exactly one panic
+    /// will be propagated, only after all threads have completed
+    /// (or panicked) their own `op`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///    # use rayon_core as rayon;
+    ///    use std::sync::atomic::{AtomicUsize, Ordering};
+    ///
+    ///    fn main() {
+    ///         let pool = rayon::ThreadPoolBuilder::new().num_threads(5).build().unwrap();
+    ///
+    ///         // The argument gives context, including the index of each thread.
+    ///         let v: Vec<usize> = pool.broadcast(|ctx| ctx.index() * ctx.index());
+    ///         assert_eq!(v, &[0, 1, 4, 9, 16]);
+    ///
+    ///         // The closure can reference the local stack
+    ///         let count = AtomicUsize::new(0);
+    ///         pool.broadcast(|_| count.fetch_add(1, Ordering::Relaxed));
+    ///         assert_eq!(count.into_inner(), 5);
+    ///    }
+    /// ```
+    pub fn broadcast<OP, R>(&self, op: OP) -> Vec<R>
+    where
+        OP: Fn(BroadcastContext<'_>) -> R + Sync,
+        R: Send,
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { broadcast::broadcast_in(op, &self.registry) }
     }
 
     /// Returns the (current) number of threads in the thread pool.
@@ -274,6 +326,18 @@ impl ThreadPool {
     {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_fifo_in(op, &self.registry) }
+    }
+
+    /// Spawns an asynchronous task on every thread in this thread-pool. This task
+    /// will run in the implicit, global scope, which means that it may outlast the
+    /// current stack frame -- therefore, it cannot capture any references onto the
+    /// stack (you will likely need a `move` closure).
+    pub fn spawn_broadcast<OP>(&self, op: OP)
+    where
+        OP: Fn(BroadcastContext<'_>) + Send + Sync + 'static,
+    {
+        // We assert that `self.registry` has not terminated.
+        unsafe { broadcast::spawn_broadcast_in(op, &self.registry) }
     }
 }
 
