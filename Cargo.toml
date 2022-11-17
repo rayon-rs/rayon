@@ -18,9 +18,15 @@ exclude = ["/ci/*", "/scripts/*", "/.github/*", "/bors.toml"]
 members = ["rayon-demo", "rayon-core"]
 exclude = ["ci"]
 
+[features]
+crossbeam-epoch-reduced-collection-frequency = ["rayon-core/crossbeam-epoch-reduced-collection-frequency"]
+
 [dependencies]
 rayon-core = { version = "1.9.2", path = "rayon-core" }
-crossbeam-deque = "0.8.1"
+
+[dependencies.crossbeam-deque]
+git = "https://github.com/ryoqun/crossbeam"
+rev = "340232bf3fd76786836105b0c5e3b4fee05b1895"
 
 # This is a public dependency!
 [dependencies.either]
