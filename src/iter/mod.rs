@@ -1126,7 +1126,7 @@ pub trait ParallelIterator: Sized + Send {
     /// multiple sums. The number of results is nondeterministic, as
     /// is the point where the breaks occur.
     ///
-    /// So if did the same parallel fold (`fold(0, |a,b| a+b)`) on
+    /// So if we did the same parallel fold (`fold(0, |a,b| a+b)`) on
     /// our example list, we might wind up with a sequence of two numbers,
     /// like so:
     ///
