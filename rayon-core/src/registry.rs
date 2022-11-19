@@ -742,6 +742,10 @@ impl WorkerThread {
         }
     }
 
+    fn has_injected_job(&self) -> bool {
+        !self.stealer.is_empty() || self.registry.has_injected_job()
+    }
+
     /// Wait until the latch is set. Try to keep busy by popping and
     /// stealing tasks as necessary.
     #[inline]
@@ -779,7 +783,7 @@ impl WorkerThread {
             } else {
                 self.registry
                     .sleep
-                    .no_work_found(&mut idle_state, latch, || self.registry.has_injected_job())
+                    .no_work_found(&mut idle_state, latch, || self.has_injected_job())
             }
         }
 
