@@ -1,3 +1,7 @@
+# Release rayon-core 1.10.1 (2022-11-18)
+
+- Fixed a race condition with threads going to sleep while a broadcast starts.
+
 # Release rayon 1.6.0 / rayon-core 1.10.0 (2022-11-18)
 
 - The minimum supported `rustc` is now 1.56.
