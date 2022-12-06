@@ -1,9 +1,9 @@
 use std::sync::Mutex;
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use crate::current_num_threads;
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::iter::ParallelIterator;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
@@ -155,8 +155,7 @@ where
                     self.done.store(true, Ordering::SeqCst);
                     return folder;
                 }
-            }
-            else {
+            } else {
                 // any panics from other threads will have been caught by the pool,
                 // and will be re-thrown when joined - just exit
                 self.done.store(true, Ordering::SeqCst);
