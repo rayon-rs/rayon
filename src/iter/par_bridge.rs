@@ -148,6 +148,9 @@ where
                 if let Some(it) = iter.next() {
                     drop(iter);
                     folder = folder.consume(it);
+                    if folder.full() {
+                        return folder;
+                    }
                 } else {
                     self.done.store(true, Ordering::SeqCst);
                     return folder;
