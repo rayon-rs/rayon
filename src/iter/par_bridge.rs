@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use crate::current_num_threads;
@@ -77,13 +77,11 @@ where
     {
         let split_count = AtomicUsize::new(current_num_threads());
 
-        let done = AtomicBool::new(false);
         let iter = Mutex::new(self.iter.fuse());
 
         bridge_unindexed(
             IterParallelProducer {
                 split_count: &split_count,
-                done: &done,
                 iter: &iter,
             },
             consumer,
@@ -93,7 +91,6 @@ where
 
 struct IterParallelProducer<'a, Iter: Iterator> {
     split_count: &'a AtomicUsize,
-    done: &'a AtomicBool,
     iter: &'a Mutex<std::iter::Fuse<Iter>>,
 }
 
@@ -102,7 +99,6 @@ impl<'a, Iter: Iterator + 'a> Clone for IterParallelProducer<'a, Iter> {
     fn clone(&self) -> Self {
         IterParallelProducer {
             split_count: self.split_count,
-            done: self.done,
             iter: self.iter,
         }
     }
@@ -119,22 +115,18 @@ where
 
         loop {
             // Check if the iterator is exhausted
-            let done = self.done.load(Ordering::SeqCst);
-            match count.checked_sub(1) {
-                Some(new_count) if !done => {
-                    match self.split_count.compare_exchange_weak(
-                        count,
-                        new_count,
-                        Ordering::SeqCst,
-                        Ordering::SeqCst,
-                    ) {
-                        Ok(_) => return (self.clone(), Some(self)),
-                        Err(last_count) => count = last_count,
-                    }
+            if let Some(new_count) = count.checked_sub(1) {
+                match self.split_count.compare_exchange_weak(
+                    count,
+                    new_count,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                ) {
+                    Ok(_) => return (self.clone(), Some(self)),
+                    Err(last_count) => count = last_count,
                 }
-                _ => {
-                    return (self, None);
-                }
+            } else {
+                return (self, None);
             }
         }
     }
@@ -152,13 +144,11 @@ where
                         return folder;
                     }
                 } else {
-                    self.done.store(true, Ordering::SeqCst);
                     return folder;
                 }
             } else {
                 // any panics from other threads will have been caught by the pool,
                 // and will be re-thrown when joined - just exit
-                self.done.store(true, Ordering::SeqCst);
                 return folder;
             }
         }
