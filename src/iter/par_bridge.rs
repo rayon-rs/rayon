@@ -1,9 +1,9 @@
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use crate::current_num_threads;
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::iter::ParallelIterator;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
@@ -118,7 +118,7 @@ where
         let mut count = self.split_count.load(Ordering::SeqCst);
 
         loop {
-            // Check if the iterator is exhausted *and* we've consumed every item from it.
+            // Check if the iterator is exhausted
             let done = self.done.load(Ordering::SeqCst);
             match count.checked_sub(1) {
                 Some(new_count) if !done => {
