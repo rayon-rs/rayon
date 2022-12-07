@@ -78,7 +78,7 @@ where
         let split_count = AtomicUsize::new(current_num_threads());
 
         let done = AtomicBool::new(false);
-        let iter = Mutex::new(self.iter);
+        let iter = Mutex::new(self.iter.fuse());
 
         bridge_unindexed(
             IterParallelProducer {
@@ -94,7 +94,7 @@ where
 struct IterParallelProducer<'a, Iter: Iterator> {
     split_count: &'a AtomicUsize,
     done: &'a AtomicBool,
-    iter: &'a Mutex<Iter>,
+    iter: &'a Mutex<std::iter::Fuse<Iter>>,
 }
 
 // manual clone because T doesn't need to be Clone, but the derive assumes it should be
