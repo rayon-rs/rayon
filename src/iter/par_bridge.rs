@@ -1,9 +1,9 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-use crate::current_num_threads;
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::iter::ParallelIterator;
+use crate::{current_num_threads, current_thread_index};
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.
 ///
@@ -75,39 +75,27 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        let split_count = AtomicUsize::new(current_num_threads());
-
-        let iter = Mutex::new(self.iter.fuse());
+        let num_threads = current_num_threads();
+        let threads_started: Vec<_> = (0..num_threads).map(|_| AtomicBool::new(false)).collect();
 
         bridge_unindexed(
-            IterParallelProducer {
-                split_count: &split_count,
-                iter: &iter,
+            &IterParallelProducer {
+                split_count: AtomicUsize::new(num_threads),
+                iter: Mutex::new(self.iter.fuse()),
+                threads_started: &threads_started,
             },
             consumer,
         )
     }
 }
 
-struct IterParallelProducer<'a, Iter: Iterator> {
-    split_count: &'a AtomicUsize,
-    iter: &'a Mutex<std::iter::Fuse<Iter>>,
+struct IterParallelProducer<'a, Iter> {
+    split_count: AtomicUsize,
+    iter: Mutex<std::iter::Fuse<Iter>>,
+    threads_started: &'a [AtomicBool],
 }
 
-// manual clone because T doesn't need to be Clone, but the derive assumes it should be
-impl<'a, Iter: Iterator + 'a> Clone for IterParallelProducer<'a, Iter> {
-    fn clone(&self) -> Self {
-        IterParallelProducer {
-            split_count: self.split_count,
-            iter: self.iter,
-        }
-    }
-}
-
-impl<'a, Iter: Iterator + Send + 'a> UnindexedProducer for IterParallelProducer<'a, Iter>
-where
-    Iter::Item: Send,
-{
+impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter> {
     type Item = Iter::Item;
 
     fn split(self) -> (Self, Option<Self>) {
@@ -122,7 +110,7 @@ where
                     Ordering::SeqCst,
                     Ordering::SeqCst,
                 ) {
-                    Ok(_) => return (self.clone(), Some(self)),
+                    Ok(_) => return (self, Some(self)),
                     Err(last_count) => count = last_count,
                 }
             } else {
@@ -135,6 +123,25 @@ where
     where
         F: Folder<Self::Item>,
     {
+        // Guard against work-stealing-induced recursion, in case `Iter::next()`
+        // calls rayon internally, so we don't deadlock our mutex. We might also
+        // be recursing via `folder` methods, which doesn't present a mutex hazard,
+        // but it's lower overhead for us to just check this once, rather than
+        // updating additional shared state on every mutex lock/unlock.
+        // (If this isn't a rayon thread, then there's no work-stealing anyway...)
+        if let Some(i) = current_thread_index() {
+            // Note: If the number of threads in the pool ever grows dynamically, then
+            // we'll end up sharing flags and may falsely detect recursion -- that's
+            // still fine for overall correctness, just not optimal for parallelism.
+            let thread_started = &self.threads_started[i % self.threads_started.len()];
+            if thread_started.swap(true, Ordering::Relaxed) {
+                // We can't make progress with a nested mutex, so just return and let
+                // the outermost loop continue with the rest of the iterator items.
+                // eprintln!("par_bridge recursion detected!");
+                return folder;
+            }
+        }
+
         loop {
             if let Ok(mut iter) = self.iter.lock() {
                 if let Some(it) = iter.next() {
