@@ -5,15 +5,16 @@ fn find_index<T, F>(xs: &[T], pred: &F) -> Option<usize>
 where
     F: Fn(&T, &T) -> bool,
 {
-    let n = xs.len() / 2;
+    let n = (xs.len() / 2).saturating_sub(1);
 
     for m in (1..((n / 2) + 1)).map(|x| 2 * x) {
         let start = n.saturating_sub(m);
         let end = std::cmp::min(n + m, xs.len());
-        for i in start..(end - 1) {
-            if !pred(&xs[i], &xs[i + 1]) {
-                return Some(start + i);
-            }
+        let fsts = &xs[start..end];
+        let (_, snds) = fsts.split_first()?;
+        match fsts.iter().zip(snds).position(|(x , y)| !pred(x, y)) {
+            None => (),
+            Some(i) => return Some(start + i + 1),
         }
     }
     None
