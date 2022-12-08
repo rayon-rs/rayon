@@ -1,8 +1,5 @@
-use crossbeam_deque::{Steal, Stealer, Worker};
-
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Mutex, TryLockError};
-use std::thread::yield_now;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 use crate::current_num_threads;
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
@@ -79,17 +76,13 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let split_count = AtomicUsize::new(current_num_threads());
-        let worker = Worker::new_fifo();
-        let stealer = worker.stealer();
-        let done = AtomicBool::new(false);
-        let iter = Mutex::new((self.iter, worker));
+
+        let iter = Mutex::new(self.iter.fuse());
 
         bridge_unindexed(
             IterParallelProducer {
                 split_count: &split_count,
-                done: &done,
                 iter: &iter,
-                items: stealer,
             },
             consumer,
         )
@@ -98,9 +91,7 @@ where
 
 struct IterParallelProducer<'a, Iter: Iterator> {
     split_count: &'a AtomicUsize,
-    done: &'a AtomicBool,
-    iter: &'a Mutex<(Iter, Worker<Iter::Item>)>,
-    items: Stealer<Iter::Item>,
+    iter: &'a Mutex<std::iter::Fuse<Iter>>,
 }
 
 // manual clone because T doesn't need to be Clone, but the derive assumes it should be
@@ -108,9 +99,7 @@ impl<'a, Iter: Iterator + 'a> Clone for IterParallelProducer<'a, Iter> {
     fn clone(&self) -> Self {
         IterParallelProducer {
             split_count: self.split_count,
-            done: self.done,
             iter: self.iter,
-            items: self.items.clone(),
         }
     }
 }
@@ -125,24 +114,19 @@ where
         let mut count = self.split_count.load(Ordering::SeqCst);
 
         loop {
-            // Check if the iterator is exhausted *and* we've consumed every item from it.
-            let done = self.done.load(Ordering::SeqCst) && self.items.is_empty();
-
-            match count.checked_sub(1) {
-                Some(new_count) if !done => {
-                    match self.split_count.compare_exchange_weak(
-                        count,
-                        new_count,
-                        Ordering::SeqCst,
-                        Ordering::SeqCst,
-                    ) {
-                        Ok(_) => return (self.clone(), Some(self)),
-                        Err(last_count) => count = last_count,
-                    }
+            // Check if the iterator is exhausted
+            if let Some(new_count) = count.checked_sub(1) {
+                match self.split_count.compare_exchange_weak(
+                    count,
+                    new_count,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                ) {
+                    Ok(_) => return (self.clone(), Some(self)),
+                    Err(last_count) => count = last_count,
                 }
-                _ => {
-                    return (self, None);
-                }
+            } else {
+                return (self, None);
             }
         }
     }
@@ -152,65 +136,20 @@ where
         F: Folder<Self::Item>,
     {
         loop {
-            match self.items.steal() {
-                Steal::Success(it) => {
+            if let Ok(mut iter) = self.iter.lock() {
+                if let Some(it) = iter.next() {
+                    drop(iter);
                     folder = folder.consume(it);
                     if folder.full() {
                         return folder;
                     }
+                } else {
+                    return folder;
                 }
-                Steal::Empty => {
-                    // Don't storm the mutex if we're already done.
-                    if self.done.load(Ordering::SeqCst) {
-                        // Someone might have pushed more between our `steal()` and `done.load()`
-                        if self.items.is_empty() {
-                            // The iterator is out of items, no use in continuing
-                            return folder;
-                        }
-                    } else {
-                        // our cache is out of items, time to load more from the iterator
-                        match self.iter.try_lock() {
-                            Ok(mut guard) => {
-                                // Check `done` again in case we raced with the previous lock
-                                // holder on its way out.
-                                if self.done.load(Ordering::SeqCst) {
-                                    if self.items.is_empty() {
-                                        return folder;
-                                    }
-                                    continue;
-                                }
-
-                                let count = current_num_threads();
-                                let count = (count * count) * 2;
-
-                                let (ref mut iter, ref worker) = *guard;
-
-                                // while worker.len() < count {
-                                // FIXME the new deque doesn't let us count items.  We can just
-                                // push a number of items, but that doesn't consider active
-                                // stealers elsewhere.
-                                for _ in 0..count {
-                                    if let Some(it) = iter.next() {
-                                        worker.push(it);
-                                    } else {
-                                        self.done.store(true, Ordering::SeqCst);
-                                        break;
-                                    }
-                                }
-                            }
-                            Err(TryLockError::WouldBlock) => {
-                                // someone else has the mutex, just sit tight until it's ready
-                                yield_now(); //TODO: use a thread-pool-aware yield? (#548)
-                            }
-                            Err(TryLockError::Poisoned(_)) => {
-                                // any panics from other threads will have been caught by the pool,
-                                // and will be re-thrown when joined - just exit
-                                return folder;
-                            }
-                        }
-                    }
-                }
-                Steal::Retry => (),
+            } else {
+                // any panics from other threads will have been caught by the pool,
+                // and will be re-thrown when joined - just exit
+                return folder;
             }
         }
     }
