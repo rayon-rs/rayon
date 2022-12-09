@@ -1,3 +1,11 @@
+# Release rayon 1.6.1 (2022-12-09)
+
+- Simplified `par_bridge` to only pull one item at a time from the iterator,
+  without batching. Threads that are waiting for iterator items will now block
+  appropriately rather than spinning CPU. (Thanks @njaard!)
+- Added protection against recursion in `par_bridge`, so iterators that also
+  invoke rayon will not cause mutex recursion deadlocks.
+
 # Release rayon-core 1.10.1 (2022-11-18)
 
 - Fixed a race condition with threads going to sleep while a broadcast starts.
