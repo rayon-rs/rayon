@@ -137,7 +137,6 @@ impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter
             if thread_started.swap(true, Ordering::Relaxed) {
                 // We can't make progress with a nested mutex, so just return and let
                 // the outermost loop continue with the rest of the iterator items.
-                // eprintln!("par_bridge recursion detected!");
                 return folder;
             }
         }
