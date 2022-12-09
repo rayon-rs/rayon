@@ -1,6 +1,6 @@
 [package]
 name = "rayon"
-version = "1.6.0"
+version = "1.6.1"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
@@ -20,7 +20,6 @@ exclude = ["ci"]
 
 [dependencies]
 rayon-core = { version = "1.10.0", path = "rayon-core" }
-crossbeam-deque = "0.8.1"
 
 # This is a public dependency!
 [dependencies.either]
