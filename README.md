@@ -71,7 +71,7 @@ as:
 
 ```toml
 [dependencies]
-rayon = "1.5"
+rayon = "1.6"
 ```
 
 To use the Parallel Iterator APIs, a number of traits have to be in
