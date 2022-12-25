@@ -1,3 +1,7 @@
+
+
+
+
 # Parallel Iterators
 
 These are some notes on the design of the parallel iterator traits.
@@ -248,7 +252,8 @@ If we had [associated type constructors][1598], we could solve this
 problem that way. But there is another solution. We can use a
 dedicated callback trait like `ProducerCallback`, instead of `FnOnce`:
 
-[1598]: https://github.com/rust-lang/rfcs/pull/1598
+[
+    1598]: https://github.com/rust-lang/rfcs/pull/1598
 
 ```rust
 pub trait ProducerCallback<T> {
