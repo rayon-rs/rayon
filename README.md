@@ -114,7 +114,7 @@ assumed to
 
 To see Rayon in action, check out the `rayon-demo` directory, which
 includes a number of demos of code using Rayon. For example, run this
-command to get a visualization of an n-body simulation. To see the
+command to get a visualization of an N-body simulation. To see the
 effect of using Rayon, press `s` to run sequentially and `p` to run in
 parallel.
 
