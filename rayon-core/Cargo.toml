@@ -33,7 +33,6 @@ libc = "0.2"
 [[test]]
 name = "stack_overflow_crash"
 path = "tests/stack_overflow_crash.rs"
-harness = false
 
 # NB: having one [[test]] manually defined means we need to declare them all
 
