@@ -13,7 +13,7 @@ use crate::unwind;
 use std::any::Any;
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem;
+use std::mem::ManuallyDrop;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
@@ -725,14 +725,20 @@ impl<'scope> ScopeBase<'scope> {
 
     fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
         // capture the first error we see, free the rest
-        let nil = ptr::null_mut();
-        let mut err = Box::new(err); // box up the fat ptr
-        if self
-            .panic
-            .compare_exchange(nil, &mut *err, Ordering::Release, Ordering::Relaxed)
-            .is_ok()
-        {
-            mem::forget(err); // ownership now transferred into self.panic
+        if self.panic.load(Ordering::Relaxed).is_null() {
+            let nil = ptr::null_mut();
+            let mut err = ManuallyDrop::new(Box::new(err)); // box up the fat ptr
+            let err_ptr: *mut Box<dyn Any + Send + 'static> = &mut **err;
+            if self
+                .panic
+                .compare_exchange(nil, err_ptr, Ordering::Release, Ordering::Relaxed)
+                .is_ok()
+            {
+                // ownership now transferred into self.panic
+            } else {
+                // another panic raced in ahead of us, so drop ours
+                let _: Box<Box<_>> = ManuallyDrop::into_inner(err);
+            }
         }
     }
 
