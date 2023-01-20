@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::usize;
@@ -378,12 +380,35 @@ impl Latch for CountLockLatch {
     }
 }
 
-impl<'a, L> Latch for &'a L
-where
-    L: Latch,
-{
+/// `&L` without any implication of `dereferenceable` for `Latch::set`
+pub(super) struct LatchRef<'a, L> {
+    inner: *const L,
+    marker: PhantomData<&'a L>,
+}
+
+impl<L> LatchRef<'_, L> {
+    pub(super) fn new(inner: &L) -> LatchRef<'_, L> {
+        LatchRef {
+            inner,
+            marker: PhantomData,
+        }
+    }
+}
+
+unsafe impl<L: Sync> Sync for LatchRef<'_, L> {}
+
+impl<L> Deref for LatchRef<'_, L> {
+    type Target = L;
+
+    fn deref(&self) -> &L {
+        // SAFETY: if we have &self, the inner latch is still alive
+        unsafe { &*self.inner }
+    }
+}
+
+impl<L: Latch> Latch for LatchRef<'_, L> {
     #[inline]
     unsafe fn set(this: *const Self) {
-        L::set(&**this);
+        L::set((*this).inner);
     }
 }

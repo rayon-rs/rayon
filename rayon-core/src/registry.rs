@@ -1,5 +1,5 @@
 use crate::job::{JobFifo, JobRef, StackJob};
-use crate::latch::{AsCoreLatch, CoreLatch, CountLatch, Latch, LockLatch, SpinLatch};
+use crate::latch::{AsCoreLatch, CoreLatch, CountLatch, Latch, LatchRef, LockLatch, SpinLatch};
 use crate::log::Event::*;
 use crate::log::Logger;
 use crate::sleep::Sleep;
@@ -505,7 +505,7 @@ impl Registry {
                     assert!(injected && !worker_thread.is_null());
                     op(&*worker_thread, true)
                 },
-                l,
+                LatchRef::new(l),
             );
             self.inject(&[job.as_job_ref()]);
             job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
