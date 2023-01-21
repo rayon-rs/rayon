@@ -112,7 +112,7 @@ where
         let abort = unwind::AbortIfPanic;
         let func = (*this.func.get()).take().unwrap();
         (*this.result.get()) = JobResult::call(func);
-        this.latch.set();
+        Latch::set(&this.latch);
         mem::forget(abort);
     }
 }

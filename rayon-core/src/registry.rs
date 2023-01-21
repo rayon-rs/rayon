@@ -1,5 +1,5 @@
 use crate::job::{JobFifo, JobRef, StackJob};
-use crate::latch::{AsCoreLatch, CoreLatch, CountLatch, Latch, LockLatch, SpinLatch};
+use crate::latch::{AsCoreLatch, CoreLatch, CountLatch, Latch, LatchRef, LockLatch, SpinLatch};
 use crate::log::Event::*;
 use crate::log::Logger;
 use crate::sleep::Sleep;
@@ -505,7 +505,7 @@ impl Registry {
                     assert!(injected && !worker_thread.is_null());
                     op(&*worker_thread, true)
                 },
-                l,
+                LatchRef::new(l),
             );
             self.inject(&[job.as_job_ref()]);
             job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
@@ -575,7 +575,7 @@ impl Registry {
     pub(super) fn terminate(&self) {
         if self.terminate_count.fetch_sub(1, Ordering::AcqRel) == 1 {
             for (i, thread_info) in self.thread_infos.iter().enumerate() {
-                thread_info.terminate.set_and_tickle_one(self, i);
+                unsafe { CountLatch::set_and_tickle_one(&thread_info.terminate, self, i) };
             }
         }
     }
@@ -869,7 +869,7 @@ unsafe fn main_loop(
     let registry = &*worker_thread.registry;
 
     // let registry know we are ready to do work
-    registry.thread_infos[index].primed.set();
+    Latch::set(&registry.thread_infos[index].primed);
 
     // Worker threads should not panic. If they do, just abort, as the
     // internal state of the threadpool is corrupted. Note that if
@@ -892,7 +892,7 @@ unsafe fn main_loop(
     debug_assert!(worker_thread.take_local_job().is_none());
 
     // let registry know we are done
-    registry.thread_infos[index].stopped.set();
+    Latch::set(&registry.thread_infos[index].stopped);
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
