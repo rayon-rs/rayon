@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.10.1"
+version = "1.10.2"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
