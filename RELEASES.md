@@ -1,3 +1,7 @@
+# Release rayon-core 1.10.2 (2023-01-22)
+
+- Fixed miri-reported UB for SharedReadOnly tags protected by a call.
+
 # Release rayon 1.6.1 (2022-12-09)
 
 - Simplified `par_bridge` to only pull one item at a time from the iterator,
