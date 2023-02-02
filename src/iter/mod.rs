@@ -141,6 +141,7 @@ mod reduce;
 mod repeat;
 mod rev;
 mod skip;
+mod skip_any;
 mod splitter;
 mod step_by;
 mod sum;
@@ -186,6 +187,7 @@ pub use self::{
     repeat::{repeat, repeatn, Repeat, RepeatN},
     rev::Rev,
     skip::Skip,
+    skip_any::SkipAny,
     splitter::{split, Split},
     step_by::StepBy,
     take::Take,
@@ -2213,6 +2215,25 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     fn take_any(self, n: usize) -> TakeAny<Self> {
         TakeAny::new(self, n)
+    }
+
+    /// Creates an iterator that skips the first `n` elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..100)
+    ///     .into_par_iter()
+    ///     .filter(|&x| x % 2 == 0)
+    ///     .skip_any(5)
+    ///     .collect();
+    ///
+    /// assert_eq!(result.len(), 45);
+    /// ```
+    fn skip_any(self, n: usize) -> SkipAny<Self> {
+        SkipAny::new(self, n)
     }
 
     /// Internal method used to define the behavior of this parallel
