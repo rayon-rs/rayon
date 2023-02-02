@@ -145,6 +145,7 @@ mod splitter;
 mod step_by;
 mod sum;
 mod take;
+mod take_any;
 mod try_fold;
 mod try_reduce;
 mod try_reduce_with;
@@ -188,6 +189,7 @@ pub use self::{
     splitter::{split, Split},
     step_by::StepBy,
     take::Take,
+    take_any::TakeAny,
     try_fold::{TryFold, TryFoldWith},
     update::Update,
     while_some::WhileSome,
@@ -2192,6 +2194,25 @@ pub trait ParallelIterator: Sized + Send {
         Self::Item: Clone,
     {
         Intersperse::new(self, element)
+    }
+
+    /// Creates an iterator that yields the first `n` elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..100)
+    ///     .into_par_iter()
+    ///     .filter(|&x| x % 2 == 0)
+    ///     .take_any(5)
+    ///     .collect();
+    ///
+    /// assert_eq!(result.len(), 5);
+    /// ```
+    fn take_any(self, n: usize) -> TakeAny<Self> {
+        TakeAny::new(self, n)
     }
 
     /// Internal method used to define the behavior of this parallel
