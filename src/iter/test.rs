@@ -468,6 +468,7 @@ fn check_cmp_gt_to_seq() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn check_cmp_short_circuit() {
     // We only use a single thread in order to make the short-circuit behavior deterministic.
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
@@ -497,6 +498,7 @@ fn check_cmp_short_circuit() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn check_partial_cmp_short_circuit() {
     // We only use a single thread to make the short-circuit behavior deterministic.
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
@@ -526,6 +528,7 @@ fn check_partial_cmp_short_circuit() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn check_partial_cmp_nan_short_circuit() {
     // We only use a single thread to make the short-circuit behavior deterministic.
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();

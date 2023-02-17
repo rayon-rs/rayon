@@ -2,6 +2,7 @@ use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn cross_pool_busy() {
     let pool1 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     let pool2 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
