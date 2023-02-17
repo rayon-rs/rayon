@@ -115,6 +115,7 @@ fn failed_thread_stack() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_thread_name() {
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();

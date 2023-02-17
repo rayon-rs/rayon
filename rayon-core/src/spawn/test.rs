@@ -23,6 +23,7 @@ fn spawn_then_join_outside_worker() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_fwd() {
     let (tx, rx) = channel();
 
@@ -80,6 +81,7 @@ fn termination_while_things_are_executing() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn custom_panic_handler_and_spawn() {
     let (tx, rx) = channel();
 
@@ -107,6 +109,7 @@ fn custom_panic_handler_and_spawn() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn custom_panic_handler_and_nested_spawn() {
     let (tx, rx) = channel();
 

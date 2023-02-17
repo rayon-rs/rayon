@@ -213,6 +213,7 @@ fn panic_propagate_nested_scope_spawn() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_1() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -227,6 +228,7 @@ fn panic_propagate_still_execute_1() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_2() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -241,6 +243,7 @@ fn panic_propagate_still_execute_2() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_3() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -255,6 +258,7 @@ fn panic_propagate_still_execute_3() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_4() {
     let mut x = false;
     match unwind::halt_unwinding(|| {

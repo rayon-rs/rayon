@@ -6,6 +6,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn collect_drop_on_unwind() {
     struct Recorddrop<'a>(i64, &'a Mutex<Vec<i64>>);
 
@@ -61,6 +62,7 @@ fn collect_drop_on_unwind() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn collect_drop_on_unwind_zst() {
     static INSERTS: AtomicUsize = AtomicUsize::new(0);
     static DROPS: AtomicUsize = AtomicUsize::new(0);

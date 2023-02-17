@@ -130,6 +130,7 @@ fn spawn_broadcast_mutual_sleepy() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn broadcast_panic_one() {
     let count = AtomicUsize::new(0);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -146,6 +147,7 @@ fn broadcast_panic_one() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn spawn_broadcast_panic_one() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let (panic_tx, panic_rx) = crossbeam_channel::unbounded();
@@ -166,6 +168,7 @@ fn spawn_broadcast_panic_one() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn broadcast_panic_many() {
     let count = AtomicUsize::new(0);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -182,6 +185,7 @@ fn broadcast_panic_many() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn spawn_broadcast_panic_many() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let (panic_tx, panic_rx) = crossbeam_channel::unbounded();

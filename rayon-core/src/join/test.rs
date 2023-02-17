@@ -77,6 +77,7 @@ fn panic_propagate_both() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_b_still_executes() {
     let mut x = false;
     match unwind::halt_unwinding(|| join(|| panic!("Hello, world!"), || x = true)) {
