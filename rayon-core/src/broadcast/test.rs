@@ -228,3 +228,35 @@ fn broadcast_sleep_race() {
         });
     }
 }
+
+#[test]
+fn broadcast_after_spawn_broadcast() {
+    let (tx, rx) = crossbeam_channel::unbounded();
+
+    // Queue a non-blocking spawn_broadcast.
+    crate::spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap());
+
+    // This blocking broadcast runs after all prior broadcasts.
+    crate::broadcast(|_| {});
+
+    // The spawn_broadcast **must** have run by now on all threads.
+    let mut v: Vec<_> = rx.try_iter().collect();
+    v.sort_unstable();
+    assert!(v.into_iter().eq(0..crate::current_num_threads()));
+}
+
+#[test]
+fn broadcast_after_spawn() {
+    let (tx, rx) = crossbeam_channel::bounded(1);
+
+    // Queue a regular spawn on a thread-local deque.
+    crate::registry::in_worker(move |_, _| {
+        crate::spawn(move || tx.send(22).unwrap());
+    });
+
+    // Broadcast runs after the local deque is empty.
+    crate::broadcast(|_| {});
+
+    // The spawn **must** have run by now.
+    assert_eq!(22, rx.try_recv().unwrap());
+}
