@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::str::{FromStr, Lines};
@@ -23,13 +24,9 @@ use super::weight::Weight;
 // NODE_COORD_SECTION
 // 1 11003.611100 42102.500000
 
-lazy_static::lazy_static! {
-    static ref HEADER: Regex = Regex::new(r"([A-Z_]+)\s*:(.*)").unwrap();
-}
+static HEADER: Lazy<Regex> = Lazy::new(|| Regex::new(r"([A-Z_]+)\s*:(.*)").unwrap());
 
-lazy_static::lazy_static! {
-    static ref COORD: Regex = Regex::new(r"([0-9]+) ([0-9.]+) ([0-9.]+)").unwrap();
-}
+static COORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"([0-9]+) ([0-9.]+) ([0-9.]+)").unwrap());
 
 pub fn parse_tsp_data(text: &str) -> Result<Graph, String> {
     let mut data = Data::new(text);
