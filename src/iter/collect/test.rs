@@ -76,6 +76,7 @@ fn right_produces_items_with_no_complete() {
 
 // Complete is not called by the consumer. Hence,the collection vector is not fully initialized.
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn produces_items_with_no_complete() {
     let counter = DropCounter::default();
     let mut v = vec![];
@@ -273,6 +274,7 @@ fn right_panics() {
 // The left consumer produces fewer items while the right
 // consumer produces correct number; check that created elements are dropped
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn left_produces_fewer_items_drops() {
     let counter = DropCounter::default();
     let mut v = vec![];

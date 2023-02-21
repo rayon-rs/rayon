@@ -7,6 +7,7 @@ struct Local(i32);
 scoped_tls::scoped_thread_local!(static LOCAL: Local);
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn missing_scoped_tls() {
     LOCAL.set(&Local(42), || {
         let pool = ThreadPoolBuilder::new()
@@ -21,6 +22,7 @@ fn missing_scoped_tls() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_scoped_tls_threadpool() {
     LOCAL.set(&Local(42), || {
         LOCAL.with(|x| {
@@ -63,6 +65,7 @@ fn spawn_scoped_tls_threadpool() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn build_scoped_tls_threadpool() {
     LOCAL.set(&Local(42), || {
         LOCAL.with(|x| {

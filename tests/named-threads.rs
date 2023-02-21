@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use rayon::*;
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn named_threads() {
     ThreadPoolBuilder::new()
         .thread_name(|i| format!("hello-name-test-{}", i))

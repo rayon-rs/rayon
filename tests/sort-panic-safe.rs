@@ -117,6 +117,7 @@ macro_rules! test {
 thread_local!(static SILENCE_PANIC: Cell<bool> = Cell::new(false));
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn sort_panic_safe() {
     let prev = panic::take_hook();
     panic::set_hook(Box::new(move |info| {

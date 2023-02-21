@@ -16,6 +16,7 @@ fn panic_propagate() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn workers_stop() {
     let registry;
 
@@ -43,6 +44,7 @@ fn join_a_lot(n: usize) {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn sleeper_stop() {
     use std::{thread, time};
 
@@ -89,6 +91,7 @@ fn wait_for_counter(mut counter: Arc<AtomicUsize>) -> usize {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn failed_thread_stack() {
     // Note: we first tried to force failure with a `usize::MAX` stack, but
     // macOS and Windows weren't fazed, or at least didn't fail the way we want.
@@ -115,6 +118,7 @@ fn failed_thread_stack() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_thread_name() {
     let (start_count, start_handler) = count_handler();
     let (exit_count, exit_handler) = count_handler();
@@ -139,6 +143,7 @@ fn panic_thread_name() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn self_install() {
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
 
@@ -147,6 +152,7 @@ fn self_install() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mutual_install() {
     let pool1 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     let pool2 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
@@ -166,6 +172,7 @@ fn mutual_install() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mutual_install_sleepy() {
     use std::{thread, time};
 
@@ -194,6 +201,7 @@ fn mutual_install_sleepy() {
 
 #[test]
 #[allow(deprecated)]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn check_thread_pool_new() {
     let pool = ThreadPool::new(crate::Configuration::new().num_threads(22)).unwrap();
     assert_eq!(pool.current_num_threads(), 22);
@@ -219,6 +227,7 @@ macro_rules! test_scope_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn scope_lifo_order() {
     let vec = test_scope_order!(scope => spawn);
     let expected: Vec<i32> = (0..10).rev().collect(); // LIFO -> reversed
@@ -226,6 +235,7 @@ fn scope_lifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn scope_fifo_order() {
     let vec = test_scope_order!(scope_fifo => spawn_fifo);
     let expected: Vec<i32> = (0..10).collect(); // FIFO -> natural order
@@ -250,6 +260,7 @@ macro_rules! test_spawn_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_lifo_order() {
     let vec = test_spawn_order!(spawn);
     let expected: Vec<i32> = (0..10).rev().collect(); // LIFO -> reversed
@@ -257,6 +268,7 @@ fn spawn_lifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_fifo_order() {
     let vec = test_spawn_order!(spawn_fifo);
     let expected: Vec<i32> = (0..10).collect(); // FIFO -> natural order
@@ -264,6 +276,7 @@ fn spawn_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_scopes() {
     // Create matching scopes for every thread pool.
     fn nest<'scope, OP>(pools: &[ThreadPool], scopes: Vec<&Scope<'scope>>, op: OP)
@@ -300,6 +313,7 @@ fn nested_scopes() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_fifo_scopes() {
     // Create matching fifo scopes for every thread pool.
     fn nest<'scope, OP>(pools: &[ThreadPool], scopes: Vec<&ScopeFifo<'scope>>, op: OP)
@@ -336,6 +350,7 @@ fn nested_fifo_scopes() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn in_place_scope_no_deadlock() {
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     let (tx, rx) = channel();
@@ -351,6 +366,7 @@ fn in_place_scope_no_deadlock() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn in_place_scope_fifo_no_deadlock() {
     let pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     let (tx, rx) = channel();

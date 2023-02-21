@@ -4,6 +4,7 @@ use std::iter::once_with;
 const N: usize = 100_000;
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn par_bridge_recursion() {
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(10)
