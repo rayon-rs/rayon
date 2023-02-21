@@ -8,11 +8,12 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::thread;
 
-static VERSIONS: AtomicUsize = AtomicUsize::new(0);
+const ZERO: AtomicUsize = AtomicUsize::new(0);
+const LEN: usize = 20_000;
 
-lazy_static::lazy_static! {
-    static ref DROP_COUNTS: Vec<AtomicUsize> = (0..20_000).map(|_| AtomicUsize::new(0)).collect();
-}
+static VERSIONS: AtomicUsize = ZERO;
+
+static DROP_COUNTS: [AtomicUsize; LEN] = [ZERO; LEN];
 
 #[derive(Clone, Eq)]
 struct DropCounter {

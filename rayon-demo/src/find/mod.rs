@@ -3,24 +3,23 @@
 macro_rules! make_tests {
     ($n:expr, $m:ident) => {
         mod $m {
+            use once_cell::sync::Lazy;
             use rand::distributions::Standard;
             use rand::Rng;
             use rayon::prelude::*;
             use test::Bencher;
 
-            lazy_static::lazy_static! {
-                static ref HAYSTACK: Vec<[u32; $n]> = {
-                    let rng = crate::seeded_rng();
-                    rng.sample_iter(&Standard)
-                        .map(|x| {
-                            let mut result: [u32; $n] = [0; $n];
-                            result[0] = x;
-                            result
-                        })
-                        .take(10_000_000)
-                        .collect()
-                };
-            }
+            static HAYSTACK: Lazy<Box<[[u32; $n]]>> = Lazy::new(|| {
+                let rng = crate::seeded_rng();
+                rng.sample_iter(&Standard)
+                    .map(|x| {
+                        let mut result: [u32; $n] = [0; $n];
+                        result[0] = x;
+                        result
+                    })
+                    .take(10_000_000)
+                    .collect()
+            });
 
             #[bench]
             fn parallel_find_first(b: &mut Bencher) {
