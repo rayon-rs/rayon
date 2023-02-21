@@ -1153,7 +1153,6 @@ name = "rayon"
 version = "1.6.1"
 dependencies = [
  "either",
- "lazy_static",
  "rand",
  "rand_xorshift",
  "rayon-core",

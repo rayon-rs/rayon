@@ -27,6 +27,5 @@ version = "1.0"
 default-features = false
 
 [dev-dependencies]
-lazy_static = "1"
 rand = "0.8"
 rand_xorshift = "0.3"
