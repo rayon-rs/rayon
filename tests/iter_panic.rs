@@ -20,6 +20,7 @@ fn iter_panic() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn iter_panic_fuse() {
     // We only use a single thread in order to make the behavior
     // of 'panic_fuse' deterministic

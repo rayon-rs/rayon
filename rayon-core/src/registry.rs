@@ -50,7 +50,7 @@ impl ThreadBuilder {
     /// Executes the main loop for this thread. This will not return until the
     /// thread pool is dropped.
     pub fn run(self) {
-        unsafe { main_loop(self.worker, self.stealer, self.registry, self.index) }
+        unsafe { main_loop(self) }
     }
 }
 
@@ -164,7 +164,7 @@ static THE_REGISTRY_SET: Once = Once::new();
 /// initialization has not already occurred, use the default
 /// configuration.
 pub(super) fn global_registry() -> &'static Arc<Registry> {
-    set_global_registry(|| Registry::new(ThreadPoolBuilder::new()))
+    set_global_registry(default_global_registry)
         .or_else(|err| unsafe { THE_REGISTRY.as_ref().ok_or(err) })
         .expect("The global thread pool has not been initialized.")
 }
@@ -194,6 +194,46 @@ where
         result = registry()
             .map(|registry: Arc<Registry>| unsafe { &*THE_REGISTRY.get_or_insert(registry) })
     });
+
+    result
+}
+
+fn default_global_registry() -> Result<Arc<Registry>, ThreadPoolBuildError> {
+    let result = Registry::new(ThreadPoolBuilder::new());
+
+    // If we're running in an environment that doesn't support threads at all, we can fall back to
+    // using the current thread alone. This is crude, and probably won't work for non-blocking
+    // calls like `spawn` or `broadcast_spawn`, but a lot of stuff does work fine.
+    //
+    // Notably, this allows current WebAssembly targets to work even though their threading support
+    // is stubbed out, and we won't have to change anything if they do add real threading.
+    let unsupported = matches!(&result, Err(e) if e.is_unsupported());
+    if unsupported && WorkerThread::current().is_null() {
+        let builder = ThreadPoolBuilder::new()
+            .num_threads(1)
+            .spawn_handler(|thread| {
+                // Rather than starting a new thread, we're just taking over the current thread
+                // *without* running the main loop, so we can still return from here.
+                // The WorkerThread is leaked, but we never shutdown the global pool anyway.
+                let worker_thread = Box::leak(Box::new(WorkerThread::from(thread)));
+                let registry = &*worker_thread.registry;
+                let index = worker_thread.index;
+
+                unsafe {
+                    WorkerThread::set_current(worker_thread);
+
+                    // let registry know we are ready to do work
+                    Latch::set(&registry.thread_infos[index].primed);
+                }
+
+                Ok(())
+            });
+
+        let fallback_result = Registry::new(builder);
+        if fallback_result.is_ok() {
+            return fallback_result;
+        }
+    }
 
     result
 }
@@ -655,6 +695,19 @@ thread_local! {
     static WORKER_THREAD_STATE: Cell<*const WorkerThread> = Cell::new(ptr::null());
 }
 
+impl From<ThreadBuilder> for WorkerThread {
+    fn from(thread: ThreadBuilder) -> Self {
+        Self {
+            worker: thread.worker,
+            stealer: thread.stealer,
+            fifo: JobFifo::new(),
+            index: thread.index,
+            rng: XorShift64Star::new(),
+            registry: thread.registry,
+        }
+    }
+}
+
 impl Drop for WorkerThread {
     fn drop(&mut self) {
         // Undo `set_current`
@@ -851,22 +904,11 @@ impl WorkerThread {
 
 /// ////////////////////////////////////////////////////////////////////////
 
-unsafe fn main_loop(
-    worker: Worker<JobRef>,
-    stealer: Stealer<JobRef>,
-    registry: Arc<Registry>,
-    index: usize,
-) {
-    let worker_thread = &WorkerThread {
-        worker,
-        stealer,
-        fifo: JobFifo::new(),
-        index,
-        rng: XorShift64Star::new(),
-        registry,
-    };
+unsafe fn main_loop(thread: ThreadBuilder) {
+    let worker_thread = &WorkerThread::from(thread);
     WorkerThread::set_current(worker_thread);
     let registry = &*worker_thread.registry;
+    let index = worker_thread.index;
 
     // let registry know we are ready to do work
     Latch::set(&registry.thread_infos[index].primed);
@@ -924,7 +966,7 @@ where
             // invalidated until we return.
             op(&*owner_thread, false)
         } else {
-            global_registry().in_worker_cold(op)
+            global_registry().in_worker(op)
         }
     }
 }

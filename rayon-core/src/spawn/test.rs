@@ -7,6 +7,7 @@ use super::{spawn, spawn_fifo};
 use crate::ThreadPoolBuilder;
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_then_join_in_worker() {
     let (tx, rx) = channel();
     scope(move |_| {
@@ -16,6 +17,7 @@ fn spawn_then_join_in_worker() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_then_join_outside_worker() {
     let (tx, rx) = channel();
     spawn(move || tx.send(22).unwrap());
@@ -23,6 +25,7 @@ fn spawn_then_join_outside_worker() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_fwd() {
     let (tx, rx) = channel();
 
@@ -54,6 +57,7 @@ fn panic_fwd() {
 /// still active asynchronous tasks. We expect the thread-pool to stay
 /// alive and executing until those threads are complete.
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn termination_while_things_are_executing() {
     let (tx0, rx0) = channel();
     let (tx1, rx1) = channel();
@@ -80,6 +84,7 @@ fn termination_while_things_are_executing() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn custom_panic_handler_and_spawn() {
     let (tx, rx) = channel();
 
@@ -107,6 +112,7 @@ fn custom_panic_handler_and_spawn() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn custom_panic_handler_and_nested_spawn() {
     let (tx, rx) = channel();
 
@@ -165,6 +171,7 @@ macro_rules! test_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn lifo_order() {
     // In the absence of stealing, `spawn()` jobs on a thread will run in LIFO order.
     let vec = test_order!(spawn, spawn);
@@ -173,6 +180,7 @@ fn lifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn fifo_order() {
     // In the absence of stealing, `spawn_fifo()` jobs on a thread will run in FIFO order.
     let vec = test_order!(spawn_fifo, spawn_fifo);
@@ -181,6 +189,7 @@ fn fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn lifo_fifo_order() {
     // LIFO on the outside, FIFO on the inside
     let vec = test_order!(spawn, spawn_fifo);
@@ -192,6 +201,7 @@ fn lifo_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn fifo_lifo_order() {
     // FIFO on the outside, LIFO on the inside
     let vec = test_order!(spawn_fifo, spawn);
@@ -229,6 +239,7 @@ macro_rules! test_mixed_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mixed_lifo_fifo_order() {
     let vec = test_mixed_order!(spawn, spawn_fifo);
     let expected = vec![3, -1, 2, -2, 1, -3, 0];
@@ -236,6 +247,7 @@ fn mixed_lifo_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mixed_fifo_lifo_order() {
     let vec = test_mixed_order!(spawn_fifo, spawn);
     let expected = vec![0, -3, 1, -2, 2, -1, 3];

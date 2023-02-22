@@ -68,7 +68,14 @@ fn two_threads<F: Send + FnOnce() -> R, R: Send>(f: F) -> R {
 }
 
 #[test]
-#[cfg_attr(not(target_pointer_width = "64"), ignore)]
+#[cfg_attr(
+    any(
+        not(target_pointer_width = "64"),
+        target_os = "emscripten",
+        target_family = "wasm"
+    ),
+    ignore
+)]
 fn find_last_octillion() {
     // It would be nice if `find_last` could prioritize the later splits,
     // basically flipping the `join` args, without needing indexed `rev`.
@@ -78,32 +85,49 @@ fn find_last_octillion() {
 }
 
 #[test]
-#[cfg_attr(not(target_pointer_width = "64"), ignore)]
+#[cfg_attr(
+    any(
+        not(target_pointer_width = "64"),
+        target_os = "emscripten",
+        target_family = "wasm"
+    ),
+    ignore
+)]
 fn find_last_octillion_inclusive() {
     let x = two_threads(|| octillion_inclusive().find_last(|_| true));
     assert_eq!(x, Some(OCTILLION));
 }
 
 #[test]
-#[cfg_attr(not(target_pointer_width = "64"), ignore)]
+#[cfg_attr(
+    any(
+        not(target_pointer_width = "64"),
+        target_os = "emscripten",
+        target_family = "wasm"
+    ),
+    ignore
+)]
 fn find_last_octillion_flat() {
     let x = two_threads(|| octillion_flat().find_last(|_| true));
     assert_eq!(x, Some(OCTILLION - 1));
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn find_any_octillion() {
     let x = two_threads(|| octillion().find_any(|x| *x > OCTILLION / 2));
     assert!(x.is_some());
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn find_any_octillion_flat() {
     let x = two_threads(|| octillion_flat().find_any(|x| *x > OCTILLION / 2));
     assert!(x.is_some());
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn filter_find_any_octillion() {
     let x = two_threads(|| {
         octillion()
@@ -114,6 +138,7 @@ fn filter_find_any_octillion() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn filter_find_any_octillion_flat() {
     let x = two_threads(|| {
         octillion_flat()
@@ -124,6 +149,7 @@ fn filter_find_any_octillion_flat() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn fold_find_any_octillion_flat() {
     let x = two_threads(|| octillion_flat().fold(|| (), |_, _| ()).find_any(|_| true));
     assert!(x.is_some());

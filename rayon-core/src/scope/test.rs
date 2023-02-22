@@ -148,6 +148,7 @@ fn update_tree() {
 /// linearly with N. We test this by some unsafe hackery and
 /// permitting an approx 10% change with a 10x input change.
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn linear_stack_growth() {
     let builder = ThreadPoolBuilder::new().num_threads(1);
     let pool = builder.build().unwrap();
@@ -213,6 +214,7 @@ fn panic_propagate_nested_scope_spawn() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_1() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -227,6 +229,7 @@ fn panic_propagate_still_execute_1() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_2() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -241,6 +244,7 @@ fn panic_propagate_still_execute_2() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_3() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -255,6 +259,7 @@ fn panic_propagate_still_execute_3() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn panic_propagate_still_execute_4() {
     let mut x = false;
     match unwind::halt_unwinding(|| {
@@ -292,6 +297,7 @@ macro_rules! test_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn lifo_order() {
     // In the absence of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
     let vec = test_order!(scope => spawn);
@@ -300,6 +306,7 @@ fn lifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn fifo_order() {
     // In the absence of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
     let vec = test_order!(scope_fifo => spawn_fifo);
@@ -334,6 +341,7 @@ macro_rules! test_nested_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_lifo_order() {
     // In the absence of stealing, `scope()` runs its `spawn()` jobs in LIFO order.
     let vec = test_nested_order!(scope => spawn, scope => spawn);
@@ -342,6 +350,7 @@ fn nested_lifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_fifo_order() {
     // In the absence of stealing, `scope_fifo()` runs its `spawn_fifo()` jobs in FIFO order.
     let vec = test_nested_order!(scope_fifo => spawn_fifo, scope_fifo => spawn_fifo);
@@ -350,6 +359,7 @@ fn nested_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_lifo_fifo_order() {
     // LIFO on the outside, FIFO on the inside
     let vec = test_nested_order!(scope => spawn, scope_fifo => spawn_fifo);
@@ -361,6 +371,7 @@ fn nested_lifo_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_fifo_lifo_order() {
     // FIFO on the outside, LIFO on the inside
     let vec = test_nested_order!(scope_fifo => spawn_fifo, scope => spawn);
@@ -403,6 +414,7 @@ macro_rules! test_mixed_order {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mixed_lifo_order() {
     // NB: the end of the inner scope makes us execute some of the outer scope
     // before they've all been spawned, so they're not perfectly LIFO.
@@ -412,6 +424,7 @@ fn mixed_lifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mixed_fifo_order() {
     let vec = test_mixed_order!(scope_fifo => spawn_fifo, scope_fifo => spawn_fifo);
     let expected = vec![-1, 0, -2, 1, -3, 2, 3];
@@ -419,6 +432,7 @@ fn mixed_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mixed_lifo_fifo_order() {
     // NB: the end of the inner scope makes us execute some of the outer scope
     // before they've all been spawned, so they're not perfectly LIFO.
@@ -428,6 +442,7 @@ fn mixed_lifo_fifo_order() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn mixed_fifo_lifo_order() {
     let vec = test_mixed_order!(scope_fifo => spawn_fifo, scope => spawn);
     let expected = vec![-3, 0, -2, 1, -1, 2, 3];
@@ -553,6 +568,7 @@ fn scope_spawn_broadcast_nested() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn scope_spawn_broadcast_barrier() {
     let barrier = Barrier::new(8);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -565,6 +581,7 @@ fn scope_spawn_broadcast_barrier() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn scope_spawn_broadcast_panic_one() {
     let count = AtomicUsize::new(0);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -583,6 +600,7 @@ fn scope_spawn_broadcast_panic_one() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn scope_spawn_broadcast_panic_many() {
     let count = AtomicUsize::new(0);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();

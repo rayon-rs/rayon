@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier};
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn worker_thread_index() {
     let pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
     assert_eq!(pool.current_num_threads(), 22);
@@ -14,6 +15,7 @@ fn worker_thread_index() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn start_callback_called() {
     let n_threads = 16;
     let n_called = Arc::new(AtomicUsize::new(0));
@@ -40,6 +42,7 @@ fn start_callback_called() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn exit_callback_called() {
     let n_threads = 16;
     let n_called = Arc::new(AtomicUsize::new(0));
@@ -69,6 +72,7 @@ fn exit_callback_called() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn handler_panics_handled_correctly() {
     let n_threads = 16;
     let n_called = Arc::new(AtomicUsize::new(0));
@@ -119,6 +123,7 @@ fn handler_panics_handled_correctly() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn check_config_build() {
     let pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
     assert_eq!(pool.current_num_threads(), 22);
@@ -134,6 +139,7 @@ fn check_error_send_sync() {
 
 #[allow(deprecated)]
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn configuration() {
     let start_handler = move |_| {};
     let exit_handler = move |_| {};
@@ -154,6 +160,7 @@ fn configuration() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn default_pool() {
     ThreadPoolBuilder::default().build().unwrap();
 }
@@ -162,6 +169,7 @@ fn default_pool() {
 /// the pool is done with them, allowing them to be used with rayon again
 /// later. e.g. WebAssembly want to have their own pool of available threads.
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn cleared_current_thread() -> Result<(), ThreadPoolBuildError> {
     let n_threads = 5;
     let mut handles = vec![];

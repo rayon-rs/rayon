@@ -76,6 +76,11 @@
 //! [the `collections` from `std`]: https://doc.rust-lang.org/std/collections/index.html
 //! [`std`]: https://doc.rust-lang.org/std/
 //!
+//! # Targets without threading
+//!
+//! Rayon has limited support for targets without `std` threading implementations.
+//! See the [`rayon_core`] documentation for more information about its global fallback.
+//!
 //! # Other questions?
 //!
 //! See [the Rayon FAQ][faq].

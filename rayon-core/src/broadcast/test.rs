@@ -12,6 +12,7 @@ fn broadcast_global() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_global() {
     let (tx, rx) = crossbeam_channel::unbounded();
     crate::spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap());
@@ -22,6 +23,7 @@ fn spawn_broadcast_global() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn broadcast_pool() {
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
     let v = pool.broadcast(|ctx| ctx.index());
@@ -29,6 +31,7 @@ fn broadcast_pool() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_pool() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -40,6 +43,7 @@ fn spawn_broadcast_pool() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn broadcast_self() {
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
     let v = pool.install(|| crate::broadcast(|ctx| ctx.index()));
@@ -47,6 +51,7 @@ fn broadcast_self() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_self() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -58,6 +63,7 @@ fn spawn_broadcast_self() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn broadcast_mutual() {
     let count = AtomicUsize::new(0);
     let pool1 = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
@@ -73,6 +79,7 @@ fn broadcast_mutual() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_mutual() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let pool1 = Arc::new(ThreadPoolBuilder::new().num_threads(3).build().unwrap());
@@ -90,6 +97,7 @@ fn spawn_broadcast_mutual() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn broadcast_mutual_sleepy() {
     let count = AtomicUsize::new(0);
     let pool1 = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
@@ -108,6 +116,7 @@ fn broadcast_mutual_sleepy() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_mutual_sleepy() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let pool1 = Arc::new(ThreadPoolBuilder::new().num_threads(3).build().unwrap());
@@ -130,6 +139,7 @@ fn spawn_broadcast_mutual_sleepy() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn broadcast_panic_one() {
     let count = AtomicUsize::new(0);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -146,6 +156,7 @@ fn broadcast_panic_one() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn spawn_broadcast_panic_one() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let (panic_tx, panic_rx) = crossbeam_channel::unbounded();
@@ -166,6 +177,7 @@ fn spawn_broadcast_panic_one() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn broadcast_panic_many() {
     let count = AtomicUsize::new(0);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -182,6 +194,7 @@ fn broadcast_panic_many() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
 fn spawn_broadcast_panic_many() {
     let (tx, rx) = crossbeam_channel::unbounded();
     let (panic_tx, panic_rx) = crossbeam_channel::unbounded();
@@ -202,6 +215,7 @@ fn spawn_broadcast_panic_many() {
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn broadcast_sleep_race() {
     let test_duration = time::Duration::from_secs(1);
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
@@ -213,4 +227,36 @@ fn broadcast_sleep_race() {
             thread::sleep(time::Duration::from_micros(ctx.index() as u64));
         });
     }
+}
+
+#[test]
+fn broadcast_after_spawn_broadcast() {
+    let (tx, rx) = crossbeam_channel::unbounded();
+
+    // Queue a non-blocking spawn_broadcast.
+    crate::spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap());
+
+    // This blocking broadcast runs after all prior broadcasts.
+    crate::broadcast(|_| {});
+
+    // The spawn_broadcast **must** have run by now on all threads.
+    let mut v: Vec<_> = rx.try_iter().collect();
+    v.sort_unstable();
+    assert!(v.into_iter().eq(0..crate::current_num_threads()));
+}
+
+#[test]
+fn broadcast_after_spawn() {
+    let (tx, rx) = crossbeam_channel::bounded(1);
+
+    // Queue a regular spawn on a thread-local deque.
+    crate::registry::in_worker(move |_, _| {
+        crate::spawn(move || tx.send(22).unwrap());
+    });
+
+    // Broadcast runs after the local deque is empty.
+    crate::broadcast(|_| {});
+
+    // The spawn **must** have run by now.
+    assert_eq!(22, rx.try_recv().unwrap());
 }
