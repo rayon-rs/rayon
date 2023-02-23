@@ -8,10 +8,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// [`take_any()`]: trait.ParallelIterator.html#method.take_any
 /// [`ParallelIterator`]: trait.ParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TakeAny<I: ParallelIterator> {
     base: I,
-    count: AtomicUsize,
+    count: usize,
 }
 
 impl<I> TakeAny<I>
@@ -20,19 +20,15 @@ where
 {
     /// Creates a new `TakeAny` iterator.
     pub(super) fn new(base: I, count: usize) -> Self {
-        TakeAny {
-            base,
-            count: AtomicUsize::new(count),
-        }
+        TakeAny { base, count }
     }
 }
 
-impl<I, T> ParallelIterator for TakeAny<I>
+impl<I> ParallelIterator for TakeAny<I>
 where
-    I: ParallelIterator<Item = T>,
-    T: Send,
+    I: ParallelIterator,
 {
-    type Item = T;
+    type Item = I::Item;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
@@ -40,7 +36,7 @@ where
     {
         let consumer1 = TakeAnyConsumer {
             base: consumer,
-            count: &self.count,
+            count: &AtomicUsize::new(self.count),
         };
         self.base.drive_unindexed(consumer1)
     }
