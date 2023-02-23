@@ -2,7 +2,7 @@ use super::plumbing::*;
 use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// `TakeAny` is an iterator that iterates over the first `n` elements.
+/// `TakeAny` is an iterator that iterates over `n` elements from anywhere in `I`.
 /// This struct is created by the [`take_any()`] method on [`ParallelIterator`]
 ///
 /// [`take_any()`]: trait.ParallelIterator.html#method.take_any

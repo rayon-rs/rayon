@@ -2,7 +2,7 @@ use super::plumbing::*;
 use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// `SkipAny` is an iterator that skips over the first `n` elements.
+/// `SkipAny` is an iterator that skips over `n` elements from anywhere in `I`.
 /// This struct is created by the [`skip_any()`] method on [`ParallelIterator`]
 ///
 /// [`skip_any()`]: trait.ParallelIterator.html#method.skip_any

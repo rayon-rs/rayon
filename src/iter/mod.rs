@@ -2198,7 +2198,12 @@ pub trait ParallelIterator: Sized + Send {
         Intersperse::new(self, element)
     }
 
-    /// Creates an iterator that yields the first `n` elements.
+    /// Creates an iterator that yields `n` elements from *anywhere* in the original iterator.
+    ///
+    /// This is similar to [`IndexedParallelIterator::take`] without being
+    /// constrained to the "first" `n` of the original iterator order. The
+    /// taken items will still maintain their relative order where that is
+    /// visible in `collect`, `reduce`, and similar outputs.
     ///
     /// # Examples
     ///
@@ -2212,12 +2217,18 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert_eq!(result.len(), 5);
+    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
     /// ```
     fn take_any(self, n: usize) -> TakeAny<Self> {
         TakeAny::new(self, n)
     }
 
-    /// Creates an iterator that skips the first `n` elements.
+    /// Creates an iterator that skips `n` elements from *anywhere* in the original iterator.
+    ///
+    /// This is similar to [`IndexedParallelIterator::skip`] without being
+    /// constrained to the "first" `n` of the original iterator order. The
+    /// remaining items will still maintain their relative order where that is
+    /// visible in `collect`, `reduce`, and similar outputs.
     ///
     /// # Examples
     ///
@@ -2231,6 +2242,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert_eq!(result.len(), 45);
+    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
     /// ```
     fn skip_any(self, n: usize) -> SkipAny<Self> {
         SkipAny::new(self, n)
