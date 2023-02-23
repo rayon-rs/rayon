@@ -10,6 +10,13 @@ where
     assert_eq!(a, b);
 }
 
+fn check_count<I>(iter: I)
+where
+    I: ParallelIterator + Clone,
+{
+    assert_eq!(iter.clone().count(), iter.count());
+}
+
 #[test]
 fn clone_binary_heap() {
     use std::collections::BinaryHeap;
@@ -150,14 +157,21 @@ fn clone_adaptors() {
     check(v.par_iter().panic_fuse());
     check(v.par_iter().positions(|_| true));
     check(v.par_iter().rev());
-    check(v.par_iter().skip(1));
-    check(v.par_iter().take(1));
+    check(v.par_iter().skip(42));
+    check(v.par_iter().take(42));
     check(v.par_iter().cloned().while_some());
     check(v.par_iter().with_max_len(1));
     check(v.par_iter().with_min_len(1));
     check(v.par_iter().zip(&v));
     check(v.par_iter().zip_eq(&v));
     check(v.par_iter().step_by(2));
+}
+
+#[test]
+fn clone_counted_adaptors() {
+    let v: Vec<_> = (0..1000).collect();
+    check_count(v.par_iter().skip_any(42));
+    check_count(v.par_iter().take_any(42));
 }
 
 #[test]
