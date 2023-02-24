@@ -2279,6 +2279,25 @@ pub trait ParallelIterator: Sized + Send {
     /// assert!(result.len() <= 50);
     /// assert!(result.windows(2).all(|w| w[0] < w[1]));
     /// ```
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use std::sync::atomic::AtomicUsize;
+    /// use std::sync::atomic::Ordering::Relaxed;
+    ///
+    /// // Collect any group of items that sum <= 1000
+    /// let quota = AtomicUsize::new(1000);
+    /// let result: Vec<_> = (0_usize..100)
+    ///     .into_par_iter()
+    ///     .take_any_while(|&x| {
+    ///         quota.fetch_update(Relaxed, Relaxed, |q| q.checked_sub(x))
+    ///             .is_ok()
+    ///     })
+    ///     .collect();
+    ///
+    /// let sum = result.iter().sum::<usize>();
+    /// assert!(matches!(sum, 902..=1000));
+    /// ```
     fn take_any_while<P>(self, predicate: P) -> TakeAnyWhile<Self, P>
     where
         P: Fn(&Self::Item) -> bool + Sync + Send,
