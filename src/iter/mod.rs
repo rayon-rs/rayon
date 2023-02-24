@@ -142,11 +142,13 @@ mod repeat;
 mod rev;
 mod skip;
 mod skip_any;
+mod skip_any_while;
 mod splitter;
 mod step_by;
 mod sum;
 mod take;
 mod take_any;
+mod take_any_while;
 mod try_fold;
 mod try_reduce;
 mod try_reduce_with;
@@ -188,10 +190,12 @@ pub use self::{
     rev::Rev,
     skip::Skip,
     skip_any::SkipAny,
+    skip_any_while::SkipAnyWhile,
     splitter::{split, Split},
     step_by::StepBy,
     take::Take,
     take_any::TakeAny,
+    take_any_while::TakeAnyWhile,
     try_fold::{TryFold, TryFoldWith},
     update::Update,
     while_some::WhileSome,
@@ -2246,6 +2250,74 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     fn skip_any(self, n: usize) -> SkipAny<Self> {
         SkipAny::new(self, n)
+    }
+
+    /// Creates an iterator that takes elements from *anywhere* in the original iterator
+    /// until the given `predicate` returns `false`.
+    ///
+    /// The `predicate` may be anything -- e.g. it could be checking a fact about the item, a
+    /// global condition unrelated to the item itself, or some combination thereof.
+    ///
+    /// If parallel calls to the `predicate` race and give different results, then the
+    /// `true` results will still take those particular items, while respecting the `false`
+    /// result from elsewhere to skip any further items.
+    ///
+    /// This is similar to [`Iterator::take_while`] without being constrained to the original
+    /// iterator order. The taken items will still maintain their relative order where that is
+    /// visible in `collect`, `reduce`, and similar outputs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..100)
+    ///     .into_par_iter()
+    ///     .take_any_while(|x| *x < 50)
+    ///     .collect();
+    ///
+    /// assert!(result.len() <= 50);
+    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// ```
+    fn take_any_while<P>(self, predicate: P) -> TakeAnyWhile<Self, P>
+    where
+        P: Fn(&Self::Item) -> bool + Sync + Send,
+    {
+        TakeAnyWhile::new(self, predicate)
+    }
+
+    /// Creates an iterator that skips elements from *anywhere* in the original iterator
+    /// until the given `predicate` returns `false`.
+    ///
+    /// The `predicate` may be anything -- e.g. it could be checking a fact about the item, a
+    /// global condition unrelated to the item itself, or some combination thereof.
+    ///
+    /// If parallel calls to the `predicate` race and give different results, then the
+    /// `true` results will still skip those particular items, while respecting the `false`
+    /// result from elsewhere to skip any further items.
+    ///
+    /// This is similar to [`Iterator::skip_while`] without being constrained to the original
+    /// iterator order. The remaining items will still maintain their relative order where that is
+    /// visible in `collect`, `reduce`, and similar outputs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let result: Vec<_> = (0..100)
+    ///     .into_par_iter()
+    ///     .skip_any_while(|x| *x < 50)
+    ///     .collect();
+    ///
+    /// assert!(result.len() >= 50);
+    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// ```
+    fn skip_any_while<P>(self, predicate: P) -> SkipAnyWhile<Self, P>
+    where
+        P: Fn(&Self::Item) -> bool + Sync + Send,
+    {
+        SkipAnyWhile::new(self, predicate)
     }
 
     /// Internal method used to define the behavior of this parallel

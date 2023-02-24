@@ -158,7 +158,9 @@ fn clone_adaptors() {
     check(v.par_iter().positions(|_| true));
     check(v.par_iter().rev());
     check(v.par_iter().skip(42));
+    check(v.par_iter().skip_any_while(|_| false));
     check(v.par_iter().take(42));
+    check(v.par_iter().take_any_while(|_| true));
     check(v.par_iter().cloned().while_some());
     check(v.par_iter().with_max_len(1));
     check(v.par_iter().with_min_len(1));
