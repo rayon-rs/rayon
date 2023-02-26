@@ -124,6 +124,7 @@ pub use rayon_core::{in_place_scope, scope, Scope};
 pub use rayon_core::{in_place_scope_fifo, scope_fifo, ScopeFifo};
 pub use rayon_core::{join, join_context};
 pub use rayon_core::{spawn, spawn_fifo};
+pub use rayon_core::{yield_local, yield_now};
 
 /// We need to transmit raw pointers across threads. It is possible to do this
 /// without any unsafe code by converting pointers to usize or to AtomicPtr<T>

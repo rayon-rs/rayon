@@ -38,7 +38,8 @@
 //! there is no other thread to share the work. However, since the pool is not running independent
 //! of the main thread, non-blocking calls like `spawn` may not execute at all, unless a lower-
 //! priority call like `broadcast` gives them an opening. The fallback mode does not try to emulate
-//! anything like thread preemption or `async` task switching.
+//! anything like thread preemption or `async` task switching, but `yield_now` or `yield_local`
+//! can also volunteer execution time.
 //!
 //! Explicit `ThreadPoolBuilder` methods always report their error without any fallback.
 //!
@@ -101,6 +102,7 @@ pub use self::spawn::{spawn, spawn_fifo};
 pub use self::thread_pool::current_thread_has_pending_tasks;
 pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
+pub use self::thread_pool::{yield_local, yield_now};
 
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
