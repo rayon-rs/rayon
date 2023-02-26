@@ -30,7 +30,6 @@ pub(super) trait Job {
 /// Internally, we store the job's data in a `*const ()` pointer.  The
 /// true type is something like `*const StackJob<...>`, but we hide
 /// it. We also carry the "execute fn" from the `Job` trait.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(super) struct JobRef {
     pointer: *const (),
     execute_fn: unsafe fn(*const ()),
@@ -72,6 +71,17 @@ where
     pub(super) latch: L,
     func: UnsafeCell<Option<F>>,
     result: UnsafeCell<JobResult<R>>,
+}
+
+impl<L, F, R> PartialEq<JobRef> for StackJob<L, F, R>
+where
+    L: Latch + Sync,
+    F: FnOnce(bool) -> R + Send,
+    R: Send,
+{
+    fn eq(&self, job: &JobRef) -> bool {
+        job.pointer == <*const Self>::cast(self) && job.execute_fn == Self::execute
+    }
 }
 
 impl<L, F, R> StackJob<L, F, R>

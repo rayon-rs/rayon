@@ -154,7 +154,7 @@ where
     // in a locally-FIFO order.  Otherwise, just use the pool's global injector.
     match registry.current_thread() {
         Some(worker) => worker.push_fifo(job_ref),
-        None => registry.inject(&[job_ref]),
+        None => registry.inject(job_ref),
     }
     mem::forget(abort_guard);
 }

@@ -134,8 +134,7 @@ where
         // done here so that the stack frame can keep it all live
         // long enough.
         let job_b = StackJob::new(call_b(oper_b), SpinLatch::new(worker_thread));
-        let job_b_ref = job_b.as_job_ref();
-        worker_thread.push(job_b_ref);
+        worker_thread.push(job_b.as_job_ref());
 
         // Execute task a; hopefully b gets stolen in the meantime.
         let status_a = unwind::halt_unwinding(call_a(oper_a, injected));
@@ -151,7 +150,7 @@ where
         // those off to get to it.
         while !job_b.latch.probe() {
             if let Some(job) = worker_thread.take_local_job() {
-                if job == job_b_ref {
+                if job_b == job {
                     // Found it! Let's run it.
                     //
                     // Note that this could panic, but it's ok if we unwind here.

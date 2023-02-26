@@ -615,7 +615,7 @@ impl<'scope> ScopeFifo<'scope> {
                 // SAFETY: this job will execute before the scope ends.
                 unsafe { worker.push(fifo.push(job_ref)) };
             }
-            None => self.base.registry.inject(&[job_ref]),
+            None => self.base.registry.inject(job_ref),
         }
     }
 
