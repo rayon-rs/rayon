@@ -416,7 +416,7 @@ impl Registry {
             if !worker_thread.is_null() && (*worker_thread).registry().id() == self.id() {
                 (*worker_thread).push(job_ref);
             } else {
-                self.inject(&[job_ref]);
+                self.inject(job_ref);
             }
         }
     }
@@ -424,10 +424,8 @@ impl Registry {
     /// Push a job into the "external jobs" queue; it will be taken by
     /// whatever worker has nothing to do. Use this if you know that
     /// you are not on a worker of this registry.
-    pub(super) fn inject(&self, injected_jobs: &[JobRef]) {
-        self.log(|| JobsInjected {
-            count: injected_jobs.len(),
-        });
+    pub(super) fn inject(&self, injected_job: JobRef) {
+        self.log(|| JobsInjected { count: 1 });
 
         // It should not be possible for `state.terminate` to be true
         // here. It is only set to true when the user creates (and
@@ -442,12 +440,8 @@ impl Registry {
 
         let queue_was_empty = self.injected_jobs.is_empty();
 
-        for &job_ref in injected_jobs {
-            self.injected_jobs.push(job_ref);
-        }
-
-        self.sleep
-            .new_injected_jobs(usize::MAX, injected_jobs.len() as u32, queue_was_empty);
+        self.injected_jobs.push(injected_job);
+        self.sleep.new_injected_jobs(usize::MAX, 1, queue_was_empty);
     }
 
     fn has_injected_job(&self) -> bool {
@@ -547,7 +541,7 @@ impl Registry {
                 },
                 LatchRef::new(l),
             );
-            self.inject(&[job.as_job_ref()]);
+            self.inject(job.as_job_ref());
             job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
 
             // flush accumulated logs as we exit the thread
@@ -575,7 +569,7 @@ impl Registry {
             },
             latch,
         );
-        self.inject(&[job.as_job_ref()]);
+        self.inject(job.as_job_ref());
         current_thread.wait_until(&job.latch);
         job.into_result()
     }
