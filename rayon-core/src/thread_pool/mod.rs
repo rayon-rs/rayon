@@ -346,7 +346,7 @@ impl ThreadPool {
     /// thread is part of *this* thread pool.
     ///
     /// Returns `Some(Yield::Executed)` if anything was executed, `Some(Yield::Idle)` if
-    /// nothing was available, or `None` if this thread is not part of any pool at all.
+    /// nothing was available, or `None` if the current thread is not part this pool.
     pub fn yield_now(&self) -> Option<Yield> {
         let curr = self.registry.current_thread()?;
         Some(curr.yield_now())
@@ -358,7 +358,7 @@ impl ThreadPool {
     /// thread is part of *this* thread pool.
     ///
     /// Returns `Some(Yield::Executed)` if anything was executed, `Some(Yield::Idle)` if
-    /// nothing was available, or `None` if this thread is not part of any pool at all.
+    /// nothing was available, or `None` if the current thread is not part this pool.
     pub fn yield_local(&self) -> Option<Yield> {
         let curr = self.registry.current_thread()?;
         Some(curr.yield_local())
