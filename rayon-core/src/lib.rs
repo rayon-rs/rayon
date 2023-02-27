@@ -102,7 +102,7 @@ pub use self::spawn::{spawn, spawn_fifo};
 pub use self::thread_pool::current_thread_has_pending_tasks;
 pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
-pub use self::thread_pool::{yield_local, yield_now};
+pub use self::thread_pool::{yield_local, yield_now, Yield};
 
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 

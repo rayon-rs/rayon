@@ -6,6 +6,7 @@ use crate::sleep::Sleep;
 use crate::unwind;
 use crate::{
     ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder,
+    Yield,
 };
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use std::cell::Cell;
@@ -848,23 +849,23 @@ impl WorkerThread {
             .or_else(|| self.registry.pop_injected_job(self.index))
     }
 
-    pub(super) fn yield_now(&self) -> bool {
+    pub(super) fn yield_now(&self) -> Yield {
         match self.find_work() {
             Some(job) => unsafe {
                 self.execute(job);
-                true
+                Yield::Executed
             },
-            None => false,
+            None => Yield::Idle,
         }
     }
 
-    pub(super) fn yield_local(&self) -> bool {
+    pub(super) fn yield_local(&self) -> Yield {
         match self.take_local_job() {
             Some(job) => unsafe {
                 self.execute(job);
-                true
+                Yield::Executed
             },
-            None => false,
+            None => Yield::Idle,
         }
     }
 
