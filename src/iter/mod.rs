@@ -81,6 +81,7 @@
 
 use self::plumbing::*;
 use self::private::Try;
+use self::scan::Scan;
 pub use either::Either;
 use std::cmp::Ordering;
 use std::collections::LinkedList;
@@ -160,6 +161,8 @@ mod walk_tree;
 mod while_some;
 mod zip;
 mod zip_eq;
+
+mod scan;
 
 pub use self::{
     blocks::{ExponentialBlocks, UniformBlocks},
@@ -1392,6 +1395,14 @@ pub trait ParallelIterator: Sized + Send {
         S: Send + Sum<Self::Item> + Sum<S>,
     {
         sum::sum(self)
+    }
+
+    fn scan<F>(self, scan_op: F, id: Self::Item) -> Scan<Self::Item, F>
+    where
+        F: Fn(&Self::Item, &Self::Item) -> Self::Item + Sync + Send,
+        <Self as ParallelIterator>::Item: Send + Sync,
+    {
+        scan::scan(self, scan_op, id)
     }
 
     /// Multiplies all the items in the iterator.
