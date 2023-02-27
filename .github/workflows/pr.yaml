@@ -8,11 +8,11 @@ env:
 jobs:
 
   check:
-    name: Check (1.56.0)
+    name: Check (1.59.0)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@1.56.0
+      - uses: dtolnay/rust-toolchain@1.59.0
       - run: cp ci/compat-Cargo.lock ./Cargo.lock
       - run: cargo check --verbose --locked
 

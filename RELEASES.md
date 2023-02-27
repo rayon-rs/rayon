@@ -1,3 +1,7 @@
+# Unreleased
+
+- The minimum supported `rustc` is now 1.59.
+
 # Release rayon-core 1.10.2 (2023-01-22)
 
 - Fixed miri-reported UB for SharedReadOnly tags protected by a call.
