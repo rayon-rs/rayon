@@ -6,6 +6,7 @@ use crate::sleep::Sleep;
 use crate::unwind;
 use crate::{
     ErrorKind, ExitHandler, PanicHandler, StartHandler, ThreadPoolBuildError, ThreadPoolBuilder,
+    Yield,
 };
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use std::cell::Cell;
@@ -772,7 +773,7 @@ impl WorkerThread {
     /// for breadth-first execution, it would mean dequeuing from the
     /// bottom.
     #[inline]
-    pub(super) unsafe fn take_local_job(&self) -> Option<JobRef> {
+    pub(super) fn take_local_job(&self) -> Option<JobRef> {
         let popped_job = self.worker.pop();
 
         if popped_job.is_some() {
@@ -814,16 +815,7 @@ impl WorkerThread {
 
         let mut idle_state = self.registry.sleep.start_looking(self.index, latch);
         while !latch.probe() {
-            // Try to find some work to do. We give preference first
-            // to things in our local deque, then in other workers
-            // deques, and finally to injected jobs from the
-            // outside. The idea is to finish what we started before
-            // we take on something new.
-            if let Some(job) = self
-                .take_local_job()
-                .or_else(|| self.steal())
-                .or_else(|| self.registry.pop_injected_job(self.index))
-            {
+            if let Some(job) = self.find_work() {
                 self.registry.sleep.work_found(idle_state);
                 self.execute(job);
                 idle_state = self.registry.sleep.start_looking(self.index, latch);
@@ -846,6 +838,37 @@ impl WorkerThread {
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
+    fn find_work(&self) -> Option<JobRef> {
+        // Try to find some work to do. We give preference first
+        // to things in our local deque, then in other workers
+        // deques, and finally to injected jobs from the
+        // outside. The idea is to finish what we started before
+        // we take on something new.
+        self.take_local_job()
+            .or_else(|| self.steal())
+            .or_else(|| self.registry.pop_injected_job(self.index))
+    }
+
+    pub(super) fn yield_now(&self) -> Yield {
+        match self.find_work() {
+            Some(job) => unsafe {
+                self.execute(job);
+                Yield::Executed
+            },
+            None => Yield::Idle,
+        }
+    }
+
+    pub(super) fn yield_local(&self) -> Yield {
+        match self.take_local_job() {
+            Some(job) => unsafe {
+                self.execute(job);
+                Yield::Executed
+            },
+            None => Yield::Idle,
+        }
+    }
+
     #[inline]
     pub(super) unsafe fn execute(&self, job: JobRef) {
         job.execute();
@@ -855,7 +878,7 @@ impl WorkerThread {
     ///
     /// This should only be done as a last resort, when there is no
     /// local work to do.
-    unsafe fn steal(&self) -> Option<JobRef> {
+    fn steal(&self) -> Option<JobRef> {
         // we only steal when we don't have any work to do locally
         debug_assert!(self.local_deque_is_empty());
 
