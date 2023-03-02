@@ -225,8 +225,9 @@ impl<'data, T: 'data + Send> Producer for DrainProducer<'data, T> {
 
 impl<'data, T: 'data + Send> Drop for DrainProducer<'data, T> {
     fn drop(&mut self) {
-        // use `Drop for [T]`
-        unsafe { ptr::drop_in_place(self.slice) };
+        // extract the slice so we can use `Drop for [T]`
+        let slice_ptr = mem::take(&mut self.slice).as_mut_ptr();
+        unsafe { ptr::drop_in_place(slice_ptr) };
     }
 }
 
@@ -276,7 +277,9 @@ impl<'data, T: 'data> iter::FusedIterator for SliceDrain<'data, T> {}
 impl<'data, T: 'data> Drop for SliceDrain<'data, T> {
     fn drop(&mut self) {
         // extract the iterator so we can use `Drop for [T]`
-        let iter = mem::replace(&mut self.iter, [].iter_mut());
-        unsafe { ptr::drop_in_place(iter.into_slice()) };
+        let slice_ptr = mem::replace(&mut self.iter, [].iter_mut())
+            .into_slice()
+            .as_mut_ptr();
+        unsafe { ptr::drop_in_place(slice_ptr) };
     }
 }
