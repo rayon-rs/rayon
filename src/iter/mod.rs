@@ -2564,6 +2564,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// let r: Vec<Vec<i32>> = a.into_par_iter().chunks(3).collect();
     /// assert_eq!(r, vec![vec![1,2,3], vec![4,5,6], vec![7,8,9], vec![10]]);
     /// ```
+    #[track_caller]
     fn chunks(self, chunk_size: usize) -> Chunks<Self> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         Chunks::new(self, chunk_size)

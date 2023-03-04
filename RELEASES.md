@@ -1,6 +1,17 @@
-# Unreleased
+# Release rayon 1.7.0 / rayon-core 1.11.0 (2023-03-03)
 
 - The minimum supported `rustc` is now 1.59.
+- Added a fallback when threading is unsupported.
+- The new `ParallelIterator::take_any` and `skip_any` methods work like
+  unordered `IndexedParallelIterator::take` and `skip`, counting items in
+  whatever order they are visited in parallel.
+- The new `ParallelIterator::take_any_while` and `skip_any_while` methods work
+  like unordered `Iterator::take_while` and `skip_while`, which previously had
+  no parallel equivalent. The "while" condition may be satisfied from anywhere
+  in the parallel iterator, affecting all future items regardless of position.
+- The new `yield_now` and `yield_local` functions will cooperatively yield
+  execution to Rayon, either trying to execute pending work from the entire
+  pool or from just the local deques of the current thread, respectively.
 
 # Release rayon-core 1.10.2 (2023-01-22)
 
