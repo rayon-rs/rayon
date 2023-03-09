@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: '0 0 * * 0' # 00:00 Sunday
 
+env:
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
 jobs:
 
   test:
