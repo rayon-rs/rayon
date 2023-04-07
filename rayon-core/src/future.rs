@@ -1,3 +1,4 @@
+#![allow(missing_debug_implementations)]
 #![allow(missing_docs)]
 
 use crate::job::JobResult;
@@ -12,11 +13,11 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 
-struct RayonFuture<T> {
+pub struct AsyncSpawn<T> {
     state: Arc<Mutex<State<T>>>,
 }
 
-struct RayonFutureJob<T> {
+struct AsyncSpawnJob<T> {
     state: Arc<Mutex<State<T>>>,
 }
 
@@ -25,20 +26,20 @@ struct State<T> {
     waker: Option<Waker>,
 }
 
-fn new<T>() -> (RayonFuture<T>, RayonFutureJob<T>) {
+fn new<T>() -> (AsyncSpawn<T>, AsyncSpawnJob<T>) {
     let state = Arc::new(Mutex::new(State {
         result: JobResult::None,
         waker: None,
     }));
     (
-        RayonFuture {
+        AsyncSpawn {
             state: state.clone(),
         },
-        RayonFutureJob { state },
+        AsyncSpawnJob { state },
     )
 }
 
-impl<T> Future for RayonFuture<T> {
+impl<T> Future for AsyncSpawn<T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -57,7 +58,7 @@ impl<T> Future for RayonFuture<T> {
     }
 }
 
-impl<T> RayonFutureJob<T> {
+impl<T> AsyncSpawnJob<T> {
     fn execute(self, func: impl FnOnce() -> T) {
         let result = unwind::halt_unwinding(func);
         let mut guard = self.state.lock().expect("rayon future lock");
@@ -71,7 +72,7 @@ impl<T> RayonFutureJob<T> {
     }
 }
 
-pub fn spawn_future<F, T>(func: F) -> impl Future<Output = T>
+pub fn async_spawn<F, T>(func: F) -> AsyncSpawn<T>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
@@ -81,7 +82,7 @@ where
     future
 }
 
-pub fn spawn_fifo_future<F, T>(func: F) -> impl Future<Output = T>
+pub fn async_spawn_fifo<F, T>(func: F) -> AsyncSpawn<T>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
@@ -92,7 +93,7 @@ where
 }
 
 impl ThreadPool {
-    pub fn spawn_future<F, T>(&self, func: F) -> impl Future<Output = T>
+    pub fn async_spawn<F, T>(&self, func: F) -> AsyncSpawn<T>
     where
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
@@ -102,7 +103,7 @@ impl ThreadPool {
         future
     }
 
-    pub fn spawn_fifo_future<F, T>(&self, func: F) -> impl Future<Output = T>
+    pub fn async_spawn_fifo<F, T>(&self, func: F) -> AsyncSpawn<T>
     where
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
@@ -114,7 +115,7 @@ impl ThreadPool {
 }
 
 impl<'scope> Scope<'scope> {
-    pub fn spawn_future<F, T>(&self, func: F) -> impl Future<Output = T>
+    pub fn async_spawn<F, T>(&self, func: F) -> AsyncSpawn<T>
     where
         F: FnOnce(&Self) -> T + Send + 'scope,
         T: Send + 'scope,
@@ -126,7 +127,7 @@ impl<'scope> Scope<'scope> {
 }
 
 impl<'scope> ScopeFifo<'scope> {
-    pub fn spawn_fifo_future<F, T>(&self, func: F) -> impl Future<Output = T>
+    pub fn async_spawn_fifo<F, T>(&self, func: F) -> AsyncSpawn<T>
     where
         F: FnOnce(&Self) -> T + Send + 'scope,
         T: Send + 'scope,
