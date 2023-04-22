@@ -386,7 +386,7 @@ fn yield_now_to_spawn() {
     let (tx, rx) = crossbeam_channel::bounded(1);
 
     // Queue a regular spawn.
-    crate::spawn(move || tx.send(22).unwrap());
+    unsafe { crate::spawn(move || tx.send(22).unwrap()) };
 
     // The single-threaded fallback mode (for wasm etc.) won't
     // get a chance to run the spawn if we never yield to it.
@@ -404,7 +404,7 @@ fn yield_local_to_spawn() {
     let (tx, rx) = crossbeam_channel::bounded(1);
 
     // Queue a regular spawn.
-    crate::spawn(move || tx.send(22).unwrap());
+    unsafe { crate::spawn(move || tx.send(22).unwrap()) };
 
     // The single-threaded fallback mode (for wasm etc.) won't
     // get a chance to run the spawn if we never yield to it.

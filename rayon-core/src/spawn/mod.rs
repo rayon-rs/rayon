@@ -57,7 +57,7 @@ use std::sync::Arc;
 ///     GLOBAL_COUNTER.fetch_add(1, Ordering::SeqCst);
 /// });
 /// ```
-pub fn spawn<F>(func: F)
+pub unsafe fn spawn<F>(func: F)
 where
     F: FnOnce() + Send + 'static,
 {
@@ -127,7 +127,7 @@ where
 /// details.
 ///
 /// [ph]: struct.ThreadPoolBuilder.html#method.panic_handler
-pub fn spawn_fifo<F>(func: F)
+pub unsafe fn spawn_fifo<F>(func: F)
 where
     F: FnOnce() + Send + 'static,
 {
