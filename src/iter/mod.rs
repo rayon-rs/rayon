@@ -2392,7 +2392,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 #[allow(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Collects the results of the iterator into the specified
-    /// vector. The vector is always truncated before execution
+    /// vector. The vector is always cleared before execution
     /// begins. If possible, reusing the vector across calls can lead
     /// to better performance since it reuses the same backing buffer.
     ///
@@ -2401,7 +2401,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     /// use rayon::prelude::*;
     ///
-    /// // any prior data will be truncated
+    /// // any prior data will be cleared
     /// let mut vec = vec![-1, -2, -3];
     ///
     /// (0..5).into_par_iter()
@@ -2414,7 +2414,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     }
 
     /// Unzips the results of the iterator into the specified
-    /// vectors. The vectors are always truncated before execution
+    /// vectors. The vectors are always cleared before execution
     /// begins. If possible, reusing the vectors across calls can lead
     /// to better performance since they reuse the same backing buffer.
     ///
@@ -2423,7 +2423,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     /// use rayon::prelude::*;
     ///
-    /// // any prior data will be truncated
+    /// // any prior data will be cleared
     /// let mut left = vec![42; 10];
     /// let mut right = vec![-1; 10];
     ///
