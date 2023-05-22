@@ -1547,7 +1547,7 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Computes the maximum of all the items in the iterator with respect to
     /// the given comparison function. If the iterator is empty, `None` is
-    /// returned; otherwise, `Some(min)` is returned.
+    /// returned; otherwise, `Some(max)` is returned.
     ///
     /// Note that the order in which the items will be reduced is not
     /// specified, so if the comparison function is not associative, then
