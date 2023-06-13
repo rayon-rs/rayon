@@ -5,16 +5,11 @@ on:
       - staging
       - trying
 
-env:
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-
 jobs:
 
   check:
     name: Check (1.59.0)
     runs-on: ubuntu-latest
-    env:
-      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: git
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@1.59.0

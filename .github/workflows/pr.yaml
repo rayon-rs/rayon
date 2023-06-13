@@ -3,7 +3,6 @@ on: pull_request
 
 # Using 16MB stacks for deep test/debug recursion
 env:
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_MIN_STACK: 16777216
 
 jobs:
@@ -11,8 +10,6 @@ jobs:
   check:
     name: Check (1.59.0)
     runs-on: ubuntu-latest
-    env:
-      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: git
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@1.59.0
