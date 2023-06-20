@@ -813,23 +813,33 @@ impl WorkerThread {
         // accesses, which would be *very bad*
         let abort_guard = unwind::AbortIfPanic;
 
-        let mut idle_state = self.registry.sleep.start_looking(self.index, latch);
-        while !latch.probe() {
-            if let Some(job) = self.find_work() {
-                self.registry.sleep.work_found(idle_state);
+        'outer: while !latch.probe() {
+            // Check for local work *before* we start marking ourself idle,
+            // especially to avoid modifying shared sleep state.
+            if let Some(job) = self.take_local_job() {
                 self.execute(job);
-                idle_state = self.registry.sleep.start_looking(self.index, latch);
-            } else {
-                self.registry
-                    .sleep
-                    .no_work_found(&mut idle_state, latch, || self.has_injected_job())
+                continue;
             }
-        }
 
-        // If we were sleepy, we are not anymore. We "found work" --
-        // whatever the surrounding thread was doing before it had to
-        // wait.
-        self.registry.sleep.work_found(idle_state);
+            let mut idle_state = self.registry.sleep.start_looking(self.index, latch);
+            while !latch.probe() {
+                if let Some(job) = self.find_work() {
+                    self.registry.sleep.work_found(idle_state);
+                    self.execute(job);
+                    // The job might have injected local work, so go back to the outer loop.
+                    continue 'outer;
+                } else {
+                    self.registry
+                        .sleep
+                        .no_work_found(&mut idle_state, latch, || self.has_injected_job())
+                }
+            }
+
+            // If we were sleepy, we are not anymore. We "found work" --
+            // whatever the surrounding thread was doing before it had to wait.
+            self.registry.sleep.work_found(idle_state);
+            break;
+        }
 
         self.log(|| ThreadSawLatchSet {
             worker: self.index,
