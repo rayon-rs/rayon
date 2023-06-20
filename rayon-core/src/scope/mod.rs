@@ -655,6 +655,7 @@ impl<'scope> ScopeBase<'scope> {
         }
     }
 
+    #[inline]
     fn increment(&self) {
         self.job_completed_latch.increment();
     }
@@ -710,17 +711,15 @@ impl<'scope> ScopeBase<'scope> {
     where
         FUNC: FnOnce() -> R,
     {
-        match unwind::halt_unwinding(func) {
-            Ok(r) => {
-                Latch::set(&(*this).job_completed_latch);
-                Some(r)
-            }
+        let result = match unwind::halt_unwinding(func) {
+            Ok(r) => Some(r),
             Err(err) => {
                 (*this).job_panicked(err);
-                Latch::set(&(*this).job_completed_latch);
                 None
             }
-        }
+        };
+        Latch::set(&(*this).job_completed_latch);
+        result
     }
 
     fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
@@ -772,6 +771,7 @@ impl ScopeLatch {
         }
     }
 
+    #[inline]
     fn increment(&self) {
         match self {
             ScopeLatch::Stealing { latch, .. } => latch.increment(),
@@ -797,6 +797,7 @@ impl ScopeLatch {
 }
 
 impl Latch for ScopeLatch {
+    #[inline]
     unsafe fn set(this: *const Self) {
         match &*this {
             ScopeLatch::Stealing {

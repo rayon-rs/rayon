@@ -286,8 +286,9 @@ impl Latch for LockLatch {
 /// contexts).
 #[derive(Debug)]
 pub(super) struct CountLatch {
-    core_latch: CoreLatch,
+    // counter is first to nudge layout like CountLockLatch
     counter: AtomicUsize,
+    core_latch: CoreLatch,
 }
 
 impl CountLatch {
@@ -347,8 +348,9 @@ impl AsCoreLatch for CountLatch {
 
 #[derive(Debug)]
 pub(super) struct CountLockLatch {
-    lock_latch: LockLatch,
+    // counter is first to nudge layout like CountLatch
     counter: AtomicUsize,
+    lock_latch: LockLatch,
 }
 
 impl CountLockLatch {
