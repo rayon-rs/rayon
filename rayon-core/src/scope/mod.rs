@@ -7,7 +7,7 @@
 
 use crate::broadcast::BroadcastContext;
 use crate::job::{ArcJob, HeapJob, JobFifo, JobRef};
-use crate::latch::{CountLatch, CountLockLatch, Latch};
+use crate::latch::{CountLatch, Latch};
 use crate::registry::{global_registry, in_worker, Registry, WorkerThread};
 use crate::unwind;
 use std::any::Any;
@@ -39,26 +39,6 @@ pub struct ScopeFifo<'scope> {
     fifos: Vec<JobFifo>,
 }
 
-pub(super) enum ScopeLatch {
-    /// A latch for scopes created on a rayon thread which will participate in work-
-    /// stealing while it waits for completion. This thread is not necessarily part
-    /// of the same registry as the scope itself!
-    Stealing {
-        latch: CountLatch,
-        /// If a worker thread in registry A calls `in_place_scope` on a ThreadPool
-        /// with registry B, when a job completes in a thread of registry B, we may
-        /// need to call `latch.set_and_tickle_one()` to wake the thread in registry A.
-        /// That means we need a reference to registry A (since at that point we will
-        /// only have a reference to registry B), so we stash it here.
-        registry: Arc<Registry>,
-        /// The index of the worker to wake in `registry`
-        worker_index: usize,
-    },
-
-    /// A latch for scopes created on a non-rayon thread which will block to wait.
-    Blocking { latch: CountLockLatch },
-}
-
 struct ScopeBase<'scope> {
     /// thread registry where `scope()` was executed or where `in_place_scope()`
     /// should spawn jobs.
@@ -69,7 +49,7 @@ struct ScopeBase<'scope> {
     panic: AtomicPtr<Box<dyn Any + Send + 'static>>,
 
     /// latch to track job counts
-    job_completed_latch: ScopeLatch,
+    job_completed_latch: CountLatch,
 
     /// You can think of a scope as containing a list of closures to execute,
     /// all of which outlive `'scope`.  They're not actually required to be
@@ -650,14 +630,9 @@ impl<'scope> ScopeBase<'scope> {
         ScopeBase {
             registry: Arc::clone(registry),
             panic: AtomicPtr::new(ptr::null_mut()),
-            job_completed_latch: ScopeLatch::new(owner),
+            job_completed_latch: CountLatch::new(owner),
             marker: PhantomData,
         }
-    }
-
-    #[inline]
-    fn increment(&self) {
-        self.job_completed_latch.increment();
     }
 
     fn heap_job_ref<FUNC>(&self, job: Box<HeapJob<FUNC>>) -> JobRef
@@ -665,7 +640,7 @@ impl<'scope> ScopeBase<'scope> {
         FUNC: FnOnce() + Send + 'scope,
     {
         unsafe {
-            self.increment();
+            self.job_completed_latch.increment();
             job.into_job_ref()
         }
     }
@@ -676,7 +651,7 @@ impl<'scope> ScopeBase<'scope> {
     {
         let n_threads = self.registry.num_threads();
         let job_refs = (0..n_threads).map(|_| unsafe {
-            self.increment();
+            self.job_completed_latch.increment();
             ArcJob::as_job_ref(&job)
         });
 
@@ -753,63 +728,6 @@ impl<'scope> ScopeBase<'scope> {
     }
 }
 
-impl ScopeLatch {
-    fn new(owner: Option<&WorkerThread>) -> Self {
-        Self::with_count(1, owner)
-    }
-
-    pub(super) fn with_count(count: usize, owner: Option<&WorkerThread>) -> Self {
-        match owner {
-            Some(owner) => ScopeLatch::Stealing {
-                latch: CountLatch::with_count(count),
-                registry: Arc::clone(owner.registry()),
-                worker_index: owner.index(),
-            },
-            None => ScopeLatch::Blocking {
-                latch: CountLockLatch::with_count(count),
-            },
-        }
-    }
-
-    #[inline]
-    fn increment(&self) {
-        match self {
-            ScopeLatch::Stealing { latch, .. } => latch.increment(),
-            ScopeLatch::Blocking { latch } => latch.increment(),
-        }
-    }
-
-    pub(super) fn wait(&self, owner: Option<&WorkerThread>) {
-        match self {
-            ScopeLatch::Stealing {
-                latch,
-                registry,
-                worker_index,
-            } => unsafe {
-                let owner = owner.expect("owner thread");
-                debug_assert_eq!(registry.id(), owner.registry().id());
-                debug_assert_eq!(*worker_index, owner.index());
-                owner.wait_until(latch);
-            },
-            ScopeLatch::Blocking { latch } => latch.wait(),
-        }
-    }
-}
-
-impl Latch for ScopeLatch {
-    #[inline]
-    unsafe fn set(this: *const Self) {
-        match &*this {
-            ScopeLatch::Stealing {
-                latch,
-                registry,
-                worker_index,
-            } => CountLatch::set_and_tickle_one(latch, registry, *worker_index),
-            ScopeLatch::Blocking { latch } => Latch::set(latch),
-        }
-    }
-}
-
 impl<'scope> fmt::Debug for Scope<'scope> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Scope")
@@ -828,21 +746,6 @@ impl<'scope> fmt::Debug for ScopeFifo<'scope> {
             .field("panic", &self.base.panic)
             .field("job_completed_latch", &self.base.job_completed_latch)
             .finish()
-    }
-}
-
-impl fmt::Debug for ScopeLatch {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ScopeLatch::Stealing { latch, .. } => fmt
-                .debug_tuple("ScopeLatch::Stealing")
-                .field(latch)
-                .finish(),
-            ScopeLatch::Blocking { latch } => fmt
-                .debug_tuple("ScopeLatch::Blocking")
-                .field(latch)
-                .finish(),
-        }
     }
 }
 
