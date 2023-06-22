@@ -1,7 +1,6 @@
 use crate::job::{ArcJob, StackJob};
-use crate::latch::LatchRef;
+use crate::latch::{CountLatch, LatchRef};
 use crate::registry::{Registry, WorkerThread};
-use crate::scope::ScopeLatch;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -107,7 +106,7 @@ where
 
     let n_threads = registry.num_threads();
     let current_thread = WorkerThread::current().as_ref();
-    let latch = ScopeLatch::with_count(n_threads, current_thread);
+    let latch = CountLatch::with_count(n_threads, current_thread);
     let jobs: Vec<_> = (0..n_threads)
         .map(|_| StackJob::new(&f, LatchRef::new(&latch)))
         .collect();

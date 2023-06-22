@@ -1,5 +1,5 @@
 use crate::job::{JobFifo, JobRef, StackJob};
-use crate::latch::{AsCoreLatch, CoreLatch, CountLatch, Latch, LatchRef, LockLatch, SpinLatch};
+use crate::latch::{AsCoreLatch, CoreLatch, Latch, LatchRef, LockLatch, OnceLatch, SpinLatch};
 use crate::log::Event::*;
 use crate::log::Logger;
 use crate::sleep::Sleep;
@@ -610,7 +610,7 @@ impl Registry {
     pub(super) fn terminate(&self) {
         if self.terminate_count.fetch_sub(1, Ordering::AcqRel) == 1 {
             for (i, thread_info) in self.thread_infos.iter().enumerate() {
-                unsafe { CountLatch::set_and_tickle_one(&thread_info.terminate, self, i) };
+                unsafe { OnceLatch::set_and_tickle_one(&thread_info.terminate, self, i) };
             }
         }
     }
@@ -640,10 +640,7 @@ struct ThreadInfo {
     /// This latch is *set* by the `terminate` method on the
     /// `Registry`, once the registry's main "terminate" counter
     /// reaches zero.
-    ///
-    /// NB. We use a `CountLatch` here because it has no lifetimes and is
-    /// meant for async use, but the count never gets higher than one.
-    terminate: CountLatch,
+    terminate: OnceLatch,
 
     /// the "stealer" half of the worker's deque
     stealer: Stealer<JobRef>,
@@ -654,7 +651,7 @@ impl ThreadInfo {
         ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
-            terminate: CountLatch::new(),
+            terminate: OnceLatch::new(),
             stealer,
         }
     }
