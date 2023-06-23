@@ -500,6 +500,16 @@ impl ParallelExtend<String> for String {
     }
 }
 
+/// Extends a string with boxed strings from a parallel iterator.
+impl ParallelExtend<Box<str>> for String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = Box<str>>,
+    {
+        extend!(self, par_iter, string_extend);
+    }
+}
+
 /// Extends a string with string slices from a parallel iterator.
 impl<'a> ParallelExtend<Cow<'a, str>> for String {
     fn par_extend<I>(&mut self, par_iter: I)
