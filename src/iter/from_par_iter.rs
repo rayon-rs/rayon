@@ -6,6 +6,8 @@ use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::hash::{BuildHasher, Hash};
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// Creates an empty default collection and extends it.
 fn collect_extended<C, I>(par_iter: I) -> C
@@ -28,6 +30,45 @@ where
         I: IntoParallelIterator<Item = T>,
     {
         collect_extended(par_iter)
+    }
+}
+
+/// Collects items from a parallel iterator into a boxed slice.
+impl<T> FromParallelIterator<T> for Box<[T]>
+where
+    T: Send,
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        Vec::from_par_iter(par_iter).into()
+    }
+}
+
+/// Collects items from a parallel iterator into a reference-counted slice.
+impl<T> FromParallelIterator<T> for Rc<[T]>
+where
+    T: Send,
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        Vec::from_par_iter(par_iter).into()
+    }
+}
+
+/// Collects items from a parallel iterator into an atomically-reference-counted slice.
+impl<T> FromParallelIterator<T> for Arc<[T]>
+where
+    T: Send,
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        Vec::from_par_iter(par_iter).into()
     }
 }
 
@@ -169,6 +210,16 @@ impl FromParallelIterator<String> for String {
     fn from_par_iter<I>(par_iter: I) -> Self
     where
         I: IntoParallelIterator<Item = String>,
+    {
+        collect_extended(par_iter)
+    }
+}
+
+/// Collects boxed strings from a parallel iterator into one large string.
+impl FromParallelIterator<Box<str>> for String {
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = Box<str>>,
     {
         collect_extended(par_iter)
     }
