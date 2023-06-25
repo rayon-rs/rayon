@@ -175,7 +175,7 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     num_threads: usize,
 
     /// The thread we're building *from* will also be part of the pool.
-    use_current: bool,
+    use_current_thread: bool,
 
     /// Custom closure, if any, to handle a panic that we cannot propagate
     /// anywhere else.
@@ -230,7 +230,7 @@ impl Default for ThreadPoolBuilder {
     fn default() -> Self {
         ThreadPoolBuilder {
             num_threads: 0,
-            use_current: false,
+            use_current_thread: false,
             panic_handler: None,
             get_thread_name: None,
             stack_size: None,
@@ -441,7 +441,7 @@ impl<S> ThreadPoolBuilder<S> {
             spawn_handler: CustomSpawn::new(spawn),
             // ..self
             num_threads: self.num_threads,
-            use_current: self.use_current,
+            use_current_thread: self.use_current_thread,
             panic_handler: self.panic_handler,
             get_thread_name: self.get_thread_name,
             stack_size: self.stack_size,
@@ -535,8 +535,8 @@ impl<S> ThreadPoolBuilder<S> {
     }
 
     /// Use the current thread as one of the threads in the pool.
-    pub fn use_current(mut self) -> Self {
-        self.use_current = true;
+    pub fn use_current_thread(mut self) -> Self {
+        self.use_current_thread = true;
         self
     }
 
@@ -779,7 +779,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ThreadPoolBuilder {
             ref num_threads,
-            ref use_current,
+            ref use_current_thread,
             ref get_thread_name,
             ref panic_handler,
             ref stack_size,
@@ -804,7 +804,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
 
         f.debug_struct("ThreadPoolBuilder")
             .field("num_threads", num_threads)
-            .field("use_current", use_current)
+            .field("use_current_thread", use_current_thread)
             .field("get_thread_name", &get_thread_name)
             .field("panic_handler", &panic_handler)
             .field("stack_size", &stack_size)

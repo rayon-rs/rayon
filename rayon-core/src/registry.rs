@@ -207,7 +207,7 @@ fn default_global_registry() -> Result<Arc<Registry>, ThreadPoolBuildError> {
     // is stubbed out, and we won't have to change anything if they do add real threading.
     let unsupported = matches!(&result, Err(e) if e.is_unsupported());
     if unsupported && WorkerThread::current().is_null() {
-        let builder = ThreadPoolBuilder::new().num_threads(1).use_current();
+        let builder = ThreadPoolBuilder::new().num_threads(1).use_current_thread();
         let fallback_result = Registry::new(builder);
         if fallback_result.is_ok() {
             return fallback_result;
@@ -282,7 +282,7 @@ impl Registry {
                 index,
             };
 
-            if index == 0 && builder.use_current {
+            if index == 0 && builder.use_current_thread {
                 // Rather than starting a new thread, we're just taking over the current thread
                 // *without* running the main loop, so we can still return from here.
                 // The WorkerThread is leaked, but we never shutdown the global pool anyway.
