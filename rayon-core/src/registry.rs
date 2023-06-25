@@ -809,6 +809,20 @@ impl WorkerThread {
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
+    unsafe fn wait_until_out_of_work(&self) {
+        debug_assert_eq!(self as *const _, WorkerThread::current());
+        let registry = &*self.registry;
+        let index = self.index;
+
+        self.wait_until(&registry.thread_infos[index].terminate);
+
+        // Should not be any work left in our queue.
+        debug_assert!(self.take_local_job().is_none());
+
+        // Let registry know we are done
+        Latch::set(&registry.thread_infos[index].stopped);
+    }
+
     fn find_work(&self) -> Option<JobRef> {
         // Try to find some work to do. We give preference first
         // to things in our local deque, then in other workers
@@ -905,14 +919,7 @@ unsafe fn main_loop(thread: ThreadBuilder) {
         registry.catch_unwind(|| handler(index));
     }
 
-    let my_terminate_latch = &registry.thread_infos[index].terminate;
-    worker_thread.wait_until(my_terminate_latch);
-
-    // Should not be any work left in our queue.
-    debug_assert!(worker_thread.take_local_job().is_none());
-
-    // let registry know we are done
-    Latch::set(&registry.thread_infos[index].stopped);
+    worker_thread.wait_until_out_of_work();
 
     // Normal termination, do not abort.
     mem::forget(abort_guard);
