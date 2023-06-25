@@ -16,10 +16,11 @@ use std::hash::Hasher;
 use std::io;
 use std::mem;
 use std::ptr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::thread;
 use std::usize;
+use Ordering::Relaxed;
 
 /// Thread builder used for customization via
 /// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
@@ -649,7 +650,7 @@ struct ThreadInfo {
     /// results in both the yielding job and another job having stack
     /// frames, we prevent the second job from also yielding to prevent
     /// a stack overflow.
-    is_yielding: bool,
+    is_yielding: AtomicBool,
 }
 
 impl ThreadInfo {
@@ -659,7 +660,7 @@ impl ThreadInfo {
             stopped: LockLatch::new(),
             terminate: OnceLatch::new(),
             stealer,
-            is_yielding: false,
+            is_yielding: AtomicBool::new(false),
         }
     }
 }
@@ -864,15 +865,18 @@ impl WorkerThread {
     }
 
     pub(super) fn yield_now(&self) -> Yield {
-        let yielding = &mut self.registry.thread_infos[self.index].is_yielding;
-        if *yielding {
+        let yielding = &self.registry.thread_infos[self.index].is_yielding;
+        // Can use relaxed ordering because no other thread reads this value
+        if yielding
+            .compare_exchange(false, true, Relaxed, Relaxed)
+            .is_err()
+        {
             return Yield::Recursive;
         }
         match self.find_work() {
             Some(job) => unsafe {
-                *yielding = true;
                 self.execute(job);
-                *yielding = false;
+                yielding.store(false, Relaxed);
                 Yield::Executed
             },
             None => Yield::Idle,
@@ -880,15 +884,18 @@ impl WorkerThread {
     }
 
     pub(super) fn yield_local(&self) -> Yield {
-        let yielding = &mut self.registry.thread_infos[self.index].is_yielding;
-        if *yielding {
+        let yielding = &self.registry.thread_infos[self.index].is_yielding;
+        // Can use relaxed ordering because no other thread reads this value
+        if yielding
+            .compare_exchange(false, true, Relaxed, Relaxed)
+            .is_err()
+        {
             return Yield::Recursive;
         }
         match self.take_local_job() {
             Some(job) => unsafe {
-                *yielding = true;
                 self.execute(job);
-                *yielding = false;
+                yielding.store(false, Relaxed);
                 Yield::Executed
             },
             None => Yield::Idle,
@@ -1029,7 +1036,7 @@ impl XorShift64Star {
         while seed == 0 {
             let mut hasher = DefaultHasher::new();
             static COUNTER: AtomicUsize = AtomicUsize::new(0);
-            hasher.write_usize(COUNTER.fetch_add(1, Ordering::Relaxed));
+            hasher.write_usize(COUNTER.fetch_add(1, Relaxed));
             seed = hasher.finish();
         }
 
