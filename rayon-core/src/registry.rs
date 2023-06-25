@@ -286,8 +286,7 @@ impl Registry {
                 // Rather than starting a new thread, we're just taking over the current thread
                 // *without* running the main loop, so we can still return from here.
                 // The WorkerThread is leaked, but we never shutdown the global pool anyway.
-                // TODO: what about non-global thread pools?
-                let worker_thread = Box::leak(Box::new(WorkerThread::from(thread)));
+                let worker_thread = Box::into_raw(Box::new(WorkerThread::from(thread)));
 
                 unsafe {
                     WorkerThread::set_current(worker_thread);

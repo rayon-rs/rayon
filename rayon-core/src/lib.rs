@@ -535,6 +535,23 @@ impl<S> ThreadPoolBuilder<S> {
     }
 
     /// Use the current thread as one of the threads in the pool.
+    ///
+    /// The current thread is guaranteed to be at index 0, and since the thread is not managed by
+    /// rayon, the spawn and exit handlers do not run for that thread.
+    ///
+    /// Note that the current thread won't run the main work-stealing loop, so jobs spawned into
+    /// the thread-pool will generally not be picked up automatically by this thread unless you
+    /// yield to rayon in some way, like via [`yield_now()`], [`yield_local()`], or [`scope()`].
+    ///
+    /// # Panics
+    ///
+    /// This function won't panic itself, but [`ThreadPoolBuilder::build()`] will panic if you've
+    /// called this function and the current thread is already part of another [`ThreadPool`].
+    ///
+    /// # Local thread-pools
+    ///
+    /// Using this in a local thread-pool means the registry will be leaked. In future versions
+    /// there might be a way of cleaning up the current-thread state.
     pub fn use_current_thread(mut self) -> Self {
         self.use_current_thread = true;
         self
