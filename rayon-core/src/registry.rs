@@ -644,6 +644,12 @@ struct ThreadInfo {
 
     /// the "stealer" half of the worker's deque
     stealer: Stealer<JobRef>,
+
+    /// True if a job that has yielded is on the stack. Since yielding
+    /// results in both the yielding job and another job having stack
+    /// frames, we prevent the second job from also yielding to prevent
+    /// a stack overflow.
+    is_yielding: bool,
 }
 
 impl ThreadInfo {
@@ -653,6 +659,7 @@ impl ThreadInfo {
             stopped: LockLatch::new(),
             terminate: OnceLatch::new(),
             stealer,
+            is_yielding: false,
         }
     }
 }
@@ -857,9 +864,15 @@ impl WorkerThread {
     }
 
     pub(super) fn yield_now(&self) -> Yield {
+        let yielding = &mut self.registry.thread_infos[self.index].is_yielding;
+        if *yielding {
+            return Yield::Recursive;
+        }
         match self.find_work() {
             Some(job) => unsafe {
+                *yielding = true;
                 self.execute(job);
+                *yielding = false;
                 Yield::Executed
             },
             None => Yield::Idle,
@@ -867,9 +880,15 @@ impl WorkerThread {
     }
 
     pub(super) fn yield_local(&self) -> Yield {
+        let yielding = &mut self.registry.thread_infos[self.index].is_yielding;
+        if *yielding {
+            return Yield::Recursive;
+        }
         match self.take_local_job() {
             Some(job) => unsafe {
+                *yielding = true;
                 self.execute(job);
+                *yielding = false;
                 Yield::Executed
             },
             None => Yield::Idle,

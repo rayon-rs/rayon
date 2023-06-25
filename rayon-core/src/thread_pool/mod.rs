@@ -468,4 +468,6 @@ pub enum Yield {
     Executed,
     /// No available work was found.
     Idle,
+    /// Another job that has yielded is already on the stack.
+    Recursive,
 }
