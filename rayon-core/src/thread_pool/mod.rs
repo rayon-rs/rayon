@@ -468,6 +468,7 @@ pub enum Yield {
     Executed,
     /// No available work was found.
     Idle,
-    /// Another job that has yielded is already on the stack.
+    /// Another job that has yielded is already on this thread's stack, so to prevent a stack
+    /// overflow we will not start a third job.
     Recursive,
 }
