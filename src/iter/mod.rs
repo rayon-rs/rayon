@@ -135,6 +135,7 @@ mod noop;
 mod once;
 mod panic_fuse;
 mod par_bridge;
+mod par_map;
 mod positions;
 mod product;
 mod reduce;
@@ -185,6 +186,7 @@ pub use self::{
     once::{once, Once},
     panic_fuse::PanicFuse,
     par_bridge::{IterBridge, ParallelBridge},
+    par_map::ParallelMap,
     positions::Positions,
     repeat::{repeat, repeatn, Repeat, RepeatN},
     rev::Rev,

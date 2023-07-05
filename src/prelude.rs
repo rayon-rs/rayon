@@ -12,6 +12,7 @@ pub use crate::iter::ParallelDrainFull;
 pub use crate::iter::ParallelDrainRange;
 pub use crate::iter::ParallelExtend;
 pub use crate::iter::ParallelIterator;
+pub use crate::iter::ParallelMap;
 pub use crate::slice::ParallelSlice;
 pub use crate::slice::ParallelSliceMut;
 pub use crate::str::ParallelString;
