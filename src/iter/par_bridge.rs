@@ -13,6 +13,11 @@ use crate::{current_num_threads, current_thread_index};
 /// `par_iter` instead. However, it can still be useful for iterators that are difficult to
 /// parallelize by other means, like channels or file or network I/O.
 ///
+/// Iterator items are pulled by `next()` one at a time, synchronized from each thread that is
+/// ready for work, so this may become a bottleneck if the serial iterator can't keep up with the
+/// parallel demand. The items are not buffered by `IterBridge`, so it's fine to use this with
+/// large or even unbounded iterators.
+///
 /// The resulting iterator is not guaranteed to keep the order of the original iterator.
 ///
 /// # Examples
