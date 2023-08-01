@@ -78,6 +78,17 @@
 //! `Box<dyn ParallelIterator>` or other kind of dynamic allocation,
 //! because `ParallelIterator` is **not object-safe**.
 //! (This keeps the implementation simpler and allows extra optimizations.)
+//!
+//! Note that rayon's builtin functionality is suboptimal in cases when your
+//! input and/or output data is too big, for example, when it doesn't fit in
+//! memory. In particular, rayon is not designed for case when you want to read some
+//! potentially big amount of data from file (or network), split it to chunks,
+//! feed to thread pool, perform some operations in parallel and then collect back
+//! and output to file or network in correct order. In other words, rayon is
+//! supoptimal when you need streaming for your input or output data. In such
+//! cases consider [alternative solution].
+//!
+//! [alternative solution]: https://dpc.pw/adding-parallelism-to-your-rust-iterators
 
 use self::plumbing::*;
 use self::private::Try;
