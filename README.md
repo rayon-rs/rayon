@@ -2,7 +2,7 @@
 
 [![Rayon crate](https://img.shields.io/crates/v/rayon.svg)](https://crates.io/crates/rayon)
 [![Rayon documentation](https://docs.rs/rayon/badge.svg)](https://docs.rs/rayon)
-![minimum rustc 1.59](https://img.shields.io/badge/rustc-1.59+-red.svg)
+![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-red.svg)
 [![build status](https://github.com/rayon-rs/rayon/workflows/master/badge.svg)](https://github.com/rayon-rs/rayon/actions)
 [![Join the chat at https://gitter.im/rayon-rs/Lobby](https://badges.gitter.im/rayon-rs/Lobby.svg)](https://gitter.im/rayon-rs/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -84,7 +84,7 @@ just add:
 use rayon::prelude::*;
 ```
 
-Rayon currently requires `rustc 1.59.0` or greater.
+Rayon currently requires `rustc 1.63.0` or greater.
 
 ### Usage with WebAssembly
 
