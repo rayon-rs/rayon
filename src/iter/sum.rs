@@ -13,7 +13,7 @@ where
 }
 
 fn add<T: Sum>(left: T, right: T) -> T {
-    iter::once(left).chain(iter::once(right)).sum()
+    [left, right].into_iter().sum()
 }
 
 struct SumConsumer<S: Send> {
