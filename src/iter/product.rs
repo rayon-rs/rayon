@@ -13,7 +13,7 @@ where
 }
 
 fn mul<T: Product>(left: T, right: T) -> T {
-    iter::once(left).chain(iter::once(right)).product()
+    [left, right].into_iter().product()
 }
 
 struct ProductConsumer<P: Send> {
