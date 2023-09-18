@@ -459,13 +459,18 @@ impl<S> ThreadPoolBuilder<S> {
         if self.num_threads > 0 {
             self.num_threads
         } else {
+            let default = || {
+                thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(1)
+            };
+
             match env::var("RAYON_NUM_THREADS")
                 .ok()
                 .and_then(|s| usize::from_str(&s).ok())
             {
-                Some(x) if x > 0 => return x,
-                Some(x) if x == 0 =>  return thread::available_parallelism()
-					.map(|n| n.get()).unwrap_or(1),
+                Some(x @ 1..) => return x,
+                Some(0) => return default(),
                 _ => {}
             }
 
@@ -474,8 +479,8 @@ impl<S> ThreadPoolBuilder<S> {
                 .ok()
                 .and_then(|s| usize::from_str(&s).ok())
             {
-                Some(x) if x > 0 => x,
-                _ => thread::available_parallelism().map(|n| n.get()).unwrap_or(1)
+                Some(x @ 1..) => x,
+                _ => default(),
             }
         }
     }
