@@ -73,6 +73,7 @@ use std::fmt;
 use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::thread;
 
 #[macro_use]
 mod log;
@@ -458,12 +459,18 @@ impl<S> ThreadPoolBuilder<S> {
         if self.num_threads > 0 {
             self.num_threads
         } else {
+            let default = || {
+                thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(1)
+            };
+
             match env::var("RAYON_NUM_THREADS")
                 .ok()
                 .and_then(|s| usize::from_str(&s).ok())
             {
-                Some(x) if x > 0 => return x,
-                Some(x) if x == 0 => return num_cpus::get(),
+                Some(x @ 1..) => return x,
+                Some(0) => return default(),
                 _ => {}
             }
 
@@ -472,8 +479,8 @@ impl<S> ThreadPoolBuilder<S> {
                 .ok()
                 .and_then(|s| usize::from_str(&s).ok())
             {
-                Some(x) if x > 0 => x,
-                _ => num_cpus::get(),
+                Some(x @ 1..) => x,
+                _ => default(),
             }
         }
     }
@@ -512,9 +519,8 @@ impl<S> ThreadPoolBuilder<S> {
     /// may change in the future, if you wish to rely on a fixed
     /// number of threads, you should use this function to specify
     /// that number. To reproduce the current default behavior, you
-    /// may wish to use the [`num_cpus`
-    /// crate](https://crates.io/crates/num_cpus) to query the number
-    /// of CPUs dynamically.
+    /// may wish to use [`std::thread::available_parallelism`]
+    /// to query the number of CPUs dynamically.
     ///
     /// **Old environment variable:** `RAYON_NUM_THREADS` is a one-to-one
     /// replacement of the now deprecated `RAYON_RS_NUM_CPUS` environment
