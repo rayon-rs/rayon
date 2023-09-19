@@ -383,7 +383,7 @@ fn in_place_scope_fifo_no_deadlock() {
 
 #[test]
 fn yield_now_to_spawn() {
-    let (tx, rx) = crossbeam_channel::bounded(1);
+    let (tx, rx) = channel();
 
     // Queue a regular spawn.
     crate::spawn(move || tx.send(22).unwrap());
@@ -401,7 +401,7 @@ fn yield_now_to_spawn() {
 
 #[test]
 fn yield_local_to_spawn() {
-    let (tx, rx) = crossbeam_channel::bounded(1);
+    let (tx, rx) = channel();
 
     // Queue a regular spawn.
     crate::spawn(move || tx.send(22).unwrap());

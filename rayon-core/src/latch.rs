@@ -84,13 +84,6 @@ impl CoreLatch {
         }
     }
 
-    /// Returns the address of this core latch as an integer. Used
-    /// for logging.
-    #[inline]
-    pub(super) fn addr(&self) -> usize {
-        self as *const CoreLatch as usize
-    }
-
     /// Invoked by owning thread as it prepares to sleep. Returns true
     /// if the owning thread may proceed to fall asleep, false if the
     /// latch was set in the meantime.

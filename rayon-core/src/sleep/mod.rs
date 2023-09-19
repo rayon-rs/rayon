@@ -2,8 +2,6 @@
 //! for an overview.
 
 use crate::latch::CoreLatch;
-use crate::log::Event::*;
-use crate::log::Logger;
 use crossbeam_utils::CachePadded;
 use std::sync::atomic::Ordering;
 use std::sync::{Condvar, Mutex};
@@ -22,8 +20,6 @@ use self::counters::{AtomicCounters, JobsEventCounter};
 ///
 /// [`README.md`] README.md
 pub(super) struct Sleep {
-    logger: Logger,
-
     /// One "sleep state" per worker. Used to track if a worker is sleeping and to have
     /// them block.
     worker_sleep_states: Vec<CachePadded<WorkerSleepState>>,
@@ -62,22 +58,16 @@ const ROUNDS_UNTIL_SLEEPY: u32 = 32;
 const ROUNDS_UNTIL_SLEEPING: u32 = ROUNDS_UNTIL_SLEEPY + 1;
 
 impl Sleep {
-    pub(super) fn new(logger: Logger, n_threads: usize) -> Sleep {
+    pub(super) fn new(n_threads: usize) -> Sleep {
         assert!(n_threads <= THREADS_MAX);
         Sleep {
-            logger,
             worker_sleep_states: (0..n_threads).map(|_| Default::default()).collect(),
             counters: AtomicCounters::new(),
         }
     }
 
     #[inline]
-    pub(super) fn start_looking(&self, worker_index: usize, latch: &CoreLatch) -> IdleState {
-        self.logger.log(|| ThreadIdle {
-            worker: worker_index,
-            latch_addr: latch.addr(),
-        });
-
+    pub(super) fn start_looking(&self, worker_index: usize) -> IdleState {
         self.counters.add_inactive_thread();
 
         IdleState {
@@ -88,12 +78,7 @@ impl Sleep {
     }
 
     #[inline]
-    pub(super) fn work_found(&self, idle_state: IdleState) {
-        self.logger.log(|| ThreadFoundWork {
-            worker: idle_state.worker_index,
-            yields: idle_state.rounds,
-        });
-
+    pub(super) fn work_found(&self) {
         // If we were the last idle thread and other threads are still sleeping,
         // then we should wake up another thread.
         let threads_to_wake = self.counters.sub_inactive_thread();
@@ -111,7 +96,7 @@ impl Sleep {
             thread::yield_now();
             idle_state.rounds += 1;
         } else if idle_state.rounds == ROUNDS_UNTIL_SLEEPY {
-            idle_state.jobs_counter = self.announce_sleepy(idle_state.worker_index);
+            idle_state.jobs_counter = self.announce_sleepy();
             idle_state.rounds += 1;
             thread::yield_now();
         } else if idle_state.rounds < ROUNDS_UNTIL_SLEEPING {
@@ -124,15 +109,11 @@ impl Sleep {
     }
 
     #[cold]
-    fn announce_sleepy(&self, worker_index: usize) -> JobsEventCounter {
+    fn announce_sleepy(&self) -> JobsEventCounter {
         let counters = self
             .counters
             .increment_jobs_event_counter_if(JobsEventCounter::is_active);
         let jobs_counter = counters.jobs_counter();
-        self.logger.log(|| ThreadSleepy {
-            worker: worker_index,
-            jobs_counter: jobs_counter.as_usize(),
-        });
         jobs_counter
     }
 
@@ -146,11 +127,6 @@ impl Sleep {
         let worker_index = idle_state.worker_index;
 
         if !latch.get_sleepy() {
-            self.logger.log(|| ThreadSleepInterruptedByLatch {
-                worker: worker_index,
-                latch_addr: latch.addr(),
-            });
-
             return;
         }
 
@@ -161,11 +137,6 @@ impl Sleep {
         // Our latch was signalled. We should wake back up fully as we
         // will have some stuff to do.
         if !latch.fall_asleep() {
-            self.logger.log(|| ThreadSleepInterruptedByLatch {
-                worker: worker_index,
-                latch_addr: latch.addr(),
-            });
-
             idle_state.wake_fully();
             return;
         }
@@ -180,10 +151,6 @@ impl Sleep {
                 // we didn't see it. We should return to just before the SLEEPY
                 // state so we can do another search and (if we fail to find
                 // work) go back to sleep.
-                self.logger.log(|| ThreadSleepInterruptedByJob {
-                    worker: worker_index,
-                });
-
                 idle_state.wake_partly();
                 latch.wake_up();
                 return;
@@ -196,11 +163,6 @@ impl Sleep {
         }
 
         // Successfully registered as asleep.
-
-        self.logger.log(|| ThreadSleeping {
-            worker: worker_index,
-            latch_addr: latch.addr(),
-        });
 
         // We have one last check for injected jobs to do. This protects against
         // deadlock in the very unlikely event that
@@ -232,11 +194,6 @@ impl Sleep {
         // Update other state:
         idle_state.wake_fully();
         latch.wake_up();
-
-        self.logger.log(|| ThreadAwoken {
-            worker: worker_index,
-            latch_addr: latch.addr(),
-        });
     }
 
     /// Notify the given thread that it should wake up (if it is
@@ -254,24 +211,16 @@ impl Sleep {
     ///
     /// # Parameters
     ///
-    /// - `source_worker_index` -- index of the thread that did the
-    ///   push, or `usize::MAX` if this came from outside the thread
-    ///   pool -- it is used only for logging.
     /// - `num_jobs` -- lower bound on number of jobs available for stealing.
     ///   We'll try to get at least one thread per job.
     #[inline]
-    pub(super) fn new_injected_jobs(
-        &self,
-        source_worker_index: usize,
-        num_jobs: u32,
-        queue_was_empty: bool,
-    ) {
+    pub(super) fn new_injected_jobs(&self, num_jobs: u32, queue_was_empty: bool) {
         // This fence is needed to guarantee that threads
         // as they are about to fall asleep, observe any
         // new jobs that may have been injected.
         std::sync::atomic::fence(Ordering::SeqCst);
 
-        self.new_jobs(source_worker_index, num_jobs, queue_was_empty)
+        self.new_jobs(num_jobs, queue_was_empty)
     }
 
     /// Signals that `num_jobs` new jobs were pushed onto a thread's
@@ -284,24 +233,16 @@ impl Sleep {
     ///
     /// # Parameters
     ///
-    /// - `source_worker_index` -- index of the thread that did the
-    ///   push, or `usize::MAX` if this came from outside the thread
-    ///   pool -- it is used only for logging.
     /// - `num_jobs` -- lower bound on number of jobs available for stealing.
     ///   We'll try to get at least one thread per job.
     #[inline]
-    pub(super) fn new_internal_jobs(
-        &self,
-        source_worker_index: usize,
-        num_jobs: u32,
-        queue_was_empty: bool,
-    ) {
-        self.new_jobs(source_worker_index, num_jobs, queue_was_empty)
+    pub(super) fn new_internal_jobs(&self, num_jobs: u32, queue_was_empty: bool) {
+        self.new_jobs(num_jobs, queue_was_empty)
     }
 
     /// Common helper for `new_injected_jobs` and `new_internal_jobs`.
     #[inline]
-    fn new_jobs(&self, source_worker_index: usize, num_jobs: u32, queue_was_empty: bool) {
+    fn new_jobs(&self, num_jobs: u32, queue_was_empty: bool) {
         // Read the counters and -- if sleepy workers have announced themselves
         // -- announce that there is now work available. The final value of `counters`
         // with which we exit the loop thus corresponds to a state when
@@ -310,12 +251,6 @@ impl Sleep {
             .increment_jobs_event_counter_if(JobsEventCounter::is_sleepy);
         let num_awake_but_idle = counters.awake_but_idle_threads();
         let num_sleepers = counters.sleeping_threads();
-
-        self.logger.log(|| JobThreadCounts {
-            worker: source_worker_index,
-            num_idle: num_awake_but_idle as u16,
-            num_sleepers: num_sleepers as u16,
-        });
 
         if num_sleepers == 0 {
             // nobody to wake
@@ -371,8 +306,6 @@ impl Sleep {
             // wake, when in fact there is nothing left for them to
             // do.
             self.counters.sub_sleeping_thread();
-
-            self.logger.log(|| ThreadNotify { worker: index });
 
             true
         } else {
