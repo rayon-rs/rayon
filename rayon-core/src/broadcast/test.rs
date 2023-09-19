@@ -2,6 +2,7 @@
 
 use crate::ThreadPoolBuilder;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::{thread, time};
 
@@ -14,7 +15,7 @@ fn broadcast_global() {
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_global() {
-    let (tx, rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
     crate::spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap());
 
     let mut v: Vec<_> = rx.into_iter().collect();
@@ -33,7 +34,7 @@ fn broadcast_pool() {
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_pool() {
-    let (tx, rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
     pool.spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap());
 
@@ -53,7 +54,7 @@ fn broadcast_self() {
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_self() {
-    let (tx, rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
     let pool = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
     pool.spawn(|| crate::spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap()));
 
@@ -81,7 +82,7 @@ fn broadcast_mutual() {
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_mutual() {
-    let (tx, rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
     let pool1 = Arc::new(ThreadPoolBuilder::new().num_threads(3).build().unwrap());
     let pool2 = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
     pool1.spawn({
@@ -118,7 +119,7 @@ fn broadcast_mutual_sleepy() {
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn spawn_broadcast_mutual_sleepy() {
-    let (tx, rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
     let pool1 = Arc::new(ThreadPoolBuilder::new().num_threads(3).build().unwrap());
     let pool2 = ThreadPoolBuilder::new().num_threads(7).build().unwrap();
     pool1.spawn({
@@ -158,8 +159,8 @@ fn broadcast_panic_one() {
 #[test]
 #[cfg_attr(not(panic = "unwind"), ignore)]
 fn spawn_broadcast_panic_one() {
-    let (tx, rx) = crossbeam_channel::unbounded();
-    let (panic_tx, panic_rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
+    let (panic_tx, panic_rx) = channel();
     let pool = ThreadPoolBuilder::new()
         .num_threads(7)
         .panic_handler(move |e| panic_tx.send(e).unwrap())
@@ -196,8 +197,8 @@ fn broadcast_panic_many() {
 #[test]
 #[cfg_attr(not(panic = "unwind"), ignore)]
 fn spawn_broadcast_panic_many() {
-    let (tx, rx) = crossbeam_channel::unbounded();
-    let (panic_tx, panic_rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
+    let (panic_tx, panic_rx) = channel();
     let pool = ThreadPoolBuilder::new()
         .num_threads(7)
         .panic_handler(move |e| panic_tx.send(e).unwrap())
@@ -231,7 +232,7 @@ fn broadcast_sleep_race() {
 
 #[test]
 fn broadcast_after_spawn_broadcast() {
-    let (tx, rx) = crossbeam_channel::unbounded();
+    let (tx, rx) = channel();
 
     // Queue a non-blocking spawn_broadcast.
     crate::spawn_broadcast(move |ctx| tx.send(ctx.index()).unwrap());
@@ -247,7 +248,7 @@ fn broadcast_after_spawn_broadcast() {
 
 #[test]
 fn broadcast_after_spawn() {
-    let (tx, rx) = crossbeam_channel::bounded(1);
+    let (tx, rx) = channel();
 
     // Queue a regular spawn on a thread-local deque.
     crate::registry::in_worker(move |_, _| {
