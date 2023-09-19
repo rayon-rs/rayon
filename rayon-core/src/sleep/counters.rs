@@ -212,12 +212,12 @@ impl AtomicCounters {
 
 #[inline]
 fn select_thread(word: usize, shift: usize) -> usize {
-    ((word >> shift) as usize) & THREADS_MAX
+    (word >> shift) & THREADS_MAX
 }
 
 #[inline]
 fn select_jec(word: usize) -> usize {
-    (word >> JEC_SHIFT) as usize
+    word >> JEC_SHIFT
 }
 
 impl Counters {

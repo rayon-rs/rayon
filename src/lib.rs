@@ -152,7 +152,7 @@ impl<T> SendPtr<T> {
 // Implement Clone without the T: Clone bound from the derive
 impl<T> Clone for SendPtr<T> {
     fn clone(&self) -> Self {
-        Self(self.0)
+        *self
     }
 }
 
