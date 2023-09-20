@@ -147,6 +147,7 @@ pub struct ThreadPoolBuildError {
 #[derive(Debug)]
 enum ErrorKind {
     GlobalPoolAlreadyInitialized,
+    CurrentThreadAlreadyInPool,
     IOError(io::Error),
 }
 
@@ -543,11 +544,6 @@ impl<S> ThreadPoolBuilder<S> {
     /// the thread-pool will generally not be picked up automatically by this thread unless you
     /// yield to rayon in some way, like via [`yield_now()`], [`yield_local()`], or [`scope()`].
     ///
-    /// # Panics
-    ///
-    /// This function won't panic itself, but [`ThreadPoolBuilder::build()`] will panic if you've
-    /// called this function and the current thread is already part of another [`ThreadPool`].
-    ///
     /// # Local thread-pools
     ///
     /// Using this in a local thread-pool means the registry will be leaked. In future versions
@@ -759,18 +755,22 @@ impl ThreadPoolBuildError {
 const GLOBAL_POOL_ALREADY_INITIALIZED: &str =
     "The global thread pool has already been initialized.";
 
+const CURRENT_THREAD_ALREADY_IN_POOL: &str =
+    "The current thread is already part of another thread pool.";
+
 impl Error for ThreadPoolBuildError {
     #[allow(deprecated)]
     fn description(&self) -> &str {
         match self.kind {
             ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED,
+            ErrorKind::CurrentThreadAlreadyInPool => CURRENT_THREAD_ALREADY_IN_POOL,
             ErrorKind::IOError(ref e) => e.description(),
         }
     }
 
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match &self.kind {
-            ErrorKind::GlobalPoolAlreadyInitialized => None,
+            ErrorKind::GlobalPoolAlreadyInitialized | ErrorKind::CurrentThreadAlreadyInPool => None,
             ErrorKind::IOError(e) => Some(e),
         }
     }
@@ -779,6 +779,7 @@ impl Error for ThreadPoolBuildError {
 impl fmt::Display for ThreadPoolBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
+            ErrorKind::CurrentThreadAlreadyInPool => CURRENT_THREAD_ALREADY_IN_POOL.fmt(f),
             ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED.fmt(f),
             ErrorKind::IOError(e) => e.fmt(f),
         }

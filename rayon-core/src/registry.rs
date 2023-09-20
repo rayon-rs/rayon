@@ -283,6 +283,11 @@ impl Registry {
             };
 
             if index == 0 && builder.use_current_thread {
+                if !WorkerThread::current().is_null() {
+                    return Err(ThreadPoolBuildError::new(
+                        ErrorKind::CurrentThreadAlreadyInPool,
+                    ));
+                }
                 // Rather than starting a new thread, we're just taking over the current thread
                 // *without* running the main loop, so we can still return from here.
                 // The WorkerThread is leaked, but we never shutdown the global pool anyway.

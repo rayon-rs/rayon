@@ -22,6 +22,15 @@ fn use_current_thread_basic() {
         "Should only spawn one extra thread"
     );
 
+    let another_pool = ThreadPoolBuilder::new()
+        .num_threads(2)
+        .use_current_thread()
+        .build();
+    assert!(
+        another_pool.is_err(),
+        "Should error if the thread is already part of a pool"
+    );
+
     let pair = Arc::new((Mutex::new(false), Condvar::new()));
     let pair2 = Arc::clone(&pair);
     pool.spawn(move || {
