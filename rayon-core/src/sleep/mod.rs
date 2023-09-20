@@ -110,11 +110,9 @@ impl Sleep {
 
     #[cold]
     fn announce_sleepy(&self) -> JobsEventCounter {
-        let counters = self
-            .counters
-            .increment_jobs_event_counter_if(JobsEventCounter::is_active);
-        let jobs_counter = counters.jobs_counter();
-        jobs_counter
+        self.counters
+            .increment_jobs_event_counter_if(JobsEventCounter::is_active)
+            .jobs_counter()
     }
 
     #[cold]
