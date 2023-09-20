@@ -1,3 +1,18 @@
+# Release rayon 1.8.0 / rayon-core 1.12.0 (2023-09-20)
+
+- The minimum supported `rustc` is now 1.63.
+- Added `ThreadPoolBuilder::use_current_thread` to use the builder thread as
+  part of the new thread pool. That thread does not run the pool's main loop,
+  but it may participate in work-stealing if it yields to rayon in some way.
+- Implemented `FromParallelIterator<T>` for `Box<[T]>`, `Rc<[T]>`, and
+  `Arc<[T]>`, as well as `FromParallelIterator<Box<str>>` and
+  `ParallelExtend<Box<str>>` for `String`.
+- `ThreadPoolBuilder::build_scoped` now uses `std::thread::scope`.
+- The default number of threads is now determined using
+  `std::thread::available_parallelism` instead of the `num_cpus` crate.
+- The internal logging facility has been removed, reducing bloat for all users.
+- Many smaller performance tweaks and documentation updates.
+
 # Release rayon 1.7.0 / rayon-core 1.11.0 (2023-03-03)
 
 - The minimum supported `rustc` is now 1.59.

@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@1.67.1
+      - uses: dtolnay/rust-toolchain@1.72.1
         with:
           components: rustfmt
       - run: cargo fmt --all --check
