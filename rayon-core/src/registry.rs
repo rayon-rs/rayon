@@ -207,26 +207,7 @@ fn default_global_registry() -> Result<Arc<Registry>, ThreadPoolBuildError> {
     // is stubbed out, and we won't have to change anything if they do add real threading.
     let unsupported = matches!(&result, Err(e) if e.is_unsupported());
     if unsupported && WorkerThread::current().is_null() {
-        let builder = ThreadPoolBuilder::new()
-            .num_threads(1)
-            .spawn_handler(|thread| {
-                // Rather than starting a new thread, we're just taking over the current thread
-                // *without* running the main loop, so we can still return from here.
-                // The WorkerThread is leaked, but we never shutdown the global pool anyway.
-                let worker_thread = Box::leak(Box::new(WorkerThread::from(thread)));
-                let registry = &*worker_thread.registry;
-                let index = worker_thread.index;
-
-                unsafe {
-                    WorkerThread::set_current(worker_thread);
-
-                    // let registry know we are ready to do work
-                    Latch::set(&registry.thread_infos[index].primed);
-                }
-
-                Ok(())
-            });
-
+        let builder = ThreadPoolBuilder::new().num_threads(1).use_current_thread();
         let fallback_result = Registry::new(builder);
         if fallback_result.is_ok() {
             return fallback_result;
@@ -300,6 +281,25 @@ impl Registry {
                 stealer,
                 index,
             };
+
+            if index == 0 && builder.use_current_thread {
+                if !WorkerThread::current().is_null() {
+                    return Err(ThreadPoolBuildError::new(
+                        ErrorKind::CurrentThreadAlreadyInPool,
+                    ));
+                }
+                // Rather than starting a new thread, we're just taking over the current thread
+                // *without* running the main loop, so we can still return from here.
+                // The WorkerThread is leaked, but we never shutdown the global pool anyway.
+                let worker_thread = Box::into_raw(Box::new(WorkerThread::from(thread)));
+
+                unsafe {
+                    WorkerThread::set_current(worker_thread);
+                    Latch::set(&registry.thread_infos[index].primed);
+                }
+                continue;
+            }
+
             if let Err(e) = builder.get_spawn_handler().spawn(thread) {
                 return Err(ThreadPoolBuildError::new(ErrorKind::IOError(e)));
             }

@@ -147,6 +147,7 @@ pub struct ThreadPoolBuildError {
 #[derive(Debug)]
 enum ErrorKind {
     GlobalPoolAlreadyInitialized,
+    CurrentThreadAlreadyInPool,
     IOError(io::Error),
 }
 
@@ -173,6 +174,9 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// If zero will use the RAYON_NUM_THREADS environment variable.
     /// If RAYON_NUM_THREADS is invalid or zero will use the default.
     num_threads: usize,
+
+    /// The thread we're building *from* will also be part of the pool.
+    use_current_thread: bool,
 
     /// Custom closure, if any, to handle a panic that we cannot propagate
     /// anywhere else.
@@ -227,6 +231,7 @@ impl Default for ThreadPoolBuilder {
     fn default() -> Self {
         ThreadPoolBuilder {
             num_threads: 0,
+            use_current_thread: false,
             panic_handler: None,
             get_thread_name: None,
             stack_size: None,
@@ -437,6 +442,7 @@ impl<S> ThreadPoolBuilder<S> {
             spawn_handler: CustomSpawn::new(spawn),
             // ..self
             num_threads: self.num_threads,
+            use_current_thread: self.use_current_thread,
             panic_handler: self.panic_handler,
             get_thread_name: self.get_thread_name,
             stack_size: self.stack_size,
@@ -526,6 +532,24 @@ impl<S> ThreadPoolBuilder<S> {
     /// be preferred.
     pub fn num_threads(mut self, num_threads: usize) -> Self {
         self.num_threads = num_threads;
+        self
+    }
+
+    /// Use the current thread as one of the threads in the pool.
+    ///
+    /// The current thread is guaranteed to be at index 0, and since the thread is not managed by
+    /// rayon, the spawn and exit handlers do not run for that thread.
+    ///
+    /// Note that the current thread won't run the main work-stealing loop, so jobs spawned into
+    /// the thread-pool will generally not be picked up automatically by this thread unless you
+    /// yield to rayon in some way, like via [`yield_now()`], [`yield_local()`], or [`scope()`].
+    ///
+    /// # Local thread-pools
+    ///
+    /// Using this in a local thread-pool means the registry will be leaked. In future versions
+    /// there might be a way of cleaning up the current-thread state.
+    pub fn use_current_thread(mut self) -> Self {
+        self.use_current_thread = true;
         self
     }
 
@@ -731,18 +755,22 @@ impl ThreadPoolBuildError {
 const GLOBAL_POOL_ALREADY_INITIALIZED: &str =
     "The global thread pool has already been initialized.";
 
+const CURRENT_THREAD_ALREADY_IN_POOL: &str =
+    "The current thread is already part of another thread pool.";
+
 impl Error for ThreadPoolBuildError {
     #[allow(deprecated)]
     fn description(&self) -> &str {
         match self.kind {
             ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED,
+            ErrorKind::CurrentThreadAlreadyInPool => CURRENT_THREAD_ALREADY_IN_POOL,
             ErrorKind::IOError(ref e) => e.description(),
         }
     }
 
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match &self.kind {
-            ErrorKind::GlobalPoolAlreadyInitialized => None,
+            ErrorKind::GlobalPoolAlreadyInitialized | ErrorKind::CurrentThreadAlreadyInPool => None,
             ErrorKind::IOError(e) => Some(e),
         }
     }
@@ -751,6 +779,7 @@ impl Error for ThreadPoolBuildError {
 impl fmt::Display for ThreadPoolBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
+            ErrorKind::CurrentThreadAlreadyInPool => CURRENT_THREAD_ALREADY_IN_POOL.fmt(f),
             ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED.fmt(f),
             ErrorKind::IOError(e) => e.fmt(f),
         }
@@ -768,6 +797,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ThreadPoolBuilder {
             ref num_threads,
+            ref use_current_thread,
             ref get_thread_name,
             ref panic_handler,
             ref stack_size,
@@ -792,6 +822,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
 
         f.debug_struct("ThreadPoolBuilder")
             .field("num_threads", num_threads)
+            .field("use_current_thread", use_current_thread)
             .field("get_thread_name", &get_thread_name)
             .field("panic_handler", &panic_handler)
             .field("stack_size", &stack_size)
