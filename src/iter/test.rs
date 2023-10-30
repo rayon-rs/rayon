@@ -654,7 +654,7 @@ fn check_partial_cmp_late_nan_direct() {
 }
 
 #[test]
-fn check_partial_cmp_late_nane_to_seq() {
+fn check_partial_cmp_late_nan_to_seq() {
     let a = vec![0.0, f64::NAN];
     let b = vec![1.0, 1.0];
 
