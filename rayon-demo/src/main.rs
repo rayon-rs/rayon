@@ -33,6 +33,8 @@ mod sort;
 mod str_split;
 #[cfg(test)]
 mod vec_collect;
+#[cfg(test)]
+mod scan;
 
 #[cfg(test)]
 extern crate test;
