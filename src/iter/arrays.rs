@@ -198,24 +198,8 @@ where
 }
 
 fn collect_array<T, const N: usize>(mut iter: impl ExactSizeIterator<Item = T>) -> [T; N] {
-    // TODO(MSRV-1.55): consider `[(); N].map(...)`
-    // TODO(MSRV-1.63): consider `std::array::from_fn`
-
-    use std::mem::MaybeUninit;
-
-    // TODO(MSRV): use `MaybeUninit::uninit_array` when/if it's stabilized.
-    // SAFETY: We can assume "init" when moving uninit wrappers inward.
-    let mut array: [MaybeUninit<T>; N] =
-        unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
-
     debug_assert_eq!(iter.len(), N);
-    for i in 0..N {
-        let item = iter.next().expect("should have N items");
-        array[i] = MaybeUninit::new(item);
-    }
+    let array = std::array::from_fn(|_| iter.next().expect("should have N items"));
     debug_assert!(iter.next().is_none());
-
-    // TODO(MSRV): use `MaybeUninit::array_assume_init` when/if it's stabilized.
-    // SAFETY: We've initialized all N items in the array, so we can cast and "move" it.
-    unsafe { (&array as *const [MaybeUninit<T>; N] as *const [T; N]).read() }
+    array
 }
