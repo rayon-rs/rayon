@@ -97,7 +97,7 @@ impl ThreadPool {
     ///         print!("one ");
     ///         pool.install(||{});
     ///         print!("two ");
-    ///     }
+    ///     };
     ///     rayon::join(|| do_it(), || do_it());
     /// }
     /// ```
