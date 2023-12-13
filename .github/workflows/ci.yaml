@@ -1,9 +1,5 @@
 name: CI
-on:
-  push:
-    branches:
-      - staging
-      - trying
+on: merge_group
 
 jobs:
 
@@ -93,3 +89,10 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all --check
+
+  done:
+    name: Complete
+    runs-on: ubuntu-latest
+    needs: [check, test, demo, i686, wasm, fmt]
+    steps:
+      - run: exit 0
