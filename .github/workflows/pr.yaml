@@ -36,3 +36,10 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all --check
+
+  done:
+    name: Complete
+    runs-on: ubuntu-latest
+    needs: [check, test, fmt]
+    steps:
+      - run: exit 0
