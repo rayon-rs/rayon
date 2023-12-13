@@ -80,6 +80,43 @@ impl ThreadPool {
     /// thread-local data from the current thread will not be
     /// accessible.
     ///
+    /// # Warning: execution order
+    ///
+    /// If the current thread is part of a different thread pool, it will try to
+    /// keep busy while the `op` completes in its target pool, similar to
+    /// calling [`ThreadPool::yield_now()`] in a loop. Therefore, it may
+    /// potentially schedule other tasks to run on the current thread in the
+    /// meantime. For example
+    ///
+    /// ```rust
+    /// # use rayon_core as rayon;
+    /// fn main() {
+    ///     rayon::ThreadPoolBuilder::new().num_threads(1).build_global().unwrap();
+    ///     let pool = rayon_core::ThreadPoolBuilder::default().build().unwrap();
+    ///     let do_it = || {
+    ///         print!("one ");
+    ///         pool.install(||{});
+    ///         print!("two ");
+    ///     };
+    ///     rayon::join(|| do_it(), || do_it());
+    /// }
+    /// ```
+    ///
+    /// Since we configured just one thread in the global pool, one might
+    /// expect `do_it()` to run sequentially, producing:
+    ///
+    /// ```ascii
+    /// one two one two
+    /// ```
+    ///
+    /// However each call to `install()` yields implicitly, allowing rayon to
+    /// run multiple instances of `do_it()` concurrently on the single, global
+    /// thread. The following output would be equally valid:
+    ///
+    /// ```ascii
+    /// one one two two
+    /// ```
+    ///
     /// # Panics
     ///
     /// If `op` should panic, that panic will be propagated.
