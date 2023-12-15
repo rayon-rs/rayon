@@ -7,7 +7,7 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use std::sync::Mutex;
+use rayon_core::sync::Mutex;
 
 use crate::option;
 

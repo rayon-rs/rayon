@@ -2,9 +2,9 @@
 //! for an overview.
 
 use crate::latch::CoreLatch;
+use crate::sync::{Condvar, Mutex};
 use crossbeam_utils::CachePadded;
 use std::sync::atomic::Ordering;
-use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
 
