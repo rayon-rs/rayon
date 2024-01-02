@@ -984,6 +984,25 @@ fn check_slice_split() {
 }
 
 #[test]
+fn check_slice_split_inclusive() {
+    let v: Vec<_> = (0..1000).collect();
+    for m in 1..100 {
+        let a: Vec<_> = v.split_inclusive(|x| x % m == 0).collect();
+        let b: Vec<_> = v.par_split_inclusive(|x| x % m == 0).collect();
+        assert_eq!(a, b);
+    }
+
+    // same as std::slice::split_inclusive() examples
+    let slice = [10, 40, 33, 20];
+    let v: Vec<_> = slice.par_split_inclusive(|num| num % 3 == 0).collect();
+    assert_eq!(v, &[&slice[..3], &slice[3..]]);
+
+    let slice = [3, 10, 40, 33];
+    let v: Vec<_> = slice.par_split_inclusive(|num| num % 3 == 0).collect();
+    assert_eq!(v, &[&slice[..1], &slice[1..]]);
+}
+
+#[test]
 fn check_slice_split_mut() {
     let mut v1: Vec<_> = (0..1000).collect();
     let mut v2 = v1.clone();
