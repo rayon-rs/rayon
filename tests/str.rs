@@ -56,6 +56,8 @@ pub fn execute_strings_split() {
         ("foo\nbar\n\r\nbaz", '\n'),
         ("A few words", ' '),
         (" Mary   had\ta\u{2009}little  \n\t lamb", ' '),
+        ("Mary had a little lamb\nlittle lamb\nlittle lamb.", '\n'),
+        ("Mary had a little lamb\nlittle lamb\nlittle lamb.\n", '\n'),
         (include_str!("str.rs"), ' '),
     ];
 
@@ -90,6 +92,7 @@ pub fn execute_strings_split() {
     }
 
     check_separators!(split, par_split);
+    check_separators!(split_inclusive, par_split_inclusive);
     check_separators!(split_terminator, par_split_terminator);
 
     for &(string, _) in &tests {

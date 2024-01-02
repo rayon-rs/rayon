@@ -99,6 +99,7 @@ fn clone_str() {
     check(s.par_chars());
     check(s.par_lines());
     check(s.par_split('\n'));
+    check(s.par_split_inclusive('\n'));
     check(s.par_split_terminator('\n'));
     check(s.par_split_whitespace());
     check(s.par_split_ascii_whitespace());

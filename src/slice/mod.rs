@@ -953,21 +953,31 @@ where
         self[..end].iter().rposition(separator)
     }
 
-    fn split_once(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.split_at(index);
-        (left, &right[1..]) // skip the separator
+    fn split_once<const INCL: bool>(self, index: usize) -> (Self, Self) {
+        if INCL {
+            // include the separator in the left side
+            self.split_at(index + 1)
+        } else {
+            let (left, right) = self.split_at(index);
+            (left, &right[1..]) // skip the separator
+        }
     }
 
-    fn fold_splits<F>(self, separator: &P, folder: F, skip_last: bool) -> F
+    fn fold_splits<F, const INCL: bool>(self, separator: &P, folder: F, skip_last: bool) -> F
     where
         F: Folder<Self>,
         Self: Send,
     {
-        let mut split = self.split(separator);
-        if skip_last {
-            split.next_back();
+        if INCL {
+            debug_assert!(!skip_last);
+            folder.consume_iter(self.split_inclusive(separator))
+        } else {
+            let mut split = self.split(separator);
+            if skip_last {
+                split.next_back();
+            }
+            folder.consume_iter(split)
         }
-        folder.consume_iter(split)
     }
 }
 
@@ -1022,20 +1032,30 @@ where
         self[..end].iter().rposition(separator)
     }
 
-    fn split_once(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.split_at_mut(index);
-        (left, &mut right[1..]) // skip the separator
+    fn split_once<const INCL: bool>(self, index: usize) -> (Self, Self) {
+        if INCL {
+            // include the separator in the left side
+            self.split_at_mut(index + 1)
+        } else {
+            let (left, right) = self.split_at_mut(index);
+            (left, &mut right[1..]) // skip the separator
+        }
     }
 
-    fn fold_splits<F>(self, separator: &P, folder: F, skip_last: bool) -> F
+    fn fold_splits<F, const INCL: bool>(self, separator: &P, folder: F, skip_last: bool) -> F
     where
         F: Folder<Self>,
         Self: Send,
     {
-        let mut split = self.split_mut(separator);
-        if skip_last {
-            split.next_back();
+        if INCL {
+            debug_assert!(!skip_last);
+            folder.consume_iter(self.split_inclusive_mut(separator))
+        } else {
+            let mut split = self.split_mut(separator);
+            if skip_last {
+                split.next_back();
+            }
+            folder.consume_iter(split)
         }
-        folder.consume_iter(split)
     }
 }

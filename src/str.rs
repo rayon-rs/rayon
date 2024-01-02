@@ -157,6 +157,27 @@ pub trait ParallelString {
         Split::new(self.as_parallel_string(), separator)
     }
 
+    /// Returns a parallel iterator over substrings separated by a
+    /// given character or predicate, keeping the matched part as a terminator
+    /// of the substring similar to `str::split_inclusive`.
+    ///
+    /// Note: the `Pattern` trait is private, for use only by Rayon itself.
+    /// It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
+    /// and any function or closure `F: Fn(char) -> bool + Sync + Send`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let lines: Vec<_> = "Mary had a little lamb\nlittle lamb\nlittle lamb."
+    ///    .par_split_inclusive('\n')
+    ///    .collect();
+    /// assert_eq!(lines, ["Mary had a little lamb\n", "little lamb\n", "little lamb."]);
+    /// ```
+    fn par_split_inclusive<P: Pattern>(&self, separator: P) -> SplitInclusive<'_, P> {
+        SplitInclusive::new(self.as_parallel_string(), separator)
+    }
+
     /// Returns a parallel iterator over substrings terminated by a
     /// given character or predicate, similar to `str::split_terminator`.
     /// It's equivalent to `par_split`, except it doesn't produce an empty
@@ -350,6 +371,9 @@ mod private {
         fn fold_splits<'ch, F>(&self, haystack: &'ch str, folder: F, skip_last: bool) -> F
         where
             F: Folder<&'ch str>;
+        fn fold_inclusive_splits<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
+        where
+            F: Folder<&'ch str>;
         fn fold_matches<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
         where
             F: Folder<&'ch str>;
@@ -393,6 +417,13 @@ macro_rules! impl_pattern {
                 split.next_back();
             }
             folder.consume_iter(split)
+        }
+
+        fn fold_inclusive_splits<'ch, F>(&$self, chars: &'ch str, folder: F) -> F
+        where
+            F: Folder<&'ch str>,
+        {
+            folder.consume_iter(chars.split_inclusive($pattern))
         }
 
         fn fold_matches<'ch, F>(&$self, chars: &'ch str, folder: F) -> F
@@ -668,18 +699,56 @@ impl<'ch, P: Pattern> Fissile<P> for &'ch str {
         separator.rfind_in(&self[..end])
     }
 
-    fn split_once(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.split_at(index);
-        let mut right_iter = right.chars();
-        right_iter.next(); // skip the separator
-        (left, right_iter.as_str())
+    fn split_once<const INCL: bool>(self, index: usize) -> (Self, Self) {
+        if INCL {
+            // include the separator in the left side
+            let separator = self[index..].chars().next().unwrap();
+            self.split_at(index + separator.len_utf8())
+        } else {
+            let (left, right) = self.split_at(index);
+            let mut right_iter = right.chars();
+            right_iter.next(); // skip the separator
+            (left, right_iter.as_str())
+        }
     }
 
-    fn fold_splits<F>(self, separator: &P, folder: F, skip_last: bool) -> F
+    fn fold_splits<F, const INCL: bool>(self, separator: &P, folder: F, skip_last: bool) -> F
     where
         F: Folder<Self>,
     {
-        separator.fold_splits(self, folder, skip_last)
+        if INCL {
+            debug_assert!(!skip_last);
+            separator.fold_inclusive_splits(self, folder)
+        } else {
+            separator.fold_splits(self, folder, skip_last)
+        }
+    }
+}
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over substrings separated by a pattern
+#[derive(Debug, Clone)]
+pub struct SplitInclusive<'ch, P: Pattern> {
+    chars: &'ch str,
+    separator: P,
+}
+
+impl<'ch, P: Pattern> SplitInclusive<'ch, P> {
+    fn new(chars: &'ch str, separator: P) -> Self {
+        SplitInclusive { chars, separator }
+    }
+}
+
+impl<'ch, P: Pattern> ParallelIterator for SplitInclusive<'ch, P> {
+    type Item = &'ch str;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        let producer = SplitInclusiveProducer::new_incl(self.chars, &self.separator);
+        bridge_unindexed(producer, consumer)
     }
 }
 
