@@ -101,6 +101,12 @@ pub fn execute_strings_split() {
         assert_eq!(serial, parallel);
     }
 
+    for &(string, _) in &tests {
+        let serial: Vec<_> = string.split_ascii_whitespace().collect();
+        let parallel: Vec<_> = string.par_split_ascii_whitespace().collect();
+        assert_eq!(serial, parallel);
+    }
+
     // try matching separators too!
     for &(string, separator) in &tests {
         let serial: Vec<_> = string.matches(separator).collect();

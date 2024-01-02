@@ -101,6 +101,7 @@ fn clone_str() {
     check(s.par_split('\n'));
     check(s.par_split_terminator('\n'));
     check(s.par_split_whitespace());
+    check(s.par_split_ascii_whitespace());
 }
 
 #[test]
