@@ -210,6 +210,28 @@ pub trait ParallelSliceMut<T: Send> {
         }
     }
 
+    /// Returns a parallel iterator over mutable subslices separated by elements
+    /// that match the separator, including the matched part as a terminator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 0, 2, 4, 8, 0, 3, 6, 9];
+    /// array.par_split_inclusive_mut(|i| *i == 0)
+    ///      .for_each(|slice| slice.reverse());
+    /// assert_eq!(array, [0, 3, 2, 1, 0, 8, 4, 2, 9, 6, 3]);
+    /// ```
+    fn par_split_inclusive_mut<P>(&mut self, separator: P) -> SplitInclusiveMut<'_, T, P>
+    where
+        P: Fn(&T) -> bool + Sync + Send,
+    {
+        SplitInclusiveMut {
+            slice: self.as_parallel_slice_mut(),
+            separator,
+        }
+    }
+
     /// Returns a parallel iterator over at most `chunk_size` elements of
     /// `self` at a time. The chunks are mutable and do not overlap.
     ///
@@ -1070,6 +1092,37 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let producer = SplitProducer::new(self.slice, &self.separator);
+        bridge_unindexed(producer, consumer)
+    }
+}
+
+/// Parallel iterator over mutable slices separated by a predicate,
+/// including the matched part as a terminator.
+pub struct SplitInclusiveMut<'data, T, P> {
+    slice: &'data mut [T],
+    separator: P,
+}
+
+impl<'data, T: Debug, P> Debug for SplitInclusiveMut<'data, T, P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SplitInclusiveMut")
+            .field("slice", &self.slice)
+            .finish()
+    }
+}
+
+impl<'data, T, P> ParallelIterator for SplitInclusiveMut<'data, T, P>
+where
+    P: Fn(&T) -> bool + Sync + Send,
+    T: Send,
+{
+    type Item = &'data mut [T];
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        let producer = SplitInclusiveProducer::new_incl(self.slice, &self.separator);
         bridge_unindexed(producer, consumer)
     }
 }

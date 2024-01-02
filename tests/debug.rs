@@ -133,6 +133,7 @@ fn debug_vec() {
     check(v.par_split(|x| x % 3 == 0));
     check(v.par_split_inclusive(|x| x % 3 == 0));
     check(v.par_split_mut(|x| x % 3 == 0));
+    check(v.par_split_inclusive_mut(|x| x % 3 == 0));
     check(v.par_drain(..));
     check(v.into_par_iter());
 }
