@@ -1,14 +1,11 @@
-use cgmath::{self, Angle, EuclideanSpace, Matrix4, Point3, Rad, Vector3};
-use glium::glutin::dpi::LogicalSize;
-use glium::glutin::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
-use glium::glutin::event_loop::{ControlFlow, EventLoop};
-use glium::glutin::window::WindowBuilder;
-use glium::glutin::ContextBuilder;
-use glium::index::PrimitiveType;
-use glium::{Depth, DepthTest, DrawParameters};
-use glium::{Display, Program, Surface};
-use glium::{IndexBuffer, VertexBuffer};
-use rand::{self, Rng};
+use cgmath::{Angle, EuclideanSpace, Matrix4, Point3, Rad, Vector3};
+use glium::backend::glutin::SimpleWindowBuilder;
+use glium::index::{IndexBuffer, PrimitiveType};
+use glium::{Depth, DepthTest, DrawParameters, Program, Surface, VertexBuffer};
+use rand::Rng;
+use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
+use winit::event_loop::EventLoop;
+use winit::keyboard::{Key, NamedKey};
 
 use crate::nbody::nbody::NBodyBenchmark;
 use crate::nbody::ExecutionMode;
@@ -80,12 +77,11 @@ struct Instance {
 glium::implement_vertex!(Instance, color, world_position);
 
 pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_inner_size(LogicalSize::new(800, 600))
-        .with_title("nbody demo".to_string());
-    let context = ContextBuilder::new().with_depth_buffer(24);
-    let display = Display::new(window, context, &event_loop).unwrap();
+    let event_loop = EventLoop::new().unwrap();
+    let (window, display) = SimpleWindowBuilder::new()
+        .with_inner_size(800, 600)
+        .with_title("nbody demo")
+        .build(&event_loop);
 
     let mut benchmark = NBodyBenchmark::new(num_bodies, &mut rand::thread_rng());
 
@@ -137,74 +133,83 @@ pub fn visualize_benchmarks(num_bodies: usize, mut mode: ExecutionMode) {
 
     let mut instance_buffer = VertexBuffer::dynamic(&display, &instances).unwrap();
 
-    event_loop.run(move |event, _target, control| match event {
-        Event::MainEventsCleared => {
-            let bodies = match mode {
-                ExecutionMode::Par => benchmark.tick_par(),
-                ExecutionMode::ParReduce => benchmark.tick_par_reduce(),
-                ExecutionMode::Seq => benchmark.tick_seq(),
-            };
+    event_loop
+        .run(move |event, target| match event {
+            Event::AboutToWait => {
+                let bodies = match mode {
+                    ExecutionMode::Par => benchmark.tick_par(),
+                    ExecutionMode::ParReduce => benchmark.tick_par_reduce(),
+                    ExecutionMode::Seq => benchmark.tick_seq(),
+                };
 
-            let mut mapping = instance_buffer.map();
-            for (body, instance) in bodies.iter().zip(mapping.iter_mut()) {
-                instance.world_position = [
-                    body.position.x as f32,
-                    body.position.y as f32,
-                    body.position.z as f32,
-                ];
-            }
-            display.gl_window().window().request_redraw();
-        }
-        Event::RedrawRequested(_) => {
-            let params = DrawParameters {
-                depth: Depth {
-                    test: DepthTest::IfLess,
-                    write: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-
-            let mut target = display.draw();
-
-            let (width, height) = target.get_dimensions();
-            let aspect = width as f32 / height as f32;
-
-            let proj = cgmath::perspective(Rad::full_turn() / 6.0, aspect, 0.1, 3000.0);
-            let view = Matrix4::look_at_rh(
-                Point3::new(10.0, 10.0, 10.0),
-                Point3::origin(),
-                Vector3::unit_z(),
-            );
-            let view_proj: [[f32; 4]; 4] = (proj * view).into();
-
-            target.clear_color_and_depth((0.1, 0.1, 0.1, 1.0), 1.0);
-            target
-                .draw(
-                    (&vertex_buffer, instance_buffer.per_instance().unwrap()),
-                    &index_buffer,
-                    &program,
-                    &glium::uniform! { matrix: view_proj },
-                    &params,
-                )
-                .unwrap();
-            target.finish().unwrap();
-        }
-        Event::WindowEvent { event, .. } => match event {
-            WindowEvent::CloseRequested => *control = ControlFlow::Exit,
-            WindowEvent::KeyboardInput { input, .. } => {
-                if let ElementState::Pressed = input.state {
-                    match input.virtual_keycode {
-                        Some(VirtualKeyCode::Escape) => *control = ControlFlow::Exit,
-                        Some(VirtualKeyCode::P) => mode = ExecutionMode::Par,
-                        Some(VirtualKeyCode::R) => mode = ExecutionMode::ParReduce,
-                        Some(VirtualKeyCode::S) => mode = ExecutionMode::Seq,
-                        _ => (),
-                    }
+                let mut mapping = instance_buffer.map();
+                for (body, instance) in bodies.iter().zip(mapping.iter_mut()) {
+                    instance.world_position = [
+                        body.position.x as f32,
+                        body.position.y as f32,
+                        body.position.z as f32,
+                    ];
                 }
+                window.request_redraw();
             }
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CloseRequested => target.exit(),
+                WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            state: ElementState::Pressed,
+                            logical_key,
+                            ..
+                        },
+                    ..
+                } => match logical_key {
+                    Key::Named(NamedKey::Escape) => target.exit(),
+                    Key::Character(s) => match s.as_str() {
+                        "p" => mode = ExecutionMode::Par,
+                        "r" => mode = ExecutionMode::ParReduce,
+                        "s" => mode = ExecutionMode::Seq,
+                        _ => (),
+                    },
+                    _ => (),
+                },
+                WindowEvent::RedrawRequested => {
+                    let params = DrawParameters {
+                        depth: Depth {
+                            test: DepthTest::IfLess,
+                            write: true,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    };
+
+                    let mut target = display.draw();
+
+                    let (width, height) = target.get_dimensions();
+                    let aspect = width as f32 / height as f32;
+
+                    let proj = cgmath::perspective(Rad::full_turn() / 6.0, aspect, 0.1, 3000.0);
+                    let view = Matrix4::look_at_rh(
+                        Point3::new(10.0, 10.0, 10.0),
+                        Point3::origin(),
+                        Vector3::unit_z(),
+                    );
+                    let view_proj: [[f32; 4]; 4] = (proj * view).into();
+
+                    target.clear_color_and_depth((0.1, 0.1, 0.1, 1.0), 1.0);
+                    target
+                        .draw(
+                            (&vertex_buffer, instance_buffer.per_instance().unwrap()),
+                            &index_buffer,
+                            &program,
+                            &glium::uniform! { matrix: view_proj },
+                            &params,
+                        )
+                        .unwrap();
+                    target.finish().unwrap();
+                }
+                _ => (),
+            },
             _ => (),
-        },
-        _ => (),
-    });
+        })
+        .unwrap();
 }
