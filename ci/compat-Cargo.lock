@@ -1065,6 +1065,7 @@ dependencies = [
  "rand",
  "rand_xorshift",
  "rayon-core",
+ "wasm_sync",
 ]
 
 [[package]]
