@@ -108,14 +108,14 @@ pub use self::thread_pool::{yield_local, yield_now, Yield};
     target_os = "unknown",
     target_feature = "atomics"
 )))]
-pub use std::sync;
+use std::sync;
 
 #[cfg(all(
     target_arch = "wasm32",
     target_os = "unknown",
     target_feature = "atomics"
 ))]
-pub use wasm_sync as sync;
+use wasm_sync as sync;
 
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 

@@ -21,6 +21,9 @@ exclude = ["ci"]
 [dependencies]
 rayon-core = { version = "1.12.0", path = "rayon-core" }
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown", target_feature = "atomics"))'.dependencies]
+wasm_sync = "0.1.0"
+
 # This is a public dependency!
 [dependencies.either]
 version = "1.0"

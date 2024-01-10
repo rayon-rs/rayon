@@ -1,4 +1,17 @@
-use rayon_core::sync::Mutex;
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "unknown",
+    target_feature = "atomics"
+)))]
+use std::sync::Mutex;
+
+#[cfg(all(
+    target_arch = "wasm32",
+    target_os = "unknown",
+    target_feature = "atomics"
+))]
+use wasm_sync::Mutex;
+
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
