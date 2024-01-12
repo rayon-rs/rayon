@@ -111,6 +111,6 @@ jobs:
   done:
     name: Complete
     runs-on: ubuntu-latest
-    needs: [check, test, demo, i686, wasm, fmt]
+    needs: [check, test, demo, i686, wasm, wasi, fmt]
     steps:
       - run: exit 0
