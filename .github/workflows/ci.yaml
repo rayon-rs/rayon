@@ -65,7 +65,29 @@ jobs:
   # unsupported threading, but we don't have an environment to execute in.
   # wasm32-wasi can test the fallback by running in wasmtime.
   wasm:
-    name: WebAssembly
+    name: WebAssembly (standalone)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - toolchain: stable
+            targets: wasm32-unknown-unknown
+          - toolchain: nightly
+            targets: wasm32-unknown-unknown
+            rustflags: -C target-feature=+atomics,+bulk-memory,+mutable-globals
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          targets: wasm32-unknown-unknown
+      - run: cargo build --verbose --target wasm32-unknown-unknown
+
+  # wasm32-wasi can test the fallback by running in wasmtime.
+  wasi:
+    name: WebAssembly (WASI)
     runs-on: ubuntu-latest
     env:
       CARGO_TARGET_WASM32_WASI_RUNNER: /home/runner/.wasmtime/bin/wasmtime
@@ -73,10 +95,9 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown,wasm32-wasi
-      - run: cargo check --verbose --target wasm32-unknown-unknown
-      - run: cargo check --verbose --target wasm32-wasi
+          targets: wasm32-wasi
       - run: curl https://wasmtime.dev/install.sh -sSf | bash
+      - run: cargo build --verbose --target wasm32-wasi
       - run: cargo test --verbose --target wasm32-wasi --package rayon
       - run: cargo test --verbose --target wasm32-wasi --package rayon-core
 
