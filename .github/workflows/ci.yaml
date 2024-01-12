@@ -71,9 +71,7 @@ jobs:
       matrix:
         include:
           - toolchain: stable
-            targets: wasm32-unknown-unknown
           - toolchain: nightly
-            targets: wasm32-unknown-unknown
             rustflags: -C target-feature=+atomics,+bulk-memory,+mutable-globals
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
