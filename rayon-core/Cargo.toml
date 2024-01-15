@@ -27,7 +27,7 @@ wasm_sync = { version = "0.1.0", optional = true }
 # main thread to avoid the forbidden `atomics.wait`.
 #
 # Only useful on the `wasm32-unknown-unknown` target.
-web_spin_lock = ["wasm_sync"]
+web_spin_lock = ["dep:wasm_sync"]
 
 [dev-dependencies]
 rand = "0.8"

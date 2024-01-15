@@ -32,7 +32,7 @@ default-features = false
 # main thread to avoid the forbidden `atomics.wait`.
 #
 # Only useful on the `wasm32-unknown-unknown` target.
-web_spin_lock = ["wasm_sync", "rayon-core/web_spin_lock"]
+web_spin_lock = ["dep:wasm_sync", "rayon-core/web_spin_lock"]
 
 [dev-dependencies]
 rand = "0.8"
