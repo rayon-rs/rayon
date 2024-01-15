@@ -1,15 +1,7 @@
-#[cfg(not(all(
-    target_arch = "wasm32",
-    target_os = "unknown",
-    target_feature = "atomics"
-)))]
+#[cfg(not(feature = "web_spin_lock"))]
 use std::sync::Mutex;
 
-#[cfg(all(
-    target_arch = "wasm32",
-    target_os = "unknown",
-    target_feature = "atomics"
-))]
+#[cfg(feature = "web_spin_lock")]
 use wasm_sync::Mutex;
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

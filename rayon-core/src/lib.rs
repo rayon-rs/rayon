@@ -103,18 +103,10 @@ pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
 pub use self::thread_pool::{yield_local, yield_now, Yield};
 
-#[cfg(not(all(
-    target_arch = "wasm32",
-    target_os = "unknown",
-    target_feature = "atomics"
-)))]
+#[cfg(not(feature = "web_spin_lock"))]
 use std::sync;
 
-#[cfg(all(
-    target_arch = "wasm32",
-    target_os = "unknown",
-    target_feature = "atomics"
-))]
+#[cfg(feature = "web_spin_lock")]
 use wasm_sync as sync;
 
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
