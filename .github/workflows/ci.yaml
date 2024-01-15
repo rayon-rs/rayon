@@ -71,6 +71,7 @@ jobs:
         include:
           - toolchain: stable
           - toolchain: nightly
+            cargoflags: --features web_spin_lock
             rustflags: -C target-feature=+atomics,+bulk-memory,+mutable-globals
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
@@ -80,7 +81,7 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           targets: wasm32-unknown-unknown
-      - run: cargo build --verbose --target wasm32-unknown-unknown
+      - run: cargo build --verbose --target wasm32-unknown-unknown ${{ matrix.cargoflags }}
 
   # wasm32-wasi can test the fallback by running in wasmtime.
   wasi:
