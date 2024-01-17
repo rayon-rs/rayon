@@ -1,3 +1,9 @@
+# Release rayon 1.8.1 / rayon-core 1.12.1 (2024-01-17)
+
+- The new `"web_spin_lock"` crate feature makes mutexes spin on the main
+  browser thread in WebAssembly, rather than suffer an error about forbidden
+  `atomics.wait` if they were to block in that context. Thanks @RReverser!
+
 # Release rayon 1.8.0 / rayon-core 1.12.0 (2023-09-20)
 
 - The minimum supported `rustc` is now 1.63.
