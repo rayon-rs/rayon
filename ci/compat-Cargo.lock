@@ -1059,7 +1059,7 @@ checksum = "42a9830a0e1b9fb145ebb365b8bc4ccd75f290f98c0247deafbbe2c75cefb544"
 
 [[package]]
 name = "rayon"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "either",
  "rand",
@@ -1070,7 +1070,7 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.12.0"
+version = "1.12.1"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
