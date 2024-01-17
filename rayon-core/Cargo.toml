@@ -19,6 +19,15 @@ categories = ["concurrency"]
 [dependencies]
 crossbeam-deque = "0.8.1"
 crossbeam-utils = "0.8.0"
+wasm_sync = { version = "0.1.0", optional = true }
+
+[features]
+
+# This feature switches to a spin-lock implementation on the browser's
+# main thread to avoid the forbidden `atomics.wait`.
+#
+# Only useful on the `wasm32-unknown-unknown` target.
+web_spin_lock = ["dep:wasm_sync"]
 
 [dev-dependencies]
 rand = "0.8"

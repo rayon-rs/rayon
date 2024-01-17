@@ -103,6 +103,12 @@ pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
 pub use self::thread_pool::{yield_local, yield_now, Yield};
 
+#[cfg(not(feature = "web_spin_lock"))]
+use std::sync;
+
+#[cfg(feature = "web_spin_lock")]
+use wasm_sync as sync;
+
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
 /// Returns the maximum number of threads that Rayon supports in a single thread-pool.

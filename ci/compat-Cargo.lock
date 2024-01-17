@@ -1065,6 +1065,7 @@ dependencies = [
  "rand",
  "rand_xorshift",
  "rayon-core",
+ "wasm_sync",
 ]
 
 [[package]]
@@ -1077,6 +1078,7 @@ dependencies = [
  "rand",
  "rand_xorshift",
  "scoped-tls",
+ "wasm_sync",
 ]
 
 [[package]]
@@ -1475,6 +1477,15 @@ name = "wasm-bindgen-shared"
 version = "0.2.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ab9b36309365056cd639da3134bf87fa8f3d86008abf99e612384a6eecd459f"
+
+[[package]]
+name = "wasm_sync"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f22b3c2526c5834350ca8de37292cbd2cb7724e6c812930cfb8c558340cf76f"
+dependencies = [
+ "web-sys",
+]
 
 [[package]]
 name = "wayland-backend"
