@@ -61,8 +61,9 @@ jobs:
       - run: cargo test --verbose --package rayon
       - run: cargo test --verbose --package rayon-core
 
-  # wasm32-unknown-unknown builds, and even has the runtime fallback for
-  # unsupported threading, but we don't have an environment to execute in.
+  # wasm32-unknown-unknown has a runtime fallback for unsupported threading.
+  # Proper threading needs more glue and is tested in wasm-bindgen-rayon,
+  # but we can at least verify that all tests can run on Wasm with the fallback.
   wasm:
     name: WebAssembly (standalone)
     runs-on: ubuntu-latest
@@ -71,7 +72,8 @@ jobs:
         include:
           - toolchain: stable
           - toolchain: nightly
-            cargoflags: --features web_spin_lock
+            components: rust-src
+            cargoflags: -Z build-std=panic_abort,std --features web_spin_lock
             rustflags: -C target-feature=+atomics,+bulk-memory,+mutable-globals
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
@@ -80,8 +82,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
+          components: ${{ matrix.components }}
           targets: wasm32-unknown-unknown
-      - run: cargo build --verbose --target wasm32-unknown-unknown ${{ matrix.cargoflags }}
+      - uses: jetli/wasm-pack-action@v0.4.0
+      - run: wasm-pack test --chrome --headless -- --verbose ${{ matrix.cargoflags }}
 
   # wasm32-wasi can test the fallback by running in wasmtime.
   wasi:

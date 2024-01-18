@@ -37,3 +37,8 @@ web_spin_lock = ["dep:wasm_sync", "rayon-core/web_spin_lock"]
 [dev-dependencies]
 rand = "0.8"
 rand_xorshift = "0.3"
+
+# Test dependencies for wasm32-unknown-unknown with wasm-bindgen.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen-test = "0.3"

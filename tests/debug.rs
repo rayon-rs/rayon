@@ -1,6 +1,12 @@
 use rayon::prelude::*;
 use std::fmt::Debug;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 fn check<I>(iter: I)
 where
     I: ParallelIterator + Debug,

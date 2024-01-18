@@ -1,5 +1,11 @@
 use rayon::prelude::*;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
 fn drain_vec_yielded() {
     let mut vec_org = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];

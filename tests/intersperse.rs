@@ -1,5 +1,11 @@
 use rayon::prelude::*;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
 fn check_intersperse() {
     let v: Vec<_> = (0..1000).into_par_iter().intersperse(-1).collect();

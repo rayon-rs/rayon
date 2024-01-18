@@ -4,6 +4,12 @@ use std::ops::Range;
 use std::panic::{self, UnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 const ITER: Range<i32> = 0..0x1_0000;
 const PANIC: i32 = 0xC000;
 

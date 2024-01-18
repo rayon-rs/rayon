@@ -1,5 +1,11 @@
 use rayon::prelude::*;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 const OCTILLION: u128 = 1_000_000_000_000_000_000_000_000_000;
 
 /// Produce a parallel iterator for 0u128..10²⁷

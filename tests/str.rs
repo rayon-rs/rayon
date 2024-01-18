@@ -3,6 +3,12 @@ use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use rayon::prelude::*;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 fn seeded_rng() -> XorShiftRng {
     let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
     (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);

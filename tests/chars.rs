@@ -1,6 +1,12 @@
 use rayon::prelude::*;
 use std::char;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
 fn half_open_correctness() {
     let low = char::from_u32(0xD800 - 0x7).unwrap();
