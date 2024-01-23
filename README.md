@@ -88,12 +88,19 @@ Rayon currently requires `rustc 1.63.0` or greater.
 
 ### Usage with WebAssembly
 
-Rayon can work on the Web via WebAssembly, but requires an adapter and
-some project configuration to account for differences between
-WebAssembly threads and threads on the other platforms.
+By default, when building to WebAssembly, Rayon will treat it as any
+other platform without multithreading support and will fall back to
+sequential iteration. This allows existing code to compile and run
+successfully with no changes necessary, but it will run slower as it
+will only use a single CPU core.
+
+You can build Rayon-based projects with proper multithreading support
+for the Web, but you'll need an adapter and some project configuration
+to account for differences between WebAssembly threads and threads
+on the other platforms.
 
 Check out the
-[wasm-bindgen-rayon](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon)
+[wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon)
 docs for more details.
 
 ## Contribution
