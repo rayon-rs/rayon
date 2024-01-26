@@ -6,8 +6,8 @@
 //! Note: [`ParallelString::par_split()`] and [`par_split_terminator()`]
 //! reference a `Pattern` trait which is not visible outside this crate.
 //! This trait is intentionally kept private, for use only by Rayon itself.
-//! It is implemented for `char`, `&[char]`, and any function or closure
-//! `F: Fn(char) -> bool + Sync + Send`.
+//! It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
+//! and any function or closure `F: Fn(char) -> bool + Sync + Send`.
 //!
 //! [`ParallelString::par_split()`]: trait.ParallelString.html#method.par_split
 //! [`par_split_terminator()`]: trait.ParallelString.html#method.par_split_terminator
@@ -140,8 +140,8 @@ pub trait ParallelString {
     /// given character or predicate, similar to `str::split`.
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
-    /// It is implemented for `char`, `&[char]`, and any function or closure
-    /// `F: Fn(char) -> bool + Sync + Send`.
+    /// It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
+    /// and any function or closure `F: Fn(char) -> bool + Sync + Send`.
     ///
     /// # Examples
     ///
@@ -163,8 +163,8 @@ pub trait ParallelString {
     /// substring after a trailing terminator.
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
-    /// It is implemented for `char`, `&[char]`, and any function or closure
-    /// `F: Fn(char) -> bool + Sync + Send`.
+    /// It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
+    /// and any function or closure `F: Fn(char) -> bool + Sync + Send`.
     ///
     /// # Examples
     ///
@@ -278,8 +278,8 @@ pub trait ParallelString {
     /// given character or predicate, similar to `str::matches`.
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
-    /// It is implemented for `char`, `&[char]`, and any function or closure
-    /// `F: Fn(char) -> bool + Sync + Send`.
+    /// It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
+    /// and any function or closure `F: Fn(char) -> bool + Sync + Send`.
     ///
     /// # Examples
     ///
@@ -302,8 +302,8 @@ pub trait ParallelString {
     /// or predicate, with their positions, similar to `str::match_indices`.
     ///
     /// Note: the `Pattern` trait is private, for use only by Rayon itself.
-    /// It is implemented for `char`, `&[char]`, and any function or closure
-    /// `F: Fn(char) -> bool + Sync + Send`.
+    /// It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
+    /// and any function or closure `F: Fn(char) -> bool + Sync + Send`.
     ///
     /// # Examples
     ///
@@ -417,6 +417,17 @@ impl Pattern for char {
 
 impl Pattern for &[char] {
     impl_pattern!(&self => *self);
+}
+
+// TODO (MSRV 1.75): use `*self` for array patterns too.
+// - Needs `DoubleEndedSearcher` so `split.next_back()` works.
+
+impl<const N: usize> Pattern for [char; N] {
+    impl_pattern!(&self => self.as_slice());
+}
+
+impl<const N: usize> Pattern for &[char; N] {
+    impl_pattern!(&self => self.as_slice());
 }
 
 impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {

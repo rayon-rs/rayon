@@ -59,35 +59,38 @@ pub fn execute_strings_split() {
         (include_str!("str.rs"), ' '),
     ];
 
-    for &(string, separator) in &tests {
-        let serial: Vec<_> = string.split(separator).collect();
-        let parallel: Vec<_> = string.par_split(separator).collect();
-        assert_eq!(serial, parallel);
+    macro_rules! check_separators {
+        ($split:ident, $par_split:ident) => {
+            for &(string, separator) in &tests {
+                let serial: Vec<_> = string.$split(separator).collect();
+                let parallel: Vec<_> = string.$par_split(separator).collect();
+                assert_eq!(serial, parallel);
 
-        let pattern: &[char] = &['\u{0}', separator, '\u{1F980}'];
-        let serial: Vec<_> = string.split(pattern).collect();
-        let parallel: Vec<_> = string.par_split(pattern).collect();
-        assert_eq!(serial, parallel);
+                let array = ['\u{0}', separator, '\u{1F980}'];
+                let array_ref = &array;
+                let slice: &[char] = array_ref;
 
-        let serial_fn: Vec<_> = string.split(|c| c == separator).collect();
-        let parallel_fn: Vec<_> = string.par_split(|c| c == separator).collect();
-        assert_eq!(serial_fn, parallel_fn);
+                let serial: Vec<_> = string.$split(slice).collect();
+                let parallel: Vec<_> = string.$par_split(slice).collect();
+                assert_eq!(serial, parallel);
+
+                let serial: Vec<_> = string.$split(array).collect();
+                let parallel: Vec<_> = string.$par_split(array).collect();
+                assert_eq!(serial, parallel);
+
+                let serial: Vec<_> = string.$split(array_ref).collect();
+                let parallel: Vec<_> = string.$par_split(array_ref).collect();
+                assert_eq!(serial, parallel);
+
+                let serial_fn: Vec<_> = string.$split(|c| c == separator).collect();
+                let parallel_fn: Vec<_> = string.$par_split(|c| c == separator).collect();
+                assert_eq!(serial_fn, parallel_fn);
+            }
+        };
     }
 
-    for &(string, separator) in &tests {
-        let serial: Vec<_> = string.split_terminator(separator).collect();
-        let parallel: Vec<_> = string.par_split_terminator(separator).collect();
-        assert_eq!(serial, parallel);
-
-        let pattern: &[char] = &['\u{0}', separator, '\u{1F980}'];
-        let serial: Vec<_> = string.split_terminator(pattern).collect();
-        let parallel: Vec<_> = string.par_split_terminator(pattern).collect();
-        assert_eq!(serial, parallel);
-
-        let serial: Vec<_> = string.split_terminator(|c| c == separator).collect();
-        let parallel: Vec<_> = string.par_split_terminator(|c| c == separator).collect();
-        assert_eq!(serial, parallel);
-    }
+    check_separators!(split, par_split);
+    check_separators!(split_terminator, par_split_terminator);
 
     for &(string, _) in &tests {
         let serial: Vec<_> = string.lines().collect();
@@ -108,33 +111,6 @@ pub fn execute_strings_split() {
     }
 
     // try matching separators too!
-    for &(string, separator) in &tests {
-        let serial: Vec<_> = string.matches(separator).collect();
-        let parallel: Vec<_> = string.par_matches(separator).collect();
-        assert_eq!(serial, parallel);
-
-        let pattern: &[char] = &['\u{0}', separator, '\u{1F980}'];
-        let serial: Vec<_> = string.matches(pattern).collect();
-        let parallel: Vec<_> = string.par_matches(pattern).collect();
-        assert_eq!(serial, parallel);
-
-        let serial_fn: Vec<_> = string.matches(|c| c == separator).collect();
-        let parallel_fn: Vec<_> = string.par_matches(|c| c == separator).collect();
-        assert_eq!(serial_fn, parallel_fn);
-    }
-
-    for &(string, separator) in &tests {
-        let serial: Vec<_> = string.match_indices(separator).collect();
-        let parallel: Vec<_> = string.par_match_indices(separator).collect();
-        assert_eq!(serial, parallel);
-
-        let pattern: &[char] = &['\u{0}', separator, '\u{1F980}'];
-        let serial: Vec<_> = string.match_indices(pattern).collect();
-        let parallel: Vec<_> = string.par_match_indices(pattern).collect();
-        assert_eq!(serial, parallel);
-
-        let serial_fn: Vec<_> = string.match_indices(|c| c == separator).collect();
-        let parallel_fn: Vec<_> = string.par_match_indices(|c| c == separator).collect();
-        assert_eq!(serial_fn, parallel_fn);
-    }
+    check_separators!(matches, par_matches);
+    check_separators!(match_indices, par_match_indices);
 }
