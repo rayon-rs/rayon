@@ -203,6 +203,8 @@ pub trait ParallelString {
     ///
     /// As with `str::split_whitespace`, 'whitespace' is defined according to
     /// the terms of the Unicode Derived Core Property `White_Space`.
+    /// If you only want to split on ASCII whitespace instead, use
+    /// [`par_split_ascii_whitespace`][`ParallelString::par_split_ascii_whitespace`].
     ///
     /// # Examples
     ///
@@ -213,8 +215,63 @@ pub trait ParallelString {
     ///     .max_by_key(|word| word.len());
     /// assert_eq!(Some("longest"), longest);
     /// ```
+    ///
+    /// All kinds of whitespace are considered:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let words: Vec<&str> = " Mary   had\ta\u{2009}little  \n\t lamb"
+    ///     .par_split_whitespace()
+    ///     .collect();
+    /// assert_eq!(words, ["Mary", "had", "a", "little", "lamb"]);
+    /// ```
+    ///
+    /// If the string is empty or all whitespace, the iterator yields no string slices:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// assert_eq!("".par_split_whitespace().count(), 0);
+    /// assert_eq!("   ".par_split_whitespace().count(), 0);
+    /// ```
     fn par_split_whitespace(&self) -> SplitWhitespace<'_> {
         SplitWhitespace(self.as_parallel_string())
+    }
+
+    /// Returns a parallel iterator over the sub-slices of a string that are
+    /// separated by any amount of ASCII whitespace.
+    ///
+    /// To split by Unicode `White_Space` instead, use
+    /// [`par_split_whitespace`][`ParallelString::par_split_whitespace`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let longest = "which is the longest word?"
+    ///     .par_split_ascii_whitespace()
+    ///     .max_by_key(|word| word.len());
+    /// assert_eq!(Some("longest"), longest);
+    /// ```
+    ///
+    /// All kinds of ASCII whitespace are considered, but not Unicode `White_Space`:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let words: Vec<&str> = " Mary   had\ta\u{2009}little  \n\t lamb"
+    ///     .par_split_ascii_whitespace()
+    ///     .collect();
+    /// assert_eq!(words, ["Mary", "had", "a\u{2009}little", "lamb"]);
+    /// ```
+    ///
+    /// If the string is empty or all ASCII whitespace, the iterator yields no string slices:
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// assert_eq!("".par_split_whitespace().count(), 0);
+    /// assert_eq!("   ".par_split_whitespace().count(), 0);
+    /// ```
+    fn par_split_ascii_whitespace(&self) -> SplitAsciiWhitespace<'_> {
+        SplitAsciiWhitespace(self.as_parallel_string())
     }
 
     /// Returns a parallel iterator over substrings that match a
@@ -726,6 +783,31 @@ impl<'ch> ParallelIterator for SplitWhitespace<'ch> {
     {
         self.0
             .par_split(char::is_whitespace)
+            .filter(not_empty)
+            .drive_unindexed(consumer)
+    }
+}
+
+// /////////////////////////////////////////////////////////////////////////
+
+/// Parallel iterator over substrings separated by ASCII whitespace
+#[derive(Debug, Clone)]
+pub struct SplitAsciiWhitespace<'ch>(&'ch str);
+
+#[inline]
+fn is_ascii_whitespace(c: char) -> bool {
+    c.is_ascii_whitespace()
+}
+
+impl<'ch> ParallelIterator for SplitAsciiWhitespace<'ch> {
+    type Item = &'ch str;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        self.0
+            .par_split(is_ascii_whitespace)
             .filter(not_empty)
             .drive_unindexed(consumer)
     }
