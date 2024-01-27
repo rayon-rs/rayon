@@ -61,10 +61,17 @@ fn two_threads<F: Send + FnOnce() -> R, R: Send>(f: F) -> R {
     // FIXME: If we don't use at least two threads, then we end up walking
     // through the entire iterator sequentially, without the benefit of any
     // short-circuiting.  We probably don't want testing to wait that long. ;)
-    let builder = rayon::ThreadPoolBuilder::new().num_threads(2);
-    let pool = builder.build().unwrap();
-
-    pool.install(f)
+    if rayon::current_num_threads() < 2 {
+        use std::sync::OnceLock;
+        static POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
+        let pool = POOL.get_or_init(|| {
+            let builder = rayon::ThreadPoolBuilder::new().num_threads(2);
+            builder.build().unwrap()
+        });
+        pool.install(f)
+    } else {
+        f()
+    }
 }
 
 #[test]
