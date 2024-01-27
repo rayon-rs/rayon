@@ -984,6 +984,25 @@ fn check_slice_split() {
 }
 
 #[test]
+fn check_slice_split_inclusive() {
+    let v: Vec<_> = (0..1000).collect();
+    for m in 1..100 {
+        let a: Vec<_> = v.split_inclusive(|x| x % m == 0).collect();
+        let b: Vec<_> = v.par_split_inclusive(|x| x % m == 0).collect();
+        assert_eq!(a, b);
+    }
+
+    // same as std::slice::split_inclusive() examples
+    let slice = [10, 40, 33, 20];
+    let v: Vec<_> = slice.par_split_inclusive(|num| num % 3 == 0).collect();
+    assert_eq!(v, &[&slice[..3], &slice[3..]]);
+
+    let slice = [3, 10, 40, 33];
+    let v: Vec<_> = slice.par_split_inclusive(|num| num % 3 == 0).collect();
+    assert_eq!(v, &[&slice[..1], &slice[1..]]);
+}
+
+#[test]
 fn check_slice_split_mut() {
     let mut v1: Vec<_> = (0..1000).collect();
     let mut v2 = v1.clone();
@@ -999,6 +1018,26 @@ fn check_slice_split_mut() {
         group[0] = 1;
     });
     assert_eq!(v, [1, 40, 30, 1, 60, 1]);
+}
+
+#[test]
+fn check_slice_split_inclusive_mut() {
+    let mut v1: Vec<_> = (0..1000).collect();
+    let mut v2 = v1.clone();
+    for m in 1..100 {
+        let a: Vec<_> = v1.split_inclusive_mut(|x| x % m == 0).collect();
+        let b: Vec<_> = v2.par_split_inclusive_mut(|x| x % m == 0).collect();
+        assert_eq!(a, b);
+    }
+
+    // same as std::slice::split_inclusive_mut() example
+    let mut v = [10, 40, 30, 20, 60, 50];
+    v.par_split_inclusive_mut(|num| num % 3 == 0)
+        .for_each(|group| {
+            let terminator_idx = group.len() - 1;
+            group[terminator_idx] = 1;
+        });
+    assert_eq!(v, [10, 40, 1, 20, 1, 1]);
 }
 
 #[test]

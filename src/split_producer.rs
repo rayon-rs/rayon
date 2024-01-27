@@ -5,7 +5,7 @@
 use crate::iter::plumbing::{Folder, UnindexedProducer};
 
 /// Common producer for splitting on a predicate.
-pub(super) struct SplitProducer<'p, P, V> {
+pub(super) struct SplitProducer<'p, P, V, const INCL: bool = false> {
     data: V,
     separator: &'p P,
 
@@ -13,14 +13,16 @@ pub(super) struct SplitProducer<'p, P, V> {
     tail: usize,
 }
 
+pub(super) type SplitInclusiveProducer<'p, P, V> = SplitProducer<'p, P, V, true>;
+
 /// Helper trait so `&str`, `&[T]`, and `&mut [T]` can share `SplitProducer`.
 pub(super) trait Fissile<P>: Sized {
     fn length(&self) -> usize;
     fn midpoint(&self, end: usize) -> usize;
     fn find(&self, separator: &P, start: usize, end: usize) -> Option<usize>;
     fn rfind(&self, separator: &P, end: usize) -> Option<usize>;
-    fn split_once(self, index: usize) -> (Self, Self);
-    fn fold_splits<F>(self, separator: &P, folder: F, skip_last: bool) -> F
+    fn split_once<const INCL: bool>(self, index: usize) -> (Self, Self);
+    fn fold_splits<F, const INCL: bool>(self, separator: &P, folder: F, skip_last: bool) -> F
     where
         F: Folder<Self>,
         Self: Send;
@@ -37,7 +39,25 @@ where
             separator,
         }
     }
+}
 
+impl<'p, P, V> SplitInclusiveProducer<'p, P, V>
+where
+    V: Fissile<P> + Send,
+{
+    pub(super) fn new_incl(data: V, separator: &'p P) -> Self {
+        SplitProducer {
+            tail: data.length(),
+            data,
+            separator,
+        }
+    }
+}
+
+impl<'p, P, V, const INCL: bool> SplitProducer<'p, P, V, INCL>
+where
+    V: Fissile<P> + Send,
+{
     /// Common `fold_with` implementation, integrating `SplitTerminator`'s
     /// need to sometimes skip its final empty item.
     pub(super) fn fold_with<F>(self, folder: F, skip_last: bool) -> F
@@ -52,12 +72,12 @@ where
 
         if tail == data.length() {
             // No tail section, so just let `fold_splits` handle it.
-            data.fold_splits(separator, folder, skip_last)
+            data.fold_splits::<F, INCL>(separator, folder, skip_last)
         } else if let Some(index) = data.rfind(separator, tail) {
             // We found the last separator to complete the tail, so
             // end with that slice after `fold_splits` finds the rest.
-            let (left, right) = data.split_once(index);
-            let folder = left.fold_splits(separator, folder, false);
+            let (left, right) = data.split_once::<INCL>(index);
+            let folder = left.fold_splits::<F, INCL>(separator, folder, false);
             if skip_last || folder.full() {
                 folder
             } else {
@@ -74,7 +94,7 @@ where
     }
 }
 
-impl<'p, P, V> UnindexedProducer for SplitProducer<'p, P, V>
+impl<'p, P, V, const INCL: bool> UnindexedProducer for SplitProducer<'p, P, V, INCL>
 where
     V: Fissile<P> + Send,
     P: Sync,
@@ -91,7 +111,7 @@ where
 
         if let Some(index) = index {
             let len = self.data.length();
-            let (left, right) = self.data.split_once(index);
+            let (left, right) = self.data.split_once::<INCL>(index);
 
             let (left_tail, right_tail) = if index < mid {
                 // If we scanned backwards to find the separator, everything in
