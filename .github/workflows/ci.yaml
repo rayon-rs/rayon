@@ -109,9 +109,16 @@ jobs:
           components: rustfmt
       - run: cargo fmt --all --check
 
-  done:
+  ci-success:
     name: Complete
     runs-on: ubuntu-latest
     needs: [check, test, demo, i686, wasm, wasi, fmt]
     steps:
       - run: exit 0
+  ci-failed:
+    name: Complete
+    runs-on: ubuntu-latest
+    needs: [check, test, demo, i686, wasm, wasi, fmt]
+    if: failure()
+    steps:
+      - run: exit 1
