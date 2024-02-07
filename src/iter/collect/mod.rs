@@ -1,5 +1,3 @@
-use std::collections::LinkedList;
-
 use super::{IndexedParallelIterator, ParallelIterator};
 
 mod consumer;

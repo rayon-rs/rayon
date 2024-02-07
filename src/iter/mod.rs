@@ -2372,6 +2372,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     fn collect_vec_list(self) -> LinkedList<Vec<Self::Item>> {
         match self.opt_len() {
+            Some(0) => LinkedList::new(),
             Some(len) => {
                 // Pseudo-specialization. See impl of ParallelExtend for Vec for more details.
                 let mut v = Vec::new();
