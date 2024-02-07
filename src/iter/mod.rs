@@ -2352,9 +2352,8 @@ pub trait ParallelIterator: Sized + Send {
     /// Internally, most [`FromParallelIterator`]/[`ParallelExtend`] implementations
     /// use this strategy; each job collecting their chunk of the iterator to a `Vec<T>`
     /// and those chunks getting merged into a `LinkedList`, before then extending the
-    /// collection with each vector. This is the most efficient way to collect an
-    /// unindexed parallel iterator (again, indexed parallel iterators can be
-    /// efficiently collected simply into a vector).
+    /// collection with each vector. This is a very efficient way to collect an
+    /// unindexed parallel iterator, without much intermediate data movement.
     ///
     /// # Examples
     ///
