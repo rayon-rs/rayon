@@ -83,6 +83,7 @@ use self::plumbing::*;
 use self::private::Try;
 pub use either::Either;
 use std::cmp::{self, Ordering};
+use std::collections::LinkedList;
 use std::iter::{Product, Sum};
 use std::ops::{Fn, RangeBounds};
 
@@ -2337,6 +2338,41 @@ pub trait ParallelIterator: Sized + Send {
         P: Fn(&Self::Item) -> bool + Sync + Send,
     {
         SkipAnyWhile::new(self, predicate)
+    }
+
+    /// Collects this iterator into a linked list of vectors.
+    ///
+    /// This is useful when you need to condense a parallel iterator into a collection,
+    /// but have no specific requirements for what that collection should be. If you
+    /// plan to store the collection longer-term, `Vec<T>` is, as always, likely the
+    /// best default choice, despite the overhead that comes from concatenating each
+    /// vector. Or, if this is an `IndexedParallelIterator`, you should also prefer to
+    /// just collect to a `Vec<T>`.
+    ///
+    /// Internally, most [`FromParallelIterator`]/[`ParallelExtend`] implementations
+    /// use this strategy; each job collecting their chunk of the iterator to a `Vec<T>`
+    /// and those chunks getting merged into a `LinkedList`, before then extending the
+    /// collection with each vector. This is the most efficient way to collect an
+    /// unindexed parallel iterator (again, indexed parallel iterators can be
+    /// efficiently collected simply into a vector).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::collections::LinkedList;
+    /// use rayon::prelude::*;
+    ///
+    /// let result: LinkedList<Vec<_>> = (0..=100)
+    ///     .into_par_iter()
+    ///     .filter(|x| x % 2 == 0)
+    ///     .flat_map(|x| 0..x)
+    ///     .collect_vec_list();
+    ///
+    /// let total_len = result.iter().flatten().count();
+    /// assert_eq!(total_len, 2550);
+    /// ```
+    fn collect_vec_list(self) -> LinkedList<Vec<Self::Item>> {
+        collect::collect_vec_list(self)
     }
 
     /// Internal method used to define the behavior of this parallel

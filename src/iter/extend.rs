@@ -12,16 +12,21 @@ use std::hash::{BuildHasher, Hash};
 /// parallel, then extending the collection sequentially.
 macro_rules! extend {
     ($self:ident, $par_iter:ident, $extend:ident) => {
-        $extend(
-            $self,
-            $par_iter.into_par_iter().drive_unindexed(ListVecConsumer),
-        );
+        $extend($self, drive_list_vec($par_iter));
     };
 }
 
 /// Computes the total length of a `LinkedList<Vec<_>>`.
 fn len<T>(list: &LinkedList<Vec<T>>) -> usize {
     list.iter().map(Vec::len).sum()
+}
+
+pub(super) fn drive_list_vec<I, T>(pi: I) -> LinkedList<Vec<T>>
+where
+    I: IntoParallelIterator<Item = T>,
+    T: Send,
+{
+    pi.into_par_iter().drive_unindexed(ListVecConsumer)
 }
 
 struct ListVecConsumer;

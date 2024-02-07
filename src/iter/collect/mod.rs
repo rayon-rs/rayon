@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use super::{IndexedParallelIterator, ParallelIterator};
 
 mod consumer;
@@ -62,6 +64,24 @@ where
         });
         right_result.unwrap()
     });
+}
+
+/// Collects the iterator into a linked list of vectors.
+///
+/// This is called by `ParallelIterator::collect_vec_list`.
+pub(super) fn collect_vec_list<I>(pi: I) -> LinkedList<Vec<I::Item>>
+where
+    I: ParallelIterator,
+{
+    match pi.opt_len() {
+        Some(len) => {
+            // Pseudo-specialization. See impl of ParallelExtend for Vec for more details.
+            let mut v = Vec::new();
+            super::collect::special_extend(pi, len, &mut v);
+            LinkedList::from([v])
+        }
+        None => super::extend::drive_list_vec(pi),
+    }
 }
 
 /// Create a consumer on the slice of memory we are collecting into.
