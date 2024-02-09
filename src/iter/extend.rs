@@ -7,6 +7,7 @@ use std::borrow::Cow;
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
+use std::ffi::{OsStr, OsString};
 use std::hash::{BuildHasher, Hash};
 
 /// Performs a generic `par_extend` by collecting to a `LinkedList<Vec<_>>` in
@@ -52,6 +53,15 @@ fn string_len<T: AsRef<str>>(vecs: &Either<Vec<T>, LinkedList<Vec<T>>>) -> usize
         Either::Right(list) => Either::Right(list.iter().flatten()),
     };
     strs.map(AsRef::as_ref).map(str::len).sum()
+}
+
+/// Computes the total OS-string length of a `fast_collect` result.
+fn osstring_len<T: AsRef<OsStr>>(vecs: &Either<Vec<T>, LinkedList<Vec<T>>>) -> usize {
+    let osstrs = match vecs {
+        Either::Left(vec) => Either::Left(vec.iter()),
+        Either::Right(list) => Either::Right(list.iter().flatten()),
+    };
+    osstrs.map(AsRef::as_ref).map(OsStr::len).sum()
 }
 
 pub(super) fn fast_collect<I, T>(pi: I) -> Either<Vec<T>, LinkedList<Vec<T>>>
@@ -367,6 +377,36 @@ impl<T> Reducer<LinkedList<T>> for ListReducer {
     fn reduce(self, mut left: LinkedList<T>, mut right: LinkedList<T>) -> LinkedList<T> {
         left.append(&mut right);
         left
+    }
+}
+
+/// Extends an OS-string with string slices from a parallel iterator.
+impl<'a> ParallelExtend<&'a OsStr> for OsString {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a OsStr>,
+    {
+        extend_reserved!(self, par_iter, osstring_len);
+    }
+}
+
+/// Extends an OS-string with strings from a parallel iterator.
+impl ParallelExtend<OsString> for OsString {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = OsString>,
+    {
+        extend_reserved!(self, par_iter, osstring_len);
+    }
+}
+
+/// Extends an OS-string with string slices from a parallel iterator.
+impl<'a> ParallelExtend<Cow<'a, OsStr>> for OsString {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = Cow<'a, OsStr>>,
+    {
+        extend_reserved!(self, par_iter, osstring_len);
     }
 }
 
