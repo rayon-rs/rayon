@@ -83,6 +83,7 @@ use self::plumbing::*;
 use self::private::Try;
 pub use either::Either;
 use std::cmp::{self, Ordering};
+use std::collections::LinkedList;
 use std::iter::{Product, Sum};
 use std::ops::{Fn, RangeBounds};
 
@@ -1961,6 +1962,9 @@ pub trait ParallelIterator: Sized + Send {
     /// of how many elements the iterator contains, and even allows you to reuse
     /// an existing vector's backing store rather than allocating a fresh vector.
     ///
+    /// See also [`collect_vec_list()`][Self::collect_vec_list] for collecting
+    /// into a `LinkedList<Vec<T>>`.
+    ///
     /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
     /// [`collect_into_vec()`]:
     ///     trait.IndexedParallelIterator.html#method.collect_into_vec
@@ -2337,6 +2341,51 @@ pub trait ParallelIterator: Sized + Send {
         P: Fn(&Self::Item) -> bool + Sync + Send,
     {
         SkipAnyWhile::new(self, predicate)
+    }
+
+    /// Collects this iterator into a linked list of vectors.
+    ///
+    /// This is useful when you need to condense a parallel iterator into a collection,
+    /// but have no specific requirements for what that collection should be. If you
+    /// plan to store the collection longer-term, `Vec<T>` is, as always, likely the
+    /// best default choice, despite the overhead that comes from concatenating each
+    /// vector. Or, if this is an `IndexedParallelIterator`, you should also prefer to
+    /// just collect to a `Vec<T>`.
+    ///
+    /// Internally, most [`FromParallelIterator`]/[`ParallelExtend`] implementations
+    /// use this strategy; each job collecting their chunk of the iterator to a `Vec<T>`
+    /// and those chunks getting merged into a `LinkedList`, before then extending the
+    /// collection with each vector. This is a very efficient way to collect an
+    /// unindexed parallel iterator, without much intermediate data movement.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::collections::LinkedList;
+    /// use rayon::prelude::*;
+    ///
+    /// let result: LinkedList<Vec<_>> = (0..=100)
+    ///     .into_par_iter()
+    ///     .filter(|x| x % 2 == 0)
+    ///     .flat_map(|x| 0..x)
+    ///     .collect_vec_list();
+    ///
+    /// // `par_iter.collect_vec_list().into_iter().flatten()` turns
+    /// // a parallel iterator into a serial one
+    /// let total_len = result.into_iter().flatten().count();
+    /// assert_eq!(total_len, 2550);
+    /// ```
+    fn collect_vec_list(self) -> LinkedList<Vec<Self::Item>> {
+        match self.opt_len() {
+            Some(0) => LinkedList::new(),
+            Some(len) => {
+                // Pseudo-specialization. See impl of ParallelExtend for Vec for more details.
+                let mut v = Vec::new();
+                collect::special_extend(self, len, &mut v);
+                LinkedList::from([v])
+            }
+            None => extend::drive_list_vec(self),
+        }
     }
 
     /// Internal method used to define the behavior of this parallel
@@ -3188,14 +3237,15 @@ where
     ///
     /// If your collection is not naturally parallel, the easiest (and
     /// fastest) way to do this is often to collect `par_iter` into a
-    /// [`LinkedList`] or other intermediate data structure and then
-    /// sequentially extend your collection. However, a more 'native'
-    /// technique is to use the [`par_iter.fold`] or
+    /// [`LinkedList`] (via [`collect_vec_list`]) or another intermediate
+    /// data structure and then sequentially extend your collection. However,
+    /// a more 'native' technique is to use the [`par_iter.fold`] or
     /// [`par_iter.fold_with`] methods to create the collection.
     /// Alternatively, if your collection is 'natively' parallel, you
     /// can use `par_iter.for_each` to process each element in turn.
     ///
     /// [`LinkedList`]: https://doc.rust-lang.org/std/collections/struct.LinkedList.html
+    /// [`collect_vec_list`]: ParallelIterator::collect_vec_list
     /// [`par_iter.fold`]: trait.ParallelIterator.html#method.fold
     /// [`par_iter.fold_with`]: trait.ParallelIterator.html#method.fold_with
     /// [`par_iter.for_each`]: trait.ParallelIterator.html#method.for_each
