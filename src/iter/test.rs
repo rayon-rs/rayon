@@ -11,6 +11,7 @@ use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
+use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::sync::mpsc;
 use std::usize;
@@ -1568,13 +1569,27 @@ fn par_iter_collect_cows() {
     assert_eq!(a, b);
 
     // Collects `str` into a `String`
-    let a: Cow<'_, str> = s.split_whitespace().collect();
-    let b: Cow<'_, str> = s.par_split_whitespace().collect();
+    let sw = s.split_whitespace();
+    let psw = s.par_split_whitespace();
+    let a: Cow<'_, str> = sw.clone().collect();
+    let b: Cow<'_, str> = psw.clone().collect();
     assert_eq!(a, b);
 
     // Collects `String` into a `String`
-    let a: Cow<'_, str> = s.split_whitespace().map(str::to_owned).collect();
-    let b: Cow<'_, str> = s.par_split_whitespace().map(str::to_owned).collect();
+    let a: Cow<'_, str> = sw.map(str::to_owned).collect();
+    let b: Cow<'_, str> = psw.map(str::to_owned).collect();
+    assert_eq!(a, b);
+
+    // Collects `OsStr` into a `OsString`
+    let sw = s.split_whitespace().map(OsStr::new);
+    let psw = s.par_split_whitespace().map(OsStr::new);
+    let a: Cow<'_, OsStr> = Cow::Owned(sw.clone().collect());
+    let b: Cow<'_, OsStr> = psw.clone().collect();
+    assert_eq!(a, b);
+
+    // Collects `OsString` into a `OsString`
+    let a: Cow<'_, OsStr> = Cow::Owned(sw.map(OsStr::to_owned).collect());
+    let b: Cow<'_, OsStr> = psw.map(OsStr::to_owned).collect();
     assert_eq!(a, b);
 }
 

@@ -2376,15 +2376,15 @@ pub trait ParallelIterator: Sized + Send {
     /// assert_eq!(total_len, 2550);
     /// ```
     fn collect_vec_list(self) -> LinkedList<Vec<Self::Item>> {
-        match self.opt_len() {
-            Some(0) => LinkedList::new(),
-            Some(len) => {
-                // Pseudo-specialization. See impl of ParallelExtend for Vec for more details.
-                let mut v = Vec::new();
-                collect::special_extend(self, len, &mut v);
-                LinkedList::from([v])
+        match extend::fast_collect(self) {
+            Either::Left(vec) => {
+                let mut list = LinkedList::new();
+                if !vec.is_empty() {
+                    list.push_back(vec);
+                }
+                list
             }
-            None => extend::drive_list_vec(self),
+            Either::Right(list) => list,
         }
     }
 

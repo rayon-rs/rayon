@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
+use std::ffi::{OsStr, OsString};
 use std::hash::{BuildHasher, Hash};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -230,6 +231,36 @@ impl<'a> FromParallelIterator<Cow<'a, str>> for String {
     fn from_par_iter<I>(par_iter: I) -> Self
     where
         I: IntoParallelIterator<Item = Cow<'a, str>>,
+    {
+        collect_extended(par_iter)
+    }
+}
+
+/// Collects OS-string slices from a parallel iterator into an OS-string.
+impl<'a> FromParallelIterator<&'a OsStr> for OsString {
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = &'a OsStr>,
+    {
+        collect_extended(par_iter)
+    }
+}
+
+/// Collects OS-strings from a parallel iterator into one large OS-string.
+impl FromParallelIterator<OsString> for OsString {
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = OsString>,
+    {
+        collect_extended(par_iter)
+    }
+}
+
+/// Collects OS-string slices from a parallel iterator into an OS-string.
+impl<'a> FromParallelIterator<Cow<'a, OsStr>> for OsString {
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = Cow<'a, OsStr>>,
     {
         collect_extended(par_iter)
     }
