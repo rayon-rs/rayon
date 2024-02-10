@@ -509,6 +509,7 @@ where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
     I: IntoIterator<Item = S> + Send,
+    I::IntoIter: DoubleEndedIterator,
 {
     let walker = WalkTreePostfix {
         initial_state: root,
@@ -523,6 +524,7 @@ where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
     I: IntoIterator<Item = S> + Send,
+    I::IntoIter: DoubleEndedIterator,
 {
     type Item = S;
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
