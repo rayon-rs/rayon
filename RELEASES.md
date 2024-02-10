@@ -343,8 +343,8 @@ Thanks to all of the contributors for this release!
 - @seanchen1991
 - @yegeun542
 
-[RFC 1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
-[RFC 3]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0003-minimum-rustc.md
+[RFC 1]: https://github.com/rayon-rs/rfcs/blob/main/accepted/rfc0001-scope-scheduling.md
+[RFC 3]: https://github.com/rayon-rs/rfcs/blob/main/accepted/rfc0003-minimum-rustc.md
 
 
 # Release rayon 1.0.3 (2018-11-02)

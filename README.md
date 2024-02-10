@@ -3,7 +3,7 @@
 [![Rayon crate](https://img.shields.io/crates/v/rayon.svg)](https://crates.io/crates/rayon)
 [![Rayon documentation](https://docs.rs/rayon/badge.svg)](https://docs.rs/rayon)
 ![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-red.svg)
-[![build status](https://github.com/rayon-rs/rayon/workflows/master/badge.svg)](https://github.com/rayon-rs/rayon/actions)
+[![build status](https://github.com/rayon-rs/rayon/workflows/main/badge.svg)](https://github.com/rayon-rs/rayon/actions)
 [![Join the chat at https://gitter.im/rayon-rs/Lobby](https://badges.gitter.im/rayon-rs/Lobby.svg)](https://gitter.im/rayon-rs/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Rayon is a data-parallelism library for Rust. It is extremely
@@ -115,7 +115,7 @@ out the
 [Guide to Development](https://github.com/rayon-rs/rayon/wiki/Guide-to-Development)
 page on the wiki. Note that all code submitted in PRs to Rayon is
 assumed to
-[be licensed under Rayon's dual MIT/Apache 2.0 licensing](https://github.com/rayon-rs/rayon/blob/master/README.md#license).
+[be licensed under Rayon's dual MIT/Apache 2.0 licensing](https://github.com/rayon-rs/rayon/blob/main/README.md#license).
 
 ## Quick demo
 
@@ -141,7 +141,7 @@ For more information on demos, try:
 
 See [the Rayon FAQ][faq].
 
-[faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
+[faq]: https://github.com/rayon-rs/rayon/blob/main/FAQ.md
 
 ## License
 

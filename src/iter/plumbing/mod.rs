@@ -2,7 +2,7 @@
 //! low-level details -- users of parallel iterators should not need to
 //! interact with them directly.  See [the `plumbing` README][r] for a general overview.
 //!
-//! [r]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
+//! [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md
 
 use crate::join_context;
 
@@ -15,7 +15,7 @@ use std::usize;
 /// [analogous to `FnOnce`][FnOnce]. See [the corresponding section in
 /// the plumbing README][r] for more details.
 ///
-/// [r]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md#producer-callback
+/// [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md#producer-callback
 /// [FnOnce]: https://doc.rust-lang.org/std/ops/trait.FnOnce.html
 pub trait ProducerCallback<T> {
     /// The type of value returned by this callback. Analogous to
@@ -54,7 +54,7 @@ pub trait ProducerCallback<T> {
 /// constraints on a required IntoIterator trait, so we inline
 /// IntoIterator here until that issue is fixed.
 ///
-/// [r]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
+/// [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md
 /// [20671]: https://github.com/rust-lang/rust/issues/20671
 pub trait Producer: Send + Sized {
     /// The type of item that will be produced by this producer once
@@ -121,7 +121,7 @@ pub trait Producer: Send + Sized {
 /// combine their two results into one. See [the `plumbing`
 /// README][r] for further details.
 ///
-/// [r]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
+/// [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md
 /// [fold]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fold
 /// [`Folder`]: trait.Folder.html
 /// [`Producer`]: trait.Producer.html
@@ -198,7 +198,7 @@ pub trait Folder<Item>: Sized {
 /// used to combine those two results into one. See [the `plumbing`
 /// README][r] for further details.
 ///
-/// [r]: https://github.com/rayon-rs/rayon/blob/master/src/iter/plumbing/README.md
+/// [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md
 pub trait Reducer<Result> {
     /// Reduce two final results into one; this is executed after a
     /// split.

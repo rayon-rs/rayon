@@ -85,7 +85,7 @@
 //!
 //! See [the Rayon FAQ][faq].
 //!
-//! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
+//! [faq]: https://github.com/rayon-rs/rayon/blob/main/FAQ.md
 
 #[macro_use]
 mod delegate;

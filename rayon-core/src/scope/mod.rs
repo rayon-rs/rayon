@@ -360,7 +360,7 @@ where
 /// For more details on this design, see Rayon [RFC #1].
 ///
 /// [`breadth_first`]: struct.ThreadPoolBuilder.html#method.breadth_first
-/// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/master/accepted/rfc0001-scope-scheduling.md
+/// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/main/accepted/rfc0001-scope-scheduling.md
 ///
 /// # Panics
 ///

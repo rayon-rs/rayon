@@ -1,8 +1,8 @@
-name: master
+name: main
 on:
   push:
     branches:
-      - master
+      - main
   schedule:
     - cron: '0 0 * * 0' # 00:00 Sunday
 
