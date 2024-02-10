@@ -1,24 +1,23 @@
 use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::prelude::*;
 use std::iter::once;
-use std::marker::PhantomData;
 
 #[derive(Debug)]
-struct WalkTreePrefixProducer<'b, S, B, I> {
+struct WalkTreePrefixProducer<'b, S, B> {
     to_explore: Vec<S>, // nodes (and subtrees) we have to process
     seen: Vec<S>,       // nodes which have already been explored
     children_of: &'b B, // function generating children
-    phantom: PhantomData<I>,
 }
 
-impl<'b, S, B, I, IT> UnindexedProducer for WalkTreePrefixProducer<'b, S, B, I>
+impl<S, B, I> UnindexedProducer for WalkTreePrefixProducer<'_, S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    IT: DoubleEndedIterator<Item = S>,
-    I: IntoIterator<Item = S, IntoIter = IT> + Send,
+    I: IntoIterator<Item = S> + Send,
+    I::IntoIter: DoubleEndedIterator,
 {
     type Item = S;
+
     fn split(mut self) -> (Self, Option<Self>) {
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
@@ -36,7 +35,6 @@ where
                     to_explore: c,
                     seen: Vec::new(),
                     children_of: self.children_of,
-                    phantom: PhantomData,
                 }
             })
             .or_else(|| {
@@ -46,11 +44,11 @@ where
                     to_explore: Default::default(),
                     seen: s,
                     children_of: self.children_of,
-                    phantom: PhantomData,
                 })
             });
         (self, right)
     }
+
     fn fold_with<F>(mut self, mut folder: F) -> F
     where
         F: Folder<Self::Item>,
@@ -76,20 +74,20 @@ where
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree_prefix()`] function.
 #[derive(Debug)]
-pub struct WalkTreePrefix<S, B, I> {
+pub struct WalkTreePrefix<S, B> {
     initial_state: S,
     children_of: B,
-    phantom: PhantomData<I>,
 }
 
-impl<S, B, I, IT> ParallelIterator for WalkTreePrefix<S, B, I>
+impl<S, B, I> ParallelIterator for WalkTreePrefix<S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    IT: DoubleEndedIterator<Item = S>,
-    I: IntoIterator<Item = S, IntoIter = IT> + Send,
+    I: IntoIterator<Item = S> + Send,
+    I::IntoIter: DoubleEndedIterator,
 {
     type Item = S;
+
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
         C: UnindexedConsumer<Self::Item>,
@@ -98,7 +96,6 @@ where
             to_explore: once(self.initial_state).collect(),
             seen: Vec::new(),
             children_of: &self.children_of,
-            phantom: PhantomData,
         };
         bridge_unindexed(producer, consumer)
     }
@@ -206,37 +203,36 @@ where
 /// assert_eq!(v, vec![10, 3, 14, 18]);
 /// ```
 ///
-pub fn walk_tree_prefix<S, B, I>(root: S, children_of: B) -> WalkTreePrefix<S, B, I>
+pub fn walk_tree_prefix<S, B, I>(root: S, children_of: B) -> WalkTreePrefix<S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
-    I::IntoIter: DoubleEndedIterator<Item = S>,
     I: IntoIterator<Item = S> + Send,
+    I::IntoIter: DoubleEndedIterator,
 {
     WalkTreePrefix {
         initial_state: root,
         children_of,
-        phantom: PhantomData,
     }
 }
 
 // post fix
 
 #[derive(Debug)]
-struct WalkTreePostfixProducer<'b, S, B, I> {
+struct WalkTreePostfixProducer<'b, S, B> {
     to_explore: Vec<S>, // nodes (and subtrees) we have to process
     seen: Vec<S>,       // nodes which have already been explored
     children_of: &'b B, // function generating children
-    phantom: PhantomData<I>,
 }
 
-impl<'b, S, B, I> UnindexedProducer for WalkTreePostfixProducer<'b, S, B, I>
+impl<S, B, I> UnindexedProducer for WalkTreePostfixProducer<'_, S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
     I: IntoIterator<Item = S> + Send,
 {
     type Item = S;
+
     fn split(mut self) -> (Self, Option<Self>) {
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
@@ -255,7 +251,6 @@ where
                     to_explore: c,
                     seen: right_seen,
                     children_of: self.children_of,
-                    phantom: PhantomData,
                 }
             })
             .or_else(|| {
@@ -267,12 +262,12 @@ where
                         to_explore: Default::default(),
                         seen: s,
                         children_of: self.children_of,
-                        phantom: PhantomData,
                     }
                 })
             });
         (self, right)
     }
+
     fn fold_with<F>(self, mut folder: F) -> F
     where
         F: Folder<Self::Item>,
@@ -289,11 +284,12 @@ where
     }
 }
 
-fn consume_rec_postfix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S>>(
-    children_of: &B,
-    s: S,
-    mut folder: F,
-) -> F {
+fn consume_rec_postfix<F, S, B, I>(children_of: &B, s: S, mut folder: F) -> F
+where
+    F: Folder<S>,
+    B: Fn(&S) -> I,
+    I: IntoIterator<Item = S>,
+{
     let children = (children_of)(&s).into_iter();
     for child in children {
         folder = consume_rec_postfix(children_of, child, folder);
@@ -307,19 +303,19 @@ fn consume_rec_postfix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree_postfix()`] function.
 #[derive(Debug)]
-pub struct WalkTreePostfix<S, B, I> {
+pub struct WalkTreePostfix<S, B> {
     initial_state: S,
     children_of: B,
-    phantom: PhantomData<I>,
 }
 
-impl<S, B, I> ParallelIterator for WalkTreePostfix<S, B, I>
+impl<S, B, I> ParallelIterator for WalkTreePostfix<S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
     I: IntoIterator<Item = S> + Send,
 {
     type Item = S;
+
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
         C: UnindexedConsumer<Self::Item>,
@@ -328,7 +324,6 @@ where
             to_explore: once(self.initial_state).collect(),
             seen: Vec::new(),
             children_of: &self.children_of,
-            phantom: PhantomData,
         };
         bridge_unindexed(producer, consumer)
     }
@@ -450,7 +445,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// assert_eq!(v, vec![3, 18, 14, 10]);
 /// ```
 ///
-pub fn walk_tree_postfix<S, B, I>(root: S, children_of: B) -> WalkTreePostfix<S, B, I>
+pub fn walk_tree_postfix<S, B, I>(root: S, children_of: B) -> WalkTreePostfix<S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -459,14 +454,13 @@ where
     WalkTreePostfix {
         initial_state: root,
         children_of,
-        phantom: PhantomData,
     }
 }
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree()`] function.
 #[derive(Debug)]
-pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
+pub struct WalkTree<S, B>(WalkTreePostfix<S, B>);
 
 /// Create a tree like parallel iterator from an initial root node.
 /// The `children_of` function should take a node and iterate on all of its child nodes.
@@ -504,7 +498,7 @@ pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 /// });
 /// assert_eq!(par_iter.sum::<u32>(), 12);
 /// ```
-pub fn walk_tree<S, B, I>(root: S, children_of: B) -> WalkTree<S, B, I>
+pub fn walk_tree<S, B, I>(root: S, children_of: B) -> WalkTree<S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -514,12 +508,11 @@ where
     let walker = WalkTreePostfix {
         initial_state: root,
         children_of,
-        phantom: PhantomData,
     };
     WalkTree(walker)
 }
 
-impl<S, B, I> ParallelIterator for WalkTree<S, B, I>
+impl<S, B, I> ParallelIterator for WalkTree<S, B>
 where
     S: Send,
     B: Fn(&S) -> I + Send + Sync,
@@ -527,6 +520,7 @@ where
     I::IntoIter: DoubleEndedIterator,
 {
     type Item = S;
+
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
         C: UnindexedConsumer<Self::Item>,
