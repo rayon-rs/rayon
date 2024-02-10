@@ -75,8 +75,6 @@ where
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree_prefix()`] function.
-///
-/// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
 #[derive(Debug)]
 pub struct WalkTreePrefix<S, B, I> {
     initial_state: S,
@@ -127,15 +125,9 @@ where
 ///  / \   / \
 /// d   e f   g
 ///
-/// reduced as  a,b,d,e,c,f,g
+/// reduced as a,b,d,e,c,f,g
 ///
 /// ```
-///
-///
-/// For a postfix ordering see the (faster) [`walk_tree_postfix()`] function.
-///
-/// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
-/// [`walk_tree()`]: fn.walk_tree.html
 ///
 /// # Example
 ///
@@ -149,25 +141,30 @@ where
 /// ```
 ///
 /// ```
-/// use rayon::prelude::*;
 /// use rayon::iter::walk_tree_prefix;
-/// assert_eq!(
-///     walk_tree_prefix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
-///         .sum::<u32>(),
-///     12);
+/// use rayon::prelude::*;
+///
+/// let par_iter = walk_tree_prefix(4, |&e| {
+///     if e <= 2 {
+///         Vec::new()
+///     } else {
+///         vec![e / 2, e / 2 + 1]
+///     }
+/// });
+/// assert_eq!(par_iter.sum::<u32>(), 12);
 /// ```
 ///
 /// # Example
 ///
-///    ```
-///    use rayon::prelude::*;
-///    use rayon::iter::walk_tree_prefix;
+/// ```
+/// use rayon::prelude::*;
+/// use rayon::iter::walk_tree_prefix;
 ///
-///    struct Node {
-///        content: u32,
-///        left: Option<Box<Node>>,
-///        right: Option<Box<Node>>,
-///    }
+/// struct Node {
+///     content: u32,
+///     left: Option<Box<Node>>,
+///     right: Option<Box<Node>>,
+/// }
 ///
 /// // Here we loop on the following tree:
 /// //
@@ -179,34 +176,35 @@ where
 /// //             \
 /// //              18
 ///
-///    let root = Node {
-///        content: 10,
-///        left: Some(Box::new(Node {
-///            content: 3,
-///            left: None,
-///            right: None,
-///        })),
-///        right: Some(Box::new(Node {
-///            content: 14,
-///            left: None,
-///            right: Some(Box::new(Node {
-///                content: 18,
-///                left: None,
-///                right: None,
-///            })),
-///        })),
-///    };
-///    let mut v: Vec<u32> = walk_tree_prefix(&root, |r| {
-///        r.left
-///            .as_ref()
-///            .into_iter()
-///            .chain(r.right.as_ref())
-///            .map(|n| &**n)
-///    })
-///    .map(|node| node.content)
-///    .collect();
-///    assert_eq!(v, vec![10, 3, 14, 18]);
-///    ```
+/// let root = Node {
+///     content: 10,
+///     left: Some(Box::new(Node {
+///         content: 3,
+///         left: None,
+///         right: None,
+///     })),
+///     right: Some(Box::new(Node {
+///         content: 14,
+///         left: None,
+///         right: Some(Box::new(Node {
+///             content: 18,
+///             left: None,
+///             right: None,
+///         })),
+///     })),
+/// };
+///
+/// let mut v: Vec<u32> = walk_tree_prefix(&root, |r| {
+///     r.left
+///         .as_ref()
+///         .into_iter()
+///         .chain(r.right.as_ref())
+///         .map(|n| &**n)
+/// })
+/// .map(|node| node.content)
+/// .collect();
+/// assert_eq!(v, vec![10, 3, 14, 18]);
+/// ```
 ///
 pub fn walk_tree_prefix<S, B, I>(root: S, children_of: B) -> WalkTreePrefix<S, B, I>
 where
@@ -308,8 +306,6 @@ fn consume_rec_postfix<F: Folder<S>, S, B: Fn(&S) -> I, I: IntoIterator<Item = S
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree_postfix()`] function.
-///
-/// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
 #[derive(Debug)]
 pub struct WalkTreePostfix<S, B, I> {
     initial_state: S,
@@ -377,11 +373,6 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 ///
 /// ```
 ///
-/// For a prefix ordering see the (slower) [`walk_tree_prefix()`] function.
-///
-/// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
-/// [`walk_tree()`]: fn.walk_tree.html
-///
 /// # Example
 ///
 /// ```text
@@ -394,25 +385,30 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// ```
 ///
 /// ```
-/// use rayon::prelude::*;
 /// use rayon::iter::walk_tree_postfix;
-/// assert_eq!(
-///     walk_tree_postfix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
-///         .sum::<u32>(),
-///     12);
+/// use rayon::prelude::*;
+///
+/// let par_iter = walk_tree_postfix(4, |&e| {
+///     if e <= 2 {
+///         Vec::new()
+///     } else {
+///         vec![e / 2, e / 2 + 1]
+///     }
+/// });
+/// assert_eq!(par_iter.sum::<u32>(), 12);
 /// ```
 ///
 /// # Example
 ///
-///    ```
-///    use rayon::prelude::*;
-///    use rayon::iter::walk_tree_postfix;
+/// ```
+/// use rayon::prelude::*;
+/// use rayon::iter::walk_tree_postfix;
 ///
-///    struct Node {
-///        content: u32,
-///        left: Option<Box<Node>>,
-///        right: Option<Box<Node>>,
-///    }
+/// struct Node {
+///     content: u32,
+///     left: Option<Box<Node>>,
+///     right: Option<Box<Node>>,
+/// }
 ///
 /// // Here we loop on the following tree:
 /// //
@@ -424,34 +420,35 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// //             \
 /// //              18
 ///
-///    let root = Node {
-///        content: 10,
-///        left: Some(Box::new(Node {
-///            content: 3,
-///            left: None,
-///            right: None,
-///        })),
-///        right: Some(Box::new(Node {
-///            content: 14,
-///            left: None,
-///            right: Some(Box::new(Node {
-///                content: 18,
-///                left: None,
-///                right: None,
-///            })),
-///        })),
-///    };
-///    let mut v: Vec<u32> = walk_tree_postfix(&root, |r| {
-///        r.left
-///            .as_ref()
-///            .into_iter()
-///            .chain(r.right.as_ref())
-///            .map(|n| &**n)
-///    })
-///    .map(|node| node.content)
-///    .collect();
-///    assert_eq!(v, vec![3, 18, 14, 10]);
-///    ```
+/// let root = Node {
+///     content: 10,
+///     left: Some(Box::new(Node {
+///         content: 3,
+///         left: None,
+///         right: None,
+///     })),
+///     right: Some(Box::new(Node {
+///         content: 14,
+///         left: None,
+///         right: Some(Box::new(Node {
+///             content: 18,
+///             left: None,
+///             right: None,
+///         })),
+///     })),
+/// };
+///
+/// let mut v: Vec<u32> = walk_tree_postfix(&root, |r| {
+///     r.left
+///         .as_ref()
+///         .into_iter()
+///         .chain(r.right.as_ref())
+///         .map(|n| &**n)
+/// })
+/// .map(|node| node.content)
+/// .collect();
+/// assert_eq!(v, vec![3, 18, 14, 10]);
+/// ```
 ///
 pub fn walk_tree_postfix<S, B, I>(root: S, children_of: B) -> WalkTreePostfix<S, B, I>
 where
@@ -468,8 +465,6 @@ where
 
 /// ParallelIterator for arbitrary tree-shaped patterns.
 /// Returned by the [`walk_tree()`] function.
-///
-/// [`walk_tree()`]: fn.walk_tree_prefix.html
 #[derive(Debug)]
 pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 
@@ -497,16 +492,18 @@ pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 /// ```
 ///
 /// ```
+/// use rayon::iter::walk_tree;
 /// use rayon::prelude::*;
-/// use rayon::iter::walk_tree_postfix;
-/// assert_eq!(
-///     walk_tree_postfix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
-///         .sum::<u32>(),
-///     12);
-/// ```
 ///
-/// [`walk_tree_prefix()`]: fn.walk_tree_prefix.html
-/// [`walk_tree_postfix()`]: fn.walk_tree_postfix.html
+/// let par_iter = walk_tree(4, |&e| {
+///     if e <= 2 {
+///         Vec::new()
+///     } else {
+///         vec![e / 2, e / 2 + 1]
+///     }
+/// });
+/// assert_eq!(par_iter.sum::<u32>(), 12);
+/// ```
 pub fn walk_tree<S, B, I>(root: S, children_of: B) -> WalkTree<S, B, I>
 where
     S: Send,
