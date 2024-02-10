@@ -245,8 +245,7 @@ where
         let right_children = split_vec(&mut self.to_explore);
         let right = right_children
             .map(|c| {
-                let mut right_seen = Vec::new();
-                std::mem::swap(&mut self.seen, &mut right_seen); // postfix -> upper nodes are processed last
+                let right_seen = std::mem::take(&mut self.seen); // postfix -> upper nodes are processed last
                 WalkTreePostfixProducer {
                     to_explore: c,
                     seen: right_seen,
