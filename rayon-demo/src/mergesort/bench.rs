@@ -4,9 +4,9 @@ const BENCH_SIZE: usize = 250_000_000 / 512;
 
 fn bench_harness<F: FnMut(&mut [u32])>(mut f: F, b: &mut test::Bencher) {
     let base_vec = super::default_vec(BENCH_SIZE);
-    let mut sort_vec = vec![];
+    let mut sort_vec = base_vec.clone();
     b.iter(|| {
-        sort_vec = base_vec.clone();
+        sort_vec.clone_from(&base_vec);
         f(&mut sort_vec);
     });
     assert!(super::is_sorted(&mut sort_vec));
