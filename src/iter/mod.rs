@@ -2494,6 +2494,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// The main application is to obtain better
     /// memory locality (especially if the reduce operation re-use folded data).
     ///
+    /// **Panics** if `block_size` is 0.
+    ///
     /// # Example
     /// ```
     /// use rayon::prelude::*;
@@ -2505,7 +2507,9 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///     .reduce(Vec::new, |mut v1, mut v2| { v1.append(&mut v2); v1});
     /// assert_eq!(v, (0u32..10_000_000).collect::<Vec<u32>>());
     /// ```
+    #[track_caller]
     fn by_uniform_blocks(self, block_size: usize) -> UniformBlocks<Self> {
+        assert!(block_size != 0, "block_size must not be zero");
         UniformBlocks::new(self, block_size)
     }
 
@@ -2673,6 +2677,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// [`par_chunks()`]: ../slice/trait.ParallelSlice.html#method.par_chunks
     /// [`par_chunks_mut()`]: ../slice/trait.ParallelSliceMut.html#method.par_chunks_mut
+    ///
+    /// **Panics** if `chunk_size` is 0.
     ///
     /// # Examples
     ///
