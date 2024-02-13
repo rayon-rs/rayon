@@ -1,20 +1,6 @@
 use super::plumbing::*;
 use super::*;
 
-#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
-#[derive(Debug, Clone)]
-struct ByBlocks<I, S> {
-    base: I,
-    sizes: S,
-}
-
-impl<I, S> ByBlocks<I, S> {
-    /// Creates a new `ByBlocks` iterator.
-    fn new(base: I, sizes: S) -> Self {
-        ByBlocks { base, sizes }
-    }
-}
-
 struct BlocksCallback<S, C> {
     sizes: S,
     consumer: C,
@@ -31,6 +17,7 @@ where
     fn callback<P: Producer<Item = T>>(mut self, mut producer: P) -> Self::Output {
         let mut remaining_len = self.len;
         let mut consumer = self.consumer;
+
         // we need a local variable for the accumulated results
         // we call the reducer's identity by splitting at 0
         let (left_consumer, right_consumer, _) = consumer.split_at(0);
@@ -47,36 +34,17 @@ where
             // split the producer
             let (left_producer, right_producer) = producer.split_at(capped_size);
             producer = right_producer;
+
             // split the consumer
             let (left_consumer, right_consumer, _) = consumer.split_at(capped_size);
             consumer = right_consumer;
+
             leftmost_res = consumer.to_reducer().reduce(
                 leftmost_res,
                 bridge_producer_consumer(capped_size, left_producer, left_consumer),
             );
         }
         leftmost_res
-    }
-}
-
-impl<I, S> ParallelIterator for ByBlocks<I, S>
-where
-    I: IndexedParallelIterator,
-    S: Iterator<Item = usize> + Send,
-{
-    type Item = I::Item;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: UnindexedConsumer<Self::Item>,
-    {
-        let len = self.base.len();
-        let callback = BlocksCallback {
-            consumer,
-            sizes: self.sizes,
-            len,
-        };
-        self.base.with_producer(callback)
     }
 }
 
@@ -110,8 +78,12 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let first = crate::current_num_threads();
-        let sizes = std::iter::successors(Some(first), |s| Some(s.saturating_mul(2)));
-        ByBlocks::new(self.base, sizes).drive_unindexed(consumer)
+        let callback = BlocksCallback {
+            consumer,
+            sizes: std::iter::successors(Some(first), |s| Some(s.saturating_mul(2))),
+            len: self.base.len(),
+        };
+        self.base.with_producer(callback)
     }
 }
 
@@ -145,7 +117,11 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        let sizes = std::iter::repeat(self.blocks_size);
-        ByBlocks::new(self.base, sizes).drive_unindexed(consumer)
+        let callback = BlocksCallback {
+            consumer,
+            sizes: std::iter::repeat(self.blocks_size),
+            len: self.base.len(),
+        };
+        self.base.with_producer(callback)
     }
 }
