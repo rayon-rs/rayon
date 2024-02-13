@@ -2240,3 +2240,79 @@ fn check_update() {
 
     assert_eq!(v, vec![vec![1, 0], vec![3, 2, 1, 0]]);
 }
+
+#[test]
+fn walk_tree_prefix() {
+    let v: Vec<u32> = crate::iter::walk_tree_prefix(0u32..100, |r| {
+        // root is smallest
+        let mid = (r.start + 1 + r.end) / 2;
+        // small indices to the left, large to the right
+        std::iter::once((r.start + 1)..mid)
+            .chain(std::iter::once(mid..r.end))
+            .filter(|r| !r.is_empty())
+    })
+    .map(|r| r.start)
+    .collect();
+    assert!(v.into_iter().eq(0..100));
+}
+
+#[test]
+fn walk_tree_postfix() {
+    let v: Vec<_> = crate::iter::walk_tree_postfix(0u64..100, |r| {
+        // root is largest
+        let mid = (r.start + r.end - 1) / 2;
+        // small indices to the left, large to the right
+        std::iter::once(r.start..mid)
+            .chain(std::iter::once(mid..(r.end - 1)))
+            .filter(|r| !r.is_empty())
+    })
+    .map(|r| r.end - 1)
+    .collect();
+    assert!(v.into_iter().eq(0..100));
+}
+
+#[test]
+fn walk_flat_tree_prefix() {
+    let v: Vec<_> =
+        crate::iter::walk_tree_prefix(0, |&e| if e < 99 { Some(e + 1) } else { None }).collect();
+    assert!(v.into_iter().eq(0..100));
+}
+
+#[test]
+fn walk_flat_tree_postfix() {
+    let v: Vec<_> =
+        crate::iter::walk_tree_postfix(99, |&e| if e > 0 { Some(e - 1) } else { None }).collect();
+    assert!(v.into_iter().eq(0..100));
+}
+
+#[test]
+fn walk_tree_prefix_degree5() {
+    let depth = 5;
+    let nodes_number = (1 - 5i32.pow(depth)) / (1 - 5);
+    let nodes = (0..nodes_number).collect::<Vec<_>>();
+    let v: Vec<i32> = crate::iter::walk_tree_prefix(nodes.as_slice(), |&r| {
+        r.split_first()
+            .into_iter()
+            .filter_map(|(_, r)| if r.is_empty() { None } else { Some(r) })
+            .flat_map(|r| r.chunks(r.len() / 5))
+    })
+    .filter_map(|r| r.first().copied())
+    .collect();
+    assert_eq!(v, nodes);
+}
+
+#[test]
+fn walk_tree_postfix_degree5() {
+    let depth = 5;
+    let nodes_number = (1 - 5i32.pow(depth)) / (1 - 5);
+    let nodes = (0..nodes_number).collect::<Vec<_>>();
+    let v: Vec<i32> = crate::iter::walk_tree_postfix(nodes.as_slice(), |&r| {
+        r.split_last()
+            .into_iter()
+            .filter_map(|(_, r)| if r.is_empty() { None } else { Some(r) })
+            .flat_map(|r| r.chunks(r.len() / 5))
+    })
+    .filter_map(|r| r.last().copied())
+    .collect();
+    assert_eq!(v, nodes)
+}
