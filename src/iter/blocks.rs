@@ -10,7 +10,7 @@ struct ByBlocks<I, S> {
 
 impl<I, S> ByBlocks<I, S> {
     /// Creates a new `ByBlocks` iterator.
-    pub(super) fn new(base: I, sizes: S) -> Self {
+    fn new(base: I, sizes: S) -> Self {
         ByBlocks { base, sizes }
     }
 }
@@ -84,21 +84,18 @@ where
 /// of parallel blocks of increasing sizes (exponentially).
 ///
 /// This struct is created by the [`by_exponential_blocks()`] method on [`IndexedParallelIterator`]
+///
 /// [`by_exponential_blocks()`]: trait.IndexedParallelIterator.html#method.by_exponential_blocks
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct ExponentialBlocks<I>(
-    ByBlocks<I, std::iter::Successors<usize, fn(&usize) -> Option<usize>>>,
-);
+pub struct ExponentialBlocks<I> {
+    base: I,
+}
 
 impl<I> ExponentialBlocks<I> {
     pub(super) fn new(base: I) -> Self {
-        let first = crate::current_num_threads();
-        ExponentialBlocks(ByBlocks::new(
-            base,
-            std::iter::successors(Some(first), |s| Some(s.saturating_mul(2))),
-        ))
+        Self { base }
     }
 }
 
@@ -112,7 +109,9 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        self.0.drive_unindexed(consumer)
+        let first = crate::current_num_threads();
+        let sizes = std::iter::successors(Some(first), |s| Some(s.saturating_mul(2)));
+        ByBlocks::new(self.base, sizes).drive_unindexed(consumer)
     }
 }
 
@@ -120,15 +119,19 @@ where
 /// of parallel blocks of constant sizes.
 ///
 /// This struct is created by the [`by_uniform_blocks()`] method on [`IndexedParallelIterator`]
+///
 /// [`by_uniform_blocks()`]: trait.IndexedParallelIterator.html#method.by_uniform_blocks
 /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct UniformBlocks<I>(ByBlocks<I, std::iter::Repeat<usize>>);
+pub struct UniformBlocks<I> {
+    base: I,
+    blocks_size: usize,
+}
 
 impl<I> UniformBlocks<I> {
     pub(super) fn new(base: I, blocks_size: usize) -> Self {
-        UniformBlocks(ByBlocks::new(base, std::iter::repeat(blocks_size)))
+        Self { base, blocks_size }
     }
 }
 
@@ -142,6 +145,7 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        self.0.drive_unindexed(consumer)
+        let sizes = std::iter::repeat(self.blocks_size);
+        ByBlocks::new(self.base, sizes).drive_unindexed(consumer)
     }
 }
