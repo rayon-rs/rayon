@@ -98,12 +98,12 @@ where
 #[derive(Debug, Clone)]
 pub struct UniformBlocks<I> {
     base: I,
-    blocks_size: usize,
+    block_size: usize,
 }
 
 impl<I> UniformBlocks<I> {
-    pub(super) fn new(base: I, blocks_size: usize) -> Self {
-        Self { base, blocks_size }
+    pub(super) fn new(base: I, block_size: usize) -> Self {
+        Self { base, block_size }
     }
 }
 
@@ -119,7 +119,7 @@ where
     {
         let callback = BlocksCallback {
             consumer,
-            sizes: std::iter::repeat(self.blocks_size),
+            sizes: std::iter::repeat(self.block_size),
             len: self.base.len(),
         };
         self.base.with_producer(callback)
