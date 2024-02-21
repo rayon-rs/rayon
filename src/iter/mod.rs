@@ -103,6 +103,7 @@ mod test;
 //   e.g. `find::find()`, are always used **prefixed**, so that they
 //   can be readily distinguished.
 
+mod arrays;
 mod chain;
 mod chunks;
 mod cloned;
@@ -161,6 +162,7 @@ mod zip;
 mod zip_eq;
 
 pub use self::{
+    arrays::Arrays,
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -2595,6 +2597,32 @@ pub trait IndexedParallelIterator: ParallelIterator {
         I::Iter: IndexedParallelIterator<Item = Self::Item>,
     {
         InterleaveShortest::new(self, other.into_par_iter())
+    }
+
+    /// Splits an iterator up into fixed-size arrays.
+    ///
+    /// Returns an iterator that returns arrays with the given number of elements.
+    /// If the number of elements in the iterator is not divisible by `N`,
+    /// the remaining items are ignored.
+    ///
+    /// See also [`par_array_chunks()`] and [`par_array_chunks_mut()`] for similar
+    /// behavior on slices, although they yield array references instead.
+    ///
+    /// [`par_array_chunks()`]: ../slice/trait.ParallelSlice.html#method.par_array_chunks
+    /// [`par_array_chunks_mut()`]: ../slice/trait.ParallelSliceMut.html#method.par_array_chunks_mut
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let a = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    /// let r: Vec<[i32; 3]> = a.into_par_iter().arrays().collect();
+    /// assert_eq!(r, vec![[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+    /// ```
+    #[track_caller]
+    fn arrays<const N: usize>(self) -> Arrays<Self, N> {
+        assert!(N != 0, "array length must not be zero");
+        Arrays::new(self)
     }
 
     /// Splits an iterator up into fixed-size chunks.
