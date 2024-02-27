@@ -1,3 +1,23 @@
+# Release rayon 1.9.0 (2024-02-27)
+
+- The new methods `IndexedParallelIterator::by_exponential_blocks` and
+  `by_uniform_blocks` allow processing items in smaller groups at a time.
+- The new `iter::walk_tree`, `walk_tree_prefix`, and `walk_tree_postfix`
+  functions enable custom parallel iteration over tree-like structures.
+- The new method `ParallelIterator::collect_vec_list` returns items as a linked
+  list of vectors, which is an efficient mode of parallel collection used by
+  many of the internal implementations of `collect`.
+- The new methods `ParallelSliceMut::par_split_inclusive_mut`,
+  `ParallelSlice::par_split_inclusive`, and
+  `ParallelString::par_split_inclusive` all work like a normal split but
+  keeping the separator as part of the left slice.
+- The new `ParallelString::par_split_ascii_whitespace` splits only on ASCII
+  whitespace, which is faster than including Unicode multi-byte whitespace.
+- `OsString` now implements `FromParallelIterator<_>` and `ParallelExtend<_>`
+  for a few item types similar to the standard `FromIterator` and `Extend`.
+- The internal `Pattern` trait for string methods is now implemented for
+  `[char; N]` and `&[char; N]`, matching any of the given characters.
+
 # Release rayon 1.8.1 / rayon-core 1.12.1 (2024-01-17)
 
 - The new `"web_spin_lock"` crate feature makes mutexes spin on the main
