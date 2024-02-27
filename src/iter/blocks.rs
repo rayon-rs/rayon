@@ -80,11 +80,15 @@ where
         let first = crate::current_num_threads();
         let callback = BlocksCallback {
             consumer,
-            sizes: std::iter::successors(Some(first), |s| Some(s.saturating_mul(2))),
+            sizes: std::iter::successors(Some(first), exponential_size),
             len: self.base.len(),
         };
         self.base.with_producer(callback)
     }
+}
+
+fn exponential_size(size: &usize) -> Option<usize> {
+    Some(size.saturating_mul(2))
 }
 
 /// `UniformBlocks` is a parallel iterator that consumes itself as a sequence
