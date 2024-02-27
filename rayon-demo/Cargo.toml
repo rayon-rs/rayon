@@ -10,7 +10,7 @@ publish = false
 rayon = { path = "../" }
 cgmath = "0.18"
 docopt = "1"
-fixedbitset = "0.4"
+fixedbitset = "0.5"
 glium = "0.34"
 once_cell = "1.17.1"
 rand = "0.8"
