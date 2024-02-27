@@ -105,10 +105,10 @@ impl NodeSet {
     }
 
     pub fn insert(&mut self, node: Node) {
-        self.bits.set(node.index, true);
+        self.bits.insert(node.index);
     }
 
     pub fn remove(&mut self, node: Node) {
-        self.bits.set(node.index, false);
+        self.bits.remove(node.index);
     }
 }
