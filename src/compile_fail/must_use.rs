@@ -30,6 +30,8 @@ macro_rules! must_use {
 }
 
 must_use! {
+    by_exponential_blocks  /** v.par_iter().by_exponential_blocks(); */
+    by_uniform_blocks   /** v.par_iter().by_uniform_blocks(2); */
     step_by             /** v.par_iter().step_by(2); */
     chain               /** v.par_iter().chain(&v); */
     chunks              /** v.par_iter().chunks(2); */

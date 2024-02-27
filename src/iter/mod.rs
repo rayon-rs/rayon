@@ -103,6 +103,7 @@ mod test;
 //   e.g. `find::find()`, are always used **prefixed**, so that they
 //   can be readily distinguished.
 
+mod blocks;
 mod chain;
 mod chunks;
 mod cloned;
@@ -161,6 +162,7 @@ mod zip;
 mod zip_eq;
 
 pub use self::{
+    blocks::{ExponentialBlocks, UniformBlocks},
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -1678,6 +1680,9 @@ pub trait ParallelIterator: Sized + Send {
     /// will be stopped, while attempts to the left must continue in case
     /// an earlier match is found.
     ///
+    /// For added performance, you might consider using `find_first` in conjunction with
+    /// [`by_exponential_blocks()`][IndexedParallelIterator::by_exponential_blocks].
+    ///
     /// Note that not all parallel iterators have a useful order, much like
     /// sequential `HashMap` iteration, so "first" may be nebulous.  If you
     /// just want the first match that discovered anywhere in the iterator,
@@ -2444,6 +2449,70 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 // Waiting for `ExactSizeIterator::is_empty` to be stabilized. See rust-lang/rust#35428
 #[allow(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
+    /// Divides an iterator into sequential blocks of exponentially-increasing size.
+    ///
+    /// Normally, parallel iterators are recursively divided into tasks in parallel.
+    /// This adaptor changes the default behavior by splitting the iterator into a **sequence**
+    /// of parallel iterators of increasing sizes.
+    /// Sizes grow exponentially in order to avoid creating
+    /// too many blocks. This also allows to balance the current block with all previous ones.
+    ///
+    /// This can have many applications but the most notable ones are:
+    /// - better performance with [`find_first()`][ParallelIterator::find_first]
+    /// - more predictable performance with [`find_any()`][ParallelIterator::find_any]
+    ///   or any interruptible computation
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// assert_eq!((0..10_000).into_par_iter()
+    ///                       .by_exponential_blocks()
+    ///                       .find_first(|&e| e==4_999), Some(4_999))
+    /// ```
+    ///
+    /// In this example, without blocks, rayon will split the initial range into two but all work
+    /// on the right hand side (from 5,000 onwards) is **useless** since the sequential algorithm
+    /// never goes there. This means that if two threads are used there will be **no** speedup **at
+    /// all**.
+    ///
+    /// `by_exponential_blocks` on the other hand will start with the leftmost range from 0
+    /// to `p` (threads number), continue with p to 3p, the 3p to 7p...
+    ///
+    /// Each subrange is treated in parallel, while all subranges are treated sequentially.
+    /// We therefore ensure a logarithmic number of blocks (and overhead) while guaranteeing
+    /// we stop at the first block containing the searched data.
+    fn by_exponential_blocks(self) -> ExponentialBlocks<Self> {
+        ExponentialBlocks::new(self)
+    }
+
+    /// Divides an iterator into sequential blocks of the given size.
+    ///
+    /// Normally, parallel iterators are recursively divided into tasks in parallel.
+    /// This adaptor changes the default behavior by splitting the iterator into a **sequence**
+    /// of parallel iterators of given `block_size`.
+    /// The main application is to obtain better
+    /// memory locality (especially if the reduce operation re-use folded data).
+    ///
+    /// **Panics** if `block_size` is 0.
+    ///
+    /// # Example
+    /// ```
+    /// use rayon::prelude::*;
+    /// // during most reductions v1 and v2 fit the cache
+    /// let v = (0u32..10_000_000)
+    ///     .into_par_iter()
+    ///     .by_uniform_blocks(1_000_000)
+    ///     .fold(Vec::new, |mut v, e| { v.push(e); v})
+    ///     .reduce(Vec::new, |mut v1, mut v2| { v1.append(&mut v2); v1});
+    /// assert_eq!(v, (0u32..10_000_000).collect::<Vec<u32>>());
+    /// ```
+    #[track_caller]
+    fn by_uniform_blocks(self, block_size: usize) -> UniformBlocks<Self> {
+        assert!(block_size != 0, "block_size must not be zero");
+        UniformBlocks::new(self, block_size)
+    }
+
     /// Collects the results of the iterator into the specified
     /// vector. The vector is always cleared before execution
     /// begins. If possible, reusing the vector across calls can lead
@@ -2608,6 +2677,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     ///
     /// [`par_chunks()`]: ../slice/trait.ParallelSlice.html#method.par_chunks
     /// [`par_chunks_mut()`]: ../slice/trait.ParallelSliceMut.html#method.par_chunks_mut
+    ///
+    /// **Panics** if `chunk_size` is 0.
     ///
     /// # Examples
     ///

@@ -147,6 +147,8 @@ fn debug_array() {
 #[test]
 fn debug_adaptors() {
     let v: Vec<_> = (0..10).collect();
+    check(v.par_iter().by_exponential_blocks());
+    check(v.par_iter().by_uniform_blocks(5));
     check(v.par_iter().chain(&v));
     check(v.par_iter().cloned());
     check(v.par_iter().copied());
