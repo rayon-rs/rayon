@@ -64,7 +64,7 @@ impl<'s> SolverCx<'s> {
     }
 
     pub fn tour_id(&self) -> TourId {
-        let counter = self.tour_counter.fetch_add(1, Ordering::SeqCst);
+        let counter = self.tour_counter.fetch_add(1, Ordering::Relaxed);
         TourId { id: counter }
     }
 
