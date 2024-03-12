@@ -5,12 +5,15 @@
 //!
 //! [std::slice]: https://doc.rust-lang.org/stable/std/slice/
 
+mod array;
 mod chunks;
 mod mergesort;
 mod quicksort;
 mod rchunks;
 
 mod test;
+
+pub use self::array::{ArrayChunks, ArrayChunksMut, ArrayWindows};
 
 use self::mergesort::par_mergesort;
 use self::quicksort::par_quicksort;
@@ -94,6 +97,20 @@ pub trait ParallelSlice<T: Sync> {
         }
     }
 
+    /// Returns a parallel iterator over all contiguous array windows of
+    /// length `N`. The windows overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let windows: Vec<_> = [1, 2, 3].par_array_windows().collect();
+    /// assert_eq!(vec![&[1, 2], &[2, 3]], windows);
+    /// ```
+    fn par_array_windows<const N: usize>(&self) -> ArrayWindows<'_, T, N> {
+        ArrayWindows::new(self.as_parallel_slice())
+    }
+
     /// Returns a parallel iterator over at most `chunk_size` elements of
     /// `self` at a time. The chunks do not overlap.
     ///
@@ -172,6 +189,24 @@ pub trait ParallelSlice<T: Sync> {
     fn par_rchunks_exact(&self, chunk_size: usize) -> RChunksExact<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunksExact::new(chunk_size, self.as_parallel_slice())
+    }
+
+    /// Returns a parallel iterator over `N`-element chunks of
+    /// `self` at a time. The chunks do not overlap.
+    ///
+    /// If `N` does not divide the length of the slice, then the
+    /// last up to `N-1` elements will be omitted and can be
+    /// retrieved from the remainder function of the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let chunks: Vec<_> = [1, 2, 3, 4, 5].par_array_chunks().collect();
+    /// assert_eq!(chunks, vec![&[1, 2], &[3, 4]]);
+    /// ```
+    fn par_array_chunks<const N: usize>(&self) -> ArrayChunks<'_, T, N> {
+        ArrayChunks::new(self.as_parallel_slice())
     }
 }
 
@@ -318,6 +353,26 @@ pub trait ParallelSliceMut<T: Send> {
     fn par_rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<'_, T> {
         assert!(chunk_size != 0, "chunk_size must not be zero");
         RChunksExactMut::new(chunk_size, self.as_parallel_slice_mut())
+    }
+
+    /// Returns a parallel iterator over `N`-element chunks of
+    /// `self` at a time. The chunks are mutable and do not overlap.
+    ///
+    /// If `N` does not divide the length of the slice, then the
+    /// last up to `N-1` elements will be omitted and can be
+    /// retrieved from the remainder function of the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let mut array = [1, 2, 3, 4, 5];
+    /// array.par_array_chunks_mut()
+    ///      .for_each(|[a, _, b]| std::mem::swap(a, b));
+    /// assert_eq!(array, [3, 2, 1, 4, 5]);
+    /// ```
+    fn par_array_chunks_mut<const N: usize>(&mut self) -> ArrayChunksMut<'_, T, N> {
+        ArrayChunksMut::new(self.as_parallel_slice_mut())
     }
 
     /// Sorts the slice in parallel.

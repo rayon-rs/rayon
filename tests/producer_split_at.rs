@@ -188,6 +188,36 @@ fn slice_chunks_exact() {
 }
 
 #[test]
+fn slice_array_chunks() {
+    use std::convert::{TryFrom, TryInto};
+    fn check_len<const N: usize>(s: &[i32])
+    where
+        for<'a> &'a [i32; N]: PartialEq + TryFrom<&'a [i32]> + std::fmt::Debug,
+    {
+        // TODO: use https://github.com/rust-lang/rust/pull/74373 instead.
+        let v: Vec<_> = s
+            .chunks_exact(N)
+            .map(|s| s.try_into().ok().unwrap())
+            .collect();
+        check(&v, || s.par_array_chunks::<N>());
+    }
+
+    let s: Vec<_> = (0..10).collect();
+    check_len::<1>(&s);
+    check_len::<2>(&s);
+    check_len::<3>(&s);
+    check_len::<4>(&s);
+    check_len::<5>(&s);
+    check_len::<6>(&s);
+    check_len::<7>(&s);
+    check_len::<8>(&s);
+    check_len::<9>(&s);
+    check_len::<10>(&s);
+    check_len::<11>(&s);
+    check_len::<12>(&s);
+}
+
+#[test]
 fn slice_chunks_mut() {
     let mut s: Vec<_> = (0..10).collect();
     let mut v: Vec<_> = s.clone();
@@ -211,6 +241,40 @@ fn slice_chunks_exact_mut() {
             Split::reverse(s.par_chunks_exact_mut(len), i, j, k, &expected);
         });
     }
+}
+
+#[test]
+fn slice_array_chunks_mut() {
+    use std::convert::{TryFrom, TryInto};
+    fn check_len<const N: usize>(s: &mut [i32], v: &mut [i32])
+    where
+        for<'a> &'a mut [i32; N]: PartialEq + TryFrom<&'a mut [i32]> + std::fmt::Debug,
+    {
+        // TODO: use https://github.com/rust-lang/rust/pull/74373 instead.
+        let expected: Vec<_> = v
+            .chunks_exact_mut(N)
+            .map(|s| s.try_into().ok().unwrap())
+            .collect();
+        map_triples(expected.len() + 1, |i, j, k| {
+            Split::forward(s.par_array_chunks_mut::<N>(), i, j, k, &expected);
+            Split::reverse(s.par_array_chunks_mut::<N>(), i, j, k, &expected);
+        });
+    }
+
+    let mut s: Vec<_> = (0..10).collect();
+    let mut v: Vec<_> = s.clone();
+    check_len::<1>(&mut s, &mut v);
+    check_len::<2>(&mut s, &mut v);
+    check_len::<3>(&mut s, &mut v);
+    check_len::<4>(&mut s, &mut v);
+    check_len::<5>(&mut s, &mut v);
+    check_len::<6>(&mut s, &mut v);
+    check_len::<7>(&mut s, &mut v);
+    check_len::<8>(&mut s, &mut v);
+    check_len::<9>(&mut s, &mut v);
+    check_len::<10>(&mut s, &mut v);
+    check_len::<11>(&mut s, &mut v);
+    check_len::<12>(&mut s, &mut v);
 }
 
 #[test]
@@ -262,6 +326,15 @@ fn slice_windows() {
     let s: Vec<_> = (0..10).collect();
     let v: Vec<_> = s.windows(2).collect();
     check(&v, || s.par_windows(2));
+}
+
+#[test]
+fn slice_array_windows() {
+    use std::convert::TryInto;
+    let s: Vec<_> = (0..10).collect();
+    // FIXME: use the standard `array_windows`, rust-lang/rust#75027
+    let v: Vec<&[_; 2]> = s.windows(2).map(|s| s.try_into().unwrap()).collect();
+    check(&v, || s.par_array_windows::<2>());
 }
 
 #[test]
