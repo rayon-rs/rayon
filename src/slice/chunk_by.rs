@@ -70,6 +70,15 @@ pub struct ChunkBy<'data, T, P> {
     slice: &'data [T],
 }
 
+impl<'data, T, P: Clone> Clone for ChunkBy<'data, T, P> {
+    fn clone(&self) -> Self {
+        ChunkBy {
+            pred: self.pred.clone(),
+            slice: self.slice,
+        }
+    }
+}
+
 impl<'data, T: fmt::Debug, P> fmt::Debug for ChunkBy<'data, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ChunkBy")
