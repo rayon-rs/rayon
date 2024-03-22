@@ -2,6 +2,15 @@ use crate::iter::plumbing::*;
 use crate::iter::*;
 use std::fmt;
 
+fn find_first_index<T, P>(xs: &[T], pred: &P) -> Option<usize>
+where
+    P: Fn(&T, &T) -> bool,
+{
+    xs.windows(2)
+        .position(|w| !pred(&w[0], &w[1]))
+        .map(|i| i + 1)
+}
+
 fn find_index<T, P>(xs: &[T], pred: &P) -> Option<usize>
 where
     P: Fn(&T, &T) -> bool,
@@ -52,11 +61,23 @@ where
         }
     }
 
-    fn fold_with<F>(self, folder: F) -> F
+    fn fold_with<F>(mut self, folder: F) -> F
     where
         F: Folder<Self::Item>,
     {
-        folder.consume_iter(self.slice.chunk_by(self.pred))
+        // TODO (MSRV 1.77):
+        // folder.consume_iter(self.slice.chunk_by(self.pred))
+
+        folder.consume_iter(std::iter::from_fn(move || {
+            if self.slice.is_empty() {
+                None
+            } else {
+                let i = find_first_index(self.slice, self.pred).unwrap_or(self.slice.len());
+                let (head, tail) = self.slice.split_at(i);
+                self.slice = tail;
+                Some(head)
+            }
+        }))
     }
 }
 
@@ -147,11 +168,23 @@ where
         }
     }
 
-    fn fold_with<F>(self, folder: F) -> F
+    fn fold_with<F>(mut self, folder: F) -> F
     where
         F: Folder<Self::Item>,
     {
-        folder.consume_iter(self.slice.chunk_by_mut(self.pred))
+        // TODO (MSRV 1.77):
+        // folder.consume_iter(self.slice.chunk_by_mut(self.pred))
+
+        folder.consume_iter(std::iter::from_fn(move || {
+            if self.slice.is_empty() {
+                None
+            } else {
+                let i = find_first_index(self.slice, self.pred).unwrap_or(self.slice.len());
+                let (head, tail) = std::mem::take(&mut self.slice).split_at_mut(i);
+                self.slice = tail;
+                Some(head)
+            }
+        }))
     }
 }
 
