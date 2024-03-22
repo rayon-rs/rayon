@@ -1,9 +1,9 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
 
-fn find_index<T, F>(xs: &[T], pred: &F) -> Option<usize>
+fn find_index<T, P>(xs: &[T], pred: &P) -> Option<usize>
 where
-    F: Fn(&T, &T) -> bool,
+    P: Fn(&T, &T) -> bool,
 {
     let n = (xs.len() / 2).saturating_sub(1);
 
@@ -12,7 +12,7 @@ where
         let end = std::cmp::min(n + m, xs.len());
         let fsts = &xs[start..end];
         let (_, snds) = fsts.split_first()?;
-        match fsts.iter().zip(snds).position(|(x , y)| !pred(x, y)) {
+        match fsts.iter().zip(snds).position(|(x, y)| !pred(x, y)) {
             None => (),
             Some(i) => return Some(start + i + 1),
         }
@@ -20,12 +20,12 @@ where
     None
 }
 
-struct GroupByProducer<'data, 'p, T, P> {
+struct ChunkByProducer<'data, 'p, T, P> {
     pred: &'p P,
     slice: &'data [T],
 }
 
-impl<'data, 'p, T, P> UnindexedProducer for GroupByProducer<'data, 'p, T, P>
+impl<'data, 'p, T, P> UnindexedProducer for ChunkByProducer<'data, 'p, T, P>
 where
     T: Sync,
     P: Fn(&T, &T) -> bool + Send + Sync,
@@ -61,33 +61,33 @@ where
 
 /// Parallel iterator over slice in (non-overlapping) chunks separated by a predicate.
 ///
-/// This struct is created by the [`group_by`] method on `&[T]`.
+/// This struct is created by the [`par_chunk_by`] method on `&[T]`.
 ///
-/// [`group_by`]: trait.ParallelSlice.html#method.par_group_by
+/// [`par_chunk_by`]: trait.ParallelSlice.html#method.par_chunk_by
 #[derive(Debug)]
-pub struct GroupBy<'data, T, F>
+pub struct ChunkBy<'data, T, P>
 where
     T: Sync,
-    F: Fn(&T, &T) -> bool + Send + Sync,
+    P: Fn(&T, &T) -> bool + Send + Sync,
 {
-    pred: F,
+    pred: P,
     slice: &'data [T],
 }
 
-impl<'data, T, F> GroupBy<'data, T, F>
+impl<'data, T, P> ChunkBy<'data, T, P>
 where
     T: Sync,
-    F: Fn(&T, &T) -> bool + Send + Sync,
+    P: Fn(&T, &T) -> bool + Send + Sync,
 {
-    pub(super) fn new(slice: &'data [T], pred: F) -> Self {
+    pub(super) fn new(slice: &'data [T], pred: P) -> Self {
         Self { pred, slice }
     }
 }
 
-impl<'data, T, F> ParallelIterator for GroupBy<'data, T, F>
+impl<'data, T, P> ParallelIterator for ChunkBy<'data, T, P>
 where
     T: Sync,
-    F: Fn(&T, &T) -> bool + Send + Sync,
+    P: Fn(&T, &T) -> bool + Send + Sync,
 {
     type Item = &'data [T];
 
@@ -96,7 +96,7 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         bridge_unindexed(
-            GroupByProducer {
+            ChunkByProducer {
                 pred: &self.pred,
                 slice: self.slice,
             },
@@ -107,12 +107,12 @@ where
 
 // Mutable
 
-struct GroupByMutProducer<'data, 'p, T, P> {
+struct ChunkByMutProducer<'data, 'p, T, P> {
     pred: &'p P,
     slice: &'data mut [T],
 }
 
-impl<'data, 'p, T, P> UnindexedProducer for GroupByMutProducer<'data, 'p, T, P>
+impl<'data, 'p, T, P> UnindexedProducer for ChunkByMutProducer<'data, 'p, T, P>
 where
     T: Send,
     P: Fn(&T, &T) -> bool + Send + Sync,
@@ -149,33 +149,33 @@ where
 /// Parallel iterator over slice in (non-overlapping) mutable chunks
 /// separated by a predicate.
 ///
-/// This struct is created by the [`group_by_mut`] method on `&[T]`.
+/// This struct is created by the [`par_chunk_by_mut`] method on `&mut [T]`.
 ///
-/// [`group_by_mut`]: trait.ParallelSliceMut.html#method.par_group_by_mut
+/// [`par_chunk_by_mut`]: trait.ParallelSliceMut.html#method.par_chunk_by_mut
 #[derive(Debug)]
-pub struct GroupByMut<'data, T, F>
+pub struct ChunkByMut<'data, T, P>
 where
     T: Send,
-    F: Fn(&T, &T) -> bool + Send + Sync,
+    P: Fn(&T, &T) -> bool + Send + Sync,
 {
-    pred: F,
+    pred: P,
     slice: &'data mut [T],
 }
 
-impl<'data, T, F> GroupByMut<'data, T, F>
+impl<'data, T, P> ChunkByMut<'data, T, P>
 where
     T: Send,
-    F: Fn(&T, &T) -> bool + Send + Sync,
+    P: Fn(&T, &T) -> bool + Send + Sync,
 {
-    pub(super) fn new(slice: &'data mut [T], pred: F) -> Self {
+    pub(super) fn new(slice: &'data mut [T], pred: P) -> Self {
         Self { pred, slice }
     }
 }
 
-impl<'data, T, F> ParallelIterator for GroupByMut<'data, T, F>
+impl<'data, T, P> ParallelIterator for ChunkByMut<'data, T, P>
 where
     T: Send,
-    F: Fn(&T, &T) -> bool + Send + Sync,
+    P: Fn(&T, &T) -> bool + Send + Sync,
 {
     type Item = &'data mut [T];
 
@@ -184,7 +184,7 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         bridge_unindexed(
-            GroupByMutProducer {
+            ChunkByMutProducer {
                 pred: &self.pred,
                 slice: self.slice,
             },

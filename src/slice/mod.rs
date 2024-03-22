@@ -5,8 +5,8 @@
 //!
 //! [std::slice]: https://doc.rust-lang.org/stable/std/slice/
 
+mod chunk_by;
 mod chunks;
-mod group_by;
 mod mergesort;
 mod quicksort;
 mod rchunks;
@@ -23,8 +23,8 @@ use std::cmp::Ordering;
 use std::fmt::{self, Debug};
 use std::mem;
 
+pub use self::chunk_by::{ChunkBy, ChunkByMut};
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
-pub use self::group_by::{GroupBy, GroupByMut};
 pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
 
 /// Parallel extensions for slices.
@@ -187,16 +187,16 @@ pub trait ParallelSlice<T: Sync> {
     ///
     /// ```
     /// use rayon::prelude::*;
-    /// let groups: Vec<_> = [1, 2, 2, 3, 3, 3].par_group_by(|&x, &y| x == y).collect();
-    /// assert_eq!(groups[0], &[1]);
-    /// assert_eq!(groups[1], &[2, 2]);
-    /// assert_eq!(groups[2], &[3, 3, 3]);
+    /// let chunks: Vec<_> = [1, 2, 2, 3, 3, 3].par_chunk_by(|&x, &y| x == y).collect();
+    /// assert_eq!(chunks[0], &[1]);
+    /// assert_eq!(chunks[1], &[2, 2]);
+    /// assert_eq!(chunks[2], &[3, 3, 3]);
     /// ```
-    fn par_group_by<F>(&self, pred: F) -> GroupBy<'_, T, F>
+    fn par_chunk_by<F>(&self, pred: F) -> ChunkBy<'_, T, F>
     where
         F: Fn(&T, &T) -> bool + Send + Sync,
     {
-        GroupBy::new(self.as_parallel_slice(), pred)
+        ChunkBy::new(self.as_parallel_slice(), pred)
     }
 }
 
@@ -730,7 +730,7 @@ pub trait ParallelSliceMut<T: Send> {
         par_quicksort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
     }
 
-    /// Returns a parallel iterator over the slice producing non-overlapping mutable 
+    /// Returns a parallel iterator over the slice producing non-overlapping mutable
     /// runs of elements using the predicate to separate them.
     ///
     /// The predicate is called on two elements following themselves,
@@ -742,16 +742,16 @@ pub trait ParallelSliceMut<T: Send> {
     /// ```
     /// use rayon::prelude::*;
     /// let mut xs = [1, 2, 2, 3, 3, 3];
-    /// let groups: Vec<_> = xs.par_group_by_mut(|&x, &y| x == y).collect();
-    /// assert_eq!(groups[0], &mut [1]);
-    /// assert_eq!(groups[1], &mut [2, 2]);
-    /// assert_eq!(groups[2], &mut [3, 3, 3]);
+    /// let chunks: Vec<_> = xs.par_chunk_by_mut(|&x, &y| x == y).collect();
+    /// assert_eq!(chunks[0], &mut [1]);
+    /// assert_eq!(chunks[1], &mut [2, 2]);
+    /// assert_eq!(chunks[2], &mut [3, 3, 3]);
     /// ```
-    fn par_group_by_mut<F>(&mut self, pred: F) -> GroupByMut<'_, T, F>
+    fn par_chunk_by_mut<F>(&mut self, pred: F) -> ChunkByMut<'_, T, F>
     where
         F: Fn(&T, &T) -> bool + Send + Sync,
     {
-        GroupByMut::new(self.as_parallel_slice_mut(), pred)
+        ChunkByMut::new(self.as_parallel_slice_mut(), pred)
     }
 }
 
