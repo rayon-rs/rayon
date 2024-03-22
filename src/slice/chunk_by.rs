@@ -1,5 +1,6 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
+use std::fmt;
 
 fn find_index<T, P>(xs: &[T], pred: &P) -> Option<usize>
 where
@@ -64,10 +65,17 @@ where
 /// This struct is created by the [`par_chunk_by`] method on `&[T]`.
 ///
 /// [`par_chunk_by`]: trait.ParallelSlice.html#method.par_chunk_by
-#[derive(Debug)]
 pub struct ChunkBy<'data, T, P> {
     pred: P,
     slice: &'data [T],
+}
+
+impl<'data, T: fmt::Debug, P> fmt::Debug for ChunkBy<'data, T, P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ChunkBy")
+            .field("slice", &self.slice)
+            .finish()
+    }
 }
 
 impl<'data, T, P> ChunkBy<'data, T, P> {
@@ -144,10 +152,17 @@ where
 /// This struct is created by the [`par_chunk_by_mut`] method on `&mut [T]`.
 ///
 /// [`par_chunk_by_mut`]: trait.ParallelSliceMut.html#method.par_chunk_by_mut
-#[derive(Debug)]
 pub struct ChunkByMut<'data, T, P> {
     pred: P,
     slice: &'data mut [T],
+}
+
+impl<'data, T: fmt::Debug, P> fmt::Debug for ChunkByMut<'data, T, P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ChunkByMut")
+            .field("slice", &self.slice)
+            .finish()
+    }
 }
 
 impl<'data, T, P> ChunkByMut<'data, T, P> {
