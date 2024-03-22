@@ -65,20 +65,12 @@ where
 ///
 /// [`par_chunk_by`]: trait.ParallelSlice.html#method.par_chunk_by
 #[derive(Debug)]
-pub struct ChunkBy<'data, T, P>
-where
-    T: Sync,
-    P: Fn(&T, &T) -> bool + Send + Sync,
-{
+pub struct ChunkBy<'data, T, P> {
     pred: P,
     slice: &'data [T],
 }
 
-impl<'data, T, P> ChunkBy<'data, T, P>
-where
-    T: Sync,
-    P: Fn(&T, &T) -> bool + Send + Sync,
-{
+impl<'data, T, P> ChunkBy<'data, T, P> {
     pub(super) fn new(slice: &'data [T], pred: P) -> Self {
         Self { pred, slice }
     }
@@ -153,20 +145,12 @@ where
 ///
 /// [`par_chunk_by_mut`]: trait.ParallelSliceMut.html#method.par_chunk_by_mut
 #[derive(Debug)]
-pub struct ChunkByMut<'data, T, P>
-where
-    T: Send,
-    P: Fn(&T, &T) -> bool + Send + Sync,
-{
+pub struct ChunkByMut<'data, T, P> {
     pred: P,
     slice: &'data mut [T],
 }
 
-impl<'data, T, P> ChunkByMut<'data, T, P>
-where
-    T: Send,
-    P: Fn(&T, &T) -> bool + Send + Sync,
-{
+impl<'data, T, P> ChunkByMut<'data, T, P> {
     pub(super) fn new(slice: &'data mut [T], pred: P) -> Self {
         Self { pred, slice }
     }
