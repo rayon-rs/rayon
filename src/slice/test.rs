@@ -5,6 +5,7 @@ use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 macro_rules! sort {
     ($f:ident, $name:ident) => {
@@ -167,4 +168,49 @@ fn test_par_rchunks_exact_mut_remainder() {
     assert_eq!(c.take_remainder(), &[0]);
     assert_eq!(c.take_remainder(), &[]);
     assert_eq!(c.len(), 2);
+}
+
+#[test]
+fn slice_chunk_by() {
+    let v: Vec<_> = (0..1000).collect();
+    assert_eq!(v[..0].par_chunk_by(|_, _| todo!()).count(), 0);
+    assert_eq!(v[..1].par_chunk_by(|_, _| todo!()).count(), 1);
+    assert_eq!(v[..2].par_chunk_by(|_, _| true).count(), 1);
+    assert_eq!(v[..2].par_chunk_by(|_, _| false).count(), 2);
+
+    let count = AtomicUsize::new(0);
+    let par: Vec<_> = v
+        .par_chunk_by(|x, y| {
+            count.fetch_add(1, Relaxed);
+            (x % 10 < 3) == (y % 10 < 3)
+        })
+        .collect();
+    assert_eq!(count.into_inner(), v.len() - 1);
+
+    let seq: Vec<_> = v.chunk_by(|x, y| (x % 10 < 3) == (y % 10 < 3)).collect();
+    assert_eq!(par, seq);
+}
+
+#[test]
+fn slice_chunk_by_mut() {
+    let mut v: Vec<_> = (0..1000).collect();
+    assert_eq!(v[..0].par_chunk_by_mut(|_, _| todo!()).count(), 0);
+    assert_eq!(v[..1].par_chunk_by_mut(|_, _| todo!()).count(), 1);
+    assert_eq!(v[..2].par_chunk_by_mut(|_, _| true).count(), 1);
+    assert_eq!(v[..2].par_chunk_by_mut(|_, _| false).count(), 2);
+
+    let mut v2 = v.clone();
+    let count = AtomicUsize::new(0);
+    let par: Vec<_> = v
+        .par_chunk_by_mut(|x, y| {
+            count.fetch_add(1, Relaxed);
+            (x % 10 < 3) == (y % 10 < 3)
+        })
+        .collect();
+    assert_eq!(count.into_inner(), v2.len() - 1);
+
+    let seq: Vec<_> = v2
+        .chunk_by_mut(|x, y| (x % 10 < 3) == (y % 10 < 3))
+        .collect();
+    assert_eq!(par, seq);
 }
