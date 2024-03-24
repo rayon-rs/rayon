@@ -60,8 +60,7 @@ fn execute_unindexed_range() {
 
 #[test]
 fn execute_pseudo_indexed_range() {
-    use std::i128::MAX;
-    let range = MAX - 1024..MAX;
+    let range = i128::MAX - 1024..i128::MAX;
 
     // Given `Some` length, collecting `Vec` will try to act indexed.
     let a = range.clone().into_par_iter();

@@ -18,7 +18,6 @@
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use std::char;
 use std::ops::RangeInclusive;
 
 /// Parallel iterator over an inclusive range, implemented for all integer types and `char`.
@@ -313,7 +312,6 @@ impl IndexedParallelIterator for Iter<char> {
 #[test]
 #[cfg(target_pointer_width = "64")]
 fn test_u32_opt_len() {
-    use std::u32;
     assert_eq!(Some(101), (0..=100u32).into_par_iter().opt_len());
     assert_eq!(
         Some(u32::MAX as usize),
@@ -327,7 +325,6 @@ fn test_u32_opt_len() {
 
 #[test]
 fn test_u64_opt_len() {
-    use std::{u64, usize};
     assert_eq!(Some(101), (0..=100u64).into_par_iter().opt_len());
     assert_eq!(
         Some(usize::MAX),
@@ -339,7 +336,6 @@ fn test_u64_opt_len() {
 
 #[test]
 fn test_u128_opt_len() {
-    use std::{u128, usize};
     assert_eq!(Some(101), (0..=100u128).into_par_iter().opt_len());
     assert_eq!(
         Some(usize::MAX),
@@ -355,7 +351,6 @@ fn test_u128_opt_len() {
 #[cfg(target_pointer_width = "64")]
 fn test_usize_i64_overflow() {
     use crate::ThreadPoolBuilder;
-    use std::i64;
 
     let iter = (-2..=i64::MAX).into_par_iter();
     assert_eq!(iter.opt_len(), Some(i64::MAX as usize + 3));

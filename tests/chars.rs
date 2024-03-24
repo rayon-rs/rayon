@@ -1,5 +1,4 @@
 use rayon::prelude::*;
-use std::char;
 
 #[test]
 fn half_open_correctness() {
