@@ -121,6 +121,8 @@ fn debug_vec() {
     let mut v: Vec<_> = (0..10).collect();
     check(v.par_iter());
     check(v.par_iter_mut());
+    check(v.par_chunk_by(i32::eq));
+    check(v.par_chunk_by_mut(i32::eq));
     check(v.par_chunks(42));
     check(v.par_chunks_exact(42));
     check(v.par_chunks_mut(42));

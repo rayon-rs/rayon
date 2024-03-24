@@ -109,6 +109,7 @@ fn clone_str() {
 fn clone_vec() {
     let v: Vec<_> = (0..1000).collect();
     check(v.par_iter());
+    check(v.par_chunk_by(i32::eq));
     check(v.par_chunks(42));
     check(v.par_chunks_exact(42));
     check(v.par_rchunks(42));
