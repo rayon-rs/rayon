@@ -1,7 +1,6 @@
 //! Tests for the join code.
 
-use crate::join::*;
-use crate::unwind;
+use super::*;
 use crate::ThreadPoolBuilder;
 use rand::distributions::Standard;
 use rand::{Rng, SeedableRng};

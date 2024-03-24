@@ -5,7 +5,6 @@ mod util {
     use rayon::prelude::*;
     use std::collections::{HashMap, LinkedList};
     use std::hash::Hash;
-    use std::iter::FromIterator;
     use std::sync::Mutex;
 
     /// Do whatever `collect` does by default.

@@ -19,7 +19,6 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use std::char;
-use std::convert::TryFrom;
 use std::ops::Range;
 use std::usize;
 

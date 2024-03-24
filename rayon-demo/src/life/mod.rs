@@ -24,7 +24,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use docopt::Docopt;
-use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 
 #[cfg(test)]

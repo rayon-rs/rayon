@@ -1,5 +1,4 @@
 use super::*;
-use std::sync::atomic::AtomicUsize;
 
 #[test]
 fn same_range_first_consumers_return_correct_answer() {
