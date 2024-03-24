@@ -278,6 +278,7 @@ fn check_skip() {
 
     let mut v1 = Vec::new();
     a.par_iter().skip(0).collect_into_vec(&mut v1);
+    #[allow(clippy::iter_skip_zero)]
     let v2 = a.iter().skip(0).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
