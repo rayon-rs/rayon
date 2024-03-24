@@ -30,6 +30,7 @@ impl PartialEq for DropCounter {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for DropCounter {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.version.set(self.version.get() + 1);
