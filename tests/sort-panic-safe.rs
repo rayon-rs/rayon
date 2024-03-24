@@ -115,7 +115,7 @@ macro_rules! test {
     };
 }
 
-thread_local!(static SILENCE_PANIC: Cell<bool> = Cell::new(false));
+thread_local!(static SILENCE_PANIC: Cell<bool> = const { Cell::new(false) });
 
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
