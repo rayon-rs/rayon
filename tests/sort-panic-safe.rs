@@ -146,8 +146,8 @@ fn sort_panic_safe() {
                     }
 
                     for _ in 0..5 {
-                        let a = rng.sample(&len_dist);
-                        let b = rng.sample(&len_dist);
+                        let a = rng.sample(len_dist);
+                        let b = rng.sample(len_dist);
                         if a < b {
                             input[a..b].reverse();
                         } else {
