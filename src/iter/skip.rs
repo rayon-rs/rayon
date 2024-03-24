@@ -1,7 +1,6 @@
 use super::noop::NoopConsumer;
 use super::plumbing::*;
 use super::*;
-use std::cmp::min;
 
 /// `Skip` is an iterator that skips over the first `n` elements.
 /// This struct is created by the [`skip()`] method on [`IndexedParallelIterator`]
@@ -21,7 +20,7 @@ where
 {
     /// Creates a new `Skip` iterator.
     pub(super) fn new(base: I, n: usize) -> Self {
-        let n = min(base.len(), n);
+        let n = Ord::min(base.len(), n);
         Skip { base, n }
     }
 }

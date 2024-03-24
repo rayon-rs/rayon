@@ -31,8 +31,6 @@
 
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use rand::Rng;
-#[cfg(test)]
-use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use std::f64::consts::PI;
 

@@ -70,7 +70,7 @@ fn euclid_serial(b: &mut test::Bencher) {
 fn euclid_faux_serial(b: &mut test::Bencher) {
     let count = euclid();
     let serial = |r: Iter<u32>| r.with_min_len(usize::MAX);
-    b.iter(|| assert_eq!(par_euclid(&serial, &serial), count))
+    b.iter(|| assert_eq!(par_euclid(serial, serial), count))
 }
 
 #[bench]
@@ -92,7 +92,7 @@ fn euclid_parallel_one(b: &mut test::Bencher) {
 fn euclid_parallel_outer(b: &mut test::Bencher) {
     let count = euclid();
     let parallel = |r: Iter<u32>| r.with_max_len(1);
-    b.iter(|| assert_eq!(par_euclid(&parallel, |n| n), count))
+    b.iter(|| assert_eq!(par_euclid(parallel, |n| n), count))
 }
 
 #[bench]
@@ -100,5 +100,5 @@ fn euclid_parallel_outer(b: &mut test::Bencher) {
 fn euclid_parallel_full(b: &mut test::Bencher) {
     let count = euclid();
     let parallel = |r: Iter<u32>| r.with_max_len(1);
-    b.iter(|| assert_eq!(par_euclid(&parallel, &parallel), count))
+    b.iter(|| assert_eq!(par_euclid(parallel, parallel), count))
 }

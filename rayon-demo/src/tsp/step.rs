@@ -1,5 +1,4 @@
 use rayon::Scope;
-use std::cmp;
 use std::sync::Arc;
 
 use super::graph::{Graph, Node, NodeSet};
@@ -90,7 +89,7 @@ fn compute_lower_bound(
                 // track the cheapest way to reach node `j` that doesn't
                 // start from one of the nodes we've been to already (but
                 // maybe starts from the most recent node):
-                min_weights[j.index()] = cmp::min(w, min_weights[j.index()]);
+                min_weights[j.index()] = Ord::min(w, min_weights[j.index()]);
             }
         }
     }

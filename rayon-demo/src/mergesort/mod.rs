@@ -26,7 +26,6 @@ pub struct Args {
 
 use docopt::Docopt;
 
-use std::cmp::max;
 use std::mem::MaybeUninit;
 use std::slice;
 use std::time::Instant;
@@ -132,7 +131,7 @@ fn seq_merge<T: Ord + Copy>(a: &[T], b: &[T], dest: &mut [MaybeUninit<T>]) {
         dest.copy_from_slice(as_uninit_slice(a));
         return;
     }
-    let biggest = max(*a.last().unwrap(), *b.last().unwrap());
+    let biggest = Ord::max(*a.last().unwrap(), *b.last().unwrap());
     let mut ai = a.iter();
     let mut an = *ai.next().unwrap();
     let mut bi = b.iter();

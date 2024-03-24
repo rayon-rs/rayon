@@ -24,8 +24,8 @@ fn gen_mostly_ascending(len: usize) -> Vec<u64> {
     let len_dist = Uniform::new(0, len);
     let mut v = gen_ascending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
-        let x = rng.sample(&len_dist);
-        let y = rng.sample(&len_dist);
+        let x = rng.sample(len_dist);
+        let y = rng.sample(len_dist);
         v.swap(x, y);
     }
     v
@@ -36,8 +36,8 @@ fn gen_mostly_descending(len: usize) -> Vec<u64> {
     let len_dist = Uniform::new(0, len);
     let mut v = gen_descending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
-        let x = rng.sample(&len_dist);
-        let y = rng.sample(&len_dist);
+        let x = rng.sample(len_dist);
+        let y = rng.sample(len_dist);
         v.swap(x, y);
     }
     v
@@ -49,7 +49,7 @@ fn gen_strings(len: usize) -> Vec<String> {
     let len_dist = Uniform::new(1, 21);
     let mut v = vec![];
     for _ in 0..len {
-        let n = rng.sample(&len_dist);
+        let n = rng.sample(len_dist);
         v.push(
             rng.sample_iter(&Alphanumeric)
                 .map(char::from)

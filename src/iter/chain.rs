@@ -1,7 +1,6 @@
 use super::plumbing::*;
 use super::*;
 use rayon_core::join;
-use std::cmp;
 use std::iter;
 
 /// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
@@ -178,11 +177,11 @@ where
     }
 
     fn min_len(&self) -> usize {
-        cmp::max(self.a.min_len(), self.b.min_len())
+        Ord::max(self.a.min_len(), self.b.min_len())
     }
 
     fn max_len(&self) -> usize {
-        cmp::min(self.a.max_len(), self.b.max_len())
+        Ord::min(self.a.max_len(), self.b.max_len())
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {

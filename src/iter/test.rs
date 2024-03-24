@@ -7,7 +7,6 @@ use rayon_core::*;
 use rand::distributions::Standard;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-use std::collections::LinkedList;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::f64;
@@ -61,8 +60,7 @@ fn execute_unindexed_range() {
 
 #[test]
 fn execute_pseudo_indexed_range() {
-    use std::i128::MAX;
-    let range = MAX - 1024..MAX;
+    let range = i128::MAX - 1024..i128::MAX;
 
     // Given `Some` length, collecting `Vec` will try to act indexed.
     let a = range.clone().into_par_iter();
@@ -279,6 +277,7 @@ fn check_skip() {
 
     let mut v1 = Vec::new();
     a.par_iter().skip(0).collect_into_vec(&mut v1);
+    #[allow(clippy::iter_skip_zero)]
     let v2 = a.iter().skip(0).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
@@ -630,7 +629,7 @@ fn check_partial_cmp_none_direct() {
 
     let result = a.par_iter().partial_cmp(b.par_iter());
 
-    assert!(result == None);
+    assert!(result.is_none());
 }
 
 #[test]
@@ -1708,8 +1707,8 @@ fn check_lengths() {
         let range = 0..1024 * 1024;
 
         // Check against normalized values.
-        let min_check = cmp::min(cmp::max(min, 1), range.len());
-        let max_check = cmp::max(max, min_check.saturating_add(min_check - 1));
+        let min_check = Ord::min(Ord::max(min, 1), range.len());
+        let max_check = Ord::max(max, min_check.saturating_add(min_check - 1));
 
         assert!(
             range

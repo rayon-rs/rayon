@@ -1,4 +1,4 @@
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 use super::graph::{Node, NodeSet};

@@ -1,3 +1,9 @@
+# Release rayon 1.10.0 (2024-03-23)
+
+- The new methods `ParallelSlice::par_chunk_by` and
+  `ParallelSliceMut::par_chunk_by_mut` work like the slice methods `chunk_by`
+  and `chunk_by_mut` added in Rust 1.77.
+
 # Release rayon 1.9.0 (2024-02-27)
 
 - The new methods `IndexedParallelIterator::by_exponential_blocks` and

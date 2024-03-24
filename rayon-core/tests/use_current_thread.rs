@@ -38,7 +38,7 @@ fn use_current_thread_basic() {
         assert_ne!(rayon_core::current_thread_index(), Some(0));
         // This should execute even if the current thread is blocked, since we have two threads in
         // the pool.
-        let &(ref started, ref condvar) = &*pair2;
+        let (started, condvar) = &*pair2;
         *started.lock().unwrap() = true;
         condvar.notify_one();
     });
