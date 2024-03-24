@@ -630,7 +630,7 @@ fn check_partial_cmp_none_direct() {
 
     let result = a.par_iter().partial_cmp(b.par_iter());
 
-    assert!(result == None);
+    assert!(result.is_none());
 }
 
 #[test]
