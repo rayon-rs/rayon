@@ -203,9 +203,9 @@ mod test {
     #[test]
     fn check_fold_chunks_uneven() {
         let cases: Vec<(Vec<u32>, usize, Vec<u32>)> = vec![
-            ((0..5).collect(), 3, vec![0 + 1 + 2, 3 + 4]),
+            ((0..5).collect(), 3, vec![1 + 2, 3 + 4]),
             (vec![1], 5, vec![1]),
-            ((0..4).collect(), 3, vec![0 + 1 + 2, 3]),
+            ((0..4).collect(), 3, vec![1 + 2, 3]),
         ];
 
         for (i, (v, n, expected)) in cases.into_iter().enumerate() {
