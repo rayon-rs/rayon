@@ -8,7 +8,6 @@ use crate::join_context;
 
 use super::IndexedParallelIterator;
 
-use std::cmp;
 use std::usize;
 
 /// The `ProducerCallback` trait is a kind of generic closure,
@@ -275,7 +274,7 @@ impl Splitter {
         if stolen {
             // This job was stolen!  Reset the number of desired splits to the
             // thread count, if that's more than we had remaining anyway.
-            self.splits = cmp::max(crate::current_num_threads(), self.splits / 2);
+            self.splits = Ord::max(crate::current_num_threads(), self.splits / 2);
             true
         } else if splits > 0 {
             // We have splits remaining, make it so.
@@ -313,14 +312,14 @@ impl LengthSplitter {
     fn new(min: usize, max: usize, len: usize) -> LengthSplitter {
         let mut splitter = LengthSplitter {
             inner: Splitter::new(),
-            min: cmp::max(min, 1),
+            min: Ord::max(min, 1),
         };
 
         // Divide the given length by the max working length to get the minimum
         // number of splits we need to get under that max.  This rounds down,
         // but the splitter actually gives `next_power_of_two()` pieces anyway.
         // e.g. len 12345 / max 100 = 123 min_splits -> 128 pieces.
-        let min_splits = len / cmp::max(max, 1);
+        let min_splits = len / Ord::max(max, 1);
 
         // Only update the value if it's not splitting enough already.
         if min_splits > splitter.inner.splits {

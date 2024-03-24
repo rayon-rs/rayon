@@ -3,7 +3,6 @@ use crate::ThreadPoolBuilder;
 use crate::{scope, scope_fifo, Scope, ScopeFifo};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Barrier, Mutex};
@@ -182,7 +181,7 @@ fn the_final_countdown<'scope>(
     let diff = if p > q { p - q } else { q - p };
 
     let mut data = max.lock().unwrap();
-    *data = cmp::max(diff, *data);
+    *data = Ord::max(diff, *data);
 
     if n > 0 {
         s.spawn(move |s| the_final_countdown(s, bottom_of_stack, max, n - 1));

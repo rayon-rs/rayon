@@ -1708,8 +1708,8 @@ fn check_lengths() {
         let range = 0..1024 * 1024;
 
         // Check against normalized values.
-        let min_check = cmp::min(cmp::max(min, 1), range.len());
-        let max_check = cmp::max(max, min_check.saturating_add(min_check - 1));
+        let min_check = Ord::min(Ord::max(min, 1), range.len());
+        let max_check = Ord::max(max, min_check.saturating_add(min_check - 1));
 
         assert!(
             range

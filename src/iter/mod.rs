@@ -82,7 +82,7 @@
 use self::plumbing::*;
 use self::private::Try;
 pub use either::Either;
-use std::cmp::{self, Ordering};
+use std::cmp::Ordering;
 use std::collections::LinkedList;
 use std::iter::{Product, Sum};
 use std::ops::{Fn, RangeBounds};
@@ -1432,7 +1432,7 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
-    /// Basically equivalent to `self.reduce_with(|a, b| cmp::min(a, b))`.
+    /// Basically equivalent to `self.reduce_with(|a, b| Ord::min(a, b))`.
     ///
     /// # Examples
     ///
@@ -1451,7 +1451,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         Self::Item: Ord,
     {
-        self.reduce_with(cmp::min)
+        self.reduce_with(Ord::min)
     }
 
     /// Computes the minimum of all the items in the iterator with respect to
@@ -1530,7 +1530,7 @@ pub trait ParallelIterator: Sized + Send {
     /// specified, so if the `Ord` impl is not truly associative, then
     /// the results are not deterministic.
     ///
-    /// Basically equivalent to `self.reduce_with(|a, b| cmp::max(a, b))`.
+    /// Basically equivalent to `self.reduce_with(|a, b| Ord::max(a, b))`.
     ///
     /// # Examples
     ///
@@ -1549,7 +1549,7 @@ pub trait ParallelIterator: Sized + Send {
     where
         Self::Item: Ord,
     {
-        self.reduce_with(cmp::max)
+        self.reduce_with(Ord::max)
     }
 
     /// Computes the maximum of all the items in the iterator with respect to

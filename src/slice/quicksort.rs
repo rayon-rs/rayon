@@ -4,7 +4,6 @@
 //! The only difference from the original is that calls to `recurse` are executed in parallel using
 //! `rayon_core::join`.
 
-use std::cmp;
 use std::marker::PhantomData;
 use std::mem::{self, MaybeUninit};
 use std::ptr;
@@ -378,7 +377,7 @@ where
         }
 
         // Number of out-of-order elements to swap between the left and right side.
-        let count = cmp::min(width(start_l, end_l), width(start_r, end_r));
+        let count = Ord::min(width(start_l, end_l), width(start_r, end_r));
 
         if count > 0 {
             macro_rules! left {
@@ -811,7 +810,7 @@ where
 
         // Partition the slice.
         let (mid, was_p) = partition(v, pivot, is_less);
-        was_balanced = cmp::min(mid, len - mid) >= len / 8;
+        was_balanced = Ord::min(mid, len - mid) >= len / 8;
         was_partitioned = was_p;
 
         // Split the slice into `left`, `pivot`, and `right`.
@@ -819,7 +818,7 @@ where
         let (pivot, right) = right.split_at_mut(1);
         let pivot = &mut pivot[0];
 
-        if cmp::max(left.len(), right.len()) <= MAX_SEQUENTIAL {
+        if Ord::max(left.len(), right.len()) <= MAX_SEQUENTIAL {
             // Recurse into the shorter side only in order to minimize the total number of recursive
             // calls and consume less stack space. Then just continue with the longer side (this is
             // akin to tail recursion).

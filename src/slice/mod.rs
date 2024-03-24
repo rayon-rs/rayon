@@ -18,7 +18,7 @@ use self::quicksort::par_quicksort;
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use crate::split_producer::*;
-use std::cmp;
+
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
 use std::mem;
@@ -911,7 +911,7 @@ impl<'data, T: 'data + Sync> Producer for WindowsProducer<'data, T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let left_index = cmp::min(self.slice.len(), index + (self.window_size - 1));
+        let left_index = Ord::min(self.slice.len(), index + (self.window_size - 1));
         let left = &self.slice[..left_index];
         let right = &self.slice[index..];
         (

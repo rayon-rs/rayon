@@ -166,7 +166,7 @@ impl AtomicCounters {
         // Current heuristic: whenever an inactive thread goes away, if
         // there are any sleeping threads, wake 'em up.
         let sleeping_threads = old_value.sleeping_threads();
-        std::cmp::min(sleeping_threads, 2)
+        Ord::min(sleeping_threads, 2)
     }
 
     /// Subtracts a sleeping thread. This cannot fail, but it is only

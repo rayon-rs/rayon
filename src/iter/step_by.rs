@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use super::plumbing::*;
 use super::*;
 use crate::math::div_round_up;
@@ -116,7 +114,7 @@ where
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = min(index * self.step, self.len);
+        let elem_index = Ord::min(index * self.step, self.len);
 
         let (left, right) = self.base.split_at(elem_index);
         (

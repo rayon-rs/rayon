@@ -2,7 +2,7 @@ use rand::distributions::Uniform;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::cell::Cell;
-use std::cmp::{self, Ordering};
+use std::cmp::Ordering;
 use std::panic;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
@@ -66,7 +66,7 @@ macro_rules! test {
         let step = if len <= 100 {
             1
         } else {
-            cmp::max(1, panic_countdown / 10)
+            Ord::max(1, panic_countdown / 10)
         };
 
         // ... and then panic after each `step` comparisons.
