@@ -71,7 +71,7 @@ as:
 
 ```toml
 [dependencies]
-rayon = "1.8"
+rayon = "1.10"
 ```
 
 To use the parallel iterator APIs, a number of traits have to be in
@@ -96,8 +96,8 @@ will only use a single CPU core.
 
 You can build Rayon-based projects with proper multithreading support
 for the Web, but you'll need an adapter and some project configuration
-to account for differences between WebAssembly threads and threads
-on the other platforms.
+to account for differences between WebAssembly threads and threads on
+the other platforms.
 
 Check out the
 [wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon)
