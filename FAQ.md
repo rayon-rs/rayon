@@ -211,15 +211,14 @@ this shortest route, you can just stop and avoid wasted effort. In
 sequential land, you might model this "best result" as a shared value
 like `Rc<Cell<usize>>` (here the `usize` represents the length of best
 path found so far); in parallel land, you'd use a `Arc<AtomicUsize>`.
-Now we can make our search function look like:
 
 ```rust
-fn search(path: &Path, cost_so_far: usize, best_cost: &Arc<AtomicUsize>) {
+fn search(path: &Path, cost_so_far: usize, best_cost: &AtomicUsize) {
     if cost_so_far >= best_cost.load(Ordering::SeqCst) {
         return;
     }
-    ...
-    best_cost.store(...);
+    // Using `fetch_min` to avoid a race condition, in case it changed since `load`.
+    best_cost.fetch_min(..., Ordering::SeqCst);
 }
 ```
 
