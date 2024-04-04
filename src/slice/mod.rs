@@ -7,14 +7,13 @@
 
 mod chunk_by;
 mod chunks;
-mod mergesort;
-mod quicksort;
 mod rchunks;
+mod sort;
 
 mod test;
 
-use self::mergesort::par_mergesort;
-use self::quicksort::par_quicksort;
+use self::sort::par_mergesort;
+use self::sort::par_quicksort;
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use crate::split_producer::*;
