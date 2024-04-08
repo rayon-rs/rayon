@@ -40,12 +40,12 @@ is an homage to that work.
 
 ## What should I do if I use `Rc`, `Cell`, `RefCell` or other non-Send-and-Sync types?
 
-There are a number of non-threadsafe types in the Rust standard library,
-and if your code is using them, you will not be able to combine it
-with Rayon. Similarly, even if you don't have such types, but you try
-to have multiple closures mutating the same state, you will get
-compilation errors; for example, this function won't work, because
-both closures access `slice`:
+There are a number of non-threadsafe types in the Rust standard
+library, and if your code is using them, you will not be able to
+combine it with Rayon. Similarly, even if you don't have such types,
+but you try to have multiple closures mutating the same state, you
+will get compilation errors; for example, this function won't work,
+because both closures access `slice`:
 
 ```rust
 /// Increment all values in slice.
@@ -54,14 +54,14 @@ fn increment_all(slice: &mut [i32]) {
 }
 ```
 
-The correct way to resolve such errors will depend on the case.  Some
+The correct way to resolve such errors will depend on the case. Some
 cases are easy: for example, uses of [`Rc`] can typically be replaced
 with [`Arc`], which is basically equivalent, but thread-safe.
 
-Code that uses `Cell` or `RefCell`, however, can be somewhat more complicated.
-If you can refactor your code to avoid those types, that is often the best way
-forward, but otherwise, you can try to replace those types with their threadsafe
-equivalents:
+Code that uses `Cell` or `RefCell`, however, can be somewhat more
+complicated. If you can refactor your code to avoid those types, that
+is often the best way forward, but otherwise, you can try to replace
+those types with their threadsafe equivalents:
 
 - `Cell` -- replacement: `AtomicUsize`, `AtomicBool`, etc
 - `RefCell` -- replacement: `RwLock`, or perhaps `Mutex`
@@ -86,14 +86,14 @@ tscounter.store(value + 1, Ordering::SeqCst);
 
 You can already see that the `AtomicUsize` API is a bit more complex,
 as it requires you to specify an
-[ordering](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html). (I
-won't go into the details on ordering here, but suffice to say that if
-you don't know what an ordering is, and probably even if you do, you
-should use `Ordering::SeqCst`.) The danger in this parallel version of
-the counter is that other threads might be running at the same time
-and they could cause our counter to get out of sync. For example, if
-we have two threads, then they might both execute the "load" before
-either has a chance to execute the "store":
+[ordering](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html).
+(I won't go into the details on ordering here, but suffice to say that
+if you don't know what an ordering is, and probably even if you do,
+you should use `Ordering::SeqCst`.) The danger in this parallel
+version of the counter is that other threads might be running at the
+same time and they could cause our counter to get out of sync. For
+example, if we have two threads, then they might both execute the
+"load" before either has a chance to execute the "store":
 
 ```
 Thread 1                                          Thread 2
@@ -105,7 +105,7 @@ tscounter.store(value+1);                         tscounter.store(value+1);
 ```
 
 Now even though we've had two increments, we'll only increase the
-counter by one!  Even though we've got no data race, this is still
+counter by one! Even though we've got no data race, this is still
 probably not the result we wanted. The problem here is that the `Cell`
 API doesn't make clear the scope of a "transaction" -- that is, the
 set of reads/writes that should occur atomically. In this case, we
@@ -205,7 +205,7 @@ WANT threads to interleave in the ways I showed above.
 
 Consider for example when you are conducting a search in parallel, say
 to find the shortest route. To avoid fruitless search, you might want
-to keep a cell with the shortest route you've found thus far.  This
+to keep a cell with the shortest route you've found thus far. This
 way, when you are searching down some path that's already longer than
 this shortest route, you can just stop and avoid wasted effort. In
 sequential land, you might model this "best result" as a shared value
