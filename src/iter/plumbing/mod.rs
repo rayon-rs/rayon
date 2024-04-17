@@ -25,7 +25,7 @@ pub trait ProducerCallback<T> {
 
     /// Invokes the callback with the given producer as argument. The
     /// key point of this trait is that this method is generic over
-    /// `P`, and hence implementors must be defined for any producer.
+    /// `P`, and hence implementers must be defined for any producer.
     fn callback<P>(self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>;

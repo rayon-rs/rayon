@@ -354,7 +354,7 @@ impl ParallelString for str {
 
 /// We hide the `Pattern` trait in a private module, as its API is not meant
 /// for general consumption.  If we could have privacy on trait items, then it
-/// would be nicer to have its basic existence and implementors public while
+/// would be nicer to have its basic existence and implementers public while
 /// keeping all of the methods private.
 mod private {
     use crate::iter::plumbing::Folder;
