@@ -210,13 +210,13 @@ macro_rules! indexed_range_impl {
 }
 
 trait UnindexedRangeLen<L> {
-    fn len(&self) -> L;
+    fn unindexed_len(&self) -> L;
 }
 
 macro_rules! unindexed_range_impl {
     ( $t:ty, $len_t:ty ) => {
         impl UnindexedRangeLen<$len_t> for Range<$t> {
-            fn len(&self) -> $len_t {
+            fn unindexed_len(&self) -> $len_t {
                 let &Range { start, end } = self;
                 if end > start {
                     end.wrapping_sub(start) as $len_t
@@ -250,7 +250,7 @@ macro_rules! unindexed_range_impl {
             }
 
             fn opt_len(iter: &Iter<$t>) -> Option<usize> {
-                usize::try_from(iter.range.len()).ok()
+                usize::try_from(iter.range.unindexed_len()).ok()
             }
         }
 
@@ -258,7 +258,7 @@ macro_rules! unindexed_range_impl {
             type Item = $t;
 
             fn split(mut self) -> (Self, Option<Self>) {
-                let index = self.range.len() / 2;
+                let index = self.range.unindexed_len() / 2;
                 if index > 0 {
                     let mid = self.range.start.wrapping_add(index as $t);
                     let right = mid..self.range.end;
@@ -382,11 +382,14 @@ fn test_i128_len_doesnt_overflow() {
         range: 0..octillion,
     };
 
-    assert_eq!(octillion as u128, producer.range.len());
-    assert_eq!(octillion as u128, (0..octillion).len());
-    assert_eq!(2 * octillion as u128, (-octillion..octillion).len());
+    assert_eq!(octillion as u128, producer.range.unindexed_len());
+    assert_eq!(octillion as u128, (0..octillion).unindexed_len());
+    assert_eq!(
+        2 * octillion as u128,
+        (-octillion..octillion).unindexed_len()
+    );
 
-    assert_eq!(u128::MAX, (i128::MIN..i128::MAX).len());
+    assert_eq!(u128::MAX, (i128::MIN..i128::MAX).unindexed_len());
 }
 
 #[test]
