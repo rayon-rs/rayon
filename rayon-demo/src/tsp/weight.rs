@@ -1,5 +1,4 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
-use std::usize;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Weight {

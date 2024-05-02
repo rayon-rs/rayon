@@ -43,7 +43,7 @@ where
     I: ParallelIterator,
     P: Fn(&I::Item) -> bool + Sync,
 {
-    let best_found = AtomicUsize::new(usize::max_value());
+    let best_found = AtomicUsize::new(usize::MAX);
     let consumer = FindConsumer::new(&find_op, MatchPosition::Leftmost, &best_found);
     pi.drive_unindexed(consumer)
 }
@@ -71,7 +71,7 @@ impl<'p, P> FindConsumer<'p, P> {
         FindConsumer {
             find_op,
             lower_bound: Cell::new(0),
-            upper_bound: usize::max_value(),
+            upper_bound: usize::MAX,
             match_position,
             best_found,
         }

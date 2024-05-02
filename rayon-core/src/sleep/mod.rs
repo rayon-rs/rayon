@@ -6,7 +6,6 @@ use crate::sync::{Condvar, Mutex};
 use crossbeam_utils::CachePadded;
 use std::sync::atomic::Ordering;
 use std::thread;
-use std::usize;
 
 mod counters;
 pub(crate) use self::counters::THREADS_MAX;

@@ -27,7 +27,7 @@ pub(super) struct Counters {
 pub(super) struct JobsEventCounter(usize);
 
 impl JobsEventCounter {
-    pub(super) const DUMMY: JobsEventCounter = JobsEventCounter(std::usize::MAX);
+    pub(super) const DUMMY: JobsEventCounter = JobsEventCounter(usize::MAX);
 
     #[inline]
     pub(super) fn as_usize(self) -> usize {

@@ -18,7 +18,6 @@ use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread;
-use std::usize;
 
 /// Thread builder used for customization via
 /// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
@@ -576,10 +575,7 @@ impl Registry {
     pub(super) fn increment_terminate_count(&self) {
         let previous = self.terminate_count.fetch_add(1, Ordering::AcqRel);
         debug_assert!(previous != 0, "registry ref count incremented from zero");
-        assert!(
-            previous != std::usize::MAX,
-            "overflow in registry ref count"
-        );
+        assert!(previous != usize::MAX, "overflow in registry ref count");
     }
 
     /// Signals that the thread-pool which owns this registry has been

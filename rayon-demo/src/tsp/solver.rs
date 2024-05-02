@@ -1,7 +1,6 @@
 use std::collections::BinaryHeap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::usize;
 
 use super::graph::{Graph, Node};
 use super::step;
