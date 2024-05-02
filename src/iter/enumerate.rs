@@ -2,7 +2,6 @@ use super::plumbing::*;
 use super::*;
 use std::iter;
 use std::ops::Range;
-use std::usize;
 
 /// `Enumerate` is an iterator that returns the current count along with the element.
 /// This struct is created by the [`enumerate()`] method on [`IndexedParallelIterator`]

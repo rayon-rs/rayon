@@ -1,7 +1,6 @@
 use super::plumbing::*;
 use super::*;
 use std::iter;
-use std::usize;
 
 /// Iterator adaptor for [the `repeat()` function](fn.repeat.html).
 #[derive(Debug, Clone)]

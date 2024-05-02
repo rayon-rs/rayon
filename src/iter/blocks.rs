@@ -27,7 +27,7 @@ where
         // now we loop on each block size
         while remaining_len > 0 && !consumer.full() {
             // we compute the next block's size
-            let size = self.sizes.next().unwrap_or(std::usize::MAX);
+            let size = self.sizes.next().unwrap_or(usize::MAX);
             let capped_size = remaining_len.min(size);
             remaining_len -= capped_size;
 

@@ -8,8 +8,6 @@ use crate::join_context;
 
 use super::IndexedParallelIterator;
 
-use std::usize;
-
 /// The `ProducerCallback` trait is a kind of generic closure,
 /// [analogous to `FnOnce`][FnOnce]. See [the corresponding section in
 /// the plumbing README][r] for more details.

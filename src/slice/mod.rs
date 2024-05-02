@@ -572,13 +572,13 @@ pub trait ParallelSliceMut<T: Send> {
         let sz_u32 = mem::size_of::<(K, u32)>();
         let sz_usize = mem::size_of::<(K, usize)>();
 
-        if sz_u8 < sz_u16 && len <= (std::u8::MAX as usize) {
+        if sz_u8 < sz_u16 && len <= (u8::MAX as usize) {
             return sort_by_key!(u8);
         }
-        if sz_u16 < sz_u32 && len <= (std::u16::MAX as usize) {
+        if sz_u16 < sz_u32 && len <= (u16::MAX as usize) {
             return sort_by_key!(u16);
         }
-        if sz_u32 < sz_usize && len <= (std::u32::MAX as usize) {
+        if sz_u32 < sz_usize && len <= (u32::MAX as usize) {
             return sort_by_key!(u32);
         }
         sort_by_key!(usize)
