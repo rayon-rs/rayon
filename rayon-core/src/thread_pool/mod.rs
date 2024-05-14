@@ -12,7 +12,7 @@ use crate::{scope, Scope};
 use crate::{scope_fifo, ScopeFifo};
 use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
 use std::error::Error;
-use std::fmt;
+use std::{fmt, usize};
 use std::sync::Arc;
 
 mod test;
@@ -348,6 +348,22 @@ impl ThreadPool {
         // We assert that `self.registry` has not terminated.
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
+
+    /// Block `num` threads
+    pub fn block_threads(&self, num: usize) {
+        self.registry.block_threads(num);
+    }
+
+    /// Unblock `num` threads
+    pub fn unblock_threads(&self, num: usize) {
+        self.registry.unblock_threads(num);
+    }
+
+    /// Adjust so `num` threads are unblocked
+    pub fn adjust_blocked_threads_threads(&self, num: usize) {
+        self.registry.adjust_blocked_threads(num);
+    }
+
 
     /// Spawns an asynchronous task in this thread-pool. This task will
     /// run in the implicit, global scope, which means that it may outlast
