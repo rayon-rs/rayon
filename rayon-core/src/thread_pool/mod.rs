@@ -198,6 +198,21 @@ impl ThreadPool {
         unsafe { broadcast::broadcast_in(op, &self.registry) }
     }
 
+    /// TODO
+    pub fn current() -> Self {
+        Self {
+            registry: Registry::current(),
+        }
+    }
+
+    /// TODO
+    pub fn with_current<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        Registry::with_current(Some(&self.registry), f)
+    }
+
     /// Returns the (current) number of threads in the thread pool.
     ///
     /// # Future compatibility note
