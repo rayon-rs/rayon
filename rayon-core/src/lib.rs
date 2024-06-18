@@ -683,7 +683,6 @@ impl<S> ThreadPoolBuilder<S> {
 
     /// Changes the behavior of nested thread pools.
     ///
-    ///
     /// If false, when a job is created on this thread pool by a job running in a separate thread
     /// pool, the parent thread to start executing a new job in the parent thread pool.
     ///

@@ -235,7 +235,6 @@ fn nested_thread_pools_deadlock() {
                         acquired = true;
                         break;
                     }
-                    // Sleep for a short duration to avoid busy waiting.
                     thread::sleep(Duration::from_millis(10));
                 }
                 if !acquired {
