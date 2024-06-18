@@ -696,7 +696,7 @@ impl<S> ThreadPoolBuilder<S> {
         self.full_blocking = true;
         self
     }
-    
+
     fn get_full_blocking(&self) -> bool {
         self.full_blocking
     }

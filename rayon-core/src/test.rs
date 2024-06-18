@@ -201,12 +201,17 @@ fn cleared_current_thread() -> Result<(), ThreadPoolBuildError> {
     Ok(())
 }
 
-
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_thread_pools_deadlock() {
-    let global_pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
-    let lock_pool = Arc::new(ThreadPoolBuilder::new().full_blocking().num_threads(1).build().unwrap());
+    let global_pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+    let lock_pool = Arc::new(
+        ThreadPoolBuilder::new()
+            .full_blocking()
+            .num_threads(1)
+            .build()
+            .unwrap(),
+    );
     let mutex = Arc::new(Mutex::new(0));
     let start_time = Instant::now();
 

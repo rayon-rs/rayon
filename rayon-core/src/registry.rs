@@ -508,7 +508,7 @@ impl Registry {
             }
         }
     }
-    
+
     #[cold]
     unsafe fn in_worker_cold<OP, R>(&self, op: OP) -> R
     where
