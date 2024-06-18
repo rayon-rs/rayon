@@ -200,10 +200,7 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
 
-    /// Affects the behavior of nested thread pools. If true, jobs from a parent thread pool will
-    /// block until jobs in this thread pool are completed. If false, jobs from a parent thread
-    /// pool are free to complete other jobs while jobs are processed in this thread pool. This is
-    /// useful for avoiding deadlock when using mutexes. Default is false.
+    /// Affects the blocking/work-stealing behavior when using nested thread pools.
     full_blocking: bool,
 
     /// Closure invoked to spawn threads.
