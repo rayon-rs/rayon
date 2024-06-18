@@ -200,6 +200,12 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// Closure invoked on worker thread exit.
     exit_handler: Option<Box<ExitHandler>>,
 
+    /// Affects the behavior of nested thread pools. If true, jobs from a parent thread pool will
+    /// block until jobs in this thread pool are completed. If false, jobs from a parent thread
+    /// pool are free to complete other jobs while jobs are processed in this thread pool. This is
+    /// useful for avoiding deadlock when using mutexes. Default is false.
+    full_blocking: bool,
+
     /// Closure invoked to spawn threads.
     spawn_handler: S,
 
@@ -245,6 +251,7 @@ impl Default for ThreadPoolBuilder {
             exit_handler: None,
             spawn_handler: DefaultSpawn,
             breadth_first: false,
+            full_blocking: false,
         }
     }
 }
@@ -455,6 +462,7 @@ impl<S> ThreadPoolBuilder<S> {
             start_handler: self.start_handler,
             exit_handler: self.exit_handler,
             breadth_first: self.breadth_first,
+            full_blocking: self.full_blocking,
         }
     }
 
@@ -672,6 +680,26 @@ impl<S> ThreadPoolBuilder<S> {
         self.exit_handler = Some(Box::new(exit_handler));
         self
     }
+
+    /// Changes the behavior of nested thread pools.
+    ///
+    ///
+    /// If false, when a job is created on this thread pool by a job running in a separate thread
+    /// pool, the parent thread to start executing a new job in the parent thread pool.
+    ///
+    /// If true, when a job is created on this thread pool by a job running in a separate thread
+    /// pool, the parent thread will block until the jobs in this thread pool are completed. This
+    /// is useful for avoiding deadlock when using mutexes.
+    ///
+    /// Default is false.
+    pub fn full_blocking(mut self) -> Self {
+        self.full_blocking = true;
+        self
+    }
+    
+    fn get_full_blocking(&self) -> bool {
+        self.full_blocking
+    }
 }
 
 #[allow(deprecated)]
@@ -811,6 +839,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
             ref exit_handler,
             spawn_handler: _,
             ref breadth_first,
+            ref full_blocking,
         } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
@@ -835,6 +864,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
             .field("start_handler", &start_handler)
             .field("exit_handler", &exit_handler)
             .field("breadth_first", &breadth_first)
+            .field("full_blocking", &full_blocking)
             .finish()
     }
 }
