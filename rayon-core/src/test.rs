@@ -205,6 +205,7 @@ fn cleared_current_thread() -> Result<(), ThreadPoolBuildError> {
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn nested_thread_pools_deadlock() {
     let global_pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+    // The lock thread pool must be full_blocking for this test to pass.
     let lock_pool = Arc::new(
         ThreadPoolBuilder::new()
             .full_blocking()
@@ -219,6 +220,8 @@ fn nested_thread_pools_deadlock() {
         for i in 0..5 {
             let mutex = mutex.clone();
             let lock_pool = lock_pool.clone();
+            // Create 5 jobs that try to acquire the lock.
+            // If all 5 jobs are unable the acquire the lock in 2 seconds, deadlock occurred.
             s.spawn(move |_| {
                 let mut acquired = false;
                 while start_time.elapsed() < Duration::from_secs(2) {
