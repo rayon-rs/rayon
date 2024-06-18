@@ -225,7 +225,7 @@ fn nested_thread_pools_deadlock() {
             s.spawn(move |_| {
                 let mut acquired = false;
                 while start_time.elapsed() < Duration::from_secs(2) {
-                    if let Ok(mut value) = mutex.try_lock() {
+                    if let Ok(_guard) = mutex.try_lock() {
                         println!("Thread {i} acquired the mutex");
                         lock_pool.scope(|lock_s| {
                             lock_s.spawn(|_| {

@@ -496,7 +496,7 @@ impl Registry {
                 self.in_worker_cold(op)
             } else if (*worker_thread).registry().id() != self.id() {
                 if self.full_blocking {
-                    self.in_worker_cross_blocking(&*worker_thread, op)
+                    self.in_worker_cross_blocking(op)
                 } else {
                     self.in_worker_cross(&*worker_thread, op)
                 }
@@ -559,7 +559,7 @@ impl Registry {
     }
 
     #[cold]
-    unsafe fn in_worker_cross_blocking<OP, R>(&self, current_thread: &WorkerThread, op: OP) -> R
+    unsafe fn in_worker_cross_blocking<OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
