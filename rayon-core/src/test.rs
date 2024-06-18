@@ -212,7 +212,7 @@ fn nested_thread_pools_deadlock() {
             .build()
             .unwrap(),
     );
-    let mutex = Arc::new(Mutex::new(0));
+    let mutex = Arc::new(Mutex::new(()));
     let start_time = Instant::now();
 
     global_pool.scope(|s| {
@@ -229,7 +229,6 @@ fn nested_thread_pools_deadlock() {
                                 thread::sleep(Duration::from_millis(100));
                             });
                         });
-                        *value += 1;
                         acquired = true;
                         break;
                     }
