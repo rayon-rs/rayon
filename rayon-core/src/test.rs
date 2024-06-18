@@ -2,7 +2,9 @@
 
 use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
@@ -197,4 +199,42 @@ fn cleared_current_thread() -> Result<(), ThreadPoolBuildError> {
     }
 
     Ok(())
+}
+
+
+#[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
+fn nested_thread_pools_deadlock() {
+    let global_pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+    let lock_pool = Arc::new(ThreadPoolBuilder::new().num_threads(1).build().unwrap());
+    let mutex = Arc::new(Mutex::new(0));
+    let start_time = Instant::now();
+
+    global_pool.scope(|s| {
+        for i in 0..5 {
+            let mutex = mutex.clone();
+            let lock_pool = lock_pool.clone();
+            s.spawn(move |_| {
+                let mut acquired = false;
+                while start_time.elapsed() < Duration::from_secs(2) {
+                    if let Ok(mut value) = mutex.try_lock() {
+                        println!("Thread {i} acquired the mutex");
+                        lock_pool.scope(|lock_s| {
+                            lock_s.spawn(|_| {
+                                thread::sleep(Duration::from_millis(100));
+                            });
+                        });
+                        *value += 1;
+                        acquired = true;
+                        break;
+                    }
+                    // Sleep for a short duration to avoid busy waiting.
+                    thread::sleep(Duration::from_millis(10));
+                }
+                if !acquired {
+                    panic!("Thread {i} failed to acquire the mutex within 2 seconds.");
+                }
+            });
+        }
+    });
 }
