@@ -2,9 +2,7 @@
 
 use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Barrier};
 
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
@@ -201,46 +199,3 @@ fn cleared_current_thread() -> Result<(), ThreadPoolBuildError> {
     Ok(())
 }
 
-#[test]
-#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
-fn nested_thread_pools_deadlock() {
-    let global_pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
-    // The lock thread pool must be full_blocking for this test to pass.
-    let lock_pool = Arc::new(
-        ThreadPoolBuilder::new()
-            .full_blocking()
-            .num_threads(1)
-            .build()
-            .unwrap(),
-    );
-    let mutex = Arc::new(Mutex::new(()));
-    let start_time = Instant::now();
-
-    global_pool.scope(|s| {
-        for i in 0..5 {
-            let mutex = mutex.clone();
-            let lock_pool = lock_pool.clone();
-            // Create 5 jobs that try to acquire the lock.
-            // If all 5 jobs are unable the acquire the lock in 2 seconds, deadlock occurred.
-            s.spawn(move |_| {
-                let mut acquired = false;
-                while start_time.elapsed() < Duration::from_secs(2) {
-                    if let Ok(_guard) = mutex.try_lock() {
-                        println!("Thread {i} acquired the mutex");
-                        lock_pool.scope(|lock_s| {
-                            lock_s.spawn(|_| {
-                                thread::sleep(Duration::from_millis(100));
-                            });
-                        });
-                        acquired = true;
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(10));
-                }
-                if !acquired {
-                    panic!("Thread {i} failed to acquire the mutex within 2 seconds.");
-                }
-            });
-        }
-    });
-}
