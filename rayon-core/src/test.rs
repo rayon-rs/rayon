@@ -198,4 +198,3 @@ fn cleared_current_thread() -> Result<(), ThreadPoolBuildError> {
 
     Ok(())
 }
-
