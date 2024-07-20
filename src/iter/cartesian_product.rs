@@ -31,7 +31,7 @@ impl<I, J> ParallelIterator for CartesianProduct<I, J>
 where
     I: ParallelIterator,
     J: IndexedParallelIterator + Clone + Sync,
-    I::Item: Clone + Send,
+    I::Item: Clone,
 {
     type Item = (I::Item, J::Item);
 

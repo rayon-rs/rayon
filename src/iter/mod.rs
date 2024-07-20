@@ -626,7 +626,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     fn cartesian_product<CI>(self, other: CI) -> CartesianProduct<Self, CI::Iter>
     where
-        Self::Item: Clone + Send,
+        Self::Item: Clone,
         CI: IntoParallelIterator,
         CI::Iter: IndexedParallelIterator + Clone + Sync,
     {
