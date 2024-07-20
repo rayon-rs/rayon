@@ -104,6 +104,7 @@ mod test;
 //   can be readily distinguished.
 
 mod blocks;
+mod cartesian_product;
 mod chain;
 mod chunks;
 mod cloned;
@@ -163,6 +164,7 @@ mod zip_eq;
 
 pub use self::{
     blocks::{ExponentialBlocks, UniformBlocks},
+    cartesian_product::CartesianProduct,
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -604,6 +606,31 @@ pub trait ParallelIterator: Sized + Send {
         R: Send,
     {
         Map::new(self, map_op)
+    }
+
+    /// Produces a new iterator that iterates over the cartesian product of the element sets of
+    /// `self` and `CI`.
+    ///
+    /// Iterator element type is `(Self::Item, CI::Item)`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let set: Vec<_> = (0..2).into_par_iter().cartesian_product(0..2).collect();
+    /// assert!(set.contains(&(0, 0)));
+    /// assert!(set.contains(&(0, 1)));
+    /// assert!(set.contains(&(1, 0)));
+    /// assert!(set.contains(&(1, 1)));
+    /// ```
+    fn cartesian_product<CI>(self, other: CI) -> CartesianProduct<Self, CI::Iter>
+    where
+        Self::Item: Clone + Send,
+        CI: IntoParallelIterator,
+        CI::Iter: IndexedParallelIterator + Clone + Sync,
+    {
+        CartesianProduct::new(self, other.into_par_iter())
     }
 
     /// Applies `map_op` to the given `init` value with each item of this
