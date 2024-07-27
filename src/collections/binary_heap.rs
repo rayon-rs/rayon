@@ -34,6 +34,8 @@ delegate_indexed_iterator! {
 /// Parallel iterator over an immutable reference to a binary heap
 #[derive(Debug)]
 pub struct Iter<'a, T: Ord + Sync> {
+    // TODO (MSRV 1.80): this could use `slice::Iter` built from
+    // `BinaryHeap::as_slice`, rather than using a temp `Vec<&T>`.
     inner: vec::IntoIter<&'a T>,
 }
 
