@@ -248,6 +248,11 @@ pub trait IntoParallelIterator {
     ///
     /// [`zip`]: trait.IndexedParallelIterator.html#method.zip
     fn into_par_iter(self) -> Self::Iter;
+
+    /// Provides the length of the produced Iterator if known
+    fn const_length() -> Option<usize> {
+        None
+    }
 }
 
 /// `IntoParallelRefIterator` implements the conversion to a
