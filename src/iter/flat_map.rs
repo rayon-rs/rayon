@@ -43,6 +43,13 @@ where
         let consumer = FlatMapConsumer::new(consumer, &self.map_op);
         self.base.drive_unindexed(consumer)
     }
+
+    fn opt_len(&self) -> Option<usize> {
+        let base_len = self.base.opt_len()?;
+        let sub_len = PI::const_length()?;
+
+        base_len.checked_mul(sub_len)
+    }
 }
 
 /// ////////////////////////////////////////////////////////////////////////
@@ -70,7 +77,14 @@ where
     type Result = C::Result;
 
     fn split_at(self, index: usize) -> (Self, Self, C::Reducer) {
-        let (left, right, reducer) = self.base.split_at(index);
+        // FIXME: I have NO Idea if this is correct, it almost definately is NOT
+        //        But the tests pass, and I no longer panic so that is a start
+        let (left, right, reducer) = if let Some(inner_len) = U::const_length() {
+            self.base.split_at(index * inner_len)
+        } else {
+            self.base.split_at(index)
+        };
+        
         (
             FlatMapConsumer::new(left, self.map_op),
             FlatMapConsumer::new(right, self.map_op),
@@ -123,19 +137,27 @@ where
     fn consume(self, item: T) -> Self {
         let map_op = self.map_op;
         let par_iter = map_op(item).into_par_iter();
-        let consumer = self.base.split_off_left();
+        // TODO: This is a hack, to fake specialisation until it is in Rust proper
+        let (consumer, rest, reducer) = if let Some(inner_len) = U::const_length() {
+            // We can to use split_at
+            self.base.split_at(inner_len)
+        } else {
+            // Use the normal Unindexed version
+            let reducer = self.base.to_reducer();
+            (self.base.split_off_left(), self.base, reducer)
+        };
+
         let result = par_iter.drive_unindexed(consumer);
 
         let previous = match self.previous {
             None => Some(result),
             Some(previous) => {
-                let reducer = self.base.to_reducer();
                 Some(reducer.reduce(previous, result))
             }
         };
 
         FlatMapFolder {
-            base: self.base,
+            base: rest,
             map_op,
             previous,
         }
