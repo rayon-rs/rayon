@@ -375,6 +375,11 @@ pub trait ParallelIterator: Sized + Send {
     /// [`for_each`]: #method.for_each
     type Item: Send;
 
+    /// The constant length, if known
+    fn const_length() -> Option<usize> where Self: Sized  {
+        None
+    }
+
     /// Executes `OP` on each item produced by the iterator, in parallel.
     ///
     /// # Examples
@@ -2444,6 +2449,10 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
     fn into_par_iter(self) -> T {
         self
     }
+
+    // fn const_length() -> Option<usize> {
+    //     <T as ParallelIterator>::const_length()
+    // }
 }
 
 /// An iterator that supports "random access" to its data, meaning

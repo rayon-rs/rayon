@@ -9,7 +9,7 @@ struct BlocksCallback<S, C> {
 
 impl<T, S, C> ProducerCallback<T> for BlocksCallback<S, C>
 where
-    C: UnindexedConsumer<T>,
+    C: Consumer<T>,
     S: Iterator<Item = usize>,
 {
     type Output = C::Result;
@@ -20,7 +20,7 @@ where
 
         // we need a local variable for the accumulated results
         // we call the reducer's identity by splitting at 0
-        let (left_consumer, right_consumer, _) = consumer.split_at(0);
+        let (left_consumer, right_consumer, mut reducer) = consumer.split_at(0);
         let mut leftmost_res = left_consumer.into_folder().complete();
         consumer = right_consumer;
 
@@ -36,13 +36,14 @@ where
             producer = right_producer;
 
             // split the consumer
-            let (left_consumer, right_consumer, _) = consumer.split_at(capped_size);
+            let (left_consumer, right_consumer, next_reducer) = consumer.split_at(capped_size);
             consumer = right_consumer;
 
-            leftmost_res = consumer.to_reducer().reduce(
+            leftmost_res = reducer.reduce(
                 leftmost_res,
                 bridge_producer_consumer(capped_size, left_producer, left_consumer),
             );
+            reducer = next_reducer;
         }
         leftmost_res
     }
@@ -127,5 +128,9 @@ where
             len: self.base.len(),
         };
         self.base.with_producer(callback)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.base.opt_len()?.div_ceil(self.block_size))
     }
 }

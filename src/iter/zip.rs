@@ -43,6 +43,10 @@ where
     fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
+
+    fn const_length() -> Option<usize> {
+        Ord::min(A::const_length(), B::const_length())
+    }
 }
 
 impl<A, B> IndexedParallelIterator for Zip<A, B>
