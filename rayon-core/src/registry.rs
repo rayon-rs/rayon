@@ -1,5 +1,5 @@
 use crate::job::{JobFifo, JobRef, StackJob};
-use crate::latch::{AsCoreLatch, CoreLatch, Latch, LatchRef, LockLatch, OnceLatch, SpinLatch};
+use crate::latch::{AsCoreLatch, CoreLatch, Latch, LatchRef, LockLatch, OnceLatch, SpinLatch, ToggleLatch};
 use crate::sleep::Sleep;
 use crate::sync::Mutex;
 use crate::unwind;
@@ -18,6 +18,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread;
+use std::usize;
 
 /// Thread builder used for customization via
 /// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
@@ -127,7 +128,8 @@ where
     }
 }
 
-pub(super) struct Registry {
+/// The Registry
+pub struct Registry {
     thread_infos: Vec<ThreadInfo>,
     sleep: Sleep,
     injected_jobs: Injector<JobRef>,
@@ -311,7 +313,57 @@ impl Registry {
         Ok(registry)
     }
 
-    pub(super) fn current() -> Arc<Registry> {
+    /// Block `num` threads
+    pub(crate) fn block_threads(&self, num: usize) {
+        // reverse so we reach thread 0 last (wich we should *never!* block)
+        let unblocked_threads = self.thread_infos.iter().rev().filter(|&p| {
+            !p.blocked.get()
+        });
+
+        for (i, thread) in unblocked_threads.enumerate() {
+            if (i + 1) >= num  { // do not block thread with id 0 or the programm will be stalled
+                return;
+            }
+            unsafe { Latch::set(&thread.blocked); }; // toggles the blocked latch to block
+        }
+    }
+
+    /// Unblock `num` threads
+    pub fn unblock_threads(&self, num: usize) {
+        let blocked_threads = self.thread_infos.iter().filter(|&p| {
+            p.blocked.get()
+        });
+
+        for (i, thread) in blocked_threads.enumerate() {
+            if i >= num {
+                return;
+            }
+            unsafe { Latch::set(&thread.blocked); }; // toggles the blocked latch to unblock
+        }
+    }
+
+    /// Adjust so `num` threads are unblocked
+    pub fn adjust_blocked_threads(&self, num: usize) {
+        let unblocked_threads = self.thread_infos.iter().filter(|&p| {
+            !p.blocked.get()
+        });
+
+        let unblocked_threads = unblocked_threads.count();
+
+        match unblocked_threads.cmp(&num) {
+            std::cmp::Ordering::Less => {
+                self.unblock_threads(num - unblocked_threads)
+            },
+            std::cmp::Ordering::Greater => { 
+                self.block_threads(unblocked_threads - num) },
+            std::cmp::Ordering::Equal => {
+                return;
+            },
+        };
+    }
+
+    /// get the global registry
+    pub fn current() -> Arc<Registry> {
         unsafe {
             let worker_thread = WorkerThread::current();
             let registry = if worker_thread.is_null() {
@@ -359,7 +411,9 @@ impl Registry {
     }
 
     pub(super) fn num_threads(&self) -> usize {
-        self.thread_infos.len()
+        self.thread_infos.iter().filter(|&p | {
+            !p.blocked.get()
+        }).count()
     }
 
     pub(super) fn catch_unwind(&self, f: impl FnOnce()) {
@@ -372,6 +426,15 @@ impl Registry {
             }
         }
     }
+
+    /// Waits for the worker threads to be unblocked
+    pub(super) fn wait_until_unblocked(&self, index: usize) {
+        self.thread_infos[index].blocked.wait();
+        for info in &self.thread_infos {
+            info.blocked.wait();
+        }
+    }
+
 
     /// Waits for the worker threads to get up and running.  This is
     /// meant to be used for benchmarking purposes, primarily, so that
@@ -405,6 +468,8 @@ impl Registry {
         let worker_thread = WorkerThread::current();
         unsafe {
             if !worker_thread.is_null() && (*worker_thread).registry().id() == self.id() {
+                // wait if we are blocked
+                (*worker_thread).registry().wait_until_unblocked((*worker_thread).index());
                 (*worker_thread).push(job_ref);
             } else {
                 self.inject(job_ref);
@@ -456,6 +521,12 @@ impl Registry {
         assert_eq!(self.num_threads(), injected_jobs.len());
         {
             let broadcasts = self.broadcasts.lock().unwrap();
+            let filtered_broadcasts = broadcasts.iter().zip(&self.thread_infos).filter(|(_, info)| { 
+                !&info.blocked.get()
+            })
+            .map(|(worker, _)| {
+                worker
+            });
 
             // It should not be possible for `state.terminate` to be true
             // here. It is only set to true when the user creates (and
@@ -468,8 +539,17 @@ impl Registry {
                 "inject_broadcast() sees state.terminate as true"
             );
 
-            assert_eq!(broadcasts.len(), injected_jobs.len());
-            for (worker, job_ref) in broadcasts.iter().zip(injected_jobs) {
+            // TODO, can't use count without move, so we reconstruct it...
+            // should better be coded better...
+            assert_eq!(broadcasts.iter().zip(&self.thread_infos).filter(|(_, info)| { 
+                !&info.blocked.get()
+            })
+            .map(|(worker, _)| {
+                worker
+            }).count(), injected_jobs.len());
+
+            for (worker, job_ref) in filtered_broadcasts
+                .zip(injected_jobs) {
                 worker.push(job_ref);
             }
         }
@@ -618,6 +698,8 @@ struct ThreadInfo {
 
     /// the "stealer" half of the worker's deque
     stealer: Stealer<JobRef>,
+
+    blocked: ToggleLatch,
 }
 
 impl ThreadInfo {
@@ -626,6 +708,7 @@ impl ThreadInfo {
             primed: LockLatch::new(),
             stopped: LockLatch::new(),
             terminate: OnceLatch::new(),
+            blocked: ToggleLatch::new(),
             stealer,
         }
     }
