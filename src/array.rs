@@ -19,9 +19,9 @@ impl<'data, T: Sync + 'data, const N: usize> IntoParallelIterator for &'data [T;
         <&[T]>::into_par_iter(self)
     }
 
-    // fn const_length() -> Option<usize> {
-    //     Some(N)
-    // }
+    fn const_length() -> Option<usize> {
+        Some(N)
+    }
 }
 
 impl<'data, T: Send + 'data, const N: usize> IntoParallelIterator for &'data mut [T; N] {
@@ -32,9 +32,9 @@ impl<'data, T: Send + 'data, const N: usize> IntoParallelIterator for &'data mut
         <&mut [T]>::into_par_iter(self)
     }
 
-    // fn const_length() -> Option<usize> {
-    //     Some(N)
-    // }
+    fn const_length() -> Option<usize> {
+        Some(N)
+    }
 }
 
 impl<T: Send, const N: usize> IntoParallelIterator for [T; N] {
@@ -45,9 +45,9 @@ impl<T: Send, const N: usize> IntoParallelIterator for [T; N] {
         IntoIter { array: self }
     }
 
-    // fn const_length() -> Option<usize> {
-    //     Some(N)
-    // }
+    fn const_length() -> Option<usize> {
+        Some(N)
+    }
 }
 
 /// Parallel iterator that moves out of an array.
