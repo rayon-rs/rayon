@@ -3550,6 +3550,7 @@ mod private {
         fn from_residual(residual: Self::Residual) -> Self {
             match residual {
                 Break(b) => Break(b),
+                #[allow(unreachable_patterns)]
                 Continue(_) => unreachable!(),
             }
         }
@@ -3575,6 +3576,7 @@ mod private {
         fn from_residual(residual: Self::Residual) -> Self {
             match residual {
                 None => None,
+                #[allow(unreachable_patterns)]
                 Some(_) => unreachable!(),
             }
         }
@@ -3600,6 +3602,7 @@ mod private {
         fn from_residual(residual: Self::Residual) -> Self {
             match residual {
                 Err(e) => Err(e),
+                #[allow(unreachable_patterns)]
                 Ok(_) => unreachable!(),
             }
         }
@@ -3625,6 +3628,7 @@ mod private {
         fn from_residual(residual: Self::Residual) -> Self {
             match residual {
                 Err(e) => Poll::Ready(Err(e)),
+                #[allow(unreachable_patterns)]
                 Ok(_) => unreachable!(),
             }
         }
@@ -3654,6 +3658,7 @@ mod private {
         fn from_residual(residual: Self::Residual) -> Self {
             match residual {
                 Err(e) => Poll::Ready(Some(Err(e))),
+                #[allow(unreachable_patterns)]
                 Ok(_) => unreachable!(),
             }
         }

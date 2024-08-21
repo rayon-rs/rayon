@@ -11,12 +11,12 @@ rayon = { path = "../" }
 cgmath = "0.18"
 docopt = "1"
 fixedbitset = "0.5"
-glium = "0.34"
+glium = "0.35"
 once_cell = "1.17.1"
 rand = "0.8"
 rand_xorshift = "0.3"
 regex = "1"
-winit = "0.29"
+winit = "0.30"
 
 [dependencies.serde]
 version = "1.0.85"
