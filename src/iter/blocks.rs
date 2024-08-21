@@ -86,6 +86,10 @@ where
         };
         self.base.with_producer(callback)
     }
+
+    fn opt_len(&self) -> Option<usize> {
+        self.base.opt_len()
+    }
 }
 
 fn exponential_size(size: &usize) -> Option<usize> {
@@ -131,6 +135,6 @@ where
     }
 
     fn opt_len(&self) -> Option<usize> {
-        Some(self.base.opt_len()?.div_ceil(self.block_size))
+        self.base.opt_len()
     }
 }
