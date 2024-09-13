@@ -2453,9 +2453,9 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
         self
     }
 
-    // fn const_length() -> Option<usize> {
-    //     <T as ParallelIterator>::const_length()
-    // }
+    fn const_length() -> Option<usize> {
+        <T as ParallelIterator>::const_length()
+    }
 }
 
 /// An iterator that supports "random access" to its data, meaning
