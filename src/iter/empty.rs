@@ -57,6 +57,10 @@ impl<T: Send> ParallelIterator for Empty<T> {
     fn opt_len(&self) -> Option<usize> {
         Some(0)
     }
+
+    fn const_length() -> Option<usize> {
+        Some(0)
+    }
 }
 
 impl<T: Send> IndexedParallelIterator for Empty<T> {
