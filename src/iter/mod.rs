@@ -375,11 +375,6 @@ pub trait ParallelIterator: Sized + Send {
     /// [`for_each`]: #method.for_each
     type Item: Send;
 
-    /// The constant length, if known
-    fn const_length() -> Option<usize> where Self: Sized  {
-        None
-    }
-
     /// Executes `OP` on each item produced by the iterator, in parallel.
     ///
     /// # Examples
@@ -2438,6 +2433,14 @@ pub trait ParallelIterator: Sized + Send {
     /// of true Rust specialization; it may be removed when
     /// specialization is stable.
     fn opt_len(&self) -> Option<usize> {
+        None
+    }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    /// 
+    /// Returns the constant length of Iterators of this type, if known
+    fn const_length() -> Option<usize> where Self: Sized  {
         None
     }
 }
