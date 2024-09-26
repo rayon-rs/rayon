@@ -27,26 +27,6 @@ impl<I> Combinations<I> {
     }
 }
 
-impl<I> Combinations<I>
-where
-    I: ParallelIterator,
-{
-    fn into_producer(self) -> CombinationsProducer<I::Item, Vec<usize>> {
-        let items: Arc<[I::Item]> = self.base.collect();
-        let n = items.len();
-        let k = self.k;
-        let until = checked_binomial(n, k).expect(OVERFLOW_MSG);
-
-        CombinationsProducer {
-            items,
-            offset: 0,
-            until,
-            k: self.k,
-            indices: PhantomData,
-        }
-    }
-}
-
 impl<I> ParallelIterator for Combinations<I>
 where
     I: ParallelIterator,
@@ -58,7 +38,8 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        bridge_unindexed(self.into_producer(), consumer)
+        let producer = CombinationsProducer::<_, Vec<_>>::from_unindexed(self.base, self.k);
+        bridge_unindexed(producer, consumer)
     }
 
     fn opt_len(&self) -> Option<usize> {
@@ -86,7 +67,8 @@ where
     }
 
     fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
-        callback.callback(self.into_producer())
+        let producer = CombinationsProducer::<_, Vec<_>>::from_indexed(self.base, self.k);
+        callback.callback(producer)
     }
 }
 
@@ -109,25 +91,6 @@ impl<I, const K: usize> ArrayCombinations<I, K> {
     }
 }
 
-impl<I, const K: usize> ArrayCombinations<I, K>
-where
-    I: ParallelIterator,
-{
-    fn into_producer(self) -> CombinationsProducer<I::Item, [usize; K]> {
-        let items: Arc<[I::Item]> = self.base.collect();
-        let n = items.len();
-        let until = checked_binomial(n, K).expect(OVERFLOW_MSG);
-
-        CombinationsProducer {
-            items,
-            offset: 0,
-            until,
-            k: K,
-            indices: PhantomData,
-        }
-    }
-}
-
 impl<I, const K: usize> ParallelIterator for ArrayCombinations<I, K>
 where
     I: ParallelIterator,
@@ -139,7 +102,17 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        bridge_unindexed(self.into_producer(), consumer)
+        let items: Arc<[I::Item]> = self.base.collect();
+        let n = items.len();
+        let until = checked_binomial(n, K).expect(OVERFLOW_MSG);
+        let producer = CombinationsProducer {
+            items,
+            offset: 0,
+            until,
+            k: K,
+            indices: PhantomData::<[usize; K]>,
+        };
+        bridge_unindexed(producer, consumer)
     }
 
     fn opt_len(&self) -> Option<usize> {
@@ -167,7 +140,8 @@ where
     }
 
     fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
-        callback.callback(self.into_producer())
+        let producer = CombinationsProducer::<_, [_; K]>::from_indexed(self.base, K);
+        callback.callback(producer)
     }
 }
 
@@ -196,6 +170,37 @@ impl<T, I> CombinationsProducer<T, I> {
 
     fn len(&self) -> usize {
         self.until - self.offset
+    }
+}
+
+impl<T, I> CombinationsProducer<T, I>
+where
+    T: Send,
+{
+    fn from_unindexed<B>(base: B, k: usize) -> Self
+    where
+        B: ParallelIterator<Item = T>,
+    {
+        let items: Arc<[T]> = base.collect();
+        let n = items.len();
+        let until = checked_binomial(n, k).expect(OVERFLOW_MSG);
+
+        Self::new(items, 0, until, k)
+    }
+
+    fn from_indexed<B>(base: B, k: usize) -> Self
+    where
+        B: IndexedParallelIterator<Item = T>,
+    {
+        let n = base.len();
+        let items = {
+            let mut buffer = Vec::with_capacity(n);
+            base.collect_into_vec(&mut buffer);
+            buffer.into()
+        };
+        let until = checked_binomial(n, k).expect(OVERFLOW_MSG);
+
+        Self::new(items, 0, until, k)
     }
 }
 
