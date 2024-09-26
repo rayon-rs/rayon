@@ -413,10 +413,6 @@ where
 /// The binomial coefficient, often denoted as C(n, k) or "n choose k", represents
 /// the number of ways to choose `k` elements from a set of `n` elements without regard
 /// to the order of selection.
-///
-/// # Overflow
-/// Note that this function will overflow even if the result is smaller than [`isize::MAX`].
-/// The guarantee is that it does not overflow if `nCk * k <= isize::MAX`.
 fn checked_binomial(n: usize, k: usize) -> Option<usize> {
     if k > n {
         return Some(0);
@@ -459,9 +455,12 @@ fn checked_binomial(n: usize, k: usize) -> Option<usize> {
 
     // `factorial(n) / factorial(n - k) / factorial(k)` but trying to avoid overflows
     let mut result: usize = 1;
-    for i in 0..k {
-        result = result.checked_mul(n - i)?;
-        result /= i + 1;
+    let mut n = n;
+    for i in 1..=k {
+        result = (result / i)
+            .checked_mul(n)?
+            .checked_add((result % i).checked_mul(n)? / i)?;
+        n -= 1;
     }
     Some(result)
 }
@@ -668,12 +667,6 @@ mod tests {
         );
         assert_eq!(checked_binomial(13_467, 5), Some(3_688_506_309_678_005_178));
         assert_eq!(checked_binomial(109, 15), Some(1_015_428_940_004_440_080));
-    }
-
-    #[test]
-    #[cfg(target_pointer_width = "64")]
-    fn checked_overflows() {
-        assert_eq!(checked_binomial(109, 16), None);
     }
 
     #[test]
