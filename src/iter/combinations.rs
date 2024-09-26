@@ -1,5 +1,4 @@
-#![warn(clippy::pedantic)] // TODO: remove
-
+use std::marker::PhantomData;
 use std::ops::Div;
 use std::sync::Arc;
 
@@ -32,7 +31,7 @@ impl<I> Combinations<I>
 where
     I: ParallelIterator,
 {
-    fn into_producer(self) -> CombinationsProducer<I::Item> {
+    fn into_producer(self) -> CombinationsProducer<I::Item, Vec<usize>> {
         let items: Arc<[I::Item]> = self.base.collect();
         let n = items.len();
         let k = self.k;
@@ -43,6 +42,7 @@ where
             offset: 0,
             until,
             k: self.k,
+            indices: PhantomData,
         }
     }
 }
@@ -90,20 +90,103 @@ where
     }
 }
 
-struct CombinationsProducer<T> {
+/// `ArrayCombinations` is an iterator that iterates over the k-length combinations
+/// of the elements from the original iterator.
+/// This struct is created by the [`array_combinations()`] method on [`ParallelIterator`]
+///
+/// [`combinations()`]: trait.ParallelIterator.html#method.combinations()
+/// [`ParallelIterator`]: trait.ParallelIterator.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug, Clone)]
+pub struct ArrayCombinations<I, const K: usize> {
+    base: I,
+}
+
+impl<I, const K: usize> ArrayCombinations<I, K> {
+    /// Creates a new `Combinations` iterator.
+    pub(super) fn new(base: I) -> Self {
+        Self { base }
+    }
+}
+
+impl<I, const K: usize> ArrayCombinations<I, K>
+where
+    I: ParallelIterator,
+{
+    fn into_producer(self) -> CombinationsProducer<I::Item, [usize; K]> {
+        let items: Arc<[I::Item]> = self.base.collect();
+        let n = items.len();
+        let until = checked_binomial(n, K).expect(OVERFLOW_MSG);
+
+        CombinationsProducer {
+            items,
+            offset: 0,
+            until,
+            k: K,
+            indices: PhantomData,
+        }
+    }
+}
+
+impl<I, const K: usize> ParallelIterator for ArrayCombinations<I, K>
+where
+    I: ParallelIterator,
+    I::Item: Clone + Send + Sync,
+{
+    type Item = Vec<I::Item>;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        bridge_unindexed(self.into_producer(), consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        // HACK: even though the length can be computed with the code below,
+        // our implementation of drive_unindexed does not support indexed Consumer
+
+        // self.base
+        //     .opt_len()
+        //     .and_then(|l| checked_binomial(l, self.k))
+        None
+    }
+}
+
+impl<I, const K: usize> IndexedParallelIterator for ArrayCombinations<I, K>
+where
+    I: IndexedParallelIterator,
+    I::Item: Clone + Send + Sync,
+{
+    fn len(&self) -> usize {
+        checked_binomial(self.base.len(), K).expect(OVERFLOW_MSG)
+    }
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
+        callback.callback(self.into_producer())
+    }
+}
+
+struct CombinationsProducer<T, I> {
     items: Arc<[T]>,
     offset: usize,
     until: usize,
     k: usize,
+    indices: PhantomData<I>,
 }
 
-impl<T> CombinationsProducer<T> {
+impl<T, I> CombinationsProducer<T, I> {
     fn new(items: Arc<[T]>, offset: usize, until: usize, k: usize) -> Self {
         Self {
             items,
             offset,
             until,
             k,
+            indices: PhantomData,
         }
     }
 
@@ -116,12 +199,13 @@ impl<T> CombinationsProducer<T> {
     }
 }
 
-impl<T> Producer for CombinationsProducer<T>
+impl<T, I> Producer for CombinationsProducer<T, I>
 where
     T: Clone + Send + Sync,
+    I: AsRef<[usize]> + AsMut<[usize]> + PartialEq + Clone + DefaultWithSize + Send,
 {
     type Item = Vec<T>;
-    type IntoIter = CombinationsSeq<T>;
+    type IntoIter = CombinationsSeq<T, I>;
 
     fn into_iter(self) -> Self::IntoIter {
         let n = self.n();
@@ -138,9 +222,10 @@ where
     }
 }
 
-impl<T> UnindexedProducer for CombinationsProducer<T>
+impl<T, I> UnindexedProducer for CombinationsProducer<T, I>
 where
     T: Clone + Send + Sync,
+    I: AsRef<[usize]> + AsMut<[usize]> + PartialEq + Clone + DefaultWithSize + Send,
 {
     type Item = Vec<T>;
 
@@ -161,23 +246,30 @@ where
     }
 }
 
-struct CombinationsSeq<T> {
+struct CombinationsSeq<T, I> {
     items: Arc<[T]>,
-    indices: Indices,
-    until: Indices,
+    indices: Indices<I>,
+    until: Indices<I>,
     len: usize,
 }
 
-impl<T> CombinationsSeq<T> {
+impl<T, I> CombinationsSeq<T, I>
+where
+    I: AsMut<[usize]> + DefaultWithSize,
+{
     fn from_offsets(items: Arc<[T]>, from: usize, until: usize, n: usize, k: usize) -> Self {
         Self {
-            indices: Indices::new(from, n, k),
-            until: Indices::new(until, n, k),
+            indices: Indices::new(I::default_with_size(k), from, n),
+            until: Indices::new(I::default_with_size(k), until, n),
             items,
             len: until - from,
         }
     }
-
+}
+impl<T, I> CombinationsSeq<T, I>
+where
+    I: AsRef<[usize]> + PartialEq,
+{
     fn may_next(&self) -> Option<()> {
         if self.indices.is_empty() || self.until.is_empty() {
             // there are no indices to compute
@@ -192,9 +284,10 @@ impl<T> CombinationsSeq<T> {
     }
 }
 
-impl<T> Iterator for CombinationsSeq<T>
+impl<T, I> Iterator for CombinationsSeq<T, I>
 where
     T: Clone,
+    I: AsRef<[usize]> + AsMut<[usize]> + PartialEq + Clone,
 {
     type Item = Vec<T>;
 
@@ -206,18 +299,20 @@ where
     }
 }
 
-impl<T> ExactSizeIterator for CombinationsSeq<T>
+impl<T, I> ExactSizeIterator for CombinationsSeq<T, I>
 where
     T: Clone,
+    I: AsRef<[usize]> + AsMut<[usize]> + PartialEq + Clone,
 {
     fn len(&self) -> usize {
         self.len
     }
 }
 
-impl<T> DoubleEndedIterator for CombinationsSeq<T>
+impl<T, I> DoubleEndedIterator for CombinationsSeq<T, I>
 where
     T: Clone,
+    I: AsRef<[usize]> + AsMut<[usize]> + PartialEq + Clone,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.may_next()?;
@@ -227,8 +322,8 @@ where
 }
 
 #[derive(PartialEq, Clone)]
-struct Indices {
-    indices: Vec<usize>,
+struct Indices<I> {
+    indices: I,
     n: usize,
     position: IndicesPosition,
 }
@@ -239,18 +334,24 @@ enum IndicesPosition {
     Middle,
 }
 
-impl Indices {
-    fn new(offset: usize, n: usize, k: usize) -> Self {
+impl<I> Indices<I>
+where
+    I: AsMut<[usize]>,
+{
+    fn new(mut indices: I, offset: usize, n: usize) -> Self {
+        let k = indices.as_mut().len();
         let total = checked_binomial(n, k).expect(OVERFLOW_MSG);
         if offset == total {
+            unrank(indices.as_mut(), offset - 1, n);
             Self {
-                indices: unrank(offset - 1, n, k),
+                indices,
                 n,
                 position: IndicesPosition::End,
             }
         } else if offset < total {
+            unrank(indices.as_mut(), offset, n);
             Self {
-                indices: unrank(offset, n, k),
+                indices,
                 n,
                 position: IndicesPosition::Middle,
             }
@@ -262,10 +363,10 @@ impl Indices {
     fn increment(&mut self) {
         match self.position {
             IndicesPosition::Middle => {
-                if is_last(&self.indices, self.n) {
+                if is_last(self.indices.as_mut(), self.n) {
                     self.position = IndicesPosition::End
                 } else {
-                    increment_indices(&mut self.indices, self.n);
+                    increment_indices(self.indices.as_mut(), self.n);
                 }
             }
             IndicesPosition::End => panic!("No more indices"),
@@ -275,19 +376,30 @@ impl Indices {
     fn decrement(&mut self) {
         match self.position {
             IndicesPosition::End => self.position = IndicesPosition::Middle,
-            IndicesPosition::Middle => decrement_indices(&mut self.indices, self.n),
+            IndicesPosition::Middle => decrement_indices(self.indices.as_mut(), self.n),
         }
     }
+}
 
+impl<I> Indices<I>
+where
+    I: AsRef<[usize]>,
+{
     fn deindex<T: Clone>(&self, items: &[T]) -> Vec<T> {
         match self.position {
-            IndicesPosition::Middle => self.indices.iter().map(|i| &items[*i]).cloned().collect(),
+            IndicesPosition::Middle => self
+                .indices
+                .as_ref()
+                .iter()
+                .map(|i| &items[*i])
+                .cloned()
+                .collect(),
             IndicesPosition::End => panic!("End position indices cannot be deindexed."),
         }
     }
 
     fn is_empty(&self) -> bool {
-        self.indices.is_empty()
+        self.indices.as_ref().is_empty()
     }
 }
 
@@ -355,23 +467,25 @@ fn checked_binomial(n: usize, k: usize) -> Option<usize> {
 /// # Panics
 /// - If n < k: not enough elements to form a list of indices
 /// - If the total number of combinations of `n` choose `k` is too big, roughly if it does not fit in usize.
-fn unrank(offset: usize, n: usize, k: usize) -> Vec<usize> {
+fn unrank(indices: &mut [usize], offset: usize, n: usize) {
     // Source:
     //   Antoine Genitrini, Martin Pépin. Lexicographic unranking of combinations revisited.
     //   Algorithms, 2021, 14 (3), pp.97. 10.3390/a14030097. hal-03040740v2
 
+    let k = indices.len();
+
     assert!(
         n >= k,
-        "Not enough elements to choose k from. Note that n must be at least k."
+        "Not enough elements to choose k from. Note that n must be at least k. Called with n={n}, k={k}"
     );
 
     debug_assert!(offset < checked_binomial(n, k).unwrap());
 
     if k == 1 {
-        return vec![offset];
+        indices[0] = offset;
+        return;
     }
 
-    let mut res = vec![0; k];
     let mut b = checked_binomial(n - 1, k - 1).expect(OVERFLOW_MSG);
     let mut m = 0;
     let mut i = 0;
@@ -387,7 +501,7 @@ fn unrank(offset: usize, n: usize, k: usize) -> Vec<usize> {
         }
 
         if b > u {
-            res[i] = m + i;
+            indices[i] = m + i;
             b *= k - i - 1;
             i += 1;
         } else {
@@ -398,10 +512,8 @@ fn unrank(offset: usize, n: usize, k: usize) -> Vec<usize> {
     }
 
     if k > 0 {
-        res[k - 1] = n + u - b;
+        indices[k - 1] = n + u - b;
     }
-
-    res
 }
 
 /// Increments indices representing the combination to advance to the next
@@ -465,9 +577,44 @@ fn is_last(indices: &[usize], n: usize) -> bool {
         .all(|(i, &index)| index == n - k + i)
 }
 
+trait DefaultWithSize {
+    fn default_with_size(size: usize) -> Self;
+}
+
+impl<T> DefaultWithSize for Vec<T>
+where
+    T: Default + Copy,
+{
+    fn default_with_size(size: usize) -> Self {
+        vec![T::default(); size]
+    }
+}
+
+impl<T, const K: usize> DefaultWithSize for [T; K]
+where
+    T: Default + Copy,
+{
+    fn default_with_size(size: usize) -> Self {
+        assert_eq!(size, K);
+        [T::default(); K]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn unrank_vec(offset: usize, n: usize, k: usize) -> Vec<usize> {
+        let mut indices = vec![0; k];
+        unrank(&mut indices, offset, n);
+        indices
+    }
+
+    fn unrank_const<const K: usize>(offset: usize, n: usize) -> [usize; K] {
+        let mut indices = [0; K];
+        unrank(&mut indices, offset, n);
+        indices
+    }
 
     #[test]
     fn checked_binomial_works() {
@@ -534,23 +681,24 @@ mod tests {
 
     #[test]
     fn unrank_5_2() {
-        assert_eq!(unrank(0, 5, 2), vec![0, 1]);
-        assert_eq!(unrank(1, 5, 2), vec![0, 2]);
-        assert_eq!(unrank(2, 5, 2), vec![0, 3]);
-        assert_eq!(unrank(3, 5, 2), vec![0, 4]);
-        assert_eq!(unrank(4, 5, 2), vec![1, 2]);
-        assert_eq!(unrank(5, 5, 2), vec![1, 3]);
-        assert_eq!(unrank(6, 5, 2), vec![1, 4]);
-        assert_eq!(unrank(7, 5, 2), vec![2, 3]);
-        assert_eq!(unrank(8, 5, 2), vec![2, 4]);
-        assert_eq!(unrank(9, 5, 2), vec![3, 4]);
+        assert_eq!(unrank_vec(0, 5, 2), vec![0, 1]);
+        assert_eq!(unrank_vec(1, 5, 2), vec![0, 2]);
+        assert_eq!(unrank_vec(2, 5, 2), vec![0, 3]);
+        assert_eq!(unrank_vec(3, 5, 2), vec![0, 4]);
+        assert_eq!(unrank_vec(4, 5, 2), vec![1, 2]);
+        assert_eq!(unrank_vec(5, 5, 2), vec![1, 3]);
+        assert_eq!(unrank_vec(6, 5, 2), vec![1, 4]);
+        assert_eq!(unrank_vec(7, 5, 2), vec![2, 3]);
+        assert_eq!(unrank_vec(8, 5, 2), vec![2, 4]);
+        assert_eq!(unrank_vec(9, 5, 2), vec![3, 4]);
     }
 
     #[test]
     fn unrank_zero_index() {
         for k in 1..7 {
             for n in k..11 {
-                assert_eq!(unrank(0, n, k), (0..k).collect::<Vec<_>>());
+                dbg!(n, k);
+                assert_eq!(unrank_vec(0, n, k), (0..k).collect::<Vec<_>>());
             }
         }
     }
@@ -561,7 +709,7 @@ mod tests {
             for k in 1..n {
                 let mut expected: Vec<_> = (0..k).collect();
                 *expected.last_mut().unwrap() += 1;
-                assert_eq!(unrank(1, n, k), expected);
+                assert_eq!(unrank_vec(1, n, k), expected);
             }
         }
     }
@@ -572,7 +720,7 @@ mod tests {
             for k in 1..n {
                 let expected: Vec<_> = ((n - k)..n).collect();
                 let offset = checked_binomial(n, k).unwrap() - 1;
-                assert_eq!(unrank(offset, n, k), expected);
+                assert_eq!(unrank_vec(offset, n, k), expected);
             }
         }
     }
@@ -580,8 +728,8 @@ mod tests {
     #[test]
     fn unrank_k1() {
         for n in 1..50 {
-            for u in 0..n {
-                assert_eq!(unrank(u, n, 1), vec![u]);
+            for offset in 0..n {
+                assert_eq!(unrank_const(offset, n), [offset]);
             }
         }
     }
@@ -591,9 +739,9 @@ mod tests {
         for i in 0..16 {
             for n in (i + 2)..(2 * (i + 1)) {
                 for k in 1..n {
-                    let mut indices = unrank(i, n, k);
+                    let mut indices = unrank_vec(i, n, k);
                     increment_indices(&mut indices, n);
-                    assert_eq!(unrank(i + 1, n, k), indices);
+                    assert_eq!(unrank_vec(i + 1, n, k), indices);
                 }
             }
         }
@@ -605,9 +753,9 @@ mod tests {
             for k in 1..n {
                 let max_iter = checked_binomial(n, k).unwrap();
                 for i in (max_iter - n / 2)..(max_iter - 1) {
-                    let mut indices = unrank(i, n, k);
+                    let mut indices = unrank_vec(i, n, k);
                     increment_indices(&mut indices, n);
-                    assert_eq!(unrank(i + 1, n, k), indices);
+                    assert_eq!(unrank_vec(i + 1, n, k), indices);
                 }
             }
         }
@@ -618,9 +766,9 @@ mod tests {
         for i in 1..16 {
             for n in (i + 2)..(2 * (i + 1)) {
                 for k in 1..n {
-                    let mut indices = unrank(i, n, k);
+                    let mut indices = unrank_vec(i, n, k);
                     decrement_indices(&mut indices, n);
-                    assert_eq!(unrank(i - 1, n, k), indices);
+                    assert_eq!(unrank_vec(i - 1, n, k), indices);
                 }
             }
         }
@@ -632,9 +780,9 @@ mod tests {
             for k in 1..n {
                 let max_iter = checked_binomial(n, k).unwrap();
                 for i in (max_iter - n / 2)..(max_iter) {
-                    let mut indices = unrank(i, n, k);
+                    let mut indices = unrank_vec(i, n, k);
                     decrement_indices(&mut indices, n);
-                    assert_eq!(unrank(i - 1, n, k), indices);
+                    assert_eq!(unrank_vec(i - 1, n, k), indices);
                 }
             }
         }
@@ -644,9 +792,9 @@ mod tests {
     #[should_panic]
     fn unrank_offset_outofbounds() {
         let n = 10;
-        let k = 2;
-        let u = checked_binomial(n, k).unwrap() + 1;
-        unrank(u, n, k);
+        const K: usize = 2;
+        let u = checked_binomial(n, K).unwrap() + 1;
+        unrank_const::<K>(u, n);
     }
 
     #[test]
@@ -733,6 +881,108 @@ mod tests {
                 vec![1, 2, 4],
                 vec![1, 3, 4],
                 vec![2, 3, 4],
+            ]
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn array_par_iter_works() {
+        let a: Vec<_> = (0..5).into_par_iter().array_combinations::<2>().collect();
+
+        // FIXME: somewhere `until` is not correctly set
+        assert_eq!(
+            a,
+            vec![
+                [0, 1],
+                [0, 2],
+                [0, 3],
+                [0, 4],
+                [1, 2],
+                [1, 3],
+                [1, 4],
+                [2, 3],
+                [2, 4],
+                [3, 4],
+            ]
+        );
+
+        let b: Vec<_> = (0..5).into_par_iter().array_combinations::<3>().collect();
+
+        assert_eq!(
+            b,
+            vec![
+                [0, 1, 2],
+                [0, 1, 3],
+                [0, 1, 4],
+                [0, 2, 3],
+                [0, 2, 4],
+                [0, 3, 4],
+                [1, 2, 3],
+                [1, 2, 4],
+                [1, 3, 4],
+                [2, 3, 4],
+            ]
+        );
+    }
+
+    #[test]
+    fn array_par_iter_k1() {
+        assert_eq!(
+            (0..200)
+                .into_par_iter()
+                .array_combinations::<1>()
+                .collect::<Vec<_>>(),
+            (0..200).map(|i| [i]).collect::<Vec<_>>()
+        )
+    }
+
+    #[test]
+    fn array_par_iter_rev_works() {
+        let a: Vec<_> = (0..5)
+            .into_par_iter()
+            .array_combinations::<2>()
+            .rev()
+            .collect();
+        assert_eq!(
+            a,
+            vec![
+                [0, 1],
+                [0, 2],
+                [0, 3],
+                [0, 4],
+                [1, 2],
+                [1, 3],
+                [1, 4],
+                [2, 3],
+                [2, 4],
+                [3, 4],
+            ]
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+        );
+
+        let b: Vec<_> = (0..5)
+            .into_par_iter()
+            .array_combinations::<3>()
+            .rev()
+            .collect();
+        assert_eq!(
+            b,
+            vec![
+                [0, 1, 2],
+                [0, 1, 3],
+                [0, 1, 4],
+                [0, 2, 3],
+                [0, 2, 4],
+                [0, 3, 4],
+                [1, 2, 3],
+                [1, 2, 4],
+                [1, 3, 4],
+                [2, 3, 4],
             ]
             .into_iter()
             .rev()
