@@ -108,6 +108,7 @@ mod chain;
 mod chunks;
 mod cloned;
 mod collect;
+mod combinations;
 mod copied;
 mod empty;
 mod enumerate;
@@ -166,6 +167,7 @@ pub use self::{
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
+    combinations::Combinations,
     copied::Copied,
     empty::{empty, Empty},
     enumerate::Enumerate,
@@ -1960,6 +1962,50 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     fn panic_fuse(self) -> PanicFuse<Self> {
         PanicFuse::new(self)
+    }
+
+    /// Creates an iterator that iterates over the `k`-length combinations
+    /// of the elements from the original iterator.
+    ///
+    /// The iterator element type is `Vec<Self::Item>`.
+    /// The iterator produces a new `Vec` per iteration
+    /// and clones the iterator elements.
+    ///
+    /// # Guarantees
+    /// If the original iterator is deterministic,
+    /// this iterator yields items in a reliable order.
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let it: Vec<_> = (1..5).into_par_iter().combinations(3).collect();
+    ///
+    /// assert_eq!(it[0], vec![1, 2, 3]);
+    /// assert_eq!(it[1], vec![1, 2, 4]);
+    /// assert_eq!(it[2], vec![1, 3, 4]);
+    /// assert_eq!(it[3], vec![2, 3, 4]);
+    /// ```
+    ///
+    /// Note: Combinations does not take into account the equality of the iterated values.
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let it: Vec<_> = [1, 2, 2].into_par_iter().combinations(2).collect();
+    ///
+    /// assert_eq!(it[0], vec![1, 2]); // Note: these are the same
+    /// assert_eq!(it[1], vec![1, 2]); // Note: these are the same
+    /// assert_eq!(it[2], vec![2, 2]);
+    /// ```
+    ///
+    /// # Panics
+    /// Take into account that due to the factorial nature of the total possible combinations,
+    /// this method is likely to overflow.
+    /// The iterator will panic if the total number of combinations (`nCk`) is bigger than [usize::MAX].
+    ///
+    /// The iterator will also panic if the total number of elements of the previous iterator
+    /// is smaller than k-length of the desired combinations.
+    fn combinations(self, k: usize) -> Combinations<Self> {
+        Combinations::new(self, k)
     }
 
     /// Creates a fresh collection containing all the elements produced
