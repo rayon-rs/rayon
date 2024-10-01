@@ -551,8 +551,6 @@ fn decrement_indices(indices: &mut [usize], n: usize) {
     indices[i] -= 1;
     for (j, index) in indices.iter_mut().enumerate().skip(i + 1) {
         *index = n - k + j;
-    for (j, index) in indices.iter_mut().enumerate().skip(i + 1) {
-        *index = n - k + j;
     }
 }
 
