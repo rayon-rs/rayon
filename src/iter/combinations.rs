@@ -345,22 +345,26 @@ where
     fn new(mut indices: I, offset: usize, n: usize) -> Self {
         let k = indices.as_mut().len();
         let total = checked_binomial(n, k).expect(OVERFLOW_MSG);
-        if offset == total {
-            unrank(indices.as_mut(), offset - 1, n);
-            Self {
-                indices,
-                n,
-                position: IndicesPosition::End,
+        match offset.cmp(&total) {
+            Ordering::Equal => {
+                unrank(indices.as_mut(), offset - 1, n);
+                Self {
+                    indices,
+                    n,
+                    position: IndicesPosition::End,
+                }
             }
-        } else if offset < total {
-            unrank(indices.as_mut(), offset, n);
-            Self {
-                indices,
-                n,
-                position: IndicesPosition::Middle,
+            Ordering::Less => {
+                unrank(indices.as_mut(), offset, n);
+                Self {
+                    indices,
+                    n,
+                    position: IndicesPosition::Middle,
+                }
             }
-        } else {
-            panic!("Offset should be inside the bounds of the possible combinations.")
+            Ordering::Greater => {
+                panic!("Offset should be inside the bounds of the possible combinations.")
+            }
         }
     }
 
@@ -545,8 +549,10 @@ fn decrement_indices(indices: &mut [usize], n: usize) {
 
     // Decrement index, and reset the ones to its right
     indices[i] -= 1;
-    for j in i + 1..indices.len() {
-        indices[j] = n - k + j;
+    for (j, index) in indices.iter_mut().enumerate().skip(i + 1) {
+        *index = n - k + j;
+    for (j, index) in indices.iter_mut().enumerate().skip(i + 1) {
+        *index = n - k + j;
     }
 }
 
