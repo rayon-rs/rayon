@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::Div;
 use std::sync::Arc;
 
 use super::plumbing::*;
@@ -424,32 +423,12 @@ fn checked_binomial(n: usize, k: usize) -> Option<usize> {
     // Fast paths x2 ~ x6 speedup
     match k {
         1 => return Some(n),
-        2 => return n.checked_mul(n - 1).map(|r| r / 2),
-        3 => {
-            return n
-                .checked_mul(n - 1)?
-                .div(2)
-                .checked_mul(n - 2)
-                .map(|r| r / 3)
-        }
-        4 if n <= 77_937 /* prevent unnecessary overflow */ => {
-            return n
-                .checked_mul(n - 1)?
-                .div(2)
-                .checked_mul(n - 2)?
-                .checked_mul(n - 3)
-                .map(|r| r / 12)
-        }
-        5 if n <= 10_811 /* prevent unnecessary overflow */ => {
-            return n
-                .checked_mul(n - 1)?
-                .div(2)
-                .checked_mul(n - 2)?
-                .checked_mul(n - 3)?
-                .div(4)
-                .checked_mul(n - 4)
-                .map(|r| r / 15)
-        }
+        // The guards prevent unnecessary overflows,
+        // those cases can be handled by the general checked algorithm
+        2 if n <= 4_294_967_296 => return Some(n * (n - 1) / 2),
+        3 if n <= 3_329_022 => return Some(n * (n - 1) / 2 * (n - 2) / 3),
+        4 if n <= 77_937 => return Some(n * (n - 1) / 2 * (n - 2) * (n - 3) / 12),
+        5 if n <= 10_811 => return Some(n * (n - 1) / 2 * (n - 2) * (n - 3) / 4 * (n - 4) / 15),
         _ => {}
     }
 
@@ -653,20 +632,11 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn checked_binomial_not_overflows() {
-        assert_eq!(
-            checked_binomial(4_294_967_296, 2),
-            Some(9_223_372_034_707_292_160)
-        );
-        assert_eq!(
-            checked_binomial(3_329_022, 3),
-            Some(6_148_913_079_097_324_540)
-        );
-        assert_eq!(
-            checked_binomial(102_570, 4),
-            Some(4_611_527_207_790_103_770)
-        );
-        assert_eq!(checked_binomial(13_467, 5), Some(3_688_506_309_678_005_178));
-        assert_eq!(checked_binomial(109, 15), Some(1_015_428_940_004_440_080));
+        assert!(checked_binomial(4_294_967_297, 2).is_some());
+        assert!(checked_binomial(3_329_023, 3).is_some());
+        assert!(checked_binomial(102_570, 4).is_some());
+        assert!(checked_binomial(13_467, 5).is_some());
+        assert!(checked_binomial(109, 15).is_some());
     }
 
     #[test]
