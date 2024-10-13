@@ -221,18 +221,19 @@ impl<T> JobResult<T> {
         }
     }
 
-    /// Convert the `JobResult` for a job that has finished (and hence
-    /// its JobResult is populated) into its return value.
+    /// Converts the `JobResult` for a finished job into its return value.
     ///
-    /// NB. This will panic if the job panicked.
+    /// # Panics
+    /// This will panic if the job resulted in a panic (`JobResult::Panic`).
     pub(super) fn into_return_value(self) -> T {
         match self {
-            JobResult::None => unreachable!(),
+            JobResult::None => unreachable!("JobResult should not be None after completion."),
             JobResult::Ok(x) => x,
             JobResult::Panic(x) => unwind::resume_unwinding(x),
         }
     }
 }
+
 
 /// Indirect queue to provide FIFO job priority.
 pub(super) struct JobFifo {
