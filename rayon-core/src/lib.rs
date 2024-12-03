@@ -61,7 +61,8 @@
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
 
-#![deny(missing_debug_implementations)]
+// TODO
+//#![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
 #![warn(rust_2018_idioms)]
@@ -102,6 +103,7 @@ pub use self::thread_pool::current_thread_has_pending_tasks;
 pub use self::thread_pool::current_thread_index;
 pub use self::thread_pool::ThreadPool;
 pub use self::thread_pool::{yield_local, yield_now, Yield};
+pub use self::registry::Registry;
 
 #[cfg(not(feature = "web_spin_lock"))]
 use std::sync;

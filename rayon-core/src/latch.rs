@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::usize;
 
 use crate::registry::{Registry, WorkerThread};
 use crate::sync::{Condvar, Mutex};
@@ -268,6 +269,49 @@ impl Latch for LockLatch {
         (*this).v.notify_all();
     }
 }
+
+/// A Latch starts as false and can be toggled multipe times. One can block
+/// until it becomes true and get the value
+#[derive(Debug)]
+pub(super) struct ToggleLatch {
+    m: Mutex<bool>,
+    v: Condvar,
+}
+
+impl ToggleLatch {
+    #[inline]
+    pub(super) fn new() -> ToggleLatch {
+        ToggleLatch {
+            m: Mutex::new(false),
+            v: Condvar::new(),
+        }
+    }
+
+    pub(super) fn get(&self) -> bool {
+        let guard = self.m.lock().unwrap();
+        return *guard;
+    }
+
+    /// Block until latch is set.
+    pub(super) fn wait(&self) {
+        let mut guard = self.m.lock().unwrap();
+        while !*guard {
+            guard = self.v.wait(guard).unwrap();
+        }
+    }
+}
+
+impl Latch for ToggleLatch {
+    #[inline]
+    unsafe fn set(this: *const Self) {
+        let mut guard = (*this).m.lock().unwrap();
+        *guard = !*guard;
+        if *guard {
+            (*this).v.notify_all();
+        }
+    }
+}
+
 
 /// Once latches are used to implement one-time blocking, primarily
 /// for the termination flag of the threads in the pool.
