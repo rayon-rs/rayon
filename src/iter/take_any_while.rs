@@ -7,8 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// until the callback returns `false`.
 /// This struct is created by the [`take_any_while()`] method on [`ParallelIterator`]
 ///
-/// [`take_any_while()`]: trait.ParallelIterator.html#method.take_any_while
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`take_any_while()`]: ParallelIterator::take_any_while()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct TakeAnyWhile<I: ParallelIterator, P> {

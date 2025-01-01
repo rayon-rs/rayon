@@ -4,8 +4,7 @@ use super::*;
 /// `MinLen` is an iterator that imposes a minimum length on iterator splits.
 /// This struct is created by the [`with_min_len()`] method on [`IndexedParallelIterator`]
 ///
-/// [`with_min_len()`]: trait.IndexedParallelIterator.html#method.with_min_len
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`with_min_len()`]: IndexedParallelIterator::with_min_len()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct MinLen<I: IndexedParallelIterator> {
@@ -138,8 +137,7 @@ where
 /// `MaxLen` is an iterator that imposes a maximum length on iterator splits.
 /// This struct is created by the [`with_max_len()`] method on [`IndexedParallelIterator`]
 ///
-/// [`with_max_len()`]: trait.IndexedParallelIterator.html#method.with_max_len
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`with_max_len()`]: IndexedParallelIterator::with_max_len()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct MaxLen<I: IndexedParallelIterator> {

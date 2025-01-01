@@ -13,12 +13,12 @@ use super::IndexedParallelIterator;
 /// the plumbing README][r] for more details.
 ///
 /// [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md#producer-callback
-/// [FnOnce]: https://doc.rust-lang.org/std/ops/trait.FnOnce.html
+/// [FnOnce]: std::ops::FnOnce
 pub trait ProducerCallback<T> {
     /// The type of value returned by this callback. Analogous to
     /// [`Output` from the `FnOnce` trait][Output].
     ///
-    /// [Output]: https://doc.rust-lang.org/std/ops/trait.FnOnce.html#associatedtype.Output
+    /// [Output]: std::ops::FnOnce::Output
     type Output;
 
     /// Invokes the callback with the given producer as argument. The
@@ -74,7 +74,7 @@ pub trait Producer: Send + Sized {
     /// parallel splits to reduce overhead, so this should not be
     /// needed.
     ///
-    /// [`with_min_len`]: ../trait.IndexedParallelIterator.html#method.with_min_len
+    /// [`with_min_len`]: super::IndexedParallelIterator::with_min_len()
     fn min_len(&self) -> usize {
         1
     }
@@ -87,7 +87,7 @@ pub trait Producer: Send + Sized {
     /// attempts to adjust the size of parallel splits to reduce
     /// overhead, so this should not be needed.
     ///
-    /// [`with_max_len`]: ../trait.IndexedParallelIterator.html#method.with_max_len
+    /// [`with_max_len`]: super::IndexedParallelIterator::with_max_len()
     fn max_len(&self) -> usize {
         usize::MAX
     }
@@ -119,9 +119,7 @@ pub trait Producer: Send + Sized {
 /// README][r] for further details.
 ///
 /// [r]: https://github.com/rayon-rs/rayon/blob/main/src/iter/plumbing/README.md
-/// [fold]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fold
-/// [`Folder`]: trait.Folder.html
-/// [`Producer`]: trait.Producer.html
+/// [fold]: Iterator::fold()
 pub trait Consumer<Item>: Send + Sized {
     /// The type of folder that this consumer can be converted into.
     type Folder: Folder<Item, Result = Self::Result>;
@@ -152,7 +150,7 @@ pub trait Consumer<Item>: Send + Sized {
 /// method. At the end, once all items have been consumed, it can then
 /// be converted (using `complete`) into a final value.
 ///
-/// [fold]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.fold
+/// [fold]: Iterator::fold()
 pub trait Folder<Item>: Sized {
     /// The type of result that will ultimately be produced by the folder.
     type Result;
@@ -343,8 +341,8 @@ impl LengthSplitter {
 /// iterators: it is often used as the definition of the
 /// [`drive_unindexed`] or [`drive`] methods.
 ///
-/// [`drive_unindexed`]: ../trait.ParallelIterator.html#tymethod.drive_unindexed
-/// [`drive`]: ../trait.IndexedParallelIterator.html#tymethod.drive
+/// [`drive_unindexed`]: super::ParallelIterator::drive_unindexed()
+/// [`drive`]: super::IndexedParallelIterator::drive()
 pub fn bridge<I, C>(par_iter: I, consumer: C) -> C::Result
 where
     I: IndexedParallelIterator,
@@ -373,7 +371,7 @@ where
 }
 
 /// This helper function is used to "connect" a producer and a
-/// consumer. You may prefer to call [`bridge`], which wraps this
+/// consumer. You may prefer to call [`bridge()`], which wraps this
 /// function. This function will draw items from `producer` and feed
 /// them to `consumer`, splitting and creating parallel tasks when
 /// needed.
@@ -382,9 +380,8 @@ where
 /// iterators: it is often used as the definition of the
 /// [`drive_unindexed`] or [`drive`] methods.
 ///
-/// [`bridge`]: fn.bridge.html
-/// [`drive_unindexed`]: ../trait.ParallelIterator.html#tymethod.drive_unindexed
-/// [`drive`]: ../trait.IndexedParallelIterator.html#tymethod.drive
+/// [`drive_unindexed`]: super::ParallelIterator::drive_unindexed()
+/// [`drive`]: super::IndexedParallelIterator::drive()
 pub fn bridge_producer_consumer<P, C>(len: usize, producer: P, consumer: C) -> C::Result
 where
     P: Producer,
@@ -437,9 +434,7 @@ where
     }
 }
 
-/// A variant of [`bridge_producer_consumer`] where the producer is an unindexed producer.
-///
-/// [`bridge_producer_consumer`]: fn.bridge_producer_consumer.html
+/// A variant of [`bridge_producer_consumer()`] where the producer is an unindexed producer.
 pub fn bridge_unindexed<P, C>(producer: P, consumer: C) -> C::Result
 where
     P: UnindexedProducer,

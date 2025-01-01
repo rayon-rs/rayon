@@ -1,4 +1,4 @@
-//! Parallel iterator types for [strings][std::str]
+//! Parallel iterator types for [strings]
 //!
 //! You will rarely need to interact with this module directly unless you need
 //! to name one of the iterator types.
@@ -9,10 +9,8 @@
 //! It is implemented for `char`, `&[char]`, `[char; N]`, `&[char; N]`,
 //! and any function or closure `F: Fn(char) -> bool + Sync + Send`.
 //!
-//! [`ParallelString::par_split()`]: trait.ParallelString.html#method.par_split
-//! [`par_split_terminator()`]: trait.ParallelString.html#method.par_split_terminator
-//!
-//! [std::str]: https://doc.rust-lang.org/stable/std/str/
+//! [`par_split_terminator()`]: ParallelString::par_split_terminator()
+//! [strings]: std::str
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
