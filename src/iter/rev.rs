@@ -5,8 +5,7 @@ use std::iter;
 /// `Rev` is an iterator that produces elements in reverse order. This struct
 /// is created by the [`rev()`] method on [`IndexedParallelIterator`]
 ///
-/// [`rev()`]: trait.IndexedParallelIterator.html#method.rev
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`rev()`]: IndexedParallelIterator::rev()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Rev<I: IndexedParallelIterator> {

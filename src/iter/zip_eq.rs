@@ -7,8 +7,7 @@ use super::*;
 /// This struct is created by the [`zip_eq`] method on [`IndexedParallelIterator`],
 /// see its documentation for more information.
 ///
-/// [`zip_eq`]: trait.IndexedParallelIterator.html#method.zip_eq
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`zip_eq`]: IndexedParallelIterator::zip_eq()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {

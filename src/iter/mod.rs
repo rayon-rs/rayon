@@ -49,10 +49,10 @@
 //!   collection to extend, you can use [`collect()`] to create a new
 //!   one from scratch.)
 //!
-//! [the `ParallelSlice` trait]: ../slice/trait.ParallelSlice.html
-//! [the `ParallelString` trait]: ../str/trait.ParallelString.html
-//! [`par_extend`]: trait.ParallelExtend.html
-//! [`collect()`]: trait.ParallelIterator.html#method.collect
+//! [the `ParallelSlice` trait]: crate::slice::ParallelSlice
+//! [the `ParallelString` trait]: crate::str::ParallelString
+//! [`par_extend`]: ParallelExtend
+//! [`collect()`]: ParallelIterator::collect()
 //!
 //! To see the full range of methods available on parallel iterators,
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
@@ -61,11 +61,9 @@
 //! If you'd like to build a custom parallel iterator, or to write your own
 //! combinator, then check out the [split] function and the [plumbing] module.
 //!
-//! [regular iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
-//! [`ParallelIterator`]: trait.ParallelIterator.html
-//! [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
-//! [split]: fn.split.html
-//! [plumbing]: plumbing/index.html
+//! [regular iterator]: Iterator
+//! [split]: split()
+//! [plumbing]: plumbing
 //!
 //! Note: Several of the `ParallelIterator` methods rely on a `Try` trait which
 //! has been deliberately obscured from the public API.  This trait is intended
@@ -218,9 +216,6 @@ pub use repeat::repeatn;
 /// By implementing `IntoParallelIterator` for a type, you define how it will
 /// transformed into an iterator. This is a parallel version of the standard
 /// library's [`std::iter::IntoIterator`] trait.
-///
-/// [`ParallelIterator`]: trait.ParallelIterator.html
-/// [`std::iter::IntoIterator`]: https://doc.rust-lang.org/std/iter/trait.IntoIterator.html
 pub trait IntoParallelIterator {
     /// The parallel iterator type that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
@@ -249,7 +244,7 @@ pub trait IntoParallelIterator {
     /// assert_eq!(v, [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9)]);
     /// ```
     ///
-    /// [`zip`]: trait.IndexedParallelIterator.html#method.zip
+    /// [`zip`]: IndexedParallelIterator::zip()
     fn into_par_iter(self) -> Self::Iter;
 }
 
@@ -263,9 +258,6 @@ pub trait IntoParallelIterator {
 /// `for I where &I: IntoParallelIterator`. In most cases, users
 /// will want to implement [`IntoParallelIterator`] rather than implement
 /// this trait directly.
-///
-/// [`ParallelIterator`]: trait.ParallelIterator.html
-/// [`IntoParallelIterator`]: trait.IntoParallelIterator.html
 pub trait IntoParallelRefIterator<'data> {
     /// The type of the parallel iterator that will be returned.
     type Iter: ParallelIterator<Item = Self::Item>;
@@ -314,9 +306,6 @@ where
 /// `for I where &mut I: IntoParallelIterator`. In most cases, users
 /// will want to implement [`IntoParallelIterator`] rather than implement
 /// this trait directly.
-///
-/// [`ParallelIterator`]: trait.ParallelIterator.html
-/// [`IntoParallelIterator`]: trait.IntoParallelIterator.html
 pub trait IntoParallelRefMutIterator<'data> {
     /// The type of iterator that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
@@ -363,8 +352,7 @@ where
 /// For examples of using parallel iterators, see [the docs on the
 /// `iter` module][iter].
 ///
-/// [iter]: index.html
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [iter]: self
 pub trait ParallelIterator: Sized + Send {
     /// The type of item that this parallel iterator produces.
     /// For example, if you use the [`for_each`] method, this is the type of
@@ -1654,7 +1642,7 @@ pub trait ParallelIterator: Sized + Send {
     /// the rest of the items in the iterator as soon as possible
     /// (just as `find` stops iterating once a match is found).
     ///
-    /// [find]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find
+    /// [find]: Iterator::find()
     ///
     /// # Examples
     ///
@@ -1938,7 +1926,7 @@ pub trait ParallelIterator: Sized + Send {
     /// to stop processing other items sooner, with the cost of additional
     /// synchronization overhead, which may also inhibit some optimizations.
     ///
-    /// [`join`]: ../fn.join.html#panics
+    /// [`join`]: crate::join()#panics
     ///
     /// # Examples
     ///
@@ -1972,12 +1960,11 @@ pub trait ParallelIterator: Sized + Send {
     /// of how many elements the iterator contains, and even allows you to reuse
     /// an existing vector's backing store rather than allocating a fresh vector.
     ///
-    /// See also [`collect_vec_list()`][Self::collect_vec_list] for collecting
-    /// into a `LinkedList<Vec<T>>`.
+    /// See also [`collect_vec_list()`] for collecting into a
+    /// `LinkedList<Vec<T>>`.
     ///
-    /// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
-    /// [`collect_into_vec()`]:
-    ///     trait.IndexedParallelIterator.html#method.collect_into_vec
+    /// [`collect_into_vec()`]: IndexedParallelIterator::collect_into_vec()
+    /// [`collect_vec_list()`]: Self::collect_vec_list()
     ///
     /// # Examples
     ///
@@ -2672,8 +2659,8 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// See also [`par_chunks()`] and [`par_chunks_mut()`] for similar behavior on
     /// slices, without having to allocate intermediate `Vec`s for the chunks.
     ///
-    /// [`par_chunks()`]: ../slice/trait.ParallelSlice.html#method.par_chunks
-    /// [`par_chunks_mut()`]: ../slice/trait.ParallelSliceMut.html#method.par_chunks_mut
+    /// [`par_chunks()`]: crate::slice::ParallelSlice::par_chunks()
+    /// [`par_chunks_mut()`]: crate::slice::ParallelSliceMut::par_chunks_mut()
     ///
     /// **Panics** if `chunk_size` is 0.
     ///
@@ -3263,8 +3250,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
 ///
 /// `FromParallelIterator` is used through [`ParallelIterator`]'s [`collect()`] method.
 ///
-/// [`ParallelIterator`]: trait.ParallelIterator.html
-/// [`collect()`]: trait.ParallelIterator.html#method.collect
+/// [`collect()`]: ParallelIterator::collect()
 ///
 /// # Examples
 ///
@@ -3305,21 +3291,19 @@ where
     /// a more 'native' technique is to use the [`par_iter.fold`] or
     /// [`par_iter.fold_with`] methods to create the collection.
     /// Alternatively, if your collection is 'natively' parallel, you
-    /// can use `par_iter.for_each` to process each element in turn.
+    /// can use [`par_iter.for_each`] to process each element in turn.
     ///
-    /// [`LinkedList`]: https://doc.rust-lang.org/std/collections/struct.LinkedList.html
+    /// [`LinkedList`]: std::collections::LinkedList
     /// [`collect_vec_list`]: ParallelIterator::collect_vec_list
-    /// [`par_iter.fold`]: trait.ParallelIterator.html#method.fold
-    /// [`par_iter.fold_with`]: trait.ParallelIterator.html#method.fold_with
-    /// [`par_iter.for_each`]: trait.ParallelIterator.html#method.for_each
+    /// [`par_iter.fold`]: ParallelIterator::fold()
+    /// [`par_iter.fold_with`]: ParallelIterator::fold_with()
+    /// [`par_iter.for_each`]: ParallelIterator::for_each()
     fn from_par_iter<I>(par_iter: I) -> Self
     where
         I: IntoParallelIterator<Item = T>;
 }
 
 /// `ParallelExtend` extends an existing collection with items from a [`ParallelIterator`].
-///
-/// [`ParallelIterator`]: trait.ParallelIterator.html
 ///
 /// # Examples
 ///
@@ -3375,8 +3359,6 @@ where
 ///
 /// Types which are indexable typically implement [`ParallelDrainRange`]
 /// instead, where you can drain fully with `par_drain(..)`.
-///
-/// [`ParallelDrainRange`]: trait.ParallelDrainRange.html
 pub trait ParallelDrainFull {
     /// The draining parallel iterator type that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;
@@ -3417,8 +3399,6 @@ pub trait ParallelDrainFull {
 /// from a collection while retaining the original capacity.
 ///
 /// Types which are not indexable may implement [`ParallelDrainFull`] instead.
-///
-/// [`ParallelDrainFull`]: trait.ParallelDrainFull.html
 pub trait ParallelDrainRange<Idx = usize> {
     /// The draining parallel iterator type that will be created.
     type Iter: ParallelIterator<Item = Self::Item>;

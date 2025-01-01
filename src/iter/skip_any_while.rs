@@ -7,8 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// until the callback returns `false`.
 /// This struct is created by the [`skip_any_while()`] method on [`ParallelIterator`]
 ///
-/// [`skip_any_while()`]: trait.ParallelIterator.html#method.skip_any_while
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`skip_any_while()`]: ParallelIterator::skip_any_while()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct SkipAnyWhile<I: ParallelIterator, P> {

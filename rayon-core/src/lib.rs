@@ -2,29 +2,22 @@
 //!
 //! These APIs have been mirrored in the Rayon crate and it is recommended to use these from there.
 //!
-//! [`join`] is used to take two closures and potentially run them in parallel.
+//! [`join()`] is used to take two closures and potentially run them in parallel.
 //!   - It will run in parallel if task B gets stolen before task A can finish.
 //!   - It will run sequentially if task A finishes before task B is stolen and can continue on task B.
 //!
-//! [`scope`] creates a scope in which you can run any number of parallel tasks.
+//! [`scope()`] creates a scope in which you can run any number of parallel tasks.
 //! These tasks can spawn nested tasks and scopes, but given the nature of work stealing, the order of execution can not be guaranteed.
 //! The scope will exist until all tasks spawned within the scope have been completed.
 //!
-//! [`spawn`] add a task into the 'static' or 'global' scope, or a local scope created by the [`scope()`] function.
+//! [`spawn()`] add a task into the 'static' or 'global' scope, or a local scope created by the [`scope()`] function.
 //!
 //! [`ThreadPool`] can be used to create your own thread pools (using [`ThreadPoolBuilder`]) or to customize the global one.
-//! Tasks spawned within the pool (using [`install()`], [`join()`], etc.) will be added to a deque,
+//! Tasks spawned within the pool (using [`install()`][tpinstall], [`join()`][tpjoin], etc.) will be added to a deque,
 //! where it becomes available for work stealing from other threads in the local threadpool.
 //!
-//! [`join`]: fn.join.html
-//! [`scope`]: fn.scope.html
-//! [`scope()`]: fn.scope.html
-//! [`spawn`]: fn.spawn.html
-//! [`ThreadPool`]: struct.threadpool.html
-//! [`install()`]: struct.ThreadPool.html#method.install
-//! [`spawn()`]: struct.ThreadPool.html#method.spawn
-//! [`join()`]: struct.ThreadPool.html#method.join
-//! [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
+//! [tpinstall]: ThreadPool::install()
+//! [tpjoin]: ThreadPool::join()
 //!
 //! # Global fallback when threading is unsupported
 //!
@@ -139,7 +132,7 @@ pub fn max_num_threads() -> usize {
 /// number may vary over time in future versions (see [the
 /// `num_threads()` method for details][snt]).
 ///
-/// [snt]: struct.ThreadPoolBuilder.html#method.num_threads
+/// [snt]: ThreadPoolBuilder::num_threads
 pub fn current_num_threads() -> usize {
     crate::registry::Registry::current_num_threads()
 }
@@ -173,8 +166,7 @@ enum ErrorKind {
 /// rayon::ThreadPoolBuilder::new().num_threads(22).build_global().unwrap();
 /// ```
 ///
-/// [`ThreadPool`]: struct.ThreadPool.html
-/// [`build_global()`]: struct.ThreadPoolBuilder.html#method.build_global
+/// [`build_global()`]: Self::build_global()
 pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// The number of threads in the rayon thread pool.
     /// If zero will use the RAYON_NUM_THREADS environment variable.
@@ -210,8 +202,6 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
 }
 
 /// Contains the rayon thread pool configuration. Use [`ThreadPoolBuilder`] instead.
-///
-/// [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
 #[deprecated(note = "Use `ThreadPoolBuilder`")]
 #[derive(Default)]
 pub struct Configuration {
@@ -295,11 +285,11 @@ impl ThreadPoolBuilder {
     /// Creates a scoped `ThreadPool` initialized using this configuration.
     ///
     /// This is a convenience function for building a pool using [`std::thread::scope`]
-    /// to spawn threads in a [`spawn_handler`](#method.spawn_handler).
+    /// to spawn threads in a [`spawn_handler`].
     /// The threads in this pool will start by calling `wrapper`, which should
     /// do initialization and continue by calling `ThreadBuilder::run()`.
     ///
-    /// [`std::thread::scope`]: https://doc.rust-lang.org/std/thread/fn.scope.html
+    /// [`spawn_handler`]: Self::spawn_handler()
     ///
     /// # Examples
     ///
@@ -409,10 +399,10 @@ impl<S> ThreadPoolBuilder<S> {
     ///
     /// This can also be used for a pool of scoped threads like [`crossbeam::scope`],
     /// or [`std::thread::scope`] introduced in Rust 1.63, which is encapsulated in
-    /// [`build_scoped`](#method.build_scoped).
+    /// [`build_scoped`].
     ///
     /// [`crossbeam::scope`]: https://docs.rs/crossbeam/0.8/crossbeam/fn.scope.html
-    /// [`std::thread::scope`]: https://doc.rust-lang.org/std/thread/fn.scope.html
+    /// [`build_scoped`]: Self::build_scoped()
     ///
     /// ```ignore-wasm
     /// # use rayon_core as rayon;
@@ -624,7 +614,6 @@ impl<S> ThreadPoolBuilder<S> {
     /// [`scope_fifo()`] for a similar effect.
     ///
     /// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/main/accepted/rfc0001-scope-scheduling.md
-    /// [`scope_fifo()`]: fn.scope_fifo.html
     #[deprecated(note = "use `scope_fifo` and `spawn_fifo` for similar effect")]
     pub fn breadth_first(mut self) -> Self {
         self.breadth_first = true;

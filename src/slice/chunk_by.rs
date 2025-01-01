@@ -138,7 +138,7 @@ where
 ///
 /// This struct is created by the [`par_chunk_by`] method on `&[T]`.
 ///
-/// [`par_chunk_by`]: trait.ParallelSlice.html#method.par_chunk_by
+/// [`par_chunk_by`]: super::ParallelSlice::par_chunk_by()
 pub struct ChunkBy<'data, T, P> {
     pred: P,
     slice: &'data [T],
@@ -195,7 +195,7 @@ where
 ///
 /// This struct is created by the [`par_chunk_by_mut`] method on `&mut [T]`.
 ///
-/// [`par_chunk_by_mut`]: trait.ParallelSliceMut.html#method.par_chunk_by_mut
+/// [`par_chunk_by_mut`]: super::ParallelSliceMut::par_chunk_by_mut()
 pub struct ChunkByMut<'data, T, P> {
     pred: P,
     slice: &'data mut [T],

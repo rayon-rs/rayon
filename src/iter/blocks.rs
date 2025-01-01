@@ -53,8 +53,7 @@ where
 ///
 /// This struct is created by the [`by_exponential_blocks()`] method on [`IndexedParallelIterator`]
 ///
-/// [`by_exponential_blocks()`]: trait.IndexedParallelIterator.html#method.by_exponential_blocks
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`by_exponential_blocks()`]: IndexedParallelIterator::by_exponential_blocks()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct ExponentialBlocks<I> {
@@ -96,8 +95,7 @@ fn exponential_size(size: &usize) -> Option<usize> {
 ///
 /// This struct is created by the [`by_uniform_blocks()`] method on [`IndexedParallelIterator`]
 ///
-/// [`by_uniform_blocks()`]: trait.IndexedParallelIterator.html#method.by_uniform_blocks
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`by_uniform_blocks()`]: IndexedParallelIterator::by_uniform_blocks()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct UniformBlocks<I> {

@@ -1,7 +1,5 @@
 //! Contains support for user-managed thread pools, represented by the
 //! the [`ThreadPool`] type (see that struct for details).
-//!
-//! [`ThreadPool`]: struct.ThreadPool.html
 
 use crate::broadcast::{self, BroadcastContext};
 use crate::join;
@@ -43,11 +41,8 @@ mod test;
 ///
 ///
 /// [thread-pool]: https://en.wikipedia.org/wiki/Thread_pool
-/// [`ThreadPool`]: struct.ThreadPool.html
-/// [`ThreadPool::new()`]: struct.ThreadPool.html#method.new
-/// [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
-/// [`ThreadPoolBuilder::build()`]: struct.ThreadPoolBuilder.html#method.build
-/// [`ThreadPool::install()`]: struct.ThreadPool.html#method.install
+/// [`ThreadPoolBuilder::build()`]: ThreadPoolBuilder::build()
+/// [`ThreadPool::install()`]: Self::install()
 pub struct ThreadPool {
     registry: Arc<Registry>,
 }
@@ -207,8 +202,7 @@ impl ThreadPool {
     /// then this number may vary over time in future versions (see [the
     /// `num_threads()` method for details][snt]).
     ///
-    /// [snt]: struct.ThreadPoolBuilder.html#method.num_threads
-    /// [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
+    /// [snt]: ThreadPoolBuilder::num_threads()
     #[inline]
     pub fn current_num_threads(&self) -> usize {
         self.registry.num_threads()
@@ -233,7 +227,7 @@ impl ThreadPool {
     /// indices may wind up being reused if threads are terminated and
     /// restarted.
     ///
-    /// [snt]: struct.ThreadPoolBuilder.html#method.num_threads
+    /// [snt]: ThreadPoolBuilder::num_threads()
     #[inline]
     pub fn current_thread_index(&self) -> Option<usize> {
         let curr = self.registry.current_thread()?;
@@ -283,9 +277,9 @@ impl ThreadPool {
     /// Creates a scope that executes within this thread-pool.
     /// Equivalent to `self.install(|| scope(...))`.
     ///
-    /// See also: [the `scope()` function][scope].
+    /// See also: [the `scope()` function].
     ///
-    /// [scope]: fn.scope.html
+    /// [the `scope()` function]: crate::scope()
     pub fn scope<'scope, OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&Scope<'scope>) -> R + Send,
@@ -298,9 +292,9 @@ impl ThreadPool {
     /// Spawns from the same thread are prioritized in relative FIFO order.
     /// Equivalent to `self.install(|| scope_fifo(...))`.
     ///
-    /// See also: [the `scope_fifo()` function][scope_fifo].
+    /// See also: [the `scope_fifo()` function].
     ///
-    /// [scope_fifo]: fn.scope_fifo.html
+    /// [the `scope_fifo()` function]: crate::scope_fifo()
     pub fn scope_fifo<'scope, OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&ScopeFifo<'scope>) -> R + Send,
@@ -311,9 +305,9 @@ impl ThreadPool {
 
     /// Creates a scope that spawns work into this thread-pool.
     ///
-    /// See also: [the `in_place_scope()` function][in_place_scope].
+    /// See also: [the `in_place_scope()` function].
     ///
-    /// [in_place_scope]: fn.in_place_scope.html
+    /// [the `in_place_scope()` function]: crate::in_place_scope()
     pub fn in_place_scope<'scope, OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&Scope<'scope>) -> R,
@@ -323,9 +317,9 @@ impl ThreadPool {
 
     /// Creates a scope that spawns work into this thread-pool in FIFO order.
     ///
-    /// See also: [the `in_place_scope_fifo()` function][in_place_scope_fifo].
+    /// See also: [the `in_place_scope_fifo()` function].
     ///
-    /// [in_place_scope_fifo]: fn.in_place_scope_fifo.html
+    /// [the `in_place_scope_fifo()` function]: crate::in_place_scope_fifo()
     pub fn in_place_scope_fifo<'scope, OP, R>(&self, op: OP) -> R
     where
         OP: FnOnce(&ScopeFifo<'scope>) -> R,
@@ -340,7 +334,7 @@ impl ThreadPool {
     ///
     /// See also: [the `spawn()` function defined on scopes][spawn].
     ///
-    /// [spawn]: struct.Scope.html#method.spawn
+    /// [spawn]: Scope::spawn()
     pub fn spawn<OP>(&self, op: OP)
     where
         OP: FnOnce() + Send + 'static,
@@ -356,7 +350,7 @@ impl ThreadPool {
     ///
     /// See also: [the `spawn_fifo()` function defined on scopes][spawn_fifo].
     ///
-    /// [spawn_fifo]: struct.ScopeFifo.html#method.spawn_fifo
+    /// [spawn_fifo]: ScopeFifo::spawn_fifo()
     pub fn spawn_fifo<OP>(&self, op: OP)
     where
         OP: FnOnce() + Send + 'static,
@@ -425,9 +419,9 @@ impl fmt::Debug for ThreadPool {
 /// lifetime. However, multiple threads may share the same index if
 /// they are in distinct thread-pools.
 ///
-/// See also: [the `ThreadPool::current_thread_index()` method].
+/// See also: [the `ThreadPool::current_thread_index()` method][m].
 ///
-/// [m]: struct.ThreadPool.html#method.current_thread_index
+/// [m]: ThreadPool::current_thread_index()
 ///
 /// # Future compatibility note
 ///
@@ -439,7 +433,7 @@ impl fmt::Debug for ThreadPool {
 /// indices may wind up being reused if threads are terminated and
 /// restarted.
 ///
-/// [snt]: struct.ThreadPoolBuilder.html#method.num_threads
+/// [snt]: ThreadPoolBuilder::num_threads()
 #[inline]
 pub fn current_thread_index() -> Option<usize> {
     unsafe {
@@ -453,7 +447,7 @@ pub fn current_thread_index() -> Option<usize> {
 /// `None`. For more information, see [the
 /// `ThreadPool::current_thread_has_pending_tasks()` method][m].
 ///
-/// [m]: struct.ThreadPool.html#method.current_thread_has_pending_tasks
+/// [m]: ThreadPool::current_thread_has_pending_tasks()
 #[inline]
 pub fn current_thread_has_pending_tasks() -> Option<bool> {
     unsafe {

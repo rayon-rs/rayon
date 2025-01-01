@@ -5,8 +5,7 @@ use std::iter;
 /// `StepBy` is an iterator that skips `n` elements between each yield, where `n` is the given step.
 /// This struct is created by the [`step_by()`] method on [`IndexedParallelIterator`]
 ///
-/// [`step_by()`]: trait.IndexedParallelIterator.html#method.step_by
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`step_by()`]: IndexedParallelIterator::step_by()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct StepBy<I: IndexedParallelIterator> {

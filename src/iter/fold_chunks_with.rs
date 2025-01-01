@@ -9,8 +9,7 @@ use super::*;
 ///
 /// This struct is created by the [`fold_chunks_with()`] method on [`IndexedParallelIterator`]
 ///
-/// [`fold_chunks_with()`]: trait.IndexedParallelIterator.html#method.fold_chunks
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`fold_chunks_with()`]: IndexedParallelIterator::fold_chunks()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct FoldChunksWith<I, U, F>

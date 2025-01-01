@@ -22,8 +22,7 @@ where
 /// `Fold` is an iterator that applies a function over an iterator producing a single value.
 /// This struct is created by the [`fold()`] method on [`ParallelIterator`]
 ///
-/// [`fold()`]: trait.ParallelIterator.html#method.fold
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`fold()`]: ParallelIterator::fold()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct Fold<I, ID, F> {
@@ -197,8 +196,7 @@ where
 /// `FoldWith` is an iterator that applies a function over an iterator producing a single value.
 /// This struct is created by the [`fold_with()`] method on [`ParallelIterator`]
 ///
-/// [`fold_with()`]: trait.ParallelIterator.html#method.fold_with
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`fold_with()`]: ParallelIterator::fold_with()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct FoldWith<I, U, F> {

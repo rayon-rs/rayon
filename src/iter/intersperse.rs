@@ -7,8 +7,7 @@ use std::iter::{self, Fuse};
 /// item of the adapted iterator.  This struct is created by the
 /// [`intersperse()`] method on [`ParallelIterator`]
 ///
-/// [`intersperse()`]: trait.ParallelIterator.html#method.intersperse
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`intersperse()`]: ParallelIterator::intersperse()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone, Debug)]
 pub struct Intersperse<I>

@@ -1,9 +1,9 @@
-//! Parallel iterator types for [results][std::result]
+//! Parallel iterator types for [results]
 //!
 //! You will rarely need to interact with this module directly unless you need
 //! to name one of the iterator types.
 //!
-//! [std::result]: https://doc.rust-lang.org/stable/std/result/
+//! [results]: std::result
 
 use crate::iter::plumbing::*;
 use crate::iter::*;

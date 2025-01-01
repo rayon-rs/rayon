@@ -6,8 +6,7 @@ use std::iter;
 /// of pairs. This struct is created by the [`zip()`] method on
 /// [`IndexedParallelIterator`]
 ///
-/// [`zip()`]: trait.IndexedParallelIterator.html#method.zip
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`zip()`]: IndexedParallelIterator::zip()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {

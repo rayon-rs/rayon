@@ -6,8 +6,7 @@ use std::iter;
 /// `Chain` is an iterator that joins `b` after `a` in one continuous iterator.
 /// This struct is created by the [`chain()`] method on [`ParallelIterator`]
 ///
-/// [`chain()`]: trait.ParallelIterator.html#method.chain
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`chain()`]: ParallelIterator::chain()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Chain<A, B>

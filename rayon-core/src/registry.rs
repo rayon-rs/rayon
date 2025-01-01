@@ -18,8 +18,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread;
 
-/// Thread builder used for customization via
-/// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
+/// Thread builder used for customization via [`ThreadPoolBuilder::spawn_handler()`].
 pub struct ThreadBuilder {
     name: Option<String>,
     stack_size: Option<usize>,
