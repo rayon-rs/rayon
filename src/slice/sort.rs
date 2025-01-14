@@ -223,6 +223,11 @@ where
     let len = v.len();
     let mut i = 1;
 
+    // Don't shift elements on short arrays, that has a performance cost.
+    if len < SHORTEST_SHIFTING {
+        return false;
+    }
+    
     for _ in 0..MAX_STEPS {
         // SAFETY: We already explicitly did the bound checking with `i < len`.
         // All our subsequent indexing is only in the range `0 <= index < len`
@@ -236,11 +241,6 @@ where
         // Are we done?
         if i == len {
             return true;
-        }
-
-        // Don't shift elements on short arrays, that has a performance cost.
-        if len < SHORTEST_SHIFTING {
-            return false;
         }
 
         // Swap the found pair of elements. This puts them in correct order.
