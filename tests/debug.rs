@@ -207,7 +207,7 @@ fn debug_once() {
 fn debug_repeat() {
     let x: Option<i32> = None;
     check(rayon::iter::repeat(x));
-    check(rayon::iter::repeatn(x, 10));
+    check(rayon::iter::repeat_n(x, 10));
 }
 
 #[test]

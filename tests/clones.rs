@@ -196,7 +196,7 @@ fn clone_once() {
 fn clone_repeat() {
     let x: Option<i32> = None;
     check(rayon::iter::repeat(x).while_some());
-    check(rayon::iter::repeatn(x, 1000));
+    check(rayon::iter::repeat_n(x, 1000));
 }
 
 #[test]

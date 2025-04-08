@@ -190,7 +190,7 @@ pub use self::{
     panic_fuse::PanicFuse,
     par_bridge::{IterBridge, ParallelBridge},
     positions::Positions,
-    repeat::{repeat, repeatn, Repeat, RepeatN},
+    repeat::{repeat, repeat_n, repeatn, Repeat, RepeatN},
     rev::Rev,
     skip::Skip,
     skip_any::SkipAny,

@@ -12,7 +12,7 @@ pub struct Repeat<T: Clone + Send> {
 /// cloning it). Note that this iterator has "infinite" length, so
 /// typically you would want to use `zip` or `take` or some other
 /// means to shorten it, or consider using
-/// [the `repeatn()` function](fn.repeatn.html) instead.
+/// [the `repeat_n()` function](fn.repeat_n.html) instead.
 ///
 /// # Examples
 ///
@@ -36,7 +36,7 @@ where
     /// The resulting `RepeatN` is an `IndexedParallelIterator`, allowing
     /// more functionality than `Repeat` alone.
     pub fn take(self, n: usize) -> RepeatN<T> {
-        repeatn(self.element, n)
+        repeat_n(self.element, n)
     }
 
     /// Iterates tuples, repeating the element with items from another
@@ -97,7 +97,7 @@ impl<T: Clone + Send> UnindexedProducer for RepeatProducer<T> {
     }
 }
 
-/// Iterator adaptor for [the `repeatn()` function](fn.repeatn.html).
+/// Iterator adaptor for [the `repeat_n()` function](fn.repeat_n.html).
 #[derive(Debug, Clone)]
 pub struct RepeatN<T: Clone + Send> {
     element: T,
@@ -111,10 +111,19 @@ pub struct RepeatN<T: Clone + Send> {
 ///
 /// ```
 /// use rayon::prelude::*;
-/// use rayon::iter::repeatn;
-/// let x: Vec<(i32, i32)> = repeatn(22, 3).zip(0..3).collect();
+/// use rayon::iter::repeat_n;
+/// let x: Vec<(i32, i32)> = repeat_n(22, 3).zip(0..3).collect();
 /// assert_eq!(x, vec![(22, 0), (22, 1), (22, 2)]);
 /// ```
+pub fn repeat_n<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
+    RepeatN {
+        element: elt,
+        count: n,
+    }
+}
+
+#[doc(hidden)]
+#[deprecated(note = "use `repeat_n`")]
 pub fn repeatn<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
     RepeatN {
         element: elt,
