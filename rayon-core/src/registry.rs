@@ -163,7 +163,13 @@ static THE_REGISTRY_SET: Once = Once::new();
 /// configuration.
 pub(super) fn global_registry() -> &'static Arc<Registry> {
     set_global_registry(default_global_registry)
-        .or_else(|err| unsafe { THE_REGISTRY.as_ref().ok_or(err) })
+        .or_else(|err| {
+            // SAFETY: we only create a shared reference to `THE_REGISTRY` after the `call_once`
+            // that initializes it, and there will be no more mutable accesses at all.
+            debug_assert!(THE_REGISTRY_SET.is_completed());
+            let the_registry = unsafe { &*ptr::addr_of!(THE_REGISTRY) };
+            the_registry.as_ref().ok_or(err)
+        })
         .expect("The global thread pool has not been initialized.")
 }
 
@@ -189,8 +195,14 @@ where
     ));
 
     THE_REGISTRY_SET.call_once(|| {
-        result = registry()
-            .map(|registry: Arc<Registry>| unsafe { &*THE_REGISTRY.get_or_insert(registry) })
+        result = registry().map(|registry: Arc<Registry>| {
+            // SAFETY: this is the only mutable access to `THE_REGISTRY`, thanks to `Once`, and
+            // `global_registry()` only takes a shared reference **after** this `call_once`.
+            unsafe {
+                ptr::addr_of_mut!(THE_REGISTRY).write(Some(registry));
+                (*ptr::addr_of!(THE_REGISTRY)).as_ref().unwrap_unchecked()
+            }
+        })
     });
 
     result
