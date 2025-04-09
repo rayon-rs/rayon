@@ -37,6 +37,13 @@ where
         let consumer = FlattenConsumer::new(consumer);
         self.base.drive_unindexed(consumer)
     }
+
+    fn const_length() -> Option<usize> {
+        let base_len = I::const_length()?;
+        let sub_len = I::Item::const_length()?;
+
+        base_len.checked_mul(sub_len)
+    }
 }
 
 /// ////////////////////////////////////////////////////////////////////////
