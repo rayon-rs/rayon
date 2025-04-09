@@ -122,7 +122,6 @@ pub fn repeat_n<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
     }
 }
 
-#[doc(hidden)]
 #[deprecated(note = "use `repeat_n`")]
 pub fn repeatn<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
     RepeatN {
