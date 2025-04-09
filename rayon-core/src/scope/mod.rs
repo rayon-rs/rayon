@@ -8,7 +8,7 @@
 use crate::broadcast::BroadcastContext;
 use crate::job::{ArcJob, HeapJob, JobFifo, JobRef};
 use crate::latch::{CountLatch, Latch};
-use crate::registry::{global_registry, in_worker, Registry, WorkerThread};
+use crate::registry::{current_registry, in_worker, Registry, WorkerThread};
 use crate::unwind;
 use std::any::Any;
 use std::fmt;
@@ -416,9 +416,11 @@ pub(crate) fn do_in_place_scope<'scope, OP, R>(registry: Option<&Arc<Registry>>,
 where
     OP: FnOnce(&Scope<'scope>) -> R,
 {
-    let thread = unsafe { WorkerThread::current().as_ref() };
-    let scope = Scope::<'scope>::new(thread, registry);
-    scope.base.complete(thread, || op(&scope))
+    Registry::with_current(registry, || {
+        let thread = unsafe { WorkerThread::current().as_ref() };
+        let scope = Scope::<'scope>::new(thread, registry);
+        scope.base.complete(thread, || op(&scope))
+    })
 }
 
 /// Creates a "fork-join" scope `s` with FIFO order, and invokes the
@@ -453,9 +455,11 @@ pub(crate) fn do_in_place_scope_fifo<'scope, OP, R>(registry: Option<&Arc<Regist
 where
     OP: FnOnce(&ScopeFifo<'scope>) -> R,
 {
-    let thread = unsafe { WorkerThread::current().as_ref() };
-    let scope = ScopeFifo::<'scope>::new(thread, registry);
-    scope.base.complete(thread, || op(&scope))
+    Registry::with_current(registry, || {
+        let thread = unsafe { WorkerThread::current().as_ref() };
+        let scope = ScopeFifo::<'scope>::new(thread, registry);
+        scope.base.complete(thread, || op(&scope))
+    })
 }
 
 impl<'scope> Scope<'scope> {
@@ -625,7 +629,11 @@ impl<'scope> ScopeBase<'scope> {
     fn new(owner: Option<&WorkerThread>, registry: Option<&Arc<Registry>>) -> Self {
         let registry = registry.unwrap_or_else(|| match owner {
             Some(owner) => owner.registry(),
-            None => global_registry(),
+            // SAFETY: `current_registry` will either return a pointer to
+            // the global registry which has a 'static lifetime or
+            // to temporary one kept alive by `with_current`.
+            // In both case we can safely dereference it here to clone the `Arc`.
+            None => unsafe { &*current_registry() },
         });
 
         ScopeBase {
