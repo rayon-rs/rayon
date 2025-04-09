@@ -2895,7 +2895,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     }
 
     /// Determines if the elements of this `ParallelIterator`
-    /// are less or equal to those of another.
+    /// are less than or equal to those of another.
     fn le<I>(self, other: I) -> bool
     where
         I: IntoParallelIterator,
@@ -2918,7 +2918,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     }
 
     /// Determines if the elements of this `ParallelIterator`
-    /// are less or equal to those of another.
+    /// are less than or equal to those of another.
     fn ge<I>(self, other: I) -> bool
     where
         I: IntoParallelIterator,
