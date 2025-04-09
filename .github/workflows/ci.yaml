@@ -58,12 +58,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-multilib
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable-i686-unknown-linux-gnu
-      - run: cargo build --verbose
-      - run: cargo test --verbose --package rayon
-      - run: cargo test --verbose --package rayon-core
+          targets: i686-unknown-linux-gnu
+      - run: cargo build --verbose --target i686-unknown-linux-gnu
+      - run: cargo test --verbose --target i686-unknown-linux-gnu --package rayon
+      - run: cargo test --verbose --target i686-unknown-linux-gnu --package rayon-core
 
   # wasm32-unknown-unknown builds, and even has the runtime fallback for
   # unsupported threading, but we don't have an environment to execute in.
