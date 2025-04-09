@@ -4,7 +4,7 @@ use super::*;
 use crate::prelude::*;
 use rayon_core::*;
 
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -421,8 +421,8 @@ fn check_cmp_to_seq() {
 fn check_cmp_rng_to_seq() {
     let mut rng = seeded_rng();
     let rng = &mut rng;
-    let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
-    let b: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
+    let a: Vec<i32> = rng.sample_iter(&StandardUniform).take(1024).collect();
+    let b: Vec<i32> = rng.sample_iter(&StandardUniform).take(1024).collect();
     for i in 0..a.len() {
         let par_result = a[i..].par_iter().cmp(b[i..].par_iter());
         let seq_result = a[i..].iter().cmp(b[i..].iter());
@@ -578,8 +578,8 @@ fn check_partial_cmp_to_seq() {
 fn check_partial_cmp_rng_to_seq() {
     let mut rng = seeded_rng();
     let rng = &mut rng;
-    let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
-    let b: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
+    let a: Vec<i32> = rng.sample_iter(&StandardUniform).take(1024).collect();
+    let b: Vec<i32> = rng.sample_iter(&StandardUniform).take(1024).collect();
     for i in 0..a.len() {
         let par_result = a[i..].par_iter().partial_cmp(b[i..].par_iter());
         let seq_result = a[i..].iter().partial_cmp(b[i..].iter());
@@ -1602,7 +1602,7 @@ fn par_iter_unindexed_flat_map() {
 #[test]
 fn min_max() {
     let rng = seeded_rng();
-    let a: Vec<i32> = rng.sample_iter(&Standard).take(1024).collect();
+    let a: Vec<i32> = rng.sample_iter(&StandardUniform).take(1024).collect();
     for i in 0..=a.len() {
         let slice = &a[..i];
         assert_eq!(slice.par_iter().min(), slice.iter().min());
@@ -1614,7 +1614,7 @@ fn min_max() {
 fn min_max_by() {
     let rng = seeded_rng();
     // Make sure there are duplicate keys, for testing sort stability
-    let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
+    let r: Vec<i32> = rng.sample_iter(&StandardUniform).take(512).collect();
     let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
     for i in 0..=a.len() {
         let slice = &a[..i];
@@ -1633,7 +1633,7 @@ fn min_max_by() {
 fn min_max_by_key() {
     let rng = seeded_rng();
     // Make sure there are duplicate keys, for testing sort stability
-    let r: Vec<i32> = rng.sample_iter(&Standard).take(512).collect();
+    let r: Vec<i32> = rng.sample_iter(&StandardUniform).take(512).collect();
     let a: Vec<(i32, u16)> = r.iter().chain(&r).cloned().zip(0..).collect();
     for i in 0..=a.len() {
         let slice = &a[..i];

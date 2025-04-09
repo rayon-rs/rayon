@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::ThreadPoolBuilder;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
@@ -38,7 +38,7 @@ fn seeded_rng() -> XorShiftRng {
 #[test]
 fn sort() {
     let rng = seeded_rng();
-    let mut data: Vec<u32> = rng.sample_iter(&Standard).take(6 * 1024).collect();
+    let mut data: Vec<u32> = rng.sample_iter(&StandardUniform).take(6 * 1024).collect();
     let mut sorted_data = data.clone();
     sorted_data.sort();
     quick_sort(&mut data);
@@ -49,7 +49,7 @@ fn sort() {
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn sort_in_pool() {
     let rng = seeded_rng();
-    let mut data: Vec<u32> = rng.sample_iter(&Standard).take(12 * 1024).collect();
+    let mut data: Vec<u32> = rng.sample_iter(&StandardUniform).take(12 * 1024).collect();
 
     let pool = ThreadPoolBuilder::new().build().unwrap();
     let mut sorted_data = data.clone();

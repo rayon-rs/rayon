@@ -1,5 +1,5 @@
-use rand::distributions::Uniform;
-use rand::{thread_rng, Rng};
+use rand::distr::Uniform;
+use rand::{rng, Rng};
 use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::Ordering;
@@ -131,13 +131,13 @@ fn sort_panic_safe() {
     }));
 
     for &len in &[1, 2, 3, 4, 5, 10, 20, 100, 500, 5_000, 20_000] {
-        let len_dist = Uniform::new(0, len);
+        let len_dist = Uniform::new(0, len).unwrap();
         for &modulus in &[5, 30, 1_000, 20_000] {
             for &has_runs in &[false, true] {
-                let mut rng = thread_rng();
+                let mut rng = rng();
                 let mut input = (0..len)
                     .map(|id| DropCounter {
-                        x: rng.gen_range(0..modulus),
+                        x: rng.random_range(0..modulus),
                         id,
                         version: Cell::new(0),
                     })

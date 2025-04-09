@@ -1611,16 +1611,16 @@ where
 mod tests {
     use super::heapsort;
     use super::split_for_merge;
-    use rand::distributions::Uniform;
-    use rand::{thread_rng, Rng};
+    use rand::distr::Uniform;
+    use rand::{rng, Rng};
 
     #[test]
     fn test_heapsort() {
-        let rng = &mut thread_rng();
+        let rng = &mut rng();
 
         for len in (0..25).chain(500..501) {
             for &modulus in &[5, 10, 100] {
-                let dist = Uniform::new(0, modulus);
+                let dist = Uniform::new(0, modulus).unwrap();
                 for _ in 0..100 {
                     let v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
@@ -1640,7 +1640,7 @@ mod tests {
         // Sort using a completely random comparison function.
         // This will reorder the elements *somehow*, but won't panic.
         let mut v: Vec<_> = (0..100).collect();
-        heapsort(&mut v, |_, _| thread_rng().gen());
+        heapsort(&mut v, |_, _| rand::rng().random());
         heapsort(&mut v, |a, b| a < b);
 
         for (i, &entry) in v.iter().enumerate() {
@@ -1662,19 +1662,19 @@ mod tests {
         check(&[1, 2, 2, 2, 2, 3], &[]);
         check(&[], &[1, 2, 2, 2, 2, 3]);
 
-        let rng = &mut thread_rng();
+        let rng = &mut rng();
 
         for _ in 0..100 {
-            let limit: u32 = rng.gen_range(1..21);
-            let left_len: usize = rng.gen_range(0..20);
-            let right_len: usize = rng.gen_range(0..20);
+            let limit: u32 = rng.random_range(1..21);
+            let left_len: usize = rng.random_range(0..20);
+            let right_len: usize = rng.random_range(0..20);
 
             let mut left = rng
-                .sample_iter(&Uniform::new(0, limit))
+                .sample_iter(&Uniform::new(0, limit).unwrap())
                 .take(left_len)
                 .collect::<Vec<_>>();
             let mut right = rng
-                .sample_iter(&Uniform::new(0, limit))
+                .sample_iter(&Uniform::new(0, limit).unwrap())
                 .take(right_len)
                 .collect::<Vec<_>>();
 

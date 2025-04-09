@@ -1,4 +1,4 @@
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use rayon::prelude::*;
@@ -12,7 +12,10 @@ fn seeded_rng() -> XorShiftRng {
 #[test]
 pub fn execute_strings() {
     let rng = seeded_rng();
-    let s: String = rng.sample_iter::<char, _>(&Standard).take(1024).collect();
+    let s: String = rng
+        .sample_iter::<char, _>(&StandardUniform)
+        .take(1024)
+        .collect();
 
     let par_chars: String = s.par_chars().collect();
     assert_eq!(s, par_chars);

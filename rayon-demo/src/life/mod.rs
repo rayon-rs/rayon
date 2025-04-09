@@ -16,8 +16,8 @@ Options:
 ";
 
 use crate::cpu_time::{self, CpuMeasure};
-use rand::distributions::Standard;
-use rand::{thread_rng, Rng};
+use rand::distr::StandardUniform;
+use rand::{rng, Rng};
 use std::iter::repeat;
 use std::sync::Arc;
 use std::thread;
@@ -90,8 +90,8 @@ impl Board {
     }
 
     pub fn random(&self) -> Board {
-        let new_brd = thread_rng()
-            .sample_iter(&Standard)
+        let new_brd = rng()
+            .sample_iter(&StandardUniform)
             .take(self.len())
             .collect();
 

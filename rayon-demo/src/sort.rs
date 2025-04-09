@@ -1,4 +1,4 @@
-use rand::distributions::{Alphanumeric, Standard, Uniform};
+use rand::distr::{Alphanumeric, StandardUniform, Uniform};
 use rand::Rng;
 use rayon::prelude::*;
 use std::mem;
@@ -16,12 +16,12 @@ fn gen_descending(len: usize) -> Vec<u64> {
 
 fn gen_random(len: usize) -> Vec<u64> {
     let rng = crate::seeded_rng();
-    rng.sample_iter(&Standard).take(len).collect()
+    rng.sample_iter(&StandardUniform).take(len).collect()
 }
 
 fn gen_mostly_ascending(len: usize) -> Vec<u64> {
     let mut rng = crate::seeded_rng();
-    let len_dist = Uniform::new(0, len);
+    let len_dist = Uniform::new(0, len).unwrap();
     let mut v = gen_ascending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
         let x = rng.sample(len_dist);
@@ -33,7 +33,7 @@ fn gen_mostly_ascending(len: usize) -> Vec<u64> {
 
 fn gen_mostly_descending(len: usize) -> Vec<u64> {
     let mut rng = crate::seeded_rng();
-    let len_dist = Uniform::new(0, len);
+    let len_dist = Uniform::new(0, len).unwrap();
     let mut v = gen_descending(len);
     for _ in (0usize..).take_while(|x| x * x <= len) {
         let x = rng.sample(len_dist);
@@ -46,7 +46,7 @@ fn gen_mostly_descending(len: usize) -> Vec<u64> {
 fn gen_strings(len: usize) -> Vec<String> {
     let mut rng = crate::seeded_rng();
     let rng = &mut rng;
-    let len_dist = Uniform::new(1, 21);
+    let len_dist = Uniform::new(1, 21).unwrap();
     let mut v = vec![];
     for _ in 0..len {
         let n = rng.sample(len_dist);
@@ -62,7 +62,7 @@ fn gen_strings(len: usize) -> Vec<String> {
 
 fn gen_big_random(len: usize) -> Vec<[u64; 16]> {
     let rng = crate::seeded_rng();
-    rng.sample_iter(&Standard)
+    rng.sample_iter(&StandardUniform)
         .map(|x| [x; 16])
         .take(len)
         .collect()
