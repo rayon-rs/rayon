@@ -6,8 +6,7 @@ use std::fmt::{self, Debug};
 /// `Filter` takes a predicate `filter_op` and filters out elements that match.
 /// This struct is created by the [`filter()`] method on [`ParallelIterator`]
 ///
-/// [`filter()`]: trait.ParallelIterator.html#method.filter
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`filter()`]: ParallelIterator::filter()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct Filter<I: ParallelIterator, P> {

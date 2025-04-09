@@ -8,8 +8,7 @@ use std::fmt::{self, Debug};
 ///
 /// This struct is created by the [`positions()`] method on [`IndexedParallelIterator`]
 ///
-/// [`positions()`]: trait.IndexedParallelIterator.html#method.positions
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`positions()`]: IndexedParallelIterator::positions()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct Positions<I: IndexedParallelIterator, P> {

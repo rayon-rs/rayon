@@ -7,8 +7,7 @@ use std::iter;
 ///
 /// This struct is created by the [`cloned()`] method on [`ParallelIterator`]
 ///
-/// [`cloned()`]: trait.ParallelIterator.html#method.cloned
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`cloned()`]: ParallelIterator::cloned()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Cloned<I: ParallelIterator> {

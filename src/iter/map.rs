@@ -8,8 +8,7 @@ use std::iter;
 ///
 /// This struct is created by the [`map()`] method on [`ParallelIterator`]
 ///
-/// [`map()`]: trait.ParallelIterator.html#method.map
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`map()`]: ParallelIterator::map()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct Map<I: ParallelIterator, F> {

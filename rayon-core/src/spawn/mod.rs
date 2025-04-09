@@ -9,9 +9,9 @@ use std::sync::Arc;
 /// tied to the current stack frame, and hence it cannot hold any
 /// references other than those with `'static` lifetime. If you want
 /// to spawn a task that references stack data, use [the `scope()`
-/// function][scope] to create a scope.
+/// function] to create a scope.
 ///
-/// [scope]: fn.scope.html
+/// [the `scope()` function]: crate::scope()
 ///
 /// Since tasks spawned with this function cannot hold references into
 /// the enclosing stack frame, you almost certainly want to use a
@@ -32,16 +32,14 @@ use std::sync::Arc;
 /// threads can steal older "stale" tasks.  For an alternate approach,
 /// consider [`spawn_fifo()`] instead.
 ///
-/// [`spawn_fifo()`]: fn.spawn_fifo.html
-///
 /// # Panic handling
 ///
 /// If this closure should panic, the resulting panic will be
 /// propagated to the panic handler registered in the `ThreadPoolBuilder`,
-/// if any.  See [`ThreadPoolBuilder::panic_handler()`][ph] for more
+/// if any.  See [`ThreadPoolBuilder::panic_handler()`] for more
 /// details.
 ///
-/// [ph]: struct.ThreadPoolBuilder.html#method.panic_handler
+/// [`ThreadPoolBuilder::panic_handler()`]: crate::ThreadPoolBuilder::panic_handler()
 ///
 /// # Examples
 ///
@@ -106,27 +104,29 @@ where
 /// tied to the current stack frame, and hence it cannot hold any
 /// references other than those with `'static` lifetime. If you want
 /// to spawn a task that references stack data, use [the `scope_fifo()`
-/// function](fn.scope_fifo.html) to create a scope.
+/// function] to create a scope.
 ///
 /// The behavior is essentially the same as [the `spawn`
-/// function](fn.spawn.html), except that calls from the same thread
+/// function], except that calls from the same thread
 /// will be prioritized in FIFO order. This is similar to the now-
 /// deprecated [`breadth_first`] option, except the effect is isolated
 /// to relative `spawn_fifo` calls, not all threadpool tasks.
 ///
 /// For more details on this design, see Rayon [RFC #1].
 ///
-/// [`breadth_first`]: struct.ThreadPoolBuilder.html#method.breadth_first
+/// [the `scope_fifo()` function]: crate::scope_fifo()
+/// [the `spawn` function]: crate::spawn()
+/// [`breadth_first`]: crate::ThreadPoolBuilder::breadth_first
 /// [RFC #1]: https://github.com/rayon-rs/rfcs/blob/main/accepted/rfc0001-scope-scheduling.md
 ///
 /// # Panic handling
 ///
 /// If this closure should panic, the resulting panic will be
 /// propagated to the panic handler registered in the `ThreadPoolBuilder`,
-/// if any.  See [`ThreadPoolBuilder::panic_handler()`][ph] for more
+/// if any.  See [`ThreadPoolBuilder::panic_handler()`] for more
 /// details.
 ///
-/// [ph]: struct.ThreadPoolBuilder.html#method.panic_handler
+/// [`ThreadPoolBuilder::panic_handler()`]: crate::ThreadPoolBuilder::panic_handler
 pub fn spawn_fifo<F>(func: F)
 where
     F: FnOnce() + Send + 'static,

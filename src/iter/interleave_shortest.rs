@@ -8,8 +8,7 @@ use super::*;
 /// This struct is created by the [`interleave_shortest()`] method on
 /// [`IndexedParallelIterator`].
 ///
-/// [`interleave_shortest()`]: trait.IndexedParallelIterator.html#method.interleave_shortest
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`interleave_shortest()`]: IndexedParallelIterator::interleave_shortest()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct InterleaveShortest<I, J>

@@ -1,9 +1,9 @@
-//! Parallel iterator types for [slices][std::slice]
+//! Parallel iterator types for [slices]
 //!
 //! You will rarely need to interact with this module directly unless you need
 //! to name one of the iterator types.
 //!
-//! [std::slice]: https://doc.rust-lang.org/stable/std/slice/
+//! [slices]: std::slice
 
 mod chunk_by;
 mod chunks;

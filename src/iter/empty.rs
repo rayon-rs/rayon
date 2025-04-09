@@ -27,7 +27,9 @@ pub fn empty<T: Send>() -> Empty<T> {
     }
 }
 
-/// Iterator adaptor for [the `empty()` function](fn.empty.html).
+/// Iterator adaptor for [the `empty()` function].
+///
+/// [the `empty()` function]: empty()
 pub struct Empty<T: Send> {
     marker: PhantomData<T>,
 }

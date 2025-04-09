@@ -6,8 +6,7 @@ use crate::math::div_round_up;
 ///
 /// This struct is created by the [`chunks()`] method on [`IndexedParallelIterator`]
 ///
-/// [`chunks()`]: trait.IndexedParallelIterator.html#method.chunks
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`chunks()`]: IndexedParallelIterator::chunks()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Chunks<I>

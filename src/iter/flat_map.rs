@@ -6,8 +6,7 @@ use std::fmt::{self, Debug};
 /// `FlatMap` maps each element to a parallel iterator, then flattens these iterators together.
 /// This struct is created by the [`flat_map()`] method on [`ParallelIterator`]
 ///
-/// [`flat_map()`]: trait.ParallelIterator.html#method.flat_map
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`flat_map()`]: ParallelIterator::flat_map()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct FlatMap<I: ParallelIterator, F> {

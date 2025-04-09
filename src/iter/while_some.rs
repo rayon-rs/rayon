@@ -7,8 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 ///
 /// This struct is created by the [`while_some()`] method on [`ParallelIterator`]
 ///
-/// [`while_some()`]: trait.ParallelIterator.html#method.while_some
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`while_some()`]: ParallelIterator::while_some()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct WhileSome<I: ParallelIterator> {
