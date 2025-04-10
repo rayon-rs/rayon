@@ -190,7 +190,7 @@ pub use self::{
     panic_fuse::PanicFuse,
     par_bridge::{IterBridge, ParallelBridge},
     positions::Positions,
-    repeat::{repeat, repeat_n, repeatn, Repeat, RepeatN},
+    repeat::{repeat, repeat_n, Repeat, RepeatN},
     rev::Rev,
     skip::Skip,
     skip_any::SkipAny,
@@ -209,6 +209,9 @@ pub use self::{
     zip::Zip,
     zip_eq::ZipEq,
 };
+
+#[allow(deprecated)]
+pub use repeat::repeatn;
 
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
 ///
