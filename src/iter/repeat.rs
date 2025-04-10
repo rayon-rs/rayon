@@ -122,6 +122,10 @@ pub fn repeat_n<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
     }
 }
 
+/// Creates a parallel iterator that produces `n` repeats of `elt`
+/// (by cloning it).
+///
+/// Deprecated in favor of [`repeat_n`] for consistency with the standard library.
 #[deprecated(note = "use `repeat_n`")]
 pub fn repeatn<T: Clone + Send>(elt: T, n: usize) -> RepeatN<T> {
     RepeatN {
