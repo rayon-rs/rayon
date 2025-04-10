@@ -4,7 +4,7 @@ use std::iter;
 
 /// Iterator adaptor for [the `repeat()` function](fn.repeat.html).
 #[derive(Debug, Clone)]
-pub struct Repeat<T: Clone + Send> {
+pub struct Repeat<T> {
     element: T,
 }
 
@@ -99,7 +99,7 @@ impl<T: Clone + Send> UnindexedProducer for RepeatProducer<T> {
 
 /// Iterator adaptor for [the `repeat_n()` function](fn.repeat_n.html).
 #[derive(Debug, Clone)]
-pub struct RepeatN<T: Clone + Send> {
+pub struct RepeatN<T> {
     element: T,
     count: usize,
 }
