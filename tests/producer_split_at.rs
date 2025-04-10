@@ -142,9 +142,9 @@ fn range_inclusive() {
 }
 
 #[test]
-fn repeatn() {
+fn repeat_n() {
     let v: Vec<_> = std::iter::repeat(1).take(5).collect();
-    check(&v, || rayon::iter::repeatn(1, 5));
+    check(&v, || rayon::iter::repeat_n(1, 5));
 }
 
 #[test]
