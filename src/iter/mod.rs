@@ -434,7 +434,7 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// v.par_chunks_mut(1000)
     ///     .for_each_init(
-    ///         || rand::thread_rng(),
+    ///         || rand::rng(),
     ///         |rng, chunk| rng.fill(chunk),
     ///     );
     ///
@@ -535,15 +535,15 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::Rng;
+    /// use rand::{Rng, TryRngCore};
     /// use rayon::prelude::*;
     ///
     /// let mut v = vec![0u8; 1_000_000];
     ///
     /// v.par_chunks_mut(1000)
     ///     .try_for_each_init(
-    ///         || rand::thread_rng(),
-    ///         |rng, chunk| rng.try_fill(chunk),
+    ///         || rand::rng(),
+    ///         |rng, chunk| rng.try_fill_bytes(chunk),
     ///     )
     ///     .expect("expected no rand errors");
     ///
@@ -660,8 +660,8 @@ pub trait ParallelIterator: Sized + Send {
     /// let a: Vec<_> = (1i32..1_000_000)
     ///     .into_par_iter()
     ///     .map_init(
-    ///         || rand::thread_rng(),  // get the thread-local RNG
-    ///         |rng, x| if rng.gen() { // randomly negate items
+    ///         || rand::rng(),  // get the thread-local RNG
+    ///         |rng, x| if rng.random() { // randomly negate items
     ///             -x
     ///         } else {
     ///             x

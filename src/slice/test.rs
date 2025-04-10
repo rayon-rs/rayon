@@ -1,9 +1,9 @@
 #![cfg(test)]
 
 use crate::prelude::*;
-use rand::distributions::Uniform;
-use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
+use rand::distr::Uniform;
+use rand::seq::IndexedRandom;
+use rand::{rng, Rng};
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
@@ -11,11 +11,11 @@ macro_rules! sort {
     ($f:ident, $name:ident) => {
         #[test]
         fn $name() {
-            let rng = &mut thread_rng();
+            let rng = &mut rng();
 
             for len in (0..25).chain(500..501) {
                 for &modulus in &[5, 10, 100] {
-                    let dist = Uniform::new(0, modulus);
+                    let dist = Uniform::new(0, modulus).unwrap();
                     for _ in 0..100 {
                         let v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
@@ -35,7 +35,7 @@ macro_rules! sort {
             // Test sort with many duplicates.
             for &len in &[1_000, 10_000, 100_000] {
                 for &modulus in &[5, 10, 100, 10_000] {
-                    let dist = Uniform::new(0, modulus);
+                    let dist = Uniform::new(0, modulus).unwrap();
                     let mut v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
                     v.$f(|a, b| a.cmp(b));
@@ -45,9 +45,9 @@ macro_rules! sort {
 
             // Test sort with many pre-sorted runs.
             for &len in &[1_000, 10_000, 100_000] {
-                let len_dist = Uniform::new(0, len);
+                let len_dist = Uniform::new(0, len).unwrap();
                 for &modulus in &[5, 10, 1000, 50_000] {
-                    let dist = Uniform::new(0, modulus);
+                    let dist = Uniform::new(0, modulus).unwrap();
                     let mut v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
                     v.sort();
@@ -71,7 +71,7 @@ macro_rules! sort {
             // Sort using a completely random comparison function.
             // This will reorder the elements *somehow*, but won't panic.
             let mut v: Vec<_> = (0..100).collect();
-            v.$f(|_, _| *[Less, Equal, Greater].choose(&mut thread_rng()).unwrap());
+            v.$f(|_, _| *[Less, Equal, Greater].choose(&mut rand::rng()).unwrap());
             v.$f(|a, b| a.cmp(b));
             for i in 0..v.len() {
                 assert_eq!(v[i], i);
@@ -103,10 +103,10 @@ fn test_par_sort_stability() {
             // the second item represents which occurrence of that
             // number this element is, i.e. the second elements
             // will occur in sorted order.
-            let mut rng = thread_rng();
+            let mut rng = rng();
             let mut v: Vec<_> = (0..len)
                 .map(|_| {
-                    let n: usize = rng.gen_range(0..10);
+                    let n: usize = rng.random_range(0..10);
                     counts[n] += 1;
                     (n, counts[n])
                 })

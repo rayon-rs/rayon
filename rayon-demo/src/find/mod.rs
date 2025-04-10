@@ -4,14 +4,14 @@ macro_rules! make_tests {
     ($n:expr, $m:ident) => {
         mod $m {
             use once_cell::sync::Lazy;
-            use rand::distributions::Standard;
+            use rand::distr::StandardUniform;
             use rand::Rng;
             use rayon::prelude::*;
             use test::Bencher;
 
             static HAYSTACK: Lazy<Box<[[u32; $n]]>> = Lazy::new(|| {
                 let rng = crate::seeded_rng();
-                rng.sample_iter(&Standard)
+                rng.sample_iter(&StandardUniform)
                     .map(|x| {
                         let mut result: [u32; $n] = [0; $n];
                         result[0] = x;

@@ -23,7 +23,7 @@ pub struct Args {
 }
 
 use docopt::Docopt;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::Rng;
 use std::time::Instant;
 
@@ -108,7 +108,7 @@ pub fn is_sorted<T: Send + Ord>(v: &[T]) -> bool {
 
 fn default_vec(n: usize) -> Vec<u32> {
     let rng = crate::seeded_rng();
-    rng.sample_iter(&Standard).take(n).collect()
+    rng.sample_iter(&StandardUniform).take(n).collect()
 }
 
 fn timed_sort<F: FnOnce(&mut [u32])>(n: usize, f: F, name: &str) -> u64 {

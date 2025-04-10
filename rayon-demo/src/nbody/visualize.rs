@@ -191,7 +191,7 @@ pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
         .with_title("nbody demo")
         .build(&event_loop);
 
-    let benchmark = NBodyBenchmark::new(num_bodies, &mut rand::thread_rng());
+    let benchmark = NBodyBenchmark::new(num_bodies, &mut rand::rng());
 
     let vertex_shader_src = r#"
         #version 100
@@ -231,9 +231,9 @@ pub fn visualize_benchmarks(num_bodies: usize, mode: ExecutionMode) {
     let instances: Vec<_> = (0..num_bodies)
         .map(|_| Instance {
             color: [
-                rng.gen_range(0.5..1.0),
-                rng.gen_range(0.5..1.0),
-                rng.gen_range(0.5..1.0),
+                rng.random_range(0.5..1.0),
+                rng.random_range(0.5..1.0),
+                rng.random_range(0.5..1.0),
             ],
             world_position: [0.0, 0.0, 0.0],
         })
