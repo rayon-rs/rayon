@@ -3,6 +3,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 use crate::{join, Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder};
 
@@ -378,6 +379,98 @@ fn in_place_scope_fifo_no_deadlock() {
             tx.send(()).unwrap();
         });
         rx_ref.recv().unwrap();
+    });
+}
+
+#[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
+fn in_place_scope_which_pool() {
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(1)
+        .thread_name(|_| "worker".to_owned())
+        .build()
+        .unwrap();
+
+    // Determine which pool is currently installed here
+    // by checking the thread name seen by spawned work items.
+    pool.in_place_scope(|scope| {
+        let (name_send, name_recv) = channel();
+
+        scope.spawn(move |_| {
+            let name = thread::current().name().map(ToOwned::to_owned);
+
+            name_send.send(name).unwrap();
+        });
+
+        let name = name_recv.recv().unwrap();
+
+        assert_eq!(name.as_deref(), Some("worker"));
+
+        let (name_send, name_recv) = channel();
+
+        crate::spawn(move || {
+            let name = thread::current().name().map(ToOwned::to_owned);
+
+            name_send.send(name).unwrap();
+        });
+
+        let name = name_recv.recv().unwrap();
+
+        assert_eq!(name.as_deref(), Some("worker"));
+
+        let (lhs_name, rhs_name) = crate::join(
+            || thread::current().name().map(ToOwned::to_owned),
+            || thread::current().name().map(ToOwned::to_owned),
+        );
+
+        assert_eq!(lhs_name.as_deref(), Some("worker"));
+        assert_eq!(rhs_name.as_deref(), Some("worker"));
+    });
+}
+
+#[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
+fn in_place_scope_fifo_which_pool() {
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(1)
+        .thread_name(|_| "worker".to_owned())
+        .build()
+        .unwrap();
+
+    // Determine which pool is currently installed here
+    // by checking the thread name seen by spawned work items.
+    pool.in_place_scope_fifo(|scope| {
+        let (name_send, name_recv) = channel();
+
+        scope.spawn_fifo(move |_| {
+            let name = thread::current().name().map(ToOwned::to_owned);
+
+            name_send.send(name).unwrap();
+        });
+
+        let name = name_recv.recv().unwrap();
+
+        assert_eq!(name.as_deref(), Some("worker"));
+
+        let (name_send, name_recv) = channel();
+
+        crate::spawn_fifo(move || {
+            let name = thread::current().name().map(ToOwned::to_owned);
+
+            name_send.send(name).unwrap();
+        });
+
+        let name = name_recv.recv().unwrap();
+
+        assert_eq!(name.as_deref(), Some("worker"));
+
+        let (lhs_name, rhs_name) = crate::join(
+            || thread::current().name().map(ToOwned::to_owned),
+            || thread::current().name().map(ToOwned::to_owned),
+        );
+
+        assert_eq!(lhs_name.as_deref(), Some("worker"));
+        assert_eq!(rhs_name.as_deref(), Some("worker"));
     });
 }
 

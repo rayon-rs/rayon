@@ -161,7 +161,7 @@ static THE_REGISTRY_SET: Once = Once::new();
 /// Starts the worker threads (if that has not already happened). If
 /// initialization has not already occurred, use the default
 /// configuration.
-pub(super) fn global_registry() -> &'static Arc<Registry> {
+fn global_registry() -> &'static Arc<Registry> {
     set_global_registry(default_global_registry)
         .or_else(|err| {
             // SAFETY: we only create a shared reference to `THE_REGISTRY` after the `call_once`
@@ -227,6 +227,36 @@ fn default_global_registry() -> Result<Arc<Registry>, ThreadPoolBuildError> {
     }
 
     result
+}
+
+// This is used to temporarily overwrite the current registry.
+//
+// This either null, a pointer to the global registry if it was
+// ever used to access the global registry or a pointer to a
+// registry which is temporarily made current because the current
+// thread is not a worker thread but is running a scope associated
+// to a specific thread pool.
+thread_local! {
+    static CURRENT_REGISTRY: Cell<*const Arc<Registry>> = const { Cell::new(ptr::null()) };
+}
+
+#[cold]
+fn set_current_registry_to_global_registry() -> *const Arc<Registry> {
+    let global = global_registry();
+
+    CURRENT_REGISTRY.with(|current_registry| current_registry.set(global));
+
+    global
+}
+
+pub(super) fn current_registry() -> *const Arc<Registry> {
+    let mut current = CURRENT_REGISTRY.with(Cell::get);
+
+    if current.is_null() {
+        current = set_current_registry_to_global_registry();
+    }
+
+    current
 }
 
 struct Terminator<'a>(&'a Arc<Registry>);
@@ -327,12 +357,45 @@ impl Registry {
         unsafe {
             let worker_thread = WorkerThread::current();
             let registry = if worker_thread.is_null() {
-                global_registry()
+                &*current_registry()
             } else {
                 &(*worker_thread).registry
             };
             Arc::clone(registry)
         }
+    }
+
+    /// Optionally install a specific registry as the current one.
+    ///
+    /// This is used when a thread which is not a worker executes
+    /// a scope which should use the specific thread pool instead of
+    /// the global one.
+    pub(super) fn with_current<F, R>(registry: Option<&Arc<Registry>>, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        struct Guard {
+            current: *const Arc<Registry>,
+        }
+
+        impl Guard {
+            fn new(registry: &Arc<Registry>) -> Self {
+                let current =
+                    CURRENT_REGISTRY.with(|current_registry| current_registry.replace(registry));
+
+                Self { current }
+            }
+        }
+
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                CURRENT_REGISTRY.with(|current_registry| current_registry.set(self.current));
+            }
+        }
+
+        let _guard = registry.map(Guard::new);
+
+        f()
     }
 
     /// Returns the number of threads in the current registry.  This
@@ -342,7 +405,7 @@ impl Registry {
         unsafe {
             let worker_thread = WorkerThread::current();
             if worker_thread.is_null() {
-                global_registry().num_threads()
+                (*current_registry()).num_threads()
             } else {
                 (*worker_thread).registry.num_threads()
             }
@@ -958,7 +1021,7 @@ where
             // invalidated until we return.
             op(&*owner_thread, false)
         } else {
-            global_registry().in_worker(op)
+            (*current_registry()).in_worker(op)
         }
     }
 }
