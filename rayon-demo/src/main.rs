@@ -28,6 +28,8 @@ mod map_collect;
 #[cfg(test)]
 mod pythagoras;
 #[cfg(test)]
+mod scan;
+#[cfg(test)]
 mod sort;
 #[cfg(test)]
 mod str_split;
