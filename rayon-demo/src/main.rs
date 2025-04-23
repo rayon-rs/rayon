@@ -28,6 +28,8 @@ mod map_collect;
 #[cfg(test)]
 mod pythagoras;
 #[cfg(test)]
+mod scan;
+#[cfg(test)]
 mod sort;
 #[cfg(test)]
 mod str_split;
@@ -35,8 +37,6 @@ mod str_split;
 mod tree;
 #[cfg(test)]
 mod vec_collect;
-#[cfg(test)]
-mod scan;
 
 #[cfg(test)]
 extern crate test;
