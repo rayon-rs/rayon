@@ -39,6 +39,43 @@ pub struct IntoIter<T: Send> {
     vec: Vec<T>,
 }
 
+impl<T: Send> IntoIter<T> {
+    /// Returns the remaining items of this iterator as a slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut vec = vec!['a', 'b', 'c'];
+    /// let drain = vec.par_drain(0..2);
+    /// assert_eq!(drain.as_slice(), &['a', 'b']);
+    /// ```
+    pub fn as_slice(&self) -> &[T] {
+        &self.vec
+    }
+
+    /// Returns the remaining items of this iterator as a mutable slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut vec = vec!['a', 'b', 'c'];
+    /// let mut drain = vec.par_drain(0..2);
+    /// *drain.as_mut_slice().last_mut().unwrap() = 'd';
+    /// assert_eq!(drain.as_slice(), &['a', 'd']);
+    /// ```
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        &mut self.vec
+    }
+}
+
+impl<T: Send> AsRef<[T]> for IntoIter<T> {
+    fn as_ref(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
 impl<T: Send> IntoParallelIterator for Vec<T> {
     type Item = T;
     type Iter = IntoIter<T>;
@@ -103,6 +140,43 @@ pub struct Drain<'data, T: Send> {
     vec: &'data mut Vec<T>,
     range: Range<usize>,
     orig_len: usize,
+}
+
+impl<'data, T: Send> Drain<'data, T> {
+    /// Returns the remaining items of this iterator as a slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut vec = vec!['a', 'b', 'c'];
+    /// let drain = vec.par_drain(0..2);
+    /// assert_eq!(drain.as_slice(), &['a', 'b']);
+    /// ```
+    pub fn as_slice(&self) -> &[T] {
+        &self.vec[self.range.clone()]
+    }
+
+    /// Returns the remaining items of this iterator as a mutable slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut vec = vec!['a', 'b', 'c'];
+    /// let mut drain = vec.par_drain(0..2);
+    /// *drain.as_mut_slice().last_mut().unwrap() = 'd';
+    /// assert_eq!(drain.as_slice(), &['a', 'd']);
+    /// ```
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        &mut self.vec[self.range.clone()]
+    }
+}
+
+impl<'data, T: Send> AsRef<[T]> for Drain<'data, T> {
+    fn as_ref(&self) -> &[T] {
+        self.as_slice()
+    }
 }
 
 impl<'data, T: Send> ParallelIterator for Drain<'data, T> {
