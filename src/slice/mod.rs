@@ -1066,7 +1066,7 @@ where
 }
 
 /// Implement support for `SplitProducer`.
-impl<'data, T, P> Fissile<P> for &'data [T]
+impl<T, P> Fissile<P> for &[T]
 where
     P: Fn(&T) -> bool,
 {
@@ -1176,7 +1176,7 @@ where
 }
 
 /// Implement support for `SplitProducer`.
-impl<'data, T, P> Fissile<P> for &'data mut [T]
+impl<T, P> Fissile<P> for &mut [T]
 where
     P: Fn(&T) -> bool,
 {

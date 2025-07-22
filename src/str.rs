@@ -681,7 +681,7 @@ impl<'ch, P: Pattern> ParallelIterator for Split<'ch, P> {
 }
 
 /// Implement support for `SplitProducer`.
-impl<'ch, P: Pattern> Fissile<P> for &'ch str {
+impl<P: Pattern> Fissile<P> for &str {
     fn length(&self) -> usize {
         self.len()
     }
