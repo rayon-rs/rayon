@@ -144,7 +144,7 @@ fn configuration() {
     let start_handler = move |_| {};
     let exit_handler = move |_| {};
     let panic_handler = move |_| {};
-    let thread_name = move |i| format!("thread_name_{}", i);
+    let thread_name = move |i| format!("thread_name_{i}");
 
     // Ensure we can call all public methods on Configuration
     crate::Configuration::new()

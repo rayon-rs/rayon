@@ -415,7 +415,7 @@ pub fn main(args: &[String]) {
         let par = timed_matmul(args.flag_size, matmulz, "par z-order");
         timed_matmul(args.flag_size, matmul_strassen, "par strassen");
         let speedup = seq as f64 / par as f64;
-        println!("speedup: {:.2}x", speedup);
+        println!("speedup: {speedup:.2}x");
     }
 }
 

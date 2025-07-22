@@ -14,9 +14,9 @@ mod test;
 //
 // To solve this, we assign each consumer a lower and upper bound for an
 // imaginary "range" of data that it consumes. The initial consumer starts with
-// the range 0..usize::max_value(). The split divides this range in half so that
-// one resulting consumer has the range 0..(usize::max_value() / 2), and the
-// other has (usize::max_value() / 2)..usize::max_value(). Every subsequent
+// the range 0..usize::MAX. The split divides this range in half so that
+// one resulting consumer has the range 0..(usize::MAX / 2), and the
+// other has (usize::MAX / 2)..usize::max_value(). Every subsequent
 // split divides the range in half again until it cannot be split anymore
 // (i.e. its length is 1), in which case the split returns two consumers with
 // the same range. In that case both consumers will continue to consume all

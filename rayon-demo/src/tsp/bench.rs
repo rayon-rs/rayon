@@ -28,14 +28,11 @@ fn run_dir(
     assert_eq!(
         exp_weight,
         weight.to_usize(),
-        "actual weight ({:?}) did not match expectation ({:?})",
-        weight,
-        exp_weight
+        "actual weight ({weight:?}) did not match expectation ({exp_weight:?})"
     );
     assert_eq!(
         exp_path, path,
-        "best path ({:?}) did not match expectation ({:?})",
-        path, exp_path
+        "best path ({path:?}) did not match expectation ({exp_path:?})"
     );
 }
 

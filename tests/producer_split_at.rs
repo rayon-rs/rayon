@@ -75,7 +75,7 @@ impl<T> ProducerCallback<T> for Split {
     where
         P: Producer<Item = T>,
     {
-        println!("{:?}", self);
+        println!("{self:?}");
 
         // Splitting the outer indexes first gets us an arbitrary mid section,
         // which we then split further to get full test coverage.

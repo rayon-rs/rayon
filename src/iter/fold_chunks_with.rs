@@ -213,7 +213,7 @@ mod test {
             v.par_iter()
                 .fold_chunks_with(n, 0, sum)
                 .collect_into_vec(&mut res);
-            assert_eq!(expected, res, "Case {} failed", i);
+            assert_eq!(expected, res, "Case {i} failed");
 
             res.truncate(0);
             v.into_par_iter()
@@ -223,8 +223,7 @@ mod test {
             assert_eq!(
                 expected.into_iter().rev().collect::<Vec<u32>>(),
                 res,
-                "Case {} reversed failed",
-                i
+                "Case {i} reversed failed"
             );
         }
     }

@@ -138,7 +138,7 @@ pub fn main(args: &[String]) {
             let seq = timed_sort(args.flag_size, quick_sort::<Sequential, u32>, "seq");
             let par = timed_sort(args.flag_size, quick_sort::<Parallel, u32>, "par");
             let speedup = seq as f64 / par as f64;
-            println!("speedup: {:.2}x", speedup);
+            println!("speedup: {speedup:.2}x");
         }
     }
 }

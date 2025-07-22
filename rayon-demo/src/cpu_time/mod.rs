@@ -47,7 +47,7 @@ pub fn measure_cpu(op: impl FnOnce()) -> CpuMeasure {
 pub fn print_time(m: CpuMeasure) {
     println!("    wallclock: {} ns", m.time_duration.as_nanos());
     if let Some(cpu_usage) = m.cpu_usage_percent {
-        println!("    cpu usage: {:3.1}%", cpu_usage);
+        println!("    cpu usage: {cpu_usage:3.1}%");
     } else {
         println!("    cpu usage: N/A");
     }

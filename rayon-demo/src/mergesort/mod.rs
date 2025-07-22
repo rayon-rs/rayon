@@ -263,7 +263,7 @@ pub fn main(args: &[String]) {
         let seq = timed_sort(args.flag_size, seq_merge_sort, "seq");
         let par = timed_sort(args.flag_size, merge_sort, "par");
         let speedup = seq as f64 / par as f64;
-        println!("speedup: {:.2}x", speedup);
+        println!("speedup: {speedup:.2}x");
     }
 }
 

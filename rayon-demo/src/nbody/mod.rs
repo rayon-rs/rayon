@@ -91,7 +91,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = par_start.elapsed().as_nanos();
-        println!("Parallel time    : {} ns", par_time);
+        println!("Parallel time    : {par_time} ns");
 
         Some(par_time)
     } else {
@@ -108,7 +108,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let par_time = par_start.elapsed().as_nanos();
-        println!("ParReduce time   : {} ns", par_time);
+        println!("ParReduce time   : {par_time} ns");
 
         Some(par_time)
     } else {
@@ -125,7 +125,7 @@ fn run_benchmarks(mode: Option<ExecutionMode>, bodies: usize, ticks: usize) {
         }
 
         let seq_time = seq_start.elapsed().as_nanos();
-        println!("Sequential time  : {} ns", seq_time);
+        println!("Sequential time  : {seq_time} ns");
 
         Some(seq_time)
     } else {

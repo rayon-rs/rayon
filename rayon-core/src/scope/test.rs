@@ -163,8 +163,7 @@ fn linear_stack_growth() {
         let ratio = diff_when_5 / diff_when_500;
         assert!(
             ratio > 0.9 && ratio < 1.1,
-            "stack usage ratio out of bounds: {}",
-            ratio
+            "stack usage ratio out of bounds: {ratio}"
         );
     });
 }
@@ -178,7 +177,7 @@ fn the_final_countdown<'scope>(
     let top_of_stack = 0;
     let p = bottom_of_stack as *const i32 as usize;
     let q = &top_of_stack as *const i32 as usize;
-    let diff = if p > q { p - q } else { q - p };
+    let diff = p.abs_diff(q);
 
     let mut data = max.lock().unwrap();
     *data = Ord::max(diff, *data);
