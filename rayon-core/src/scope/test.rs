@@ -163,8 +163,7 @@ fn linear_stack_growth() {
         let ratio = diff_when_5 / diff_when_500;
         assert!(
             ratio > 0.9 && ratio < 1.1,
-            "stack usage ratio out of bounds: {}",
-            ratio
+            "stack usage ratio out of bounds: {ratio}"
         );
     });
 }

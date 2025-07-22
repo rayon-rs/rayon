@@ -346,10 +346,7 @@ where
 {
     match result {
         Ok(value) => {
-            panic!(
-                "assertion failure: Expected panic, got successful {:?}",
-                value
-            );
+            panic!("assertion failure: Expected panic, got successful {value:?}");
         }
         Err(error) => {
             let message_str = error.downcast_ref::<&'static str>().cloned();
@@ -357,15 +354,13 @@ where
             if let Some(message) = message_str.or(message_string) {
                 if !message.contains(expected) {
                     panic!(
-                        "assertion failure: Expected {:?}, but found panic with {:?}",
-                        expected, message
+                        "assertion failure: Expected {expected:?}, but found panic with {message:?}"
                     );
                 }
             // assertion passes
             } else {
                 panic!(
-                    "assertion failure: Expected {:?}, but found panic with unknown value",
-                    expected
+                    "assertion failure: Expected {expected:?}, but found panic with unknown value"
                 );
             }
         }

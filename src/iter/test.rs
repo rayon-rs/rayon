@@ -1502,7 +1502,7 @@ fn par_iter_collect_binaryheap() {
 #[test]
 fn par_iter_collect_hashmap() {
     let a: Vec<i32> = (0..1024).collect();
-    let b: HashMap<i32, String> = a.par_iter().map(|&i| (i, format!("{}", i))).collect();
+    let b: HashMap<i32, String> = a.par_iter().map(|&i| (i, format!("{i}"))).collect();
     assert_eq!(&b[&3], "3");
     assert_eq!(b.len(), 1024);
 }
@@ -1517,7 +1517,7 @@ fn par_iter_collect_hashset() {
 #[test]
 fn par_iter_collect_btreemap() {
     let a: Vec<i32> = (0..1024).collect();
-    let b: BTreeMap<i32, String> = a.par_iter().map(|&i| (i, format!("{}", i))).collect();
+    let b: BTreeMap<i32, String> = a.par_iter().map(|&i| (i, format!("{i}"))).collect();
     assert_eq!(&b[&3], "3");
     assert_eq!(b.len(), 1024);
 }
@@ -1532,8 +1532,8 @@ fn par_iter_collect_btreeset() {
 #[test]
 fn par_iter_collect_linked_list() {
     let a: Vec<i32> = (0..1024).collect();
-    let b: LinkedList<_> = a.par_iter().map(|&i| (i, format!("{}", i))).collect();
-    let c: LinkedList<_> = a.iter().map(|&i| (i, format!("{}", i))).collect();
+    let b: LinkedList<_> = a.par_iter().map(|&i| (i, format!("{i}"))).collect();
+    let c: LinkedList<_> = a.iter().map(|&i| (i, format!("{i}"))).collect();
     assert_eq!(b, c);
 }
 
@@ -2022,7 +2022,7 @@ fn check_interleave_uneven() {
             .interleave(&ys)
             .map(|&i| i)
             .collect_into_vec(&mut res);
-        assert_eq!(expected, res, "Case {} failed", i);
+        assert_eq!(expected, res, "Case {i} failed");
 
         res.truncate(0);
         xs.par_iter()
@@ -2033,8 +2033,7 @@ fn check_interleave_uneven() {
         assert_eq!(
             expected.into_iter().rev().collect::<Vec<usize>>(),
             res,
-            "Case {} reversed failed",
-            i
+            "Case {i} reversed failed"
         );
     }
 }
@@ -2070,7 +2069,7 @@ fn check_interleave_shortest() {
             .interleave_shortest(&ys)
             .map(|&i| i)
             .collect_into_vec(&mut res);
-        assert_eq!(expected, res, "Case {} failed", i);
+        assert_eq!(expected, res, "Case {i} failed");
 
         res.truncate(0);
         xs.par_iter()
@@ -2081,8 +2080,7 @@ fn check_interleave_shortest() {
         assert_eq!(
             expected.into_iter().rev().collect::<Vec<usize>>(),
             res,
-            "Case {} reversed failed",
-            i
+            "Case {i} reversed failed"
         );
     }
 }
@@ -2134,15 +2132,14 @@ fn check_chunks_uneven() {
             .chunks(n)
             .map(|v| v.into_iter().cloned().collect())
             .collect_into_vec(&mut res);
-        assert_eq!(expected, res, "Case {} failed", i);
+        assert_eq!(expected, res, "Case {i} failed");
 
         res.truncate(0);
         v.into_par_iter().chunks(n).rev().collect_into_vec(&mut res);
         assert_eq!(
             expected.into_iter().rev().collect::<Vec<Vec<u32>>>(),
             res,
-            "Case {} reversed failed",
-            i
+            "Case {i} reversed failed"
         );
     }
 }

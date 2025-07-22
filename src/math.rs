@@ -18,13 +18,13 @@ pub(super) fn simplify_range(range: impl RangeBounds<usize>, len: usize) -> Rang
         Bound::Unbounded => 0,
         Bound::Included(&i) if i <= len => i,
         Bound::Excluded(&i) if i < len => i + 1,
-        bound => panic!("range start {:?} should be <= length {}", bound, len),
+        bound => panic!("range start {bound:?} should be <= length {len}"),
     };
     let end = match range.end_bound() {
         Bound::Unbounded => len,
         Bound::Excluded(&i) if i <= len => i,
         Bound::Included(&i) if i < len => i + 1,
-        bound => panic!("range end {:?} should be <= length {}", bound, len),
+        bound => panic!("range end {bound:?} should be <= length {len}"),
     };
     if start > end {
         panic!(

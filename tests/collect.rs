@@ -46,8 +46,8 @@ fn collect_drop_on_unwind() {
 
         let inserts = inserts.get_mut().unwrap();
         let drops = drops.get_mut().unwrap();
-        println!("{:?}", inserts);
-        println!("{:?}", drops);
+        println!("{inserts:?}");
+        println!("{drops:?}");
 
         assert_eq!(inserts.len(), drops.len(), "Incorrect number of drops");
         // sort to normalize order

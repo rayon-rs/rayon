@@ -268,7 +268,7 @@ pub fn main(args: &[String]) {
 
     if args.cmd_bench {
         let serial = measure(generations, &args).as_nanos();
-        println!("  serial: {:10} ns", serial);
+        println!("  serial: {serial:10} ns");
 
         let parallel = measure(parallel_generations, &args).as_nanos();
         println!(
@@ -291,20 +291,20 @@ pub fn main(args: &[String]) {
         let serial = measure_cpu(generations_limited, &args);
         println!("  serial: {:.2} fps", serial.actual_fps);
         if let Some(cpu_usage) = serial.cpu_usage_percent {
-            println!("    cpu usage: {:.1}%", cpu_usage);
+            println!("    cpu usage: {cpu_usage:.1}%");
         }
 
         let parallel = measure_cpu(parallel_generations_limited, &args);
         println!("parallel: {:.2} fps", parallel.actual_fps);
         if let Some(cpu_usage) = parallel.cpu_usage_percent {
-            println!("  cpu usage: {:.1}%", cpu_usage);
+            println!("  cpu usage: {cpu_usage:.1}%");
         }
 
         if !args.flag_skip_bridge {
             let par_bridge = measure_cpu(par_bridge_generations_limited, &args);
             println!("par_bridge: {:.2} fps", par_bridge.actual_fps);
             if let Some(cpu_usage) = par_bridge.cpu_usage_percent {
-                println!("  cpu usage: {:.1}%", cpu_usage);
+                println!("  cpu usage: {cpu_usage:.1}%");
             }
         }
     }

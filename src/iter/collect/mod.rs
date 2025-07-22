@@ -99,9 +99,7 @@ where
     let actual_writes = result.len();
     assert!(
         actual_writes == len,
-        "expected {} total writes, but got {}",
-        len,
-        actual_writes
+        "expected {len} total writes, but got {actual_writes}"
     );
 
     // Release the result's mutable borrow and "proxy ownership"

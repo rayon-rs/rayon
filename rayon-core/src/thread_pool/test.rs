@@ -130,7 +130,7 @@ fn panic_thread_name() {
             if i >= 5 {
                 panic!();
             }
-            format!("panic_thread_name#{}", i)
+            format!("panic_thread_name#{i}")
         });
 
     let pool = crate::unwind::halt_unwinding(|| builder.build());

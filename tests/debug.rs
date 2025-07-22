@@ -5,7 +5,7 @@ fn check<I>(iter: I)
 where
     I: ParallelIterator + Debug,
 {
-    println!("{:?}", iter);
+    println!("{iter:?}");
 }
 
 #[test]

@@ -75,10 +75,10 @@ fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), 
     };
 
     println!("Graph size   : {} nodes.", graph.num_nodes());
-    println!("Seq threshold: {} nodes.", seq_threshold);
+    println!("Seq threshold: {seq_threshold} nodes.");
 
     if from >= graph.num_nodes() {
-        println!("Invalid node index given for `--from`: {}", from);
+        println!("Invalid node index given for `--from`: {from}");
         return Err(());
     }
 
@@ -89,14 +89,14 @@ fn run_solver(datafile: &Path, seq_threshold: usize, from: usize) -> Result<(), 
 
     let (path, weight) = solver.into_result();
 
-    println!("Total search time: {:?}", par_time);
+    println!("Total search time: {par_time:?}");
     if let Some(path) = path {
         println!("Cheapest path cost: {}", weight.to_usize());
         let mut output = "Cheapest path:".to_string();
         for node in path {
             let _ = write!(output, " {}", node.index());
         }
-        println!("{}", output);
+        println!("{output}");
     } else {
         println!("No path found.");
     }

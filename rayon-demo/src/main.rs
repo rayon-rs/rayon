@@ -66,7 +66,7 @@ Benchmarks:
 ";
 
 fn usage() -> ! {
-    let _ = writeln!(&mut io::stderr(), "{}", USAGE);
+    let _ = writeln!(&mut io::stderr(), "{USAGE}");
     exit(1);
 }
 

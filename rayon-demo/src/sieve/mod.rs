@@ -188,7 +188,7 @@ pub fn main(args: &[String]) {
 
     if args.cmd_bench {
         let serial = measure(sieve_serial).as_nanos();
-        println!("  serial: {:10} ns", serial);
+        println!("  serial: {serial:10} ns");
 
         let chunks = measure(sieve_chunks).as_nanos();
         println!(

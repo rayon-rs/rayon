@@ -152,8 +152,7 @@ impl AtomicCounters {
         let old_value = Counters::new(self.value.fetch_sub(ONE_INACTIVE, Ordering::SeqCst));
         debug_assert!(
             old_value.inactive_threads() > 0,
-            "sub_inactive_thread: old_value {:?} has no inactive threads",
-            old_value,
+            "sub_inactive_thread: old_value {old_value:?} has no inactive threads",
         );
         debug_assert!(
             old_value.sleeping_threads() <= old_value.inactive_threads(),
@@ -178,8 +177,7 @@ impl AtomicCounters {
         let old_value = Counters::new(self.value.fetch_sub(ONE_SLEEPING, Ordering::SeqCst));
         debug_assert!(
             old_value.sleeping_threads() > 0,
-            "sub_sleeping_thread: old_value {:?} had no sleeping threads",
-            old_value,
+            "sub_sleeping_thread: old_value {old_value:?} had no sleeping threads",
         );
         debug_assert!(
             old_value.sleeping_threads() <= old_value.inactive_threads(),
@@ -194,13 +192,11 @@ impl AtomicCounters {
     pub(super) fn try_add_sleeping_thread(&self, old_value: Counters) -> bool {
         debug_assert!(
             old_value.inactive_threads() > 0,
-            "try_add_sleeping_thread: old_value {:?} has no inactive threads",
-            old_value,
+            "try_add_sleeping_thread: old_value {old_value:?} has no inactive threads",
         );
         debug_assert!(
             old_value.sleeping_threads() < THREADS_MAX,
-            "try_add_sleeping_thread: old_value {:?} has too many sleeping threads",
-            old_value,
+            "try_add_sleeping_thread: old_value {old_value:?} has too many sleeping threads",
         );
 
         let mut new_value = old_value;
