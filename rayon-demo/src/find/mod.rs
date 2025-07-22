@@ -1,4 +1,4 @@
-/// Simple benchmarks of `find_any()` and `find_first` performance
+//! Simple benchmarks of `find_any()` and `find_first` performance
 
 macro_rules! make_tests {
     ($n:expr, $m:ident) => {
