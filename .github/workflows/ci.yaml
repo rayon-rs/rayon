@@ -98,7 +98,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip1
-      - run: curl https://wasmtime.dev/install.sh -sSf | bash
+      - run: curl https://wasmtime.dev/install.sh -sSf | bash -s -- --version v35.0.0
       - run: cargo build --verbose --target wasm32-wasip1
       - run: cargo test --verbose --target wasm32-wasip1 --package rayon
       - run: cargo test --verbose --target wasm32-wasip1 --package rayon-core
