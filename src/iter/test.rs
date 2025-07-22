@@ -13,7 +13,6 @@ use std::f64;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::sync::mpsc;
-use std::usize;
 
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 

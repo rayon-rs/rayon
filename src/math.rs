@@ -2,6 +2,7 @@ use std::ops::{Bound, Range, RangeBounds};
 
 /// Divide `n` by `divisor`, and round up to the nearest integer
 /// if not evenly divisible.
+// TODO (MSRV 1.73): use inherent `div_ceil` instead
 #[inline]
 pub(super) fn div_round_up(n: usize, divisor: usize) -> usize {
     debug_assert!(divisor != 0, "Division by zero!");
@@ -46,9 +47,6 @@ mod tests {
         assert_eq!(1, div_round_up(5, 5));
         assert_eq!(1, div_round_up(1, 5));
         assert_eq!(2, div_round_up(3, 2));
-        assert_eq!(
-            usize::max_value() / 2 + 1,
-            div_round_up(usize::max_value(), 2)
-        );
+        assert_eq!(usize::MAX / 2 + 1, div_round_up(usize::MAX, 2));
     }
 }
