@@ -52,6 +52,7 @@ fn serial_space_chars(b: &mut Bencher) {
 }
 
 #[bench]
+#[expect(clippy::manual_pattern_char_comparison)]
 fn serial_space_fn(b: &mut Bencher) {
     let (string, count) = get_string_count();
     b.iter(|| assert_eq!(string.split(|c| c == ' ').count(), count))
