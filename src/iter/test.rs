@@ -9,7 +9,6 @@ use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
-use std::f64;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::sync::mpsc;
