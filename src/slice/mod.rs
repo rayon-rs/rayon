@@ -785,6 +785,28 @@ pub struct Iter<'data, T: Sync> {
     slice: &'data [T],
 }
 
+impl<'data, T: Sync> Iter<'data, T> {
+    /// Views the underlying data as a subslice of the original data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let slice = &['a', 'b', 'c'];
+    /// let iter = slice[1..3].par_iter();
+    /// assert_eq!(iter.as_slice(), &['b', 'c']);
+    /// ```
+    pub fn as_slice(&self) -> &'data [T] {
+        self.slice
+    }
+}
+
+impl<'data, T: Sync> AsRef<[T]> for Iter<'data, T> {
+    fn as_ref(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
 impl<'data, T: Sync> Clone for Iter<'data, T> {
     fn clone(&self) -> Self {
         Iter { ..*self }
@@ -930,6 +952,61 @@ impl<'data, T: 'data + Sync> Producer for WindowsProducer<'data, T> {
 #[derive(Debug)]
 pub struct IterMut<'data, T: Send> {
     slice: &'data mut [T],
+}
+
+impl<'data, T: Send> IterMut<'data, T> {
+    /// Returns the remaining items in this iterator as a mutable slice with the original lifetime.
+    ///
+    /// To return with the lifetime of the original slice, the iterator must be consumed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut slice = &mut [1, 2, 3];
+    /// let mut iter = slice.par_iter_mut();
+    /// let mut slice_mut = iter.into_slice();
+    /// slice_mut[0] = 7;
+    /// assert_eq!(slice_mut, &[7, 2, 3]);
+    /// ```
+    pub fn into_slice(self) -> &'data mut [T] {
+        self.slice
+    }
+
+    /// Views the underlying data as a subslice of the original data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut slice = &[1, 2, 3];
+    /// let mut iter = slice[1..].par_iter();
+    /// assert_eq!(iter.as_slice(), &[2, 3]);
+    /// ```
+    pub fn as_slice(&self) -> &[T] {
+        self.slice
+    }
+
+    /// Views the underlying data as a mutable subslice of the original data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rayon::prelude::*;
+    /// let mut slice = &mut [1, 2, 3];
+    /// let mut iter = slice[1..].par_iter_mut();
+    /// iter.as_mut_slice()[0] = 7;
+    /// assert_eq!(iter.as_mut_slice(), &[7, 3]);
+    /// ```
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        self.slice
+    }
+}
+
+impl<'data, T: Send> AsRef<[T]> for IterMut<'data, T> {
+    fn as_ref(&self) -> &[T] {
+        self.as_slice()
+    }
 }
 
 impl<'data, T: Send + 'data> ParallelIterator for IterMut<'data, T> {
