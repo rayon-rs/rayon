@@ -1,31 +1,17 @@
 [package]
 name = "rayon"
 version = "1.11.0"
-authors = ["Niko Matsakis <niko@alum.mit.edu>",
-           "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
-rust-version = "1.80"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/rayon-rs/rayon"
 documentation = "https://docs.rs/rayon/"
-readme = "README.md"
-keywords = ["parallel", "thread", "concurrency", "join", "performance"]
-categories = ["concurrency"]
-exclude = ["/ci/*", "/scripts/*", "/.github/*"]
+exclude = ["/ci/*", "/.github/*"]
 
-[workspace]
-members = ["rayon-demo", "rayon-core"]
-exclude = ["ci"]
-
-[dependencies]
-rayon-core = { version = "1.12.1", path = "rayon-core" }
-wasm_sync = { version = "0.1.0", optional = true }
-
-# This is a public dependency!
-[dependencies.either]
-version = "1.0"
-default-features = false
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [features]
 # This feature switches to a spin-lock implementation on the browser's
@@ -34,6 +20,38 @@ default-features = false
 # Only useful on the `wasm32-unknown-unknown` target.
 web_spin_lock = ["dep:wasm_sync", "rayon-core/web_spin_lock"]
 
+[dependencies]
+# These are both public dependencies!
+rayon-core = { version = "1.13.0", path = "rayon-core" }
+either.workspace = true
+
+wasm_sync = { workspace = true, optional = true }
+
 [dev-dependencies]
+rand.workspace = true
+rand_xorshift.workspace = true
+
+
+[workspace]
+members = ["rayon-demo", "rayon-core"]
+exclude = ["ci"]
+
+[workspace.package]
+readme = "README.md"
+rust-version = "1.80"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rayon-rs/rayon"
+keywords = ["parallel", "thread", "concurrency", "join", "performance"]
+categories = ["concurrency"]
+
+# Some dependencies may not be their latest version, in order to support older rustc.
+[workspace.dependencies]
+crossbeam-deque = "0.8.1"
+crossbeam-utils = "0.8.0"
+either = { version = "1", default-features = false }
+libc = "0.2"
 rand = "0.9"
 rand_xorshift = "0.4"
+scoped-tls = "1.0"
+wasm_sync = "0.1.0"
