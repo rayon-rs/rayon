@@ -1,13 +1,13 @@
 [package]
 name = "rayon-core"
-version = "1.12.1"
+version = "1.13.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Core APIs for Rayon"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
 documentation = "https://docs.rs/rayon/"
-rust-version = "1.63"
+rust-version = "1.80"
 edition = "2021"
 links = "rayon-core"
 build = "build.rs"

@@ -1,10 +1,10 @@
 [package]
 name = "rayon"
-version = "1.10.0"
+version = "1.11.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>",
            "Josh Stone <cuviper@gmail.com>"]
 description = "Simple work-stealing parallelism for Rust"
-rust-version = "1.63"
+rust-version = "1.80"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
