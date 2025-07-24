@@ -8,14 +8,11 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::thread;
 
-// const is needed for array initializer
-#[allow(clippy::declare_interior_mutable_const)]
-const ZERO: AtomicUsize = AtomicUsize::new(0);
 const LEN: usize = 20_000;
 
-static VERSIONS: AtomicUsize = ZERO;
+static VERSIONS: AtomicUsize = AtomicUsize::new(0);
 
-static DROP_COUNTS: [AtomicUsize; LEN] = [ZERO; LEN];
+static DROP_COUNTS: [AtomicUsize; LEN] = [const { AtomicUsize::new(0) }; LEN];
 
 #[derive(Clone, Eq)]
 struct DropCounter {
