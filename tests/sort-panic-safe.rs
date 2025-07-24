@@ -83,7 +83,7 @@ macro_rules! test {
                 let panic_countdown = AtomicUsize::new(panic_countdown);
                 v.$func(|a, b| {
                     if panic_countdown.fetch_sub(1, Relaxed) == 1 {
-                        SILENCE_PANIC.with(|s| s.set(true));
+                        SILENCE_PANIC.set(true);
                         panic!();
                     }
                     a.cmp(b)
@@ -122,7 +122,7 @@ thread_local!(static SILENCE_PANIC: Cell<bool> = const { Cell::new(false) });
 fn sort_panic_safe() {
     let prev = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
-        if !SILENCE_PANIC.with(Cell::get) {
+        if !SILENCE_PANIC.get() {
             prev(info);
         }
     }));

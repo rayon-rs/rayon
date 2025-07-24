@@ -701,7 +701,7 @@ impl WorkerThread {
     /// anywhere on the current thread.
     #[inline]
     pub(super) fn current() -> *const WorkerThread {
-        WORKER_THREAD_STATE.with(Cell::get)
+        WORKER_THREAD_STATE.get()
     }
 
     /// Sets `self` as the worker thread index for the current thread.
