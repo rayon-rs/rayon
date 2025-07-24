@@ -45,8 +45,7 @@ where
     /// [`zip()`](trait.IndexedParallelIterator.html#method.zip).
     pub fn zip<Z>(self, zip_op: Z) -> Zip<RepeatN<T>, Z::Iter>
     where
-        Z: IntoParallelIterator,
-        Z::Iter: IndexedParallelIterator,
+        Z: IntoParallelIterator<Iter: IndexedParallelIterator>,
     {
         let z = zip_op.into_par_iter();
         let n = z.len();

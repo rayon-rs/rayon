@@ -912,8 +912,7 @@ pub trait ParallelIterator: Sized + Send {
     fn flat_map_iter<F, SI>(self, map_op: F) -> FlatMapIter<Self, F>
     where
         F: Fn(Self::Item) -> SI + Sync + Send,
-        SI: IntoIterator,
-        SI::Item: Send,
+        SI: IntoIterator<Item: Send>,
     {
         FlatMapIter::new(self, map_op)
     }
@@ -957,8 +956,7 @@ pub trait ParallelIterator: Sized + Send {
     /// ```
     fn flatten_iter(self) -> FlattenIter<Self>
     where
-        Self::Item: IntoIterator,
-        <Self::Item as IntoIterator>::Item: Send,
+        Self::Item: IntoIterator<Item: Send>,
     {
         FlattenIter::new(self)
     }
@@ -2588,8 +2586,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn zip<Z>(self, zip_op: Z) -> Zip<Self, Z::Iter>
     where
-        Z: IntoParallelIterator,
-        Z::Iter: IndexedParallelIterator,
+        Z: IntoParallelIterator<Iter: IndexedParallelIterator>,
     {
         Zip::new(self, zip_op.into_par_iter())
     }
@@ -2616,8 +2613,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     #[track_caller]
     fn zip_eq<Z>(self, zip_op: Z) -> ZipEq<Self, Z::Iter>
     where
-        Z: IntoParallelIterator,
-        Z::Iter: IndexedParallelIterator,
+        Z: IntoParallelIterator<Iter: IndexedParallelIterator>,
     {
         let zip_op_iter = zip_op.into_par_iter();
         assert_eq!(
@@ -2644,8 +2640,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn interleave<I>(self, other: I) -> Interleave<Self, I::Iter>
     where
-        I: IntoParallelIterator<Item = Self::Item>,
-        I::Iter: IndexedParallelIterator<Item = Self::Item>,
+        I: IntoParallelIterator<Item = Self::Item, Iter: IndexedParallelIterator>,
     {
         Interleave::new(self, other.into_par_iter())
     }
@@ -2663,8 +2658,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn interleave_shortest<I>(self, other: I) -> InterleaveShortest<Self, I::Iter>
     where
-        I: IntoParallelIterator<Item = Self::Item>,
-        I::Iter: IndexedParallelIterator<Item = Self::Item>,
+        I: IntoParallelIterator<Item = Self::Item, Iter: IndexedParallelIterator>,
     {
         InterleaveShortest::new(self, other.into_par_iter())
     }
@@ -2796,8 +2790,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn cmp<I>(self, other: I) -> Ordering
     where
-        I: IntoParallelIterator<Item = Self::Item>,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Item = Self::Item, Iter: IndexedParallelIterator>,
         Self::Item: Ord,
     {
         #[inline]
@@ -2835,8 +2828,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// ```
     fn partial_cmp<I>(self, other: I) -> Option<Ordering>
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialOrd<I::Item>,
     {
         #[inline]
@@ -2861,8 +2853,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// are equal to those of another
     fn eq<I>(self, other: I) -> bool
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialEq<I::Item>,
     {
         #[inline]
@@ -2878,8 +2869,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// are unequal to those of another
     fn ne<I>(self, other: I) -> bool
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialEq<I::Item>,
     {
         !self.eq(other)
@@ -2889,8 +2879,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// are lexicographically less than those of another.
     fn lt<I>(self, other: I) -> bool
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialOrd<I::Item>,
     {
         self.partial_cmp(other) == Some(Ordering::Less)
@@ -2900,8 +2889,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// are less or equal to those of another.
     fn le<I>(self, other: I) -> bool
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialOrd<I::Item>,
     {
         let ord = self.partial_cmp(other);
@@ -2912,8 +2900,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// are lexicographically greater than those of another.
     fn gt<I>(self, other: I) -> bool
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialOrd<I::Item>,
     {
         self.partial_cmp(other) == Some(Ordering::Greater)
@@ -2923,8 +2910,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
     /// are less or equal to those of another.
     fn ge<I>(self, other: I) -> bool
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator>,
         Self::Item: PartialOrd<I::Item>,
     {
         let ord = self.partial_cmp(other);
