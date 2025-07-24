@@ -9,9 +9,8 @@ use crate::{
 };
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use std::cell::Cell;
-use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::Hasher;
+use std::hash::{DefaultHasher, Hasher};
 use std::io;
 use std::mem;
 use std::ptr;
