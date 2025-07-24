@@ -8,15 +8,11 @@ env:
 jobs:
 
   check:
-    name: Check (1.63.0)
+    name: Check (1.80.0)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry/index
-          key: cargo-git-index
-      - uses: dtolnay/rust-toolchain@1.63.0
+      - uses: dtolnay/rust-toolchain@1.80.0
       - run: cp ci/compat-Cargo.lock ./Cargo.lock
       - run: cargo check --verbose --locked
 
@@ -36,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.72.1
+      - uses: dtolnay/rust-toolchain@1.80.0
         with:
           components: rustfmt
       - run: cargo fmt --all --check

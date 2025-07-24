@@ -450,15 +450,12 @@ impl Pattern for &[char] {
     impl_pattern!(&self => *self);
 }
 
-// TODO (MSRV 1.75): use `*self` for array patterns too.
-// - Needs `DoubleEndedSearcher` so `split.next_back()` works.
-
 impl<const N: usize> Pattern for [char; N] {
-    impl_pattern!(&self => self.as_slice());
+    impl_pattern!(&self => *self);
 }
 
 impl<const N: usize> Pattern for &[char; N] {
-    impl_pattern!(&self => self.as_slice());
+    impl_pattern!(&self => *self);
 }
 
 impl<FN: Sync + Send + Fn(char) -> bool> Pattern for FN {

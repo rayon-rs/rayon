@@ -1,6 +1,5 @@
 use super::plumbing::*;
 use super::*;
-use crate::math::div_round_up;
 
 /// `Chunks` is an iterator that groups elements of an underlying iterator.
 ///
@@ -58,7 +57,7 @@ where
     }
 
     fn len(&self) -> usize {
-        div_round_up(self.i.len(), self.size)
+        self.i.len().div_ceil(self.size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
@@ -150,7 +149,7 @@ where
     }
 
     fn min_len(&self) -> usize {
-        div_round_up(self.base.min_len(), self.chunk_size)
+        self.base.min_len().div_ceil(self.chunk_size)
     }
 
     fn max_len(&self) -> usize {
@@ -196,7 +195,7 @@ where
 {
     #[inline]
     fn len(&self) -> usize {
-        div_round_up(self.len, self.chunk_size)
+        self.len.div_ceil(self.chunk_size)
     }
 }
 

@@ -2,7 +2,7 @@
 
 [![Rayon crate](https://img.shields.io/crates/v/rayon.svg)](https://crates.io/crates/rayon)
 [![Rayon documentation](https://docs.rs/rayon/badge.svg)](https://docs.rs/rayon)
-![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-red.svg)
+![minimum rustc 1.80](https://img.shields.io/badge/rustc-1.80+-red.svg)
 [![build status](https://github.com/rayon-rs/rayon/workflows/main/badge.svg)](https://github.com/rayon-rs/rayon/actions)
 
 Rayon is a data-parallelism library for Rust. It is extremely
@@ -83,7 +83,7 @@ just add:
 use rayon::prelude::*;
 ```
 
-Rayon currently requires `rustc 1.63.0` or greater.
+Rayon currently requires `rustc 1.80.0` or greater.
 
 ### Usage with WebAssembly
 

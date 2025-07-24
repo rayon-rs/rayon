@@ -1,6 +1,5 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
-use crate::math::div_round_up;
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice
 #[derive(Debug)]
@@ -45,7 +44,7 @@ impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
     }
 
     fn len(&self) -> usize {
-        div_round_up(self.slice.len(), self.chunk_size)
+        self.slice.len().div_ceil(self.chunk_size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
@@ -226,7 +225,7 @@ impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
     }
 
     fn len(&self) -> usize {
-        div_round_up(self.slice.len(), self.chunk_size)
+        self.slice.len().div_ceil(self.chunk_size)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output

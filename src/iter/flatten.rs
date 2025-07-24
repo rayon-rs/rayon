@@ -14,8 +14,7 @@ pub struct Flatten<I: ParallelIterator> {
 
 impl<I> Flatten<I>
 where
-    I: ParallelIterator,
-    I::Item: IntoParallelIterator,
+    I: ParallelIterator<Item: IntoParallelIterator>,
 {
     /// Creates a new `Flatten` iterator.
     pub(super) fn new(base: I) -> Self {
@@ -25,8 +24,7 @@ where
 
 impl<I> ParallelIterator for Flatten<I>
 where
-    I: ParallelIterator,
-    I::Item: IntoParallelIterator,
+    I: ParallelIterator<Item: IntoParallelIterator>,
 {
     type Item = <I::Item as IntoParallelIterator>::Item;
 

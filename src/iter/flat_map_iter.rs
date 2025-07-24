@@ -34,8 +34,7 @@ impl<I, F, SI> ParallelIterator for FlatMapIter<I, F>
 where
     I: ParallelIterator,
     F: Fn(I::Item) -> SI + Sync + Send,
-    SI: IntoIterator,
-    SI::Item: Send,
+    SI: IntoIterator<Item: Send>,
 {
     type Item = SI::Item;
 

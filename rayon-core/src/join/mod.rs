@@ -151,23 +151,21 @@ where
         // pushed on top of it in the stack, and we will have to pop
         // those off to get to it.
         while !job_b.latch.probe() {
-            if let Some(job) = worker_thread.take_local_job() {
-                if job_b_id == job.id() {
-                    // Found it! Let's run it.
-                    //
-                    // Note that this could panic, but it's ok if we unwind here.
-                    let result_b = job_b.run_inline(injected);
-                    return (result_a, result_b);
-                } else {
-                    worker_thread.execute(job);
-                }
-            } else {
+            let Some(job) = worker_thread.take_local_job() else {
                 // Local deque is empty. Time to steal from other
                 // threads.
                 worker_thread.wait_until(&job_b.latch);
                 debug_assert!(job_b.latch.probe());
                 break;
+            };
+            if job_b_id == job.id() {
+                // Found it! Let's run it.
+                //
+                // Note that this could panic, but it's ok if we unwind here.
+                let result_b = job_b.run_inline(injected);
+                return (result_a, result_b);
             }
+            worker_thread.execute(job);
         }
 
         (result_a, job_b.into_result())

@@ -1,10 +1,11 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
+use std::fmt;
 use std::marker::PhantomData;
-use std::{fmt, mem};
 
 trait ChunkBySlice<T>: AsRef<[T]> + Default + Send {
     fn split(self, index: usize) -> (Self, Self);
+    fn chunk_by(self, pred: &impl Fn(&T, &T) -> bool) -> impl Iterator<Item = Self>;
 
     fn find(&self, pred: &impl Fn(&T, &T) -> bool, start: usize, end: usize) -> Option<usize> {
         self.as_ref()[start..end]
@@ -25,11 +26,19 @@ impl<T: Sync> ChunkBySlice<T> for &[T] {
     fn split(self, index: usize) -> (Self, Self) {
         self.split_at(index)
     }
+
+    fn chunk_by(self, pred: &impl Fn(&T, &T) -> bool) -> impl Iterator<Item = Self> {
+        self.chunk_by(pred)
+    }
 }
 
 impl<T: Send> ChunkBySlice<T> for &mut [T] {
     fn split(self, index: usize) -> (Self, Self) {
         self.split_at_mut(index)
+    }
+
+    fn chunk_by(self, pred: &impl Fn(&T, &T) -> bool) -> impl Iterator<Item = Self> {
+        self.chunk_by_mut(pred)
     }
 }
 
@@ -113,22 +122,8 @@ where
             (None, Some(slice))
         };
 
-        if let Some(mut slice) = slice {
-            // TODO (MSRV 1.77) use either:
-            // folder.consume_iter(slice.chunk_by(pred))
-            // folder.consume_iter(slice.chunk_by_mut(pred))
-
-            folder = folder.consume_iter(std::iter::from_fn(move || {
-                let len = slice.as_ref().len();
-                if len > 0 {
-                    let i = slice.find(pred, 0, len).unwrap_or(len);
-                    let (head, tail) = mem::take(&mut slice).split(i);
-                    slice = tail;
-                    Some(head)
-                } else {
-                    None
-                }
-            }));
+        if let Some(slice) = slice {
+            folder = folder.consume_iter(slice.chunk_by(pred));
         }
 
         if let Some(tail) = tail {

@@ -3,13 +3,13 @@
 macro_rules! make_tests {
     ($n:expr, $m:ident) => {
         mod $m {
-            use once_cell::sync::Lazy;
             use rand::distr::StandardUniform;
             use rand::Rng;
             use rayon::prelude::*;
+            use std::sync::LazyLock;
             use test::Bencher;
 
-            static HAYSTACK: Lazy<Box<[[u32; $n]]>> = Lazy::new(|| {
+            static HAYSTACK: LazyLock<Box<[[u32; $n]]>> = LazyLock::new(|| {
                 let rng = crate::seeded_rng();
                 rng.sample_iter(&StandardUniform)
                     .map(|x| {

@@ -1,7 +1,7 @@
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::str::{FromStr, Lines};
+use std::sync::LazyLock;
 
 use super::graph::{Graph, Node};
 use super::weight::Weight;
@@ -24,9 +24,10 @@ use super::weight::Weight;
 // NODE_COORD_SECTION
 // 1 11003.611100 42102.500000
 
-static HEADER: Lazy<Regex> = Lazy::new(|| Regex::new(r"([A-Z_]+)\s*:(.*)").unwrap());
+static HEADER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([A-Z_]+)\s*:(.*)").unwrap());
 
-static COORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"([0-9]+) ([0-9.]+) ([0-9.]+)").unwrap());
+static COORD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"([0-9]+) ([0-9.]+) ([0-9.]+)").unwrap());
 
 pub fn parse_tsp_data(text: &str) -> Result<Graph, String> {
     let mut data = Data::new(text);

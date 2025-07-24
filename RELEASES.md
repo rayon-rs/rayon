@@ -1,3 +1,7 @@
+# Release rayon 1.11.0 / rayon-core 1.13.0
+
+- The minimum supported `rustc` is now 1.80.
+
 # Release rayon 1.10.0 (2024-03-23)
 
 - The new methods `ParallelSlice::par_chunk_by` and

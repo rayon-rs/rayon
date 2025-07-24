@@ -1,9 +1,9 @@
 use rayon::prelude::*;
+use std::fmt::Debug;
 
 fn check<I>(iter: I)
 where
-    I: ParallelIterator + Clone,
-    I::Item: std::fmt::Debug + PartialEq,
+    I: ParallelIterator<Item: Debug + PartialEq> + Clone,
 {
     let a: Vec<_> = iter.clone().collect();
     let b: Vec<_> = iter.collect();

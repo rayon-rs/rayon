@@ -7,6 +7,7 @@ use std::collections::BinaryHeap;
 use crate::iter::plumbing::*;
 use crate::iter::*;
 
+use crate::slice;
 use crate::vec;
 
 /// Parallel iterator over a binary heap
@@ -34,9 +35,7 @@ delegate_indexed_iterator! {
 /// Parallel iterator over an immutable reference to a binary heap
 #[derive(Debug)]
 pub struct Iter<'a, T: Ord + Sync> {
-    // TODO (MSRV 1.80): this could use `slice::Iter` built from
-    // `BinaryHeap::as_slice`, rather than using a temp `Vec<&T>`.
-    inner: vec::IntoIter<&'a T>,
+    inner: slice::Iter<'a, T>,
 }
 
 impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
@@ -47,9 +46,15 @@ impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
     }
 }
 
-into_par_vec! {
-    &'a BinaryHeap<T> => Iter<'a, T>,
-    impl<'a, T: Ord + Sync>
+impl<'a, T: Ord + Sync> IntoParallelIterator for &'a BinaryHeap<T> {
+    type Item = &'a T;
+    type Iter = Iter<'a, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        Iter {
+            inner: self.as_slice().into_par_iter(),
+        }
+    }
 }
 
 delegate_indexed_iterator! {

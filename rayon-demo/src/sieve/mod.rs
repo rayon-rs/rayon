@@ -148,7 +148,7 @@ fn update_chunk(low: &[bool], chunk: &mut [bool], base: usize) {
 
             let pm = if pp < base {
                 // p² is too small - find the first odd multiple that's in range
-                (((base + p - 1) / p) | 1) * p
+                (base.div_ceil(p) | 1) * p
             } else {
                 pp
             };

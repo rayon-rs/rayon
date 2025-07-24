@@ -8,14 +8,11 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::thread;
 
-// const is needed for array initializer
-#[allow(clippy::declare_interior_mutable_const)]
-const ZERO: AtomicUsize = AtomicUsize::new(0);
 const LEN: usize = 20_000;
 
-static VERSIONS: AtomicUsize = ZERO;
+static VERSIONS: AtomicUsize = AtomicUsize::new(0);
 
-static DROP_COUNTS: [AtomicUsize; LEN] = [ZERO; LEN];
+static DROP_COUNTS: [AtomicUsize; LEN] = [const { AtomicUsize::new(0) }; LEN];
 
 #[derive(Clone, Eq)]
 struct DropCounter {
@@ -86,7 +83,7 @@ macro_rules! test {
                 let panic_countdown = AtomicUsize::new(panic_countdown);
                 v.$func(|a, b| {
                     if panic_countdown.fetch_sub(1, Relaxed) == 1 {
-                        SILENCE_PANIC.with(|s| s.set(true));
+                        SILENCE_PANIC.set(true);
                         panic!();
                     }
                     a.cmp(b)
@@ -125,7 +122,7 @@ thread_local!(static SILENCE_PANIC: Cell<bool> = const { Cell::new(false) });
 fn sort_panic_safe() {
     let prev = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
-        if !SILENCE_PANIC.with(Cell::get) {
+        if !SILENCE_PANIC.get() {
             prev(info);
         }
     }));
