@@ -17,6 +17,7 @@ rand = "0.9"
 rand_xorshift = "0.4"
 regex = "1"
 winit = "0.30"
+ndarray = "0.15.6"
 
 [dependencies.serde]
 version = "1.0.85"
