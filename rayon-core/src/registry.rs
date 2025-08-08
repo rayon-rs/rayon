@@ -9,9 +9,8 @@ use crate::{
 };
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use std::cell::Cell;
-use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::Hasher;
+use std::hash::{DefaultHasher, Hasher};
 use std::io;
 use std::mem;
 use std::ptr;
@@ -521,7 +520,7 @@ impl Registry {
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
     {
-        thread_local!(static LOCK_LATCH: LockLatch = LockLatch::new());
+        thread_local!(static LOCK_LATCH: LockLatch = const { LockLatch::new() });
 
         LOCK_LATCH.with(|l| {
             // This thread isn't a member of *any* thread pool, so just block.
@@ -702,7 +701,7 @@ impl WorkerThread {
     /// anywhere on the current thread.
     #[inline]
     pub(super) fn current() -> *const WorkerThread {
-        WORKER_THREAD_STATE.with(Cell::get)
+        WORKER_THREAD_STATE.get()
     }
 
     /// Sets `self` as the worker thread index for the current thread.

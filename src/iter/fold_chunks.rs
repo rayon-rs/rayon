@@ -3,7 +3,6 @@ use std::fmt::{self, Debug};
 use super::chunks::ChunkProducer;
 use super::plumbing::*;
 use super::*;
-use crate::math::div_round_up;
 
 /// `FoldChunks` is an iterator that groups elements of an underlying iterator and applies a
 /// function over them, producing a single value for each group.
@@ -80,7 +79,7 @@ where
     U: Send,
 {
     fn len(&self) -> usize {
-        div_round_up(self.base.len(), self.chunk_size)
+        self.base.len().div_ceil(self.chunk_size)
     }
 
     fn drive<C>(self, consumer: C) -> C::Result

@@ -1,8 +1,3 @@
-#![deny(missing_debug_implementations)]
-#![deny(missing_docs)]
-#![deny(unreachable_pub)]
-#![warn(rust_2018_idioms)]
-
 //! Rayon is a data-parallelism library that makes it easy to convert sequential
 //! computations into parallel.
 //!
@@ -86,6 +81,11 @@
 //! See [the Rayon FAQ][faq].
 //!
 //! [faq]: https://github.com/rayon-rs/rayon/blob/main/FAQ.md
+
+#![deny(missing_debug_implementations)]
+#![deny(missing_docs)]
+#![deny(unreachable_pub)]
+#![warn(rust_2018_idioms)]
 
 #[macro_use]
 mod delegate;

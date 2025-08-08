@@ -1,18 +1,5 @@
 use std::ops::{Bound, Range, RangeBounds};
 
-/// Divide `n` by `divisor`, and round up to the nearest integer
-/// if not evenly divisible.
-// TODO (MSRV 1.73): use inherent `div_ceil` instead
-#[inline]
-pub(super) fn div_round_up(n: usize, divisor: usize) -> usize {
-    debug_assert!(divisor != 0, "Division by zero!");
-    if n == 0 {
-        0
-    } else {
-        (n - 1) / divisor + 1
-    }
-}
-
 /// Normalize arbitrary `RangeBounds` to a `Range`
 pub(super) fn simplify_range(range: impl RangeBounds<usize>, len: usize) -> Range<usize> {
     let start = match range.start_bound() {
@@ -35,18 +22,4 @@ pub(super) fn simplify_range(range: impl RangeBounds<usize>, len: usize) -> Rang
         );
     }
     start..end
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn check_div_round_up() {
-        assert_eq!(0, div_round_up(0, 5));
-        assert_eq!(1, div_round_up(5, 5));
-        assert_eq!(1, div_round_up(1, 5));
-        assert_eq!(2, div_round_up(3, 2));
-        assert_eq!(usize::MAX / 2 + 1, div_round_up(usize::MAX, 2));
-    }
 }

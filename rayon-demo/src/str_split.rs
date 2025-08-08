@@ -1,18 +1,18 @@
 //! Some microbenchmarks for splitting strings
 
-use once_cell::sync::Lazy;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
+use std::sync::LazyLock;
 use test::Bencher;
 
-static HAYSTACK: Lazy<String> = Lazy::new(|| {
+static HAYSTACK: LazyLock<String> = LazyLock::new(|| {
     let mut rng = crate::seeded_rng();
     let mut bytes: Vec<u8> = "abcdefg ".bytes().cycle().take(1_000_000).collect();
     bytes.shuffle(&mut rng);
     String::from_utf8(bytes).unwrap()
 });
 
-static COUNT: Lazy<usize> = Lazy::new(|| HAYSTACK.split(' ').count());
+static COUNT: LazyLock<usize> = LazyLock::new(|| HAYSTACK.split(' ').count());
 
 // Try multiple kinds of whitespace, but HAYSTACK only contains plain spaces.
 const WHITESPACE: &[char] = &['\r', '\n', ' ', '\t'];

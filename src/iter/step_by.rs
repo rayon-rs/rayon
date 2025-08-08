@@ -1,6 +1,5 @@
 use super::plumbing::*;
 use super::*;
-use crate::math::div_round_up;
 use std::iter;
 
 /// `StepBy` is an iterator that skips `n` elements between each yield, where `n` is the given step.
@@ -52,7 +51,7 @@ where
     }
 
     fn len(&self) -> usize {
-        div_round_up(self.base.len(), self.step)
+        self.base.len().div_ceil(self.step)
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
@@ -131,7 +130,7 @@ where
     }
 
     fn min_len(&self) -> usize {
-        div_round_up(self.base.min_len(), self.step)
+        self.base.min_len().div_ceil(self.step)
     }
 
     fn max_len(&self) -> usize {

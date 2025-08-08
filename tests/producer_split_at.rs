@@ -1,13 +1,12 @@
 use rayon::iter::plumbing::*;
 use rayon::prelude::*;
+use std::fmt::Debug;
 
 /// Stress-test indexes for `Producer::split_at`.
 fn check<F, I>(expected: &[I::Item], mut f: F)
 where
     F: FnMut() -> I,
-    I: IntoParallelIterator,
-    I::Iter: IndexedParallelIterator,
-    I::Item: PartialEq + std::fmt::Debug,
+    I: IntoParallelIterator<Iter: IndexedParallelIterator, Item: PartialEq + Debug>,
 {
     map_triples(expected.len() + 1, |i, j, k| {
         Split::forward(f(), i, j, k, expected);
@@ -39,9 +38,7 @@ struct Split {
 impl Split {
     fn forward<I>(iter: I, i: usize, j: usize, k: usize, expected: &[I::Item])
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
-        I::Item: PartialEq + std::fmt::Debug,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator, Item: PartialEq + Debug>,
     {
         let result = iter.into_par_iter().with_producer(Split {
             i,
@@ -54,9 +51,7 @@ impl Split {
 
     fn reverse<I>(iter: I, i: usize, j: usize, k: usize, expected: &[I::Item])
     where
-        I: IntoParallelIterator,
-        I::Iter: IndexedParallelIterator,
-        I::Item: PartialEq + std::fmt::Debug,
+        I: IntoParallelIterator<Iter: IndexedParallelIterator, Item: PartialEq + Debug>,
     {
         let result = iter.into_par_iter().with_producer(Split {
             i,
