@@ -28,7 +28,7 @@ mod test;
 ///
 /// ## Creating a ThreadPool
 ///
-/// ```rust
+/// ```ignore-wasm
 /// # use rayon_core as rayon;
 /// let pool = rayon::ThreadPoolBuilder::new().num_threads(8).build().unwrap();
 /// ```
@@ -88,7 +88,7 @@ impl ThreadPool {
     /// potentially schedule other tasks to run on the current thread in the
     /// meantime. For example
     ///
-    /// ```rust
+    /// ```ignore-wasm
     /// # use rayon_core as rayon;
     /// fn main() {
     ///     rayon::ThreadPoolBuilder::new().num_threads(1).build_global().unwrap();
@@ -123,7 +123,7 @@ impl ThreadPool {
     ///
     /// ## Using `install()`
     ///
-    /// ```rust
+    /// ```ignore-wasm
     ///    # use rayon_core as rayon;
     ///    fn main() {
     ///         let pool = rayon::ThreadPoolBuilder::new().num_threads(8).build().unwrap();
@@ -172,7 +172,7 @@ impl ThreadPool {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore-wasm
     ///    # use rayon_core as rayon;
     ///    use std::sync::atomic::{AtomicUsize, Ordering};
     ///

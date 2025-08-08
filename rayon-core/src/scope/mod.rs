@@ -416,9 +416,23 @@ pub(crate) fn do_in_place_scope<'scope, OP, R>(registry: Option<&Arc<Registry>>,
 where
     OP: FnOnce(&Scope<'scope>) -> R,
 {
-    let thread = unsafe { WorkerThread::current().as_ref() };
+    let (thread, registry) = get_in_place_thread_registry(registry);
     let scope = Scope::<'scope>::new(thread, registry);
     scope.base.complete(thread, || op(&scope))
+}
+
+fn get_in_place_thread_registry(
+    registry: Option<&Arc<Registry>>,
+) -> (Option<&WorkerThread>, Option<&Arc<Registry>>) {
+    let thread = unsafe { WorkerThread::current().as_ref() };
+    if thread.is_none() && registry.is_none() {
+        // A new global registry may use the current thread, especially on WebAssembly,
+        // so we have to re-check our current status after it's built.
+        let global = global_registry();
+        (global.current_thread(), Some(global))
+    } else {
+        (thread, registry)
+    }
 }
 
 /// Creates a "fork-join" scope `s` with FIFO order, and invokes the
@@ -453,7 +467,7 @@ pub(crate) fn do_in_place_scope_fifo<'scope, OP, R>(registry: Option<&Arc<Regist
 where
     OP: FnOnce(&ScopeFifo<'scope>) -> R,
 {
-    let thread = unsafe { WorkerThread::current().as_ref() };
+    let (thread, registry) = get_in_place_thread_registry(registry);
     let scope = ScopeFifo::<'scope>::new(thread, registry);
     scope.base.complete(thread, || op(&scope))
 }
