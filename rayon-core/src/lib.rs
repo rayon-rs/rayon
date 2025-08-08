@@ -161,14 +161,14 @@ enum ErrorKind {
 /// ## Creating a ThreadPool
 /// The following creates a thread pool with 22 threads.
 ///
-/// ```rust
+/// ```ignore-wasm
 /// # use rayon_core as rayon;
 /// let pool = rayon::ThreadPoolBuilder::new().num_threads(22).build().unwrap();
 /// ```
 ///
 /// To instead configure the global thread pool, use [`build_global()`]:
 ///
-/// ```rust
+/// ```ignore-wasm
 /// # use rayon_core as rayon;
 /// rayon::ThreadPoolBuilder::new().num_threads(22).build_global().unwrap();
 /// ```
@@ -305,7 +305,7 @@ impl ThreadPoolBuilder {
     ///
     /// A scoped pool may be useful in combination with scoped thread-local variables.
     ///
-    /// ```
+    /// ```ignore-wasm
     /// # use rayon_core as rayon;
     ///
     /// scoped_tls::scoped_thread_local!(static POOL_DATA: Vec<i32>);
@@ -367,7 +367,7 @@ impl<S> ThreadPoolBuilder<S> {
     ///
     /// A minimal spawn handler just needs to call `run()` from an independent thread.
     ///
-    /// ```
+    /// ```ignore-wasm
     /// # use rayon_core as rayon;
     /// fn main() -> Result<(), rayon::ThreadPoolBuildError> {
     ///     let pool = rayon::ThreadPoolBuilder::new()
@@ -385,7 +385,7 @@ impl<S> ThreadPoolBuilder<S> {
     /// The default spawn handler sets the name and stack size if given, and propagates
     /// any errors from the thread builder.
     ///
-    /// ```
+    /// ```ignore-wasm
     /// # use rayon_core as rayon;
     /// fn main() -> Result<(), rayon::ThreadPoolBuildError> {
     ///     let pool = rayon::ThreadPoolBuilder::new()
@@ -414,7 +414,7 @@ impl<S> ThreadPoolBuilder<S> {
     /// [`crossbeam::scope`]: https://docs.rs/crossbeam/0.8/crossbeam/fn.scope.html
     /// [`std::thread::scope`]: https://doc.rust-lang.org/std/thread/fn.scope.html
     ///
-    /// ```
+    /// ```ignore-wasm
     /// # use rayon_core as rayon;
     /// fn main() -> Result<(), rayon::ThreadPoolBuildError> {
     ///     std::thread::scope(|scope| {
