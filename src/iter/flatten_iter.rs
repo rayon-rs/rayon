@@ -4,8 +4,7 @@ use super::*;
 /// `FlattenIter` turns each element to a serial iterator, then flattens these iterators
 /// together. This struct is created by the [`flatten_iter()`] method on [`ParallelIterator`].
 ///
-/// [`flatten_iter()`]: trait.ParallelIterator.html#method.flatten_iter
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`flatten_iter()`]: ParallelIterator::flatten_iter()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct FlattenIter<I: ParallelIterator> {

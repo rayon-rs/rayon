@@ -11,7 +11,7 @@
 //!
 //! - **High-level parallel constructs** are the simplest way to use Rayon and also
 //!   typically the most efficient.
-//!   - [Parallel iterators][iter module] make it easy to convert a sequential iterator to
+//!   - [Parallel iterators] make it easy to convert a sequential iterator to
 //!     execute in parallel.
 //!     - The [`ParallelIterator`] trait defines general methods for all parallel iterators.
 //!     - The [`IndexedParallelIterator`] trait adds methods for iterators that support random
@@ -25,12 +25,11 @@
 //!   - [`ThreadPoolBuilder`] can be used to create your own thread pools or customize
 //!     the global one.
 //!
-//! [iter module]: iter/index.html
-//! [`join`]: fn.join.html
-//! [`scope`]: fn.scope.html
-//! [`par_sort`]: slice/trait.ParallelSliceMut.html#method.par_sort
-//! [`par_extend`]: iter/trait.ParallelExtend.html#tymethod.par_extend
-//! [`ThreadPoolBuilder`]: struct.ThreadPoolBuilder.html
+//! [Parallel iterators]: iter
+//! [`par_sort`]: slice::ParallelSliceMut::par_sort
+//! [`par_extend`]: iter::ParallelExtend::par_extend
+//! [`ParallelIterator`]: iter::ParallelIterator
+//! [`IndexedParallelIterator`]: iter::IndexedParallelIterator
 //!
 //! # Basic usage and the Rayon prelude
 //!
@@ -46,14 +45,12 @@
 //! parallel implementations of many iterative functions such as [`map`],
 //! [`for_each`], [`filter`], [`fold`], and [more].
 //!
-//! [`rayon::prelude`]: prelude/index.html
-//! [`map`]: iter/trait.ParallelIterator.html#method.map
-//! [`for_each`]: iter/trait.ParallelIterator.html#method.for_each
-//! [`filter`]: iter/trait.ParallelIterator.html#method.filter
-//! [`fold`]: iter/trait.ParallelIterator.html#method.fold
-//! [more]: iter/trait.ParallelIterator.html#provided-methods
-//! [`ParallelIterator`]: iter/trait.ParallelIterator.html
-//! [`IndexedParallelIterator`]: iter/trait.IndexedParallelIterator.html
+//! [`rayon::prelude`]: prelude
+//! [`map`]: iter::ParallelIterator::map
+//! [`for_each`]: iter::ParallelIterator::for_each
+//! [`filter`]: iter::ParallelIterator::filter
+//! [`fold`]: iter::ParallelIterator::fold
+//! [more]: iter::ParallelIterator#provided-methods
 //!
 //! # Crate Layout
 //!
@@ -67,9 +64,8 @@
 //! these submodules unless you need to name iterator types
 //! explicitly.
 //!
-//! [the `option` module of `std`]: https://doc.rust-lang.org/std/option/index.html
-//! [the `collections` from `std`]: https://doc.rust-lang.org/std/collections/index.html
-//! [`std`]: https://doc.rust-lang.org/std/
+//! [the `option` module of `std`]: std::option
+//! [the `collections` from `std`]: std::collections
 //!
 //! # Targets without threading
 //!

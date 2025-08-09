@@ -6,8 +6,7 @@ use std::iter::Fuse;
 /// `i` and `j` in one continuous iterator. This struct is created by
 /// the [`interleave()`] method on [`IndexedParallelIterator`]
 ///
-/// [`interleave()`]: trait.IndexedParallelIterator.html#method.interleave
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`interleave()`]: IndexedParallelIterator::interleave()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Interleave<I, J>

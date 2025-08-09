@@ -13,9 +13,9 @@ mod test;
 /// within that threadpool. When the call has completed on each thread, returns
 /// a vector containing all of their return values.
 ///
-/// For more information, see the [`ThreadPool::broadcast()`][m] method.
+/// For more information, see the [`ThreadPool::broadcast()`] method.
 ///
-/// [m]: struct.ThreadPool.html#method.broadcast
+/// [`ThreadPool::broadcast()`]: crate::ThreadPool::broadcast()
 pub fn broadcast<OP, R>(op: OP) -> Vec<R>
 where
     OP: Fn(BroadcastContext<'_>) -> R + Sync,
@@ -30,9 +30,9 @@ where
 /// current stack frame -- therefore, it cannot capture any references onto the
 /// stack (you will likely need a `move` closure).
 ///
-/// For more information, see the [`ThreadPool::spawn_broadcast()`][m] method.
+/// For more information, see the [`ThreadPool::spawn_broadcast()`] method.
 ///
-/// [m]: struct.ThreadPool.html#method.spawn_broadcast
+/// [`ThreadPool::spawn_broadcast()`]: crate::ThreadPool::spawn_broadcast()
 pub fn spawn_broadcast<OP>(op: OP)
 where
     OP: Fn(BroadcastContext<'_>) + Send + Sync + 'static,

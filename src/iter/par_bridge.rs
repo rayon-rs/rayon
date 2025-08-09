@@ -68,8 +68,6 @@ where
 ///
 /// This type is created when using the `par_bridge` method on `ParallelBridge`. See the
 /// [`ParallelBridge`] documentation for details.
-///
-/// [`ParallelBridge`]: trait.ParallelBridge.html
 #[derive(Debug, Clone)]
 pub struct IterBridge<Iter> {
     iter: Iter,

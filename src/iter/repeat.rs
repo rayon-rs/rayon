@@ -3,7 +3,9 @@ use super::*;
 use std::num::NonZeroUsize;
 use std::{fmt, iter, mem};
 
-/// Iterator adaptor for [the `repeat()` function](fn.repeat.html).
+/// Iterator adaptor for [the `repeat()` function].
+///
+/// [the `repeat()` function]: repeat()
 #[derive(Debug, Clone)]
 pub struct Repeat<T> {
     element: T,
@@ -13,7 +15,9 @@ pub struct Repeat<T> {
 /// cloning it). Note that this iterator has "infinite" length, so
 /// typically you would want to use `zip` or `take` or some other
 /// means to shorten it, or consider using
-/// [the `repeat_n()` function](fn.repeat_n.html) instead.
+/// [the `repeat_n()` function] instead.
+///
+/// [the `repeat_n()` function]: repeat_n()
 ///
 /// # Examples
 ///
@@ -32,17 +36,20 @@ where
     T: Clone + Send,
 {
     /// Takes only `n` repeats of the element, similar to the general
-    /// [`take()`](trait.IndexedParallelIterator.html#method.take).
+    /// [`take()`].
     ///
     /// The resulting `RepeatN` is an `IndexedParallelIterator`, allowing
     /// more functionality than `Repeat` alone.
+    ///
+    /// [`take()`]: IndexedParallelIterator::take()
     pub fn take(self, n: usize) -> RepeatN<T> {
         repeat_n(self.element, n)
     }
 
     /// Iterates tuples, repeating the element with items from another
-    /// iterator, similar to the general
-    /// [`zip()`](trait.IndexedParallelIterator.html#method.zip).
+    /// iterator, similar to the general [`zip()`].
+    ///
+    /// [`zip()`]: IndexedParallelIterator::zip()
     pub fn zip<Z>(self, zip_op: Z) -> Zip<RepeatN<T>, Z::Iter>
     where
         Z: IntoParallelIterator<Iter: IndexedParallelIterator>,
@@ -97,7 +104,9 @@ impl<T: Clone + Send> UnindexedProducer for RepeatProducer<T> {
     }
 }
 
-/// Iterator adaptor for [the `repeat_n()` function](fn.repeat_n.html).
+/// Iterator adaptor for [the `repeat_n()` function].
+///
+/// [the `repeat_n()` function]: repeat_n()
 #[derive(Clone)]
 pub struct RepeatN<T> {
     inner: RepeatNProducer<T>,

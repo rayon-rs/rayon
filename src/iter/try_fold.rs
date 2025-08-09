@@ -26,8 +26,7 @@ where
 /// `TryFold` is an iterator that applies a function over an iterator producing a single value.
 /// This struct is created by the [`try_fold()`] method on [`ParallelIterator`]
 ///
-/// [`try_fold()`]: trait.ParallelIterator.html#method.try_fold
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`try_fold()`]: ParallelIterator::try_fold()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct TryFold<I, U, ID, F> {
@@ -186,8 +185,7 @@ where
 /// `TryFoldWith` is an iterator that applies a function over an iterator producing a single value.
 /// This struct is created by the [`try_fold_with()`] method on [`ParallelIterator`]
 ///
-/// [`try_fold_with()`]: trait.ParallelIterator.html#method.try_fold_with
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`try_fold_with()`]: ParallelIterator::try_fold_with()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct TryFoldWith<I, U: Try, F> {

@@ -4,8 +4,7 @@ use super::*;
 /// `Take` is an iterator that iterates over the first `n` elements.
 /// This struct is created by the [`take()`] method on [`IndexedParallelIterator`]
 ///
-/// [`take()`]: trait.IndexedParallelIterator.html#method.take
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`take()`]: IndexedParallelIterator::take()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Take<I> {

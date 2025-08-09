@@ -8,8 +8,7 @@ use std::fmt::{self, Debug};
 ///
 /// This struct is created by the [`update()`] method on [`ParallelIterator`]
 ///
-/// [`update()`]: trait.ParallelIterator.html#method.update
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`update()`]: ParallelIterator::update()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct Update<I: ParallelIterator, F> {

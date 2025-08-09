@@ -113,8 +113,6 @@ where
 
 /// `Split` is a parallel iterator using arbitrary data and a splitting function.
 /// This struct is created by the [`split()`] function.
-///
-/// [`split()`]: fn.split.html
 #[derive(Clone)]
 pub struct Split<D, S> {
     data: D,

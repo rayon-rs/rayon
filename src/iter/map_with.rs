@@ -7,8 +7,7 @@ use std::fmt::{self, Debug};
 ///
 /// This struct is created by the [`map_with()`] method on [`ParallelIterator`]
 ///
-/// [`map_with()`]: trait.ParallelIterator.html#method.map_with
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`map_with()`]: ParallelIterator::map_with()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct MapWith<I: ParallelIterator, T, F> {
@@ -339,8 +338,7 @@ where
 ///
 /// This struct is created by the [`map_init()`] method on [`ParallelIterator`]
 ///
-/// [`map_init()`]: trait.ParallelIterator.html#method.map_init
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`map_init()`]: ParallelIterator::map_init()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct MapInit<I: ParallelIterator, INIT, F> {

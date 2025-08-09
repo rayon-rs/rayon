@@ -5,8 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// `SkipAny` is an iterator that skips over `n` elements from anywhere in `I`.
 /// This struct is created by the [`skip_any()`] method on [`ParallelIterator`]
 ///
-/// [`skip_any()`]: trait.ParallelIterator.html#method.skip_any
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`skip_any()`]: ParallelIterator::skip_any()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone, Debug)]
 pub struct SkipAny<I: ParallelIterator> {

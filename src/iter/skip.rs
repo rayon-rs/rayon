@@ -5,8 +5,7 @@ use super::*;
 /// `Skip` is an iterator that skips over the first `n` elements.
 /// This struct is created by the [`skip()`] method on [`IndexedParallelIterator`]
 ///
-/// [`skip()`]: trait.IndexedParallelIterator.html#method.skip
-/// [`IndexedParallelIterator`]: trait.IndexedParallelIterator.html
+/// [`skip()`]: IndexedParallelIterator::skip()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct Skip<I> {

@@ -9,8 +9,7 @@ use std::iter;
 ///
 /// This struct is created by the [`inspect()`] method on [`ParallelIterator`]
 ///
-/// [`inspect()`]: trait.ParallelIterator.html#method.inspect
-/// [`ParallelIterator`]: trait.ParallelIterator.html
+/// [`inspect()`]: ParallelIterator::inspect()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
 pub struct Inspect<I: ParallelIterator, F> {
