@@ -3,7 +3,7 @@
 //! You will rarely need to interact with this module directly unless you need
 //! to name one of the iterator types.
 //!
-//! [vectors]: std::vec
+//! [vectors]: mod@std::vec
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
