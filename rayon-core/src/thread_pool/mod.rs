@@ -1,4 +1,4 @@
-//! Contains support for user-managed thread pools, represented by the
+//! Contains support for user-managed thread-pools, represented by the
 //! the [`ThreadPool`] type (see that struct for details).
 
 use crate::broadcast::{self, BroadcastContext};
@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 mod test;
 
-/// Represents a user created [thread-pool].
+/// Represents a user-created [thread-pool].
 ///
 /// Use a [`ThreadPoolBuilder`] to specify the number and/or names of threads
 /// in the pool. After calling [`ThreadPoolBuilder::build()`], you can then
