@@ -3,7 +3,7 @@
 //! You will rarely need to interact with this module directly unless you need
 //! to name one of the iterator types.
 //!
-//! [arrays]: https://doc.rust-lang.org/std/primitive.array.html
+//! [arrays]: primitive@array
 
 use crate::iter::plumbing::*;
 use crate::iter::*;
