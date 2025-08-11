@@ -93,7 +93,7 @@ struct ScopeBase<'scope> {
 ///
 /// # A note on threading
 ///
-/// The closure given to `scope()` executes in the Rayon thread-pool,
+/// The closure given to `scope()` executes in the Rayon thread pool,
 /// as do those given to `spawn()`. This means that you can't access
 /// thread-local variables (well, you can, but they may have
 /// unexpected values).

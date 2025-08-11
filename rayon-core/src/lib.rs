@@ -14,7 +14,7 @@
 //!
 //! [`ThreadPool`] can be used to create your own thread pools (using [`ThreadPoolBuilder`]) or to customize the global one.
 //! Tasks spawned within the pool (using [`install()`][tpinstall], [`join()`][tpjoin], etc.) will be added to a deque,
-//! where it becomes available for work stealing from other threads in the local threadpool.
+//! where it becomes available for work stealing from other threads in the local thread pool.
 //!
 //! [tpinstall]: ThreadPool::install()
 //! [tpjoin]: ThreadPool::join()
@@ -24,7 +24,7 @@
 //! Rayon uses `std` APIs for threading, but some targets have incomplete implementations that
 //! always return `Unsupported` errors. The WebAssembly `wasm32-unknown-unknown` and `wasm32-wasi`
 //! targets are notable examples of this. Rather than panicking on the unsupported error when
-//! creating the implicit global threadpool, Rayon configures a fallback mode instead.
+//! creating the implicit global thread pool, Rayon configures a fallback mode instead.
 //!
 //! This fallback mode mostly functions as if it were using a single-threaded "pool", like setting
 //! `RAYON_NUM_THREADS=1`. For example, `join` will execute its two closures sequentially, since
@@ -38,8 +38,8 @@
 //!
 //! # Restricting multiple versions
 //!
-//! In order to ensure proper coordination between threadpools, and especially
-//! to make sure there's only one global threadpool, `rayon-core` is actively
+//! In order to ensure proper coordination between thread pools, and especially
+//! to make sure there's only one global thread pool, `rayon-core` is actively
 //! restricted from building multiple versions of itself into a single target.
 //! You may see a build error like this in violation:
 //!
@@ -104,7 +104,7 @@ use wasm_sync as sync;
 
 use self::registry::{CustomSpawn, DefaultSpawn, ThreadSpawn};
 
-/// Returns the maximum number of threads that Rayon supports in a single thread-pool.
+/// Returns the maximum number of threads that Rayon supports in a single thread pool.
 ///
 /// If a higher thread count is requested by calling `ThreadPoolBuilder::num_threads` or by setting
 /// the `RAYON_NUM_THREADS` environment variable, then it will be reduced to this maximum.
@@ -116,10 +116,10 @@ pub fn max_num_threads() -> usize {
 }
 
 /// Returns the number of threads in the current registry. If this
-/// code is executing within a Rayon thread-pool, then this will be
-/// the number of threads for the thread-pool of the current
+/// code is executing within a Rayon thread pool, then this will be
+/// the number of threads for the thread pool of the current
 /// thread. Otherwise, it will be the number of threads for the global
-/// thread-pool.
+/// thread pool.
 ///
 /// This can be useful when trying to judge how many times to split
 /// parallel work (the parallel iterator traits use this value
@@ -127,7 +127,7 @@ pub fn max_num_threads() -> usize {
 ///
 /// # Future compatibility note
 ///
-/// Note that unless this thread-pool was created with a
+/// Note that unless this thread pool was created with a
 /// builder that specifies the number of threads, then this
 /// number may vary over time in future versions (see [the
 /// `num_threads()` method for details][snt]).
@@ -186,10 +186,10 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// The stack size for the created worker threads
     stack_size: Option<usize>,
 
-    /// Closure invoked on worker thread start.
+    /// Closure invoked on worker-thread start.
     start_handler: Option<Box<StartHandler>>,
 
-    /// Closure invoked on worker thread exit.
+    /// Closure invoked on worker-thread exit.
     exit_handler: Option<Box<ExitHandler>>,
 
     /// Closure invoked to spawn threads.
@@ -208,7 +208,7 @@ pub struct Configuration {
     builder: ThreadPoolBuilder,
 }
 
-/// The type for a panic handling closure. Note that this same closure
+/// The type for a panic-handling closure. Note that this same closure
 /// may be invoked multiple times in parallel.
 type PanicHandler = dyn Fn(Box<dyn Any + Send>) + Send + Sync;
 
@@ -501,10 +501,10 @@ impl<S> ThreadPoolBuilder<S> {
         self
     }
 
-    /// Sets the number of threads to be used in the rayon threadpool.
+    /// Sets the number of threads to be used in the rayon thread pool.
     ///
     /// If you specify a non-zero number of threads using this
-    /// function, then the resulting thread-pools are guaranteed to
+    /// function, then the resulting thread pools are guaranteed to
     /// start at most this number of threads.
     ///
     /// If `num_threads` is 0, or you do not call this function, then
@@ -537,12 +537,12 @@ impl<S> ThreadPoolBuilder<S> {
     /// rayon, the spawn and exit handlers do not run for that thread.
     ///
     /// Note that the current thread won't run the main work-stealing loop, so jobs spawned into
-    /// the thread-pool will generally not be picked up automatically by this thread unless you
+    /// the thread pool will generally not be picked up automatically by this thread unless you
     /// yield to rayon in some way, like via [`yield_now()`], [`yield_local()`], or [`scope()`].
     ///
-    /// # Local thread-pools
+    /// # Local thread pools
     ///
-    /// Using this in a local thread-pool means the registry will be leaked. In future versions
+    /// Using this in a local thread pool means the registry will be leaked. In future versions
     /// there might be a way of cleaning up the current-thread state.
     pub fn use_current_thread(mut self) -> Self {
         self.use_current_thread = true;

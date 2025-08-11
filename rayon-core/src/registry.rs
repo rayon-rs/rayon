@@ -139,7 +139,7 @@ pub(super) struct Registry {
     //
     // - if this is the global registry, there is a ref-count that never
     //   gets released.
-    // - if this is a user-created thread-pool, then so long as the thread-pool
+    // - if this is a user-created thread pool, then so long as the thread pool
     //   exists, it holds a reference.
     // - when we inject a "blocking job" into the registry with `ThreadPool::install()`,
     //   no adjustment is needed; the `ThreadPool` holds the reference, and since we won't
@@ -489,7 +489,7 @@ impl Registry {
     }
 
     /// If already in a worker-thread of this registry, just execute `op`.
-    /// Otherwise, inject `op` in this thread-pool. Either way, block until `op`
+    /// Otherwise, inject `op` in this thread pool. Either way, block until `op`
     /// completes and return its return value. If `op` panics, that panic will
     /// be propagated as well.  The second argument indicates `true` if injection
     /// was performed, `false` if executed directly.
@@ -569,13 +569,13 @@ impl Registry {
     ///
     /// Note that blocking functions such as `join` and `scope` do not
     /// need to concern themselves with this fn; their context is
-    /// responsible for ensuring the current thread-pool will not
+    /// responsible for ensuring the current thread pool will not
     /// terminate until they return.
     ///
-    /// The global thread-pool always has an outstanding reference
-    /// (the initial one). Custom thread-pools have one outstanding
+    /// The global thread pool always has an outstanding reference
+    /// (the initial one). Custom thread pools have one outstanding
     /// reference that is dropped when the `ThreadPool` is dropped:
-    /// since installing the thread-pool blocks until any joins/scopes
+    /// since installing the thread pool blocks until any joins/scopes
     /// complete, this ensures that joins/scopes are covered.
     ///
     /// The exception is `::spawn()`, which can create a job outside
@@ -588,7 +588,7 @@ impl Registry {
         assert!(previous != usize::MAX, "overflow in registry ref count");
     }
 
-    /// Signals that the thread-pool which owns this registry has been
+    /// Signals that the thread pool which owns this registry has been
     /// dropped. The worker threads will gradually terminate, once any
     /// extant work is completed.
     pub(super) fn terminate(&self) {
@@ -664,7 +664,7 @@ pub(super) struct WorkerThread {
 
 // This is a bit sketchy, but basically: the WorkerThread is
 // allocated on the stack of the worker on entry and stored into this
-// thread local variable. So it will remain valid at least until the
+// thread-local variable. So it will remain valid at least until the
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
@@ -703,8 +703,8 @@ impl WorkerThread {
         WORKER_THREAD_STATE.get()
     }
 
-    /// Sets `self` as the worker thread index for the current thread.
-    /// This is done during worker thread startup.
+    /// Sets `self` as the worker-thread index for the current thread.
+    /// This is done during worker-thread startup.
     unsafe fn set_current(thread: *const WorkerThread) {
         WORKER_THREAD_STATE.with(|t| {
             assert!(t.get().is_null());
@@ -917,7 +917,7 @@ unsafe fn main_loop(thread: ThreadBuilder) {
     Latch::set(&registry.thread_infos[index].primed);
 
     // Worker threads should not panic. If they do, just abort, as the
-    // internal state of the threadpool is corrupted. Note that if
+    // internal state of the thread pool is corrupted. Note that if
     // **user code** panics, we should catch that and redirect.
     let abort_guard = unwind::AbortIfPanic;
 
@@ -939,7 +939,7 @@ unsafe fn main_loop(thread: ThreadBuilder) {
 }
 
 /// If already in a worker-thread, just execute `op`.  Otherwise,
-/// execute `op` in the default thread-pool. Either way, block until
+/// execute `op` in the default thread pool. Either way, block until
 /// `op` completes and return its return value. If `op` panics, that
 /// panic will be propagated as well.  The second argument indicates
 /// `true` if injection was performed, `false` if executed directly.

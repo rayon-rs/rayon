@@ -167,7 +167,7 @@ impl<'r> SpinLatch<'r> {
         }
     }
 
-    /// Creates a new spin latch for cross-threadpool blocking.  Notably, we
+    /// Creates a new spin latch for cross-thread-pool blocking.  Notably, we
     /// need to make sure the registry is kept alive after setting, so we can
     /// safely call the notification.
     #[inline]
@@ -324,7 +324,7 @@ pub(super) struct CountLatch {
 }
 
 enum CountLatchKind {
-    /// A latch for scopes created on a rayon thread which will participate in work-
+    /// A latch for scopes created on a rayon thread which will participate in work
     /// stealing while it waits for completion. This thread is not necessarily part
     /// of the same registry as the scope itself!
     Stealing {

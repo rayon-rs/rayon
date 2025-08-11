@@ -21,7 +21,7 @@ fn workers_stop() {
     let registry;
 
     {
-        // once we exit this block, thread-pool will be dropped
+        // once we exit this block, thread pool will be dropped
         let thread_pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
         registry = thread_pool.install(|| {
             // do some work on these threads
@@ -32,7 +32,7 @@ fn workers_stop() {
         assert_eq!(registry.num_threads(), 22);
     }
 
-    // once thread-pool is dropped, registry should terminate, which
+    // once thread pool is dropped, registry should terminate, which
     // should lead to worker threads stopping
     registry.wait_until_stopped();
 }
@@ -51,7 +51,7 @@ fn sleeper_stop() {
     let registry;
 
     {
-        // once we exit this block, thread-pool will be dropped
+        // once we exit this block, thread pool will be dropped
         let thread_pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
         registry = Arc::clone(&thread_pool.registry);
 
@@ -59,7 +59,7 @@ fn sleeper_stop() {
         thread::sleep(time::Duration::from_secs(1));
     }
 
-    // once thread-pool is dropped, registry should terminate, which
+    // once thread pool is dropped, registry should terminate, which
     // should lead to worker threads stopping
     registry.wait_until_stopped();
 }

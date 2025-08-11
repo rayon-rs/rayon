@@ -4,7 +4,7 @@ use crate::unwind;
 use std::mem;
 use std::sync::Arc;
 
-/// Puts the task into the Rayon threadpool's job queue in the "static"
+/// Puts the task into the Rayon thread pool's job queue in the "static"
 /// or "global" scope. Just like a standard thread, this task is not
 /// tied to the current stack frame, and hence it cannot hold any
 /// references other than those with `'static` lifetime. If you want
@@ -99,7 +99,7 @@ where
     .into_static_job_ref()
 }
 
-/// Fires off a task into the Rayon threadpool in the "static" or
+/// Fires off a task into the Rayon thread pool in the "static" or
 /// "global" scope.  Just like a standard thread, this task is not
 /// tied to the current stack frame, and hence it cannot hold any
 /// references other than those with `'static` lifetime. If you want
@@ -110,7 +110,7 @@ where
 /// function], except that calls from the same thread
 /// will be prioritized in FIFO order. This is similar to the now-
 /// deprecated [`breadth_first`] option, except the effect is isolated
-/// to relative `spawn_fifo` calls, not all threadpool tasks.
+/// to relative `spawn_fifo` calls, not all thread-pool tasks.
 ///
 /// For more details on this design, see Rayon [RFC #1].
 ///
