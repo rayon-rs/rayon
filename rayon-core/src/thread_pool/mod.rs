@@ -15,12 +15,12 @@ use std::sync::Arc;
 
 mod test;
 
-/// Represents a user created [thread pool].
+/// Represents a user-created [thread pool].
 ///
 /// Use a [`ThreadPoolBuilder`] to specify the number and/or names of threads
 /// in the pool. After calling [`ThreadPoolBuilder::build()`], you can then
 /// execute functions explicitly within this [`ThreadPool`] using
-/// [`ThreadPool::install()`]. By contrast, top level rayon functions
+/// [`ThreadPool::install()`]. By contrast, top-level rayon functions
 /// (like `join()`) will execute implicitly within the current thread pool.
 ///
 ///

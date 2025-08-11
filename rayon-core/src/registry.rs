@@ -664,7 +664,7 @@ pub(super) struct WorkerThread {
 
 // This is a bit sketchy, but basically: the WorkerThread is
 // allocated on the stack of the worker on entry and stored into this
-// thread local variable. So it will remain valid at least until the
+// thread-local variable. So it will remain valid at least until the
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
@@ -703,8 +703,8 @@ impl WorkerThread {
         WORKER_THREAD_STATE.get()
     }
 
-    /// Sets `self` as the worker thread index for the current thread.
-    /// This is done during worker thread startup.
+    /// Sets `self` as the worker-thread index for the current thread.
+    /// This is done during worker-thread startup.
     unsafe fn set_current(thread: *const WorkerThread) {
         WORKER_THREAD_STATE.with(|t| {
             assert!(t.get().is_null());

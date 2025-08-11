@@ -186,10 +186,10 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// The stack size for the created worker threads
     stack_size: Option<usize>,
 
-    /// Closure invoked on worker thread start.
+    /// Closure invoked on worker-thread start.
     start_handler: Option<Box<StartHandler>>,
 
-    /// Closure invoked on worker thread exit.
+    /// Closure invoked on worker-thread exit.
     exit_handler: Option<Box<ExitHandler>>,
 
     /// Closure invoked to spawn threads.
@@ -208,7 +208,7 @@ pub struct Configuration {
     builder: ThreadPoolBuilder,
 }
 
-/// The type for a panic handling closure. Note that this same closure
+/// The type for a panic-handling closure. Note that this same closure
 /// may be invoked multiple times in parallel.
 type PanicHandler = dyn Fn(Box<dyn Any + Send>) + Send + Sync;
 
