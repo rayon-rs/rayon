@@ -591,12 +591,12 @@ Thanks to all of the contributors for this release!
 # Release rayon 0.8.1 / rayon-core 1.2.0 (2017-06-14)
 
 - The following core APIs are being stabilized:
-  - `rayon::spawn()` -- spawns a task into the Rayon threadpool; as it
+  - `rayon::spawn()` -- spawns a task into the Rayon thread pool; as it
     is contained in the global scope (rather than a user-created
     scope), the task cannot capture anything from the current stack
     frame.
   - `ThreadPool::join()`, `ThreadPool::spawn()`, `ThreadPool::scope()`
-    -- convenience APIs for launching new work within a thread-pool.
+    -- convenience APIs for launching new work within a thread pool.
 - The various iterator adapters are now tagged with `#[must_use]`
 - Parallel iterators now offer a `for_each_with` adapter, similar to
   `map_with`.
@@ -640,13 +640,13 @@ Thanks to all of the contributors for this release!
   `spawn_future_async` -- which spawn tasks that cannot hold
   references -- to simply `spawn` and `spawn_future`, respectively.
 - We are now using the coco library for our deque.
-- Individual threadpools can now be configured in "breadth-first"
+- Individual thread pools can now be configured in "breadth-first"
   mode, which causes them to execute spawned tasks in the reverse
   order that they used to.  In some specific scenarios, this can be a
   win (though it is not generally the right choice).
 - Added top-level functions:
   - `current_thread_index`, for querying the index of the current worker thread within
-    its thread-pool (previously available as `thread_pool.current_thread_index()`);
+    its thread pool (previously available as `thread_pool.current_thread_index()`);
   - `current_thread_has_pending_tasks`, for querying whether the
     current worker that has an empty task deque or not. This can be
     useful when deciding whether to spawn a task.
@@ -759,7 +759,7 @@ releases) and hence they should be avoided for production code.
 - We now have (unstable) support for futures integration. You can use
   `Scope::spawn_future` or `rayon::spawn_future_async()`.
 - There is now a `rayon::spawn_async()` function for using the Rayon
-  threadpool to run tasks that do not have references to the stack.
+  thread pool to run tasks that do not have references to the stack.
 
 ### Contributors
 

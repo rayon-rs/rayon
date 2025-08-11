@@ -53,8 +53,8 @@ fn panic_fwd() {
     assert_eq!(1, rx.recv().unwrap());
 }
 
-/// Test what happens when the thread-pool is dropped but there are
-/// still active asynchronous tasks. We expect the thread-pool to stay
+/// Test what happens when the thread pool is dropped but there are
+/// still active asynchronous tasks. We expect the thread pool to stay
 /// alive and executing until those threads are complete.
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
@@ -62,7 +62,7 @@ fn termination_while_things_are_executing() {
     let (tx0, rx0) = channel();
     let (tx1, rx1) = channel();
 
-    // Create a thread-pool and spawn some code in it, but then drop
+    // Create a thread pool and spawn some code in it, but then drop
     // our reference to it.
     {
         let thread_pool = ThreadPoolBuilder::new().build().unwrap();
@@ -129,7 +129,7 @@ fn custom_panic_handler_and_nested_spawn() {
     let builder = ThreadPoolBuilder::new().panic_handler(panic_handler);
     builder.build().unwrap().spawn(move || {
         // launch 3 nested spawn-asyncs; these should be in the same
-        // thread-pool and hence inherit the same panic handler
+        // thread pool and hence inherit the same panic handler
         for _ in 0..PANICS {
             spawn(move || {
                 panic!("Hello, world!");

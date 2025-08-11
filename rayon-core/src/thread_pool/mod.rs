@@ -15,13 +15,13 @@ use std::sync::Arc;
 
 mod test;
 
-/// Represents a user created [thread-pool].
+/// Represents a user created [thread pool].
 ///
 /// Use a [`ThreadPoolBuilder`] to specify the number and/or names of threads
 /// in the pool. After calling [`ThreadPoolBuilder::build()`], you can then
 /// execute functions explicitly within this [`ThreadPool`] using
 /// [`ThreadPool::install()`]. By contrast, top level rayon functions
-/// (like `join()`) will execute implicitly within the current thread-pool.
+/// (like `join()`) will execute implicitly within the current thread pool.
 ///
 ///
 /// ## Creating a ThreadPool
@@ -40,7 +40,7 @@ mod test;
 /// terminate.
 ///
 ///
-/// [thread-pool]: https://en.wikipedia.org/wiki/Thread_pool
+/// [thread pool]: https://en.wikipedia.org/wiki/Thread_pool
 /// [`ThreadPoolBuilder::build()`]: ThreadPoolBuilder::build()
 /// [`ThreadPool::install()`]: Self::install()
 pub struct ThreadPool {
@@ -65,13 +65,13 @@ impl ThreadPool {
         Ok(ThreadPool { registry })
     }
 
-    /// Executes `op` within the threadpool. Any attempts to use
+    /// Executes `op` within the thread pool. Any attempts to use
     /// `join`, `scope`, or parallel iterators will then operate
-    /// within that threadpool.
+    /// within that thread pool.
     ///
     /// # Warning: thread-local data
     ///
-    /// Because `op` is executing within the Rayon thread-pool,
+    /// Because `op` is executing within the Rayon thread pool,
     /// thread-local data from the current thread will not be
     /// accessible.
     ///
@@ -142,9 +142,9 @@ impl ThreadPool {
         self.registry.in_worker(|_, _| op())
     }
 
-    /// Executes `op` within every thread in the threadpool. Any attempts to use
+    /// Executes `op` within every thread in the thread pool. Any attempts to use
     /// `join`, `scope`, or parallel iterators will then operate within that
-    /// threadpool.
+    /// thread pool.
     ///
     /// Broadcasts are executed on each thread after they have exhausted their
     /// local work queue, before they attempt work-stealing from other threads.
@@ -155,7 +155,7 @@ impl ThreadPool {
     ///
     /// # Warning: thread-local data
     ///
-    /// Because `op` is executing within the Rayon thread-pool,
+    /// Because `op` is executing within the Rayon thread pool,
     /// thread-local data from the current thread will not be
     /// accessible.
     ///
@@ -197,7 +197,7 @@ impl ThreadPool {
     ///
     /// # Future compatibility note
     ///
-    /// Note that unless this thread-pool was created with a
+    /// Note that unless this thread pool was created with a
     /// [`ThreadPoolBuilder`] that specifies the number of threads,
     /// then this number may vary over time in future versions (see [the
     /// `num_threads()` method for details][snt]).
@@ -208,19 +208,19 @@ impl ThreadPool {
         self.registry.num_threads()
     }
 
-    /// If called from a Rayon worker thread in this thread-pool,
+    /// If called from a Rayon worker thread in this thread pool,
     /// returns the index of that thread; if not called from a Rayon
     /// thread, or called from a Rayon thread that belongs to a
-    /// different thread-pool, returns `None`.
+    /// different thread pool, returns `None`.
     ///
     /// The index for a given thread will not change over the thread's
     /// lifetime. However, multiple threads may share the same index if
-    /// they are in distinct thread-pools.
+    /// they are in distinct thread pools.
     ///
     /// # Future compatibility note
     ///
-    /// Currently, every thread-pool (including the global
-    /// thread-pool) has a fixed number of threads, but this may
+    /// Currently, every thread pool (including the global
+    /// thread pool) has a fixed number of threads, but this may
     /// change in future Rayon versions (see [the `num_threads()` method
     /// for details][snt]). In that case, the index for a
     /// thread would not change during its lifetime, but thread
@@ -261,7 +261,7 @@ impl ThreadPool {
         Some(!curr.local_deque_is_empty())
     }
 
-    /// Execute `oper_a` and `oper_b` in the thread-pool and return
+    /// Execute `oper_a` and `oper_b` in the thread pool and return
     /// the results. Equivalent to `self.install(|| join(oper_a,
     /// oper_b))`.
     pub fn join<A, B, RA, RB>(&self, oper_a: A, oper_b: B) -> (RA, RB)
@@ -274,7 +274,7 @@ impl ThreadPool {
         self.install(|| join(oper_a, oper_b))
     }
 
-    /// Creates a scope that executes within this thread-pool.
+    /// Creates a scope that executes within this thread pool.
     /// Equivalent to `self.install(|| scope(...))`.
     ///
     /// See also: [the `scope()` function].
@@ -288,7 +288,7 @@ impl ThreadPool {
         self.install(|| scope(op))
     }
 
-    /// Creates a scope that executes within this thread-pool.
+    /// Creates a scope that executes within this thread pool.
     /// Spawns from the same thread are prioritized in relative FIFO order.
     /// Equivalent to `self.install(|| scope_fifo(...))`.
     ///
@@ -303,7 +303,7 @@ impl ThreadPool {
         self.install(|| scope_fifo(op))
     }
 
-    /// Creates a scope that spawns work into this thread-pool.
+    /// Creates a scope that spawns work into this thread pool.
     ///
     /// See also: [the `in_place_scope()` function].
     ///
@@ -315,7 +315,7 @@ impl ThreadPool {
         do_in_place_scope(Some(&self.registry), op)
     }
 
-    /// Creates a scope that spawns work into this thread-pool in FIFO order.
+    /// Creates a scope that spawns work into this thread pool in FIFO order.
     ///
     /// See also: [the `in_place_scope_fifo()` function].
     ///
@@ -327,7 +327,7 @@ impl ThreadPool {
         do_in_place_scope_fifo(Some(&self.registry), op)
     }
 
-    /// Spawns an asynchronous task in this thread-pool. This task will
+    /// Spawns an asynchronous task in this thread pool. This task will
     /// run in the implicit, global scope, which means that it may outlast
     /// the current stack frame -- therefore, it cannot capture any references
     /// onto the stack (you will likely need a `move` closure).
@@ -343,7 +343,7 @@ impl ThreadPool {
         unsafe { spawn::spawn_in(op, &self.registry) }
     }
 
-    /// Spawns an asynchronous task in this thread-pool. This task will
+    /// Spawns an asynchronous task in this thread pool. This task will
     /// run in the implicit, global scope, which means that it may outlast
     /// the current stack frame -- therefore, it cannot capture any references
     /// onto the stack (you will likely need a `move` closure).
@@ -359,7 +359,7 @@ impl ThreadPool {
         unsafe { spawn::spawn_fifo_in(op, &self.registry) }
     }
 
-    /// Spawns an asynchronous task on every thread in this thread-pool. This task
+    /// Spawns an asynchronous task on every thread in this thread pool. This task
     /// will run in the implicit, global scope, which means that it may outlast the
     /// current stack frame -- therefore, it cannot capture any references onto the
     /// stack (you will likely need a `move` closure).
@@ -417,7 +417,7 @@ impl fmt::Debug for ThreadPool {
 ///
 /// The index for a given thread will not change over the thread's
 /// lifetime. However, multiple threads may share the same index if
-/// they are in distinct thread-pools.
+/// they are in distinct thread pools.
 ///
 /// See also: [the `ThreadPool::current_thread_index()` method][m].
 ///
@@ -425,8 +425,8 @@ impl fmt::Debug for ThreadPool {
 ///
 /// # Future compatibility note
 ///
-/// Currently, every thread-pool (including the global
-/// thread-pool) has a fixed number of threads, but this may
+/// Currently, every thread pool (including the global
+/// thread pool) has a fixed number of threads, but this may
 /// change in future Rayon versions (see [the `num_threads()` method
 /// for details][snt]). In that case, the index for a
 /// thread would not change during its lifetime, but thread

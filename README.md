@@ -36,13 +36,13 @@ fn sum_of_squares(input: &[i32]) -> i32 {
 into tasks; it will dynamically adapt for maximum performance. If you
 need more flexibility than that, Rayon also offers the [join] and
 [scope] functions, which let you create parallel tasks on your own.
-For even more control, you can create [custom threadpools] rather than
-using Rayon's default, global threadpool.
+For even more control, you can create [custom thread pools] rather than
+using Rayon's default, global thread pool.
 
 [Parallel iterators]: https://docs.rs/rayon/*/rayon/iter/index.html
 [join]: https://docs.rs/rayon/*/rayon/fn.join.html
 [scope]: https://docs.rs/rayon/*/rayon/fn.scope.html
-[custom threadpools]: https://docs.rs/rayon/*/rayon/struct.ThreadPool.html
+[custom thread pools]: https://docs.rs/rayon/*/rayon/struct.ThreadPool.html
 
 ## No data races
 
