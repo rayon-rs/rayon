@@ -18,6 +18,10 @@ impl<'data, T: Sync + 'data, const N: usize> IntoParallelIterator for &'data [T;
     fn into_par_iter(self) -> Self::Iter {
         <&[T]>::into_par_iter(self)
     }
+
+    fn const_length() -> Option<usize> {
+        Some(N)
+    }
 }
 
 impl<'data, T: Send + 'data, const N: usize> IntoParallelIterator for &'data mut [T; N] {
@@ -27,6 +31,10 @@ impl<'data, T: Send + 'data, const N: usize> IntoParallelIterator for &'data mut
     fn into_par_iter(self) -> Self::Iter {
         <&mut [T]>::into_par_iter(self)
     }
+
+    fn const_length() -> Option<usize> {
+        Some(N)
+    }
 }
 
 impl<T: Send, const N: usize> IntoParallelIterator for [T; N] {
@@ -35,6 +43,10 @@ impl<T: Send, const N: usize> IntoParallelIterator for [T; N] {
 
     fn into_par_iter(self) -> Self::Iter {
         IntoIter { array: self }
+    }
+
+    fn const_length() -> Option<usize> {
+        Some(N)
     }
 }
 
@@ -55,6 +67,10 @@ impl<T: Send, const N: usize> ParallelIterator for IntoIter<T, N> {
     }
 
     fn opt_len(&self) -> Option<usize> {
+        Some(N)
+    }
+
+    fn const_length() -> Option<usize> {
         Some(N)
     }
 }
