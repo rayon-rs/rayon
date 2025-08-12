@@ -176,65 +176,36 @@ where
     }
 }
 
-/// Collects characters from a parallel iterator into a string.
-impl FromParallelIterator<char> for String {
-    fn from_par_iter<I>(par_iter: I) -> Self
-    where
-        I: IntoParallelIterator<Item = char>,
-    {
-        collect_extended(par_iter)
+macro_rules! collect_string {
+    ($desc:literal, $item:ty $(, $a:lifetime)?) => {
+        #[doc = concat!("Collects ", $desc, " from a parallel iterator into a string.")]
+        impl$(<$a>)? FromParallelIterator<$item> for String {
+            fn from_par_iter<I>(par_iter: I) -> Self
+            where
+                I: IntoParallelIterator<Item = $item>,
+            {
+                collect_extended(par_iter)
+            }
+        }
+
+        #[doc = concat!("Collects ", $desc, " from a parallel iterator into a boxed string.")]
+        impl$(<$a>)? FromParallelIterator<$item> for Box<str> {
+            fn from_par_iter<I>(par_iter: I) -> Self
+            where
+                I: IntoParallelIterator<Item = $item>,
+            {
+                String::from_par_iter(par_iter).into_boxed_str()
+            }
+        }
     }
 }
 
-/// Collects characters from a parallel iterator into a string.
-impl<'a> FromParallelIterator<&'a char> for String {
-    fn from_par_iter<I>(par_iter: I) -> Self
-    where
-        I: IntoParallelIterator<Item = &'a char>,
-    {
-        collect_extended(par_iter)
-    }
-}
-
-/// Collects string slices from a parallel iterator into a string.
-impl<'a> FromParallelIterator<&'a str> for String {
-    fn from_par_iter<I>(par_iter: I) -> Self
-    where
-        I: IntoParallelIterator<Item = &'a str>,
-    {
-        collect_extended(par_iter)
-    }
-}
-
-/// Collects strings from a parallel iterator into one large string.
-impl FromParallelIterator<String> for String {
-    fn from_par_iter<I>(par_iter: I) -> Self
-    where
-        I: IntoParallelIterator<Item = String>,
-    {
-        collect_extended(par_iter)
-    }
-}
-
-/// Collects boxed strings from a parallel iterator into one large string.
-impl FromParallelIterator<Box<str>> for String {
-    fn from_par_iter<I>(par_iter: I) -> Self
-    where
-        I: IntoParallelIterator<Item = Box<str>>,
-    {
-        collect_extended(par_iter)
-    }
-}
-
-/// Collects string slices from a parallel iterator into a string.
-impl<'a> FromParallelIterator<Cow<'a, str>> for String {
-    fn from_par_iter<I>(par_iter: I) -> Self
-    where
-        I: IntoParallelIterator<Item = Cow<'a, str>>,
-    {
-        collect_extended(par_iter)
-    }
-}
+collect_string!("characters", char);
+collect_string!("characters", &'a char, 'a);
+collect_string!("string slices", &'a str, 'a);
+collect_string!("string slices", Cow<'a, str>, 'a);
+collect_string!("boxed strings", Box<str>);
+collect_string!("strings", String);
 
 /// Collects OS-string slices from a parallel iterator into an OS-string.
 impl<'a> FromParallelIterator<&'a OsStr> for OsString {
