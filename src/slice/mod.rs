@@ -770,7 +770,25 @@ impl<'data, T: Sync> IntoParallelIterator for &'data [T] {
     }
 }
 
+impl<'data, T: Sync> IntoParallelIterator for &'data Box<[T]> {
+    type Item = &'data T;
+    type Iter = Iter<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        Iter { slice: self }
+    }
+}
+
 impl<'data, T: Send> IntoParallelIterator for &'data mut [T] {
+    type Item = &'data mut T;
+    type Iter = IterMut<'data, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        IterMut { slice: self }
+    }
+}
+
+impl<'data, T: Send> IntoParallelIterator for &'data mut Box<[T]> {
     type Item = &'data mut T;
     type Iter = IterMut<'data, T>;
 
