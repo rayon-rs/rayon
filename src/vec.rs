@@ -48,6 +48,15 @@ impl<T: Send> IntoParallelIterator for Vec<T> {
     }
 }
 
+impl<T: Send> IntoParallelIterator for Box<[T]> {
+    type Item = T;
+    type Iter = IntoIter<T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        IntoIter { vec: self.into() }
+    }
+}
+
 impl<T: Send> ParallelIterator for IntoIter<T> {
     type Item = T;
 
