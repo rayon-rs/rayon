@@ -10,15 +10,11 @@ use super::*;
 /// [`zip_eq`]: IndexedParallelIterator::zip_eq()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct ZipEq<A: IndexedParallelIterator, B: IndexedParallelIterator> {
+pub struct ZipEq<A, B> {
     zip: Zip<A, B>,
 }
 
-impl<A, B> ZipEq<A, B>
-where
-    A: IndexedParallelIterator,
-    B: IndexedParallelIterator,
-{
+impl<A, B> ZipEq<A, B> {
     /// Creates a new `ZipEq` iterator.
     pub(super) fn new(a: A, b: B) -> Self {
         ZipEq {

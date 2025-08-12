@@ -9,16 +9,12 @@ use std::iter;
 /// [`zip()`]: IndexedParallelIterator::zip()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Zip<A: IndexedParallelIterator, B: IndexedParallelIterator> {
+pub struct Zip<A, B> {
     a: A,
     b: B,
 }
 
-impl<A, B> Zip<A, B>
-where
-    A: IndexedParallelIterator,
-    B: IndexedParallelIterator,
-{
+impl<A, B> Zip<A, B> {
     /// Creates a new `Zip` iterator.
     pub(super) fn new(a: A, b: B) -> Self {
         Zip { a, b }

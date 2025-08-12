@@ -30,13 +30,15 @@ pub fn empty<T: Send>() -> Empty<T> {
 /// Iterator adaptor for [the `empty()` function].
 ///
 /// [the `empty()` function]: empty()
-pub struct Empty<T: Send> {
+pub struct Empty<T> {
     marker: PhantomData<T>,
 }
 
-impl<T: Send> Clone for Empty<T> {
+impl<T> Clone for Empty<T> {
     fn clone(&self) -> Self {
-        empty()
+        Empty {
+            marker: PhantomData,
+        }
     }
 }
 

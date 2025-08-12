@@ -40,7 +40,7 @@ impl<T: Send, const N: usize> IntoParallelIterator for [T; N] {
 
 /// Parallel iterator that moves out of an array.
 #[derive(Debug, Clone)]
-pub struct IntoIter<T: Send, const N: usize> {
+pub struct IntoIter<T, const N: usize> {
     array: [T; N],
 }
 

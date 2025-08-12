@@ -10,14 +10,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// [`while_some()`]: ParallelIterator::while_some()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct WhileSome<I: ParallelIterator> {
+pub struct WhileSome<I> {
     base: I,
 }
 
-impl<I> WhileSome<I>
-where
-    I: ParallelIterator,
-{
+impl<I> WhileSome<I> {
     /// Creates a new `WhileSome` iterator.
     pub(super) fn new(base: I) -> Self {
         WhileSome { base }

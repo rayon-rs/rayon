@@ -144,7 +144,7 @@ pub struct ChunkBy<'data, T, P> {
     slice: &'data [T],
 }
 
-impl<'data, T, P: Clone> Clone for ChunkBy<'data, T, P> {
+impl<T, P: Clone> Clone for ChunkBy<'_, T, P> {
     fn clone(&self) -> Self {
         ChunkBy {
             pred: self.pred.clone(),
@@ -153,7 +153,7 @@ impl<'data, T, P: Clone> Clone for ChunkBy<'data, T, P> {
     }
 }
 
-impl<'data, T: fmt::Debug, P> fmt::Debug for ChunkBy<'data, T, P> {
+impl<T: fmt::Debug, P> fmt::Debug for ChunkBy<'_, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ChunkBy")
             .field("slice", &self.slice)
@@ -201,7 +201,7 @@ pub struct ChunkByMut<'data, T, P> {
     slice: &'data mut [T],
 }
 
-impl<'data, T: fmt::Debug, P> fmt::Debug for ChunkByMut<'data, T, P> {
+impl<T: fmt::Debug, P> fmt::Debug for ChunkByMut<'_, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ChunkByMut")
             .field("slice", &self.slice)

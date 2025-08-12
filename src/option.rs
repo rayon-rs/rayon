@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 ///
 /// [`into_par_iter`]: IntoParallelIterator::into_par_iter()
 #[derive(Debug, Clone)]
-pub struct IntoIter<T: Send> {
+pub struct IntoIter<T> {
     opt: Option<T>,
 }
 
@@ -80,11 +80,11 @@ impl<T: Send> IndexedParallelIterator for IntoIter<T> {
 ///
 /// [`par_iter`]: IntoParallelRefIterator::par_iter()
 #[derive(Debug)]
-pub struct Iter<'a, T: Sync> {
+pub struct Iter<'a, T> {
     inner: IntoIter<&'a T>,
 }
 
-impl<'a, T: Sync> Clone for Iter<'a, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Iter {
             inner: self.inner.clone(),
@@ -105,7 +105,7 @@ impl<'a, T: Sync> IntoParallelIterator for &'a Option<T> {
 
 delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
-    impl<'a, T: Sync + 'a>
+    impl<'a, T: Sync>
 }
 
 /// A parallel iterator over a mutable reference to the [`Some`] variant of an [`Option`].
@@ -116,7 +116,7 @@ delegate_indexed_iterator! {
 ///
 /// [`par_iter_mut`]: IntoParallelRefMutIterator::par_iter_mut()
 #[derive(Debug)]
-pub struct IterMut<'a, T: Send> {
+pub struct IterMut<'a, T> {
     inner: IntoIter<&'a mut T>,
 }
 
@@ -133,7 +133,7 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut Option<T> {
 
 delegate_indexed_iterator! {
     IterMut<'a, T> => &'a mut T,
-    impl<'a, T: Send + 'a>
+    impl<'a, T: Send>
 }
 
 /// Private producer for an option

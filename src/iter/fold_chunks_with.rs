@@ -12,17 +12,14 @@ use super::*;
 /// [`fold_chunks_with()`]: IndexedParallelIterator::fold_chunks()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct FoldChunksWith<I, U, F>
-where
-    I: IndexedParallelIterator,
-{
+pub struct FoldChunksWith<I, U, F> {
     base: I,
     chunk_size: usize,
     item: U,
     fold_op: F,
 }
 
-impl<I: IndexedParallelIterator + Debug, U: Debug, F> Debug for FoldChunksWith<I, U, F> {
+impl<I: Debug, U: Debug, F> Debug for FoldChunksWith<I, U, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Fold")
             .field("base", &self.base)
@@ -32,12 +29,7 @@ impl<I: IndexedParallelIterator + Debug, U: Debug, F> Debug for FoldChunksWith<I
     }
 }
 
-impl<I, U, F> FoldChunksWith<I, U, F>
-where
-    I: IndexedParallelIterator,
-    U: Send + Clone,
-    F: Fn(U, I::Item) -> U + Send + Sync,
-{
+impl<I, U, F> FoldChunksWith<I, U, F> {
     /// Creates a new `FoldChunksWith` iterator
     pub(super) fn new(base: I, chunk_size: usize, item: U, fold_op: F) -> Self {
         FoldChunksWith {

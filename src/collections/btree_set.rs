@@ -11,27 +11,27 @@ use crate::vec;
 
 /// Parallel iterator over a B-Tree set
 #[derive(Debug)] // std doesn't Clone
-pub struct IntoIter<T: Ord + Send> {
+pub struct IntoIter<T> {
     inner: vec::IntoIter<T>,
 }
 
 into_par_vec! {
     BTreeSet<T> => IntoIter<T>,
-    impl<T: Ord + Send>
+    impl<T: Send>
 }
 
 delegate_iterator! {
     IntoIter<T> => T,
-    impl<T: Ord + Send>
+    impl<T: Send>
 }
 
 /// Parallel iterator over an immutable reference to a B-Tree set
 #[derive(Debug)]
-pub struct Iter<'a, T: Ord + Sync> {
+pub struct Iter<'a, T> {
     inner: vec::IntoIter<&'a T>,
 }
 
-impl<'a, T: Ord + Sync + 'a> Clone for Iter<'a, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Iter {
             inner: self.inner.clone(),
@@ -41,12 +41,12 @@ impl<'a, T: Ord + Sync + 'a> Clone for Iter<'a, T> {
 
 into_par_vec! {
     &'a BTreeSet<T> => Iter<'a, T>,
-    impl<'a, T: Ord + Sync>
+    impl<'a, T: Sync>
 }
 
 delegate_iterator! {
     Iter<'a, T> => &'a T,
-    impl<'a, T: Ord + Sync + 'a>
+    impl<'a, T: Sync + 'a>
 }
 
 // `BTreeSet` doesn't have a mutable `Iterator`

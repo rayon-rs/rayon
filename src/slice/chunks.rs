@@ -3,24 +3,24 @@ use crate::iter::*;
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice
 #[derive(Debug)]
-pub struct Chunks<'data, T: Sync> {
+pub struct Chunks<'data, T> {
     chunk_size: usize,
     slice: &'data [T],
 }
 
-impl<'data, T: Sync> Chunks<'data, T> {
+impl<'data, T> Chunks<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data [T]) -> Self {
         Self { chunk_size, slice }
     }
 }
 
-impl<'data, T: Sync> Clone for Chunks<'data, T> {
+impl<T> Clone for Chunks<'_, T> {
     fn clone(&self) -> Self {
         Chunks { ..*self }
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
+impl<'data, T: Sync> ParallelIterator for Chunks<'data, T> {
     type Item = &'data [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -35,7 +35,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for Chunks<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for Chunks<'data, T> {
+impl<T: Sync> IndexedParallelIterator for Chunks<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -89,13 +89,13 @@ impl<'data, T: 'data + Sync> Producer for ChunksProducer<'data, T> {
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice
 #[derive(Debug)]
-pub struct ChunksExact<'data, T: Sync> {
+pub struct ChunksExact<'data, T> {
     chunk_size: usize,
     slice: &'data [T],
     rem: &'data [T],
 }
 
-impl<'data, T: Sync> ChunksExact<'data, T> {
+impl<'data, T> ChunksExact<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data [T]) -> Self {
         let rem_len = slice.len() % chunk_size;
         let len = slice.len() - rem_len;
@@ -115,13 +115,13 @@ impl<'data, T: Sync> ChunksExact<'data, T> {
     }
 }
 
-impl<'data, T: Sync> Clone for ChunksExact<'data, T> {
+impl<T> Clone for ChunksExact<'_, T> {
     fn clone(&self) -> Self {
         ChunksExact { ..*self }
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for ChunksExact<'data, T> {
+impl<'data, T: Sync> ParallelIterator for ChunksExact<'data, T> {
     type Item = &'data [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -136,7 +136,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for ChunksExact<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for ChunksExact<'data, T> {
+impl<T: Sync> IndexedParallelIterator for ChunksExact<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -190,18 +190,18 @@ impl<'data, T: 'data + Sync> Producer for ChunksExactProducer<'data, T> {
 
 /// Parallel iterator over mutable non-overlapping chunks of a slice
 #[derive(Debug)]
-pub struct ChunksMut<'data, T: Send> {
+pub struct ChunksMut<'data, T> {
     chunk_size: usize,
     slice: &'data mut [T],
 }
 
-impl<'data, T: Send> ChunksMut<'data, T> {
+impl<'data, T> ChunksMut<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data mut [T]) -> Self {
         Self { chunk_size, slice }
     }
 }
 
-impl<'data, T: Send + 'data> ParallelIterator for ChunksMut<'data, T> {
+impl<'data, T: Send> ParallelIterator for ChunksMut<'data, T> {
     type Item = &'data mut [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -216,7 +216,7 @@ impl<'data, T: Send + 'data> ParallelIterator for ChunksMut<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksMut<'data, T> {
+impl<T: Send> IndexedParallelIterator for ChunksMut<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -270,13 +270,13 @@ impl<'data, T: 'data + Send> Producer for ChunksMutProducer<'data, T> {
 
 /// Parallel iterator over mutable non-overlapping chunks of a slice
 #[derive(Debug)]
-pub struct ChunksExactMut<'data, T: Send> {
+pub struct ChunksExactMut<'data, T> {
     chunk_size: usize,
     slice: &'data mut [T],
     rem: &'data mut [T],
 }
 
-impl<'data, T: Send> ChunksExactMut<'data, T> {
+impl<'data, T> ChunksExactMut<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data mut [T]) -> Self {
         let rem_len = slice.len() % chunk_size;
         let len = slice.len() - rem_len;
@@ -319,7 +319,7 @@ impl<'data, T: Send> ChunksExactMut<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> ParallelIterator for ChunksExactMut<'data, T> {
+impl<'data, T: Send> ParallelIterator for ChunksExactMut<'data, T> {
     type Item = &'data mut [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -334,7 +334,7 @@ impl<'data, T: Send + 'data> ParallelIterator for ChunksExactMut<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> IndexedParallelIterator for ChunksExactMut<'data, T> {
+impl<T: Send> IndexedParallelIterator for ChunksExactMut<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,

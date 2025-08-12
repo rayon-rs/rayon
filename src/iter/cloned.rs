@@ -10,14 +10,11 @@ use std::iter;
 /// [`cloned()`]: ParallelIterator::cloned()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Cloned<I: ParallelIterator> {
+pub struct Cloned<I> {
     base: I,
 }
 
-impl<I> Cloned<I>
-where
-    I: ParallelIterator,
-{
+impl<I> Cloned<I> {
     /// Creates a new `Cloned` iterator.
     pub(super) fn new(base: I) -> Self {
         Cloned { base }

@@ -9,20 +9,12 @@ use std::iter::Fuse;
 /// [`interleave()`]: IndexedParallelIterator::interleave()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Interleave<I, J>
-where
-    I: IndexedParallelIterator,
-    J: IndexedParallelIterator<Item = I::Item>,
-{
+pub struct Interleave<I, J> {
     i: I,
     j: J,
 }
 
-impl<I, J> Interleave<I, J>
-where
-    I: IndexedParallelIterator,
-    J: IndexedParallelIterator<Item = I::Item>,
-{
+impl<I, J> Interleave<I, J> {
     /// Creates a new `Interleave` iterator
     pub(super) fn new(i: I, j: J) -> Self {
         Interleave { i, j }

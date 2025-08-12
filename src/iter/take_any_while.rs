@@ -10,12 +10,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// [`take_any_while()`]: ParallelIterator::take_any_while()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct TakeAnyWhile<I: ParallelIterator, P> {
+pub struct TakeAnyWhile<I, P> {
     base: I,
     predicate: P,
 }
 
-impl<I: ParallelIterator + fmt::Debug, P> fmt::Debug for TakeAnyWhile<I, P> {
+impl<I: fmt::Debug, P> fmt::Debug for TakeAnyWhile<I, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TakeAnyWhile")
             .field("base", &self.base)
@@ -23,10 +23,7 @@ impl<I: ParallelIterator + fmt::Debug, P> fmt::Debug for TakeAnyWhile<I, P> {
     }
 }
 
-impl<I, P> TakeAnyWhile<I, P>
-where
-    I: ParallelIterator,
-{
+impl<I, P> TakeAnyWhile<I, P> {
     /// Creates a new `TakeAnyWhile` iterator.
     pub(super) fn new(base: I, predicate: P) -> Self {
         TakeAnyWhile { base, predicate }

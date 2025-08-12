@@ -11,12 +11,12 @@ use std::fmt::{self, Debug};
 /// [`positions()`]: IndexedParallelIterator::positions()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct Positions<I: IndexedParallelIterator, P> {
+pub struct Positions<I, P> {
     base: I,
     predicate: P,
 }
 
-impl<I: IndexedParallelIterator + Debug, P> Debug for Positions<I, P> {
+impl<I: Debug, P> Debug for Positions<I, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Positions")
             .field("base", &self.base)
@@ -24,10 +24,7 @@ impl<I: IndexedParallelIterator + Debug, P> Debug for Positions<I, P> {
     }
 }
 
-impl<I, P> Positions<I, P>
-where
-    I: IndexedParallelIterator,
-{
+impl<I, P> Positions<I, P> {
     /// Create a new `Positions` iterator.
     pub(super) fn new(base: I, predicate: P) -> Self {
         Positions { base, predicate }

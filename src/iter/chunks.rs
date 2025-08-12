@@ -8,18 +8,12 @@ use super::*;
 /// [`chunks()`]: IndexedParallelIterator::chunks()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Chunks<I>
-where
-    I: IndexedParallelIterator,
-{
+pub struct Chunks<I> {
     size: usize,
     i: I,
 }
 
-impl<I> Chunks<I>
-where
-    I: IndexedParallelIterator,
-{
+impl<I> Chunks<I> {
     /// Creates a new `Chunks` iterator
     pub(super) fn new(i: I, size: usize) -> Self {
         Chunks { i, size }

@@ -6,13 +6,7 @@ use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::ops::ControlFlow::{self, Break, Continue};
 
-impl<U, I, ID, F> TryFold<I, U, ID, F>
-where
-    I: ParallelIterator,
-    F: Fn(U::Output, I::Item) -> U + Sync + Send,
-    ID: Fn() -> U::Output + Sync + Send,
-    U: Try + Send,
-{
+impl<I, U, ID, F> TryFold<I, U, ID, F> {
     pub(super) fn new(base: I, identity: ID, fold_op: F) -> Self {
         TryFold {
             base,
@@ -167,12 +161,7 @@ where
 
 // ///////////////////////////////////////////////////////////////////////////
 
-impl<U, I, F> TryFoldWith<I, U, F>
-where
-    I: ParallelIterator,
-    F: Fn(U::Output, I::Item) -> U + Sync,
-    U: Try<Output: Clone + Send> + Send,
-{
+impl<I, U: Try, F> TryFoldWith<I, U, F> {
     pub(super) fn new(base: I, item: U::Output, fold_op: F) -> Self {
         TryFoldWith {
             base,
@@ -196,7 +185,7 @@ pub struct TryFoldWith<I, U: Try, F> {
 
 impl<I, U, F> Debug for TryFoldWith<I, U, F>
 where
-    I: ParallelIterator + Debug,
+    I: Debug,
     U: Try<Output: Debug>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -11,7 +11,7 @@ use crate::vec;
 
 /// Parallel iterator over a linked list
 #[derive(Debug, Clone)]
-pub struct IntoIter<T: Send> {
+pub struct IntoIter<T> {
     inner: vec::IntoIter<T>,
 }
 
@@ -27,11 +27,11 @@ delegate_iterator! {
 
 /// Parallel iterator over an immutable reference to a linked list
 #[derive(Debug)]
-pub struct Iter<'a, T: Sync> {
+pub struct Iter<'a, T> {
     inner: vec::IntoIter<&'a T>,
 }
 
-impl<'a, T: Sync> Clone for Iter<'a, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Iter {
             inner: self.inner.clone(),
@@ -46,12 +46,12 @@ into_par_vec! {
 
 delegate_iterator! {
     Iter<'a, T> => &'a T,
-    impl<'a, T: Sync + 'a>
+    impl<'a, T: Sync>
 }
 
 /// Parallel iterator over a mutable reference to a linked list
 #[derive(Debug)]
-pub struct IterMut<'a, T: Send> {
+pub struct IterMut<'a, T> {
     inner: vec::IntoIter<&'a mut T>,
 }
 
@@ -62,5 +62,5 @@ into_par_vec! {
 
 delegate_iterator! {
     IterMut<'a, T> => &'a mut T,
-    impl<'a, T: Send + 'a>
+    impl<'a, T: Send>
 }

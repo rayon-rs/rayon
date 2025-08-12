@@ -7,14 +7,11 @@ use super::*;
 /// [`flatten()`]: ParallelIterator::flatten()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Flatten<I: ParallelIterator> {
+pub struct Flatten<I> {
     base: I,
 }
 
-impl<I> Flatten<I>
-where
-    I: ParallelIterator<Item: IntoParallelIterator>,
-{
+impl<I> Flatten<I> {
     /// Creates a new `Flatten` iterator.
     pub(super) fn new(base: I) -> Self {
         Flatten { base }

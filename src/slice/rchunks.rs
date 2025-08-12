@@ -3,24 +3,24 @@ use crate::iter::*;
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice, starting at the end.
 #[derive(Debug)]
-pub struct RChunks<'data, T: Sync> {
+pub struct RChunks<'data, T> {
     chunk_size: usize,
     slice: &'data [T],
 }
 
-impl<'data, T: Sync> RChunks<'data, T> {
+impl<'data, T> RChunks<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data [T]) -> Self {
         Self { chunk_size, slice }
     }
 }
 
-impl<'data, T: Sync> Clone for RChunks<'data, T> {
+impl<T> Clone for RChunks<'_, T> {
     fn clone(&self) -> Self {
         RChunks { ..*self }
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for RChunks<'data, T> {
+impl<'data, T: Sync> ParallelIterator for RChunks<'data, T> {
     type Item = &'data [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -35,7 +35,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for RChunks<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for RChunks<'data, T> {
+impl<T: Sync> IndexedParallelIterator for RChunks<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -89,13 +89,13 @@ impl<'data, T: 'data + Sync> Producer for RChunksProducer<'data, T> {
 
 /// Parallel iterator over immutable non-overlapping chunks of a slice, starting at the end.
 #[derive(Debug)]
-pub struct RChunksExact<'data, T: Sync> {
+pub struct RChunksExact<'data, T> {
     chunk_size: usize,
     slice: &'data [T],
     rem: &'data [T],
 }
 
-impl<'data, T: Sync> RChunksExact<'data, T> {
+impl<'data, T> RChunksExact<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data [T]) -> Self {
         let rem_len = slice.len() % chunk_size;
         let (rem, slice) = slice.split_at(rem_len);
@@ -114,13 +114,13 @@ impl<'data, T: Sync> RChunksExact<'data, T> {
     }
 }
 
-impl<'data, T: Sync> Clone for RChunksExact<'data, T> {
+impl<T> Clone for RChunksExact<'_, T> {
     fn clone(&self) -> Self {
         RChunksExact { ..*self }
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for RChunksExact<'data, T> {
+impl<'data, T: Sync> ParallelIterator for RChunksExact<'data, T> {
     type Item = &'data [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -135,7 +135,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for RChunksExact<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for RChunksExact<'data, T> {
+impl<T: Sync> IndexedParallelIterator for RChunksExact<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -189,18 +189,18 @@ impl<'data, T: 'data + Sync> Producer for RChunksExactProducer<'data, T> {
 
 /// Parallel iterator over mutable non-overlapping chunks of a slice, starting at the end.
 #[derive(Debug)]
-pub struct RChunksMut<'data, T: Send> {
+pub struct RChunksMut<'data, T> {
     chunk_size: usize,
     slice: &'data mut [T],
 }
 
-impl<'data, T: Send> RChunksMut<'data, T> {
+impl<'data, T> RChunksMut<'data, T> {
     pub(super) fn new(chunk_size: usize, slice: &'data mut [T]) -> Self {
         Self { chunk_size, slice }
     }
 }
 
-impl<'data, T: Send + 'data> ParallelIterator for RChunksMut<'data, T> {
+impl<'data, T: Send> ParallelIterator for RChunksMut<'data, T> {
     type Item = &'data mut [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -215,7 +215,7 @@ impl<'data, T: Send + 'data> ParallelIterator for RChunksMut<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> IndexedParallelIterator for RChunksMut<'data, T> {
+impl<T: Send> IndexedParallelIterator for RChunksMut<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,

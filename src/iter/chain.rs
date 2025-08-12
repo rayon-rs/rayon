@@ -9,20 +9,12 @@ use std::iter;
 /// [`chain()`]: ParallelIterator::chain()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Chain<A, B>
-where
-    A: ParallelIterator,
-    B: ParallelIterator<Item = A::Item>,
-{
+pub struct Chain<A, B> {
     a: A,
     b: B,
 }
 
-impl<A, B> Chain<A, B>
-where
-    A: ParallelIterator,
-    B: ParallelIterator<Item = A::Item>,
-{
+impl<A, B> Chain<A, B> {
     /// Creates a new `Chain` iterator.
     pub(super) fn new(a: A, b: B) -> Self {
         Chain { a, b }

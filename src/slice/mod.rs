@@ -761,7 +761,7 @@ impl<T: Send> ParallelSliceMut<T> for [T] {
     }
 }
 
-impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
+impl<'data, T: Sync> IntoParallelIterator for &'data [T] {
     type Item = &'data T;
     type Iter = Iter<'data, T>;
 
@@ -770,7 +770,7 @@ impl<'data, T: Sync + 'data> IntoParallelIterator for &'data [T] {
     }
 }
 
-impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
+impl<'data, T: Send> IntoParallelIterator for &'data mut [T] {
     type Item = &'data mut T;
     type Iter = IterMut<'data, T>;
 
@@ -781,17 +781,17 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut [T] {
 
 /// Parallel iterator over immutable items in a slice
 #[derive(Debug)]
-pub struct Iter<'data, T: Sync> {
+pub struct Iter<'data, T> {
     slice: &'data [T],
 }
 
-impl<'data, T: Sync> Clone for Iter<'data, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Iter { ..*self }
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
+impl<'data, T: Sync> ParallelIterator for Iter<'data, T> {
     type Item = &'data T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -806,7 +806,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for Iter<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for Iter<'data, T> {
+impl<T: Sync> IndexedParallelIterator for Iter<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -846,18 +846,18 @@ impl<'data, T: 'data + Sync> Producer for IterProducer<'data, T> {
 
 /// Parallel iterator over immutable overlapping windows of a slice
 #[derive(Debug)]
-pub struct Windows<'data, T: Sync> {
+pub struct Windows<'data, T> {
     window_size: usize,
     slice: &'data [T],
 }
 
-impl<'data, T: Sync> Clone for Windows<'data, T> {
+impl<T> Clone for Windows<'_, T> {
     fn clone(&self) -> Self {
         Windows { ..*self }
     }
 }
 
-impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
+impl<'data, T: Sync> ParallelIterator for Windows<'data, T> {
     type Item = &'data [T];
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -872,7 +872,7 @@ impl<'data, T: Sync + 'data> ParallelIterator for Windows<'data, T> {
     }
 }
 
-impl<'data, T: Sync + 'data> IndexedParallelIterator for Windows<'data, T> {
+impl<T: Sync> IndexedParallelIterator for Windows<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -928,11 +928,11 @@ impl<'data, T: 'data + Sync> Producer for WindowsProducer<'data, T> {
 
 /// Parallel iterator over mutable items in a slice
 #[derive(Debug)]
-pub struct IterMut<'data, T: Send> {
+pub struct IterMut<'data, T> {
     slice: &'data mut [T],
 }
 
-impl<'data, T: Send + 'data> ParallelIterator for IterMut<'data, T> {
+impl<'data, T: Send> ParallelIterator for IterMut<'data, T> {
     type Item = &'data mut T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -947,7 +947,7 @@ impl<'data, T: Send + 'data> ParallelIterator for IterMut<'data, T> {
     }
 }
 
-impl<'data, T: Send + 'data> IndexedParallelIterator for IterMut<'data, T> {
+impl<T: Send> IndexedParallelIterator for IterMut<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -994,7 +994,7 @@ pub struct Split<'data, T, P> {
     separator: P,
 }
 
-impl<'data, T, P: Clone> Clone for Split<'data, T, P> {
+impl<T, P: Clone> Clone for Split<'_, T, P> {
     fn clone(&self) -> Self {
         Split {
             separator: self.separator.clone(),
@@ -1003,7 +1003,7 @@ impl<'data, T, P: Clone> Clone for Split<'data, T, P> {
     }
 }
 
-impl<'data, T: Debug, P> Debug for Split<'data, T, P> {
+impl<T: Debug, P> Debug for Split<'_, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Split").field("slice", &self.slice).finish()
     }
@@ -1032,7 +1032,7 @@ pub struct SplitInclusive<'data, T, P> {
     separator: P,
 }
 
-impl<'data, T, P: Clone> Clone for SplitInclusive<'data, T, P> {
+impl<T, P: Clone> Clone for SplitInclusive<'_, T, P> {
     fn clone(&self) -> Self {
         SplitInclusive {
             separator: self.separator.clone(),
@@ -1041,7 +1041,7 @@ impl<'data, T, P: Clone> Clone for SplitInclusive<'data, T, P> {
     }
 }
 
-impl<'data, T: Debug, P> Debug for SplitInclusive<'data, T, P> {
+impl<T: Debug, P> Debug for SplitInclusive<'_, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SplitInclusive")
             .field("slice", &self.slice)
@@ -1120,7 +1120,7 @@ pub struct SplitMut<'data, T, P> {
     separator: P,
 }
 
-impl<'data, T: Debug, P> Debug for SplitMut<'data, T, P> {
+impl<T: Debug, P> Debug for SplitMut<'_, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SplitMut")
             .field("slice", &self.slice)
@@ -1151,7 +1151,7 @@ pub struct SplitInclusiveMut<'data, T, P> {
     separator: P,
 }
 
-impl<'data, T: Debug, P> Debug for SplitInclusiveMut<'data, T, P> {
+impl<T: Debug, P> Debug for SplitInclusiveMut<'_, T, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SplitInclusiveMut")
             .field("slice", &self.slice)
