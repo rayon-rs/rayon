@@ -11,27 +11,27 @@ use crate::vec;
 
 /// Parallel iterator over a B-Tree map
 #[derive(Debug)] // std doesn't Clone
-pub struct IntoIter<K: Ord + Send, V: Send> {
+pub struct IntoIter<K, V> {
     inner: vec::IntoIter<(K, V)>,
 }
 
 into_par_vec! {
     BTreeMap<K, V> => IntoIter<K, V>,
-    impl<K: Ord + Send, V: Send>
+    impl<K: Send, V: Send>
 }
 
 delegate_iterator! {
     IntoIter<K, V> => (K, V),
-    impl<K: Ord + Send, V: Send>
+    impl<K: Send, V: Send>
 }
 
 /// Parallel iterator over an immutable reference to a B-Tree map
 #[derive(Debug)]
-pub struct Iter<'a, K: Ord + Sync, V: Sync> {
+pub struct Iter<'a, K, V> {
     inner: vec::IntoIter<(&'a K, &'a V)>,
 }
 
-impl<'a, K: Ord + Sync, V: Sync> Clone for Iter<'a, K, V> {
+impl<K, V> Clone for Iter<'_, K, V> {
     fn clone(&self) -> Self {
         Iter {
             inner: self.inner.clone(),
@@ -41,26 +41,26 @@ impl<'a, K: Ord + Sync, V: Sync> Clone for Iter<'a, K, V> {
 
 into_par_vec! {
     &'a BTreeMap<K, V> => Iter<'a, K, V>,
-    impl<'a, K: Ord + Sync, V: Sync>
+    impl<'a, K: Sync, V: Sync>
 }
 
 delegate_iterator! {
     Iter<'a, K, V> => (&'a K, &'a V),
-    impl<'a, K: Ord + Sync + 'a, V: Sync + 'a>
+    impl<'a, K: Sync + 'a, V: Sync + 'a>
 }
 
 /// Parallel iterator over a mutable reference to a B-Tree map
 #[derive(Debug)]
-pub struct IterMut<'a, K: Ord + Sync, V: Send> {
+pub struct IterMut<'a, K, V> {
     inner: vec::IntoIter<(&'a K, &'a mut V)>,
 }
 
 into_par_vec! {
     &'a mut BTreeMap<K, V> => IterMut<'a, K, V>,
-    impl<'a, K: Ord + Sync, V: Send>
+    impl<'a, K: Sync, V: Send>
 }
 
 delegate_iterator! {
     IterMut<'a, K, V> => (&'a K, &'a mut V),
-    impl<'a, K: Ord + Sync + 'a, V: Send + 'a>
+    impl<'a, K: Sync + 'a, V: Send + 'a>
 }

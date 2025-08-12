@@ -7,15 +7,12 @@ use super::*;
 /// [`with_min_len()`]: IndexedParallelIterator::with_min_len()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct MinLen<I: IndexedParallelIterator> {
+pub struct MinLen<I> {
     base: I,
     min: usize,
 }
 
-impl<I> MinLen<I>
-where
-    I: IndexedParallelIterator,
-{
+impl<I> MinLen<I> {
     /// Creates a new `MinLen` iterator.
     pub(super) fn new(base: I, min: usize) -> Self {
         MinLen { base, min }
@@ -140,15 +137,12 @@ where
 /// [`with_max_len()`]: IndexedParallelIterator::with_max_len()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct MaxLen<I: IndexedParallelIterator> {
+pub struct MaxLen<I> {
     base: I,
     max: usize,
 }
 
-impl<I> MaxLen<I>
-where
-    I: IndexedParallelIterator,
-{
+impl<I> MaxLen<I> {
     /// Creates a new `MaxLen` iterator.
     pub(super) fn new(base: I, max: usize) -> Self {
         MaxLen { base, max }

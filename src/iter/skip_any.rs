@@ -8,15 +8,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// [`skip_any()`]: ParallelIterator::skip_any()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone, Debug)]
-pub struct SkipAny<I: ParallelIterator> {
+pub struct SkipAny<I> {
     base: I,
     count: usize,
 }
 
-impl<I> SkipAny<I>
-where
-    I: ParallelIterator,
-{
+impl<I> SkipAny<I> {
     /// Creates a new `SkipAny` iterator.
     pub(super) fn new(base: I, count: usize) -> Self {
         SkipAny { base, count }

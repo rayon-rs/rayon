@@ -8,15 +8,12 @@ use std::iter;
 /// [`step_by()`]: IndexedParallelIterator::step_by()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct StepBy<I: IndexedParallelIterator> {
+pub struct StepBy<I> {
     base: I,
     step: usize,
 }
 
-impl<I> StepBy<I>
-where
-    I: IndexedParallelIterator,
-{
+impl<I> StepBy<I> {
     /// Creates a new `StepBy` iterator.
     pub(super) fn new(base: I, step: usize) -> Self {
         StepBy { base, step }

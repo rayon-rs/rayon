@@ -3,13 +3,7 @@ use super::*;
 
 use std::fmt::{self, Debug};
 
-impl<U, I, ID, F> Fold<I, ID, F>
-where
-    I: ParallelIterator,
-    F: Fn(U, I::Item) -> U + Sync + Send,
-    ID: Fn() -> U + Sync + Send,
-    U: Send,
-{
+impl<I, ID, F> Fold<I, ID, F> {
     pub(super) fn new(base: I, identity: ID, fold_op: F) -> Self {
         Fold {
             base,
@@ -31,7 +25,7 @@ pub struct Fold<I, ID, F> {
     fold_op: F,
 }
 
-impl<I: ParallelIterator + Debug, ID, F> Debug for Fold<I, ID, F> {
+impl<I: Debug, ID, F> Debug for Fold<I, ID, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Fold").field("base", &self.base).finish()
     }
@@ -178,12 +172,7 @@ where
 
 // ///////////////////////////////////////////////////////////////////////////
 
-impl<U, I, F> FoldWith<I, U, F>
-where
-    I: ParallelIterator,
-    F: Fn(U, I::Item) -> U + Sync + Send,
-    U: Send + Clone,
-{
+impl<I, U, F> FoldWith<I, U, F> {
     pub(super) fn new(base: I, item: U, fold_op: F) -> Self {
         FoldWith {
             base,
@@ -205,7 +194,7 @@ pub struct FoldWith<I, U, F> {
     fold_op: F,
 }
 
-impl<I: ParallelIterator + Debug, U: Debug, F> Debug for FoldWith<I, U, F> {
+impl<I: Debug, U: Debug, F> Debug for FoldWith<I, U, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FoldWith")
             .field("base", &self.base)

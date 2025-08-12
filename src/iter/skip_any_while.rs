@@ -10,12 +10,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// [`skip_any_while()`]: ParallelIterator::skip_any_while()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct SkipAnyWhile<I: ParallelIterator, P> {
+pub struct SkipAnyWhile<I, P> {
     base: I,
     predicate: P,
 }
 
-impl<I: ParallelIterator + fmt::Debug, P> fmt::Debug for SkipAnyWhile<I, P> {
+impl<I: fmt::Debug, P> fmt::Debug for SkipAnyWhile<I, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SkipAnyWhile")
             .field("base", &self.base)
@@ -23,10 +23,7 @@ impl<I: ParallelIterator + fmt::Debug, P> fmt::Debug for SkipAnyWhile<I, P> {
     }
 }
 
-impl<I, P> SkipAnyWhile<I, P>
-where
-    I: ParallelIterator,
-{
+impl<I, P> SkipAnyWhile<I, P> {
     /// Creates a new `SkipAnyWhile` iterator.
     pub(super) fn new(base: I, predicate: P) -> Self {
         SkipAnyWhile { base, predicate }

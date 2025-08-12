@@ -10,14 +10,11 @@ use std::iter;
 /// [`copied()`]: ParallelIterator::copied()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Copied<I: ParallelIterator> {
+pub struct Copied<I> {
     base: I,
 }
 
-impl<I> Copied<I>
-where
-    I: ParallelIterator,
-{
+impl<I> Copied<I> {
     /// Creates a new `Copied` iterator.
     pub(super) fn new(base: I) -> Self {
         Copied { base }

@@ -9,14 +9,11 @@ use std::ops::Range;
 /// [`enumerate()`]: IndexedParallelIterator::enumerate()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct Enumerate<I: IndexedParallelIterator> {
+pub struct Enumerate<I> {
     base: I,
 }
 
-impl<I> Enumerate<I>
-where
-    I: IndexedParallelIterator,
-{
+impl<I> Enumerate<I> {
     /// Creates a new `Enumerate` iterator.
     pub(super) fn new(base: I) -> Self {
         Enumerate { base }

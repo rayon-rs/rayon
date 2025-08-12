@@ -12,11 +12,11 @@ use crate::vec;
 
 /// Parallel iterator over a binary heap
 #[derive(Debug, Clone)]
-pub struct IntoIter<T: Ord + Send> {
+pub struct IntoIter<T> {
     inner: vec::IntoIter<T>,
 }
 
-impl<T: Ord + Send> IntoParallelIterator for BinaryHeap<T> {
+impl<T: Send> IntoParallelIterator for BinaryHeap<T> {
     type Item = T;
     type Iter = IntoIter<T>;
 
@@ -29,16 +29,16 @@ impl<T: Ord + Send> IntoParallelIterator for BinaryHeap<T> {
 
 delegate_indexed_iterator! {
     IntoIter<T> => T,
-    impl<T: Ord + Send>
+    impl<T: Send>
 }
 
 /// Parallel iterator over an immutable reference to a binary heap
 #[derive(Debug)]
-pub struct Iter<'a, T: Ord + Sync> {
+pub struct Iter<'a, T> {
     inner: slice::Iter<'a, T>,
 }
 
-impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Iter {
             inner: self.inner.clone(),
@@ -46,7 +46,7 @@ impl<'a, T: Ord + Sync> Clone for Iter<'a, T> {
     }
 }
 
-impl<'a, T: Ord + Sync> IntoParallelIterator for &'a BinaryHeap<T> {
+impl<'a, T: Sync> IntoParallelIterator for &'a BinaryHeap<T> {
     type Item = &'a T;
     type Iter = Iter<'a, T>;
 
@@ -59,7 +59,7 @@ impl<'a, T: Ord + Sync> IntoParallelIterator for &'a BinaryHeap<T> {
 
 delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
-    impl<'a, T: Ord + Sync + 'a>
+    impl<'a, T: Sync + 'a>
 }
 
 // `BinaryHeap` doesn't have a mutable `Iterator`
@@ -67,10 +67,12 @@ delegate_indexed_iterator! {
 /// Draining parallel iterator that moves out of a binary heap,
 /// but keeps the total capacity.
 #[derive(Debug)]
-pub struct Drain<'a, T: Ord + Send> {
+pub struct Drain<'a, T> {
     heap: &'a mut BinaryHeap<T>,
 }
 
+// NB: The only reason we require `T: Ord` is for `DrainGuard` to reconstruct
+// the heap `From<Vec<T>>` afterward, even though that will actually be empty.
 impl<'a, T: Ord + Send> ParallelDrainFull for &'a mut BinaryHeap<T> {
     type Iter = Drain<'a, T>;
     type Item = T;
@@ -80,7 +82,7 @@ impl<'a, T: Ord + Send> ParallelDrainFull for &'a mut BinaryHeap<T> {
     }
 }
 
-impl<'a, T: Ord + Send> ParallelIterator for Drain<'a, T> {
+impl<T: Ord + Send> ParallelIterator for Drain<'_, T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -95,7 +97,7 @@ impl<'a, T: Ord + Send> ParallelIterator for Drain<'a, T> {
     }
 }
 
-impl<'a, T: Ord + Send> IndexedParallelIterator for Drain<'a, T> {
+impl<T: Ord + Send> IndexedParallelIterator for Drain<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -117,7 +119,7 @@ impl<'a, T: Ord + Send> IndexedParallelIterator for Drain<'a, T> {
     }
 }
 
-impl<'a, T: Ord + Send> Drop for Drain<'a, T> {
+impl<T> Drop for Drain<'_, T> {
     fn drop(&mut self) {
         if !self.heap.is_empty() {
             // We must not have produced, so just call a normal drain to remove the items.

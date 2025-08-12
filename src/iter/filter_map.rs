@@ -9,12 +9,12 @@ use std::fmt::{self, Debug};
 /// [`filter_map()`]: ParallelIterator::filter_map()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct FilterMap<I: ParallelIterator, P> {
+pub struct FilterMap<I, P> {
     base: I,
     filter_op: P,
 }
 
-impl<I: ParallelIterator + Debug, P> Debug for FilterMap<I, P> {
+impl<I: Debug, P> Debug for FilterMap<I, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FilterMap")
             .field("base", &self.base)
@@ -22,7 +22,7 @@ impl<I: ParallelIterator + Debug, P> Debug for FilterMap<I, P> {
     }
 }
 
-impl<I: ParallelIterator, P> FilterMap<I, P> {
+impl<I, P> FilterMap<I, P> {
     /// Creates a new `FilterMap` iterator.
     pub(super) fn new(base: I, filter_op: P) -> Self {
         FilterMap { base, filter_op }

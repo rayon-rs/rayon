@@ -9,18 +9,18 @@ use std::fmt::{self, Debug};
 /// [`flat_map()`]: ParallelIterator::flat_map()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct FlatMap<I: ParallelIterator, F> {
+pub struct FlatMap<I, F> {
     base: I,
     map_op: F,
 }
 
-impl<I: ParallelIterator + Debug, F> Debug for FlatMap<I, F> {
+impl<I: Debug, F> Debug for FlatMap<I, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FlatMap").field("base", &self.base).finish()
     }
 }
 
-impl<I: ParallelIterator, F> FlatMap<I, F> {
+impl<I, F> FlatMap<I, F> {
     /// Creates a new `FlatMap` iterator.
     pub(super) fn new(base: I, map_op: F) -> Self {
         FlatMap { base, map_op }

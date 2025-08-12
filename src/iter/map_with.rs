@@ -10,13 +10,13 @@ use std::fmt::{self, Debug};
 /// [`map_with()`]: ParallelIterator::map_with()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct MapWith<I: ParallelIterator, T, F> {
+pub struct MapWith<I, T, F> {
     base: I,
     item: T,
     map_op: F,
 }
 
-impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
+impl<I: Debug, T: Debug, F> Debug for MapWith<I, T, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapWith")
             .field("base", &self.base)
@@ -25,10 +25,7 @@ impl<I: ParallelIterator + Debug, T: Debug, F> Debug for MapWith<I, T, F> {
     }
 }
 
-impl<I, T, F> MapWith<I, T, F>
-where
-    I: ParallelIterator,
-{
+impl<I, T, F> MapWith<I, T, F> {
     /// Creates a new `MapWith` iterator.
     pub(super) fn new(base: I, item: T, map_op: F) -> Self {
         MapWith { base, item, map_op }
@@ -341,22 +338,19 @@ where
 /// [`map_init()`]: ParallelIterator::map_init()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
-pub struct MapInit<I: ParallelIterator, INIT, F> {
+pub struct MapInit<I, INIT, F> {
     base: I,
     init: INIT,
     map_op: F,
 }
 
-impl<I: ParallelIterator + Debug, INIT, F> Debug for MapInit<I, INIT, F> {
+impl<I: Debug, INIT, F> Debug for MapInit<I, INIT, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapInit").field("base", &self.base).finish()
     }
 }
 
-impl<I, INIT, F> MapInit<I, INIT, F>
-where
-    I: ParallelIterator,
-{
+impl<I, INIT, F> MapInit<I, INIT, F> {
     /// Creates a new `MapInit` iterator.
     pub(super) fn new(base: I, init: INIT, map_op: F) -> Self {
         MapInit { base, init, map_op }

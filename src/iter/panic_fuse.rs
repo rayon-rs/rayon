@@ -11,7 +11,7 @@ use std::thread;
 /// [`panic_fuse()`]: ParallelIterator::panic_fuse()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Debug, Clone)]
-pub struct PanicFuse<I: ParallelIterator> {
+pub struct PanicFuse<I> {
     base: I,
 }
 
@@ -35,10 +35,7 @@ impl<'a> Fuse<'a> {
     }
 }
 
-impl<I> PanicFuse<I>
-where
-    I: ParallelIterator,
-{
+impl<I> PanicFuse<I> {
     /// Creates a new `PanicFuse` iterator.
     pub(super) fn new(base: I) -> PanicFuse<I> {
         PanicFuse { base }

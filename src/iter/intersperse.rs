@@ -12,7 +12,7 @@ use std::iter::{self, Fuse};
 #[derive(Clone, Debug)]
 pub struct Intersperse<I>
 where
-    I: ParallelIterator<Item: Clone>,
+    I: ParallelIterator,
 {
     base: I,
     item: I::Item,

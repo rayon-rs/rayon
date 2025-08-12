@@ -29,7 +29,7 @@ pub fn once<T: Send>(item: T) -> Once<T> {
 ///
 /// [the `once()` function]: once()
 #[derive(Clone, Debug)]
-pub struct Once<T: Send> {
+pub struct Once<T> {
     item: T,
 }
 

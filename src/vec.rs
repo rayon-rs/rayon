@@ -35,7 +35,7 @@ impl<'data, T: Send + 'data> IntoParallelIterator for &'data mut Vec<T> {
 
 /// Parallel iterator that moves out of a vector.
 #[derive(Debug, Clone)]
-pub struct IntoIter<T: Send> {
+pub struct IntoIter<T> {
     vec: Vec<T>,
 }
 

@@ -36,11 +36,11 @@ delegate_indexed_iterator! {
 
 /// Parallel iterator over an immutable reference to a double-ended queue
 #[derive(Debug)]
-pub struct Iter<'a, T: Sync> {
+pub struct Iter<'a, T> {
     inner: Chain<slice::Iter<'a, T>, slice::Iter<'a, T>>,
 }
 
-impl<'a, T: Sync> Clone for Iter<'a, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Iter {
             inner: self.inner.clone(),
@@ -62,12 +62,12 @@ impl<'a, T: Sync> IntoParallelIterator for &'a VecDeque<T> {
 
 delegate_indexed_iterator! {
     Iter<'a, T> => &'a T,
-    impl<'a, T: Sync + 'a>
+    impl<'a, T: Sync>
 }
 
 /// Parallel iterator over a mutable reference to a double-ended queue
 #[derive(Debug)]
-pub struct IterMut<'a, T: Send> {
+pub struct IterMut<'a, T> {
     inner: Chain<slice::IterMut<'a, T>, slice::IterMut<'a, T>>,
 }
 
@@ -85,13 +85,13 @@ impl<'a, T: Send> IntoParallelIterator for &'a mut VecDeque<T> {
 
 delegate_indexed_iterator! {
     IterMut<'a, T> => &'a mut T,
-    impl<'a, T: Send + 'a>
+    impl<'a, T: Send>
 }
 
 /// Draining parallel iterator that moves a range out of a double-ended queue,
 /// but keeps the total capacity.
 #[derive(Debug)]
-pub struct Drain<'a, T: Send> {
+pub struct Drain<'a, T> {
     deque: &'a mut VecDeque<T>,
     range: Range<usize>,
     orig_len: usize,
@@ -110,7 +110,7 @@ impl<'a, T: Send> ParallelDrainRange<usize> for &'a mut VecDeque<T> {
     }
 }
 
-impl<'a, T: Send> ParallelIterator for Drain<'a, T> {
+impl<T: Send> ParallelIterator for Drain<'_, T> {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
@@ -125,7 +125,7 @@ impl<'a, T: Send> ParallelIterator for Drain<'a, T> {
     }
 }
 
-impl<'a, T: Send> IndexedParallelIterator for Drain<'a, T> {
+impl<T: Send> IndexedParallelIterator for Drain<'_, T> {
     fn drive<C>(self, consumer: C) -> C::Result
     where
         C: Consumer<Self::Item>,
@@ -148,7 +148,7 @@ impl<'a, T: Send> IndexedParallelIterator for Drain<'a, T> {
     }
 }
 
-impl<'a, T: Send> Drop for Drain<'a, T> {
+impl<T> Drop for Drain<'_, T> {
     fn drop(&mut self) {
         if self.deque.len() != self.orig_len - self.range.len() {
             // We must not have produced, so just call a normal drain to remove the items.
