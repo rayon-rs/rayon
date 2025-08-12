@@ -20,7 +20,6 @@ use crate::split_producer::*;
 
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
-use std::mem;
 
 pub use self::chunk_by::{ChunkBy, ChunkByMut};
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
@@ -567,10 +566,10 @@ pub trait ParallelSliceMut<T: Send> {
             }};
         }
 
-        let sz_u8 = mem::size_of::<(K, u8)>();
-        let sz_u16 = mem::size_of::<(K, u16)>();
-        let sz_u32 = mem::size_of::<(K, u32)>();
-        let sz_usize = mem::size_of::<(K, usize)>();
+        let sz_u8 = size_of::<(K, u8)>();
+        let sz_u16 = size_of::<(K, u16)>();
+        let sz_u32 = size_of::<(K, u32)>();
+        let sz_usize = size_of::<(K, usize)>();
 
         if sz_u8 < sz_u16 && len <= (u8::MAX as usize) {
             return sort_by_key!(u8);
