@@ -3258,7 +3258,6 @@ pub trait IndexedParallelIterator: ParallelIterator {
 ///
 /// ```
 /// use rayon::prelude::*;
-/// use std::mem;
 ///
 /// struct BlackHole {
 ///     mass: usize,
@@ -3270,7 +3269,7 @@ pub trait IndexedParallelIterator: ParallelIterator {
 ///     {
 ///         let par_iter = par_iter.into_par_iter();
 ///         BlackHole {
-///             mass: par_iter.count() * mem::size_of::<T>(),
+///             mass: par_iter.count() * size_of::<T>(),
 ///         }
 ///     }
 /// }
@@ -3311,7 +3310,6 @@ where
 ///
 /// ```
 /// use rayon::prelude::*;
-/// use std::mem;
 ///
 /// struct BlackHole {
 ///     mass: usize,
@@ -3322,7 +3320,7 @@ where
 ///         where I: IntoParallelIterator<Item = T>
 ///     {
 ///         let par_iter = par_iter.into_par_iter();
-///         self.mass += par_iter.count() * mem::size_of::<T>();
+///         self.mass += par_iter.count() * size_of::<T>();
 ///     }
 /// }
 ///

@@ -354,10 +354,10 @@ where
 
     // Returns the number of elements between pointers `l` (inclusive) and `r` (exclusive).
     fn width<T>(l: *mut T, r: *mut T) -> usize {
-        assert!(mem::size_of::<T>() > 0);
+        assert!(size_of::<T>() > 0);
         // FIXME: this should *likely* use `offset_from`, but more
         // investigation is needed (including running tests in miri).
-        (r as usize - l as usize) / mem::size_of::<T>()
+        (r as usize - l as usize) / size_of::<T>()
     }
 
     loop {
@@ -936,7 +936,7 @@ where
     F: Fn(&T, &T) -> bool + Sync,
 {
     // Sorting has no meaningful behavior on zero-sized types.
-    if mem::size_of::<T>() == 0 {
+    if size_of::<T>() == 0 {
         return;
     }
 
@@ -1102,7 +1102,7 @@ where
     CmpF: Fn(&T, &T) -> bool,
 {
     // The caller should have already checked that.
-    debug_assert_ne!(mem::size_of::<T>(), 0);
+    debug_assert_ne!(size_of::<T>(), 0);
 
     let len = v.len();
 
@@ -1521,7 +1521,7 @@ where
     const CHUNK_LENGTH: usize = 2000;
 
     // Sorting has no meaningful behavior on zero-sized types.
-    if mem::size_of::<T>() == 0 {
+    if size_of::<T>() == 0 {
         return;
     }
 

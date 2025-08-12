@@ -1,7 +1,6 @@
 use rand::distr::{Alphanumeric, StandardUniform, Uniform};
 use rand::Rng;
 use rayon::prelude::*;
-use std::mem;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use test::{black_box, Bencher};
@@ -74,7 +73,7 @@ macro_rules! sort {
         fn $name(b: &mut Bencher) {
             let v = $gen($len);
             b.iter(|| v.clone().$f());
-            b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;
+            b.bytes = $len * size_of_val(&$gen(1)[0]) as u64;
         }
     };
 }
@@ -85,7 +84,7 @@ macro_rules! sort_keys {
         fn $name(b: &mut Bencher) {
             let v = $gen($len);
             b.iter(|| v.clone().$f(ToString::to_string));
-            b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;
+            b.bytes = $len * size_of_val(&$gen(1)[0]) as u64;
         }
     };
 }
@@ -97,7 +96,7 @@ macro_rules! sort_strings {
             let v = $gen($len);
             let v = v.iter().map(|s| &**s).collect::<Vec<&str>>();
             b.iter(|| v.clone().$f());
-            b.bytes = $len * mem::size_of::<&str>() as u64;
+            b.bytes = $len * size_of::<&str>() as u64;
         }
     };
 }
@@ -124,7 +123,7 @@ macro_rules! sort_expensive {
 
                 black_box(count);
             });
-            b.bytes = $len * mem::size_of_val(&$gen(1)[0]) as u64;
+            b.bytes = $len * size_of_val(&$gen(1)[0]) as u64;
         }
     };
 }
