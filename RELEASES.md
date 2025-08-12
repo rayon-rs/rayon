@@ -1,6 +1,15 @@
-# Release rayon 1.11.0 / rayon-core 1.13.0
+# Release rayon 1.11.0 / rayon-core 1.13.0 (2025-08-12)
 
 - The minimum supported `rustc` is now 1.80.
+- `iter::repeatn` has been renamed to `iter::repeat_n` to match the name
+  stabilized in the standard library. The old name still exists as a deprecated
+  function for compatibility.
+- Fixed a bug in `in_place_scope` when the default global registry uses the
+  current thread, like on WebAssembly without threading support.
+- `binary_heap::Iter` no longer requires a temporary allocation.
+- Relaxed trait bounds on many of the public structs.
+- Implemented `IntoParallelIterator for Box<[T]>` and its references.
+- Implemented `FromParallelIterator<_> for Box<str>` via `String`.
 
 # Release rayon 1.10.0 (2024-03-23)
 
