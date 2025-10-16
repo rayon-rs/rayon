@@ -2,7 +2,6 @@ use super::super::plumbing::*;
 use crate::SendPtr;
 use std::marker::PhantomData;
 use std::ptr;
-use std::slice;
 
 pub(super) struct CollectConsumer<'c, T: Send> {
     /// See `CollectResult` for explanation of why this is not a slice
@@ -75,7 +74,7 @@ impl<'c, T> Drop for CollectResult<'c, T> {
         // Drop the first `self.initialized_len` elements, which have been recorded
         // to be initialized by the folder.
         unsafe {
-            ptr::drop_in_place(slice::from_raw_parts_mut(
+            ptr::drop_in_place(ptr::slice_from_raw_parts_mut(
                 self.start.0,
                 self.initialized_len,
             ));
