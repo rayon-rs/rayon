@@ -119,7 +119,7 @@ pub use rayon_core::{current_num_threads, current_thread_index, max_num_threads}
 pub use rayon_core::{in_place_scope, scope, Scope};
 pub use rayon_core::{in_place_scope_fifo, scope_fifo, ScopeFifo};
 pub use rayon_core::{join, join_context};
-pub use rayon_core::{spawn, spawn_fifo};
+pub use rayon_core::{spawn, spawn_fifo, spawn_unchecked};
 pub use rayon_core::{yield_local, yield_now, Yield};
 
 /// We need to transmit raw pointers across threads. It is possible to do this

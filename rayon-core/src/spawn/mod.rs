@@ -99,6 +99,61 @@ where
     .into_static_job_ref()
 }
 
+/// Puts the task into the Rayon thread pool's job queue in the "static"
+/// or "global" scope exactly like [spawn], but without the 'static
+/// lifetime bound.
+///
+/// # Safety
+/// The caller must ensure that the spawned closure does not outlive
+/// any references it captures.
+pub unsafe fn spawn_unchecked<F>(func: F)
+where
+    F: FnOnce() + Send,
+{
+    // We assert that current registry has not terminated.
+    unsafe { spawn_unchecked_in(func, &Registry::current()) }
+}
+
+/// Spawns an asynchronous job in `registry.`
+/// Exactly like [spawn_in], but without the 'static lifetime bound.
+///
+/// # Safety
+/// See [spawn_unchecked] for the safety requirements due to the lack of 'static bound.
+pub(super) unsafe fn spawn_unchecked_in<F>(func: F, registry: &Arc<Registry>)
+where
+    F: FnOnce() + Send,
+{
+    // We assert that this does not hold any references (we know
+    // this because of the `'static` bound in the interface);
+    // moreover, we assert that the code below is not supposed to
+    // be able to panic, and hence the data won't leak but will be
+    // enqueued into some deque for later execution.
+    let abort_guard = unwind::AbortIfPanic; // just in case we are wrong, and code CAN panic
+    let job_ref = spawn_unchecked_job(func, registry);
+    registry.inject_or_push(job_ref);
+    mem::forget(abort_guard);
+}
+
+/// # Safety
+/// See [spawn_unchecked] for the safety requirements due to the lack of 'static bound.
+unsafe fn spawn_unchecked_job<F>(func: F, registry: &Arc<Registry>) -> JobRef
+where
+    F: FnOnce() + Send,
+{
+    // Ensure that registry cannot terminate until this job has
+    // executed. This ref is decremented at the (*) below.
+    registry.increment_terminate_count();
+
+    HeapJob::new({
+        let registry = Arc::clone(registry);
+        move || {
+            registry.catch_unwind(func);
+            registry.terminate(); // (*) permit registry to terminate now
+        }
+    })
+    .into_job_ref()
+}
+
 /// Fires off a task into the Rayon thread pool in the "static" or
 /// "global" scope.  Just like a standard thread, this task is not
 /// tied to the current stack frame, and hence it cannot hold any
