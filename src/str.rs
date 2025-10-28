@@ -32,6 +32,7 @@ fn find_char_midpoint(chars: &str) -> usize {
     // We want to split near the midpoint, but we need to find an actual
     // character boundary.  So we look at the raw bytes, first scanning
     // forward from the midpoint for a boundary, then trying backward.
+    // TODO (MSRV 1.91): use `str::ceil_char_boundary`, else `floor_...`.
     let (left, right) = chars.as_bytes().split_at(mid);
     match right.iter().copied().position(is_char_boundary) {
         Some(i) => mid + i,
