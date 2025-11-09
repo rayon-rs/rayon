@@ -382,7 +382,8 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
-    /// to be `Sync`.
+    /// to be `Sync`. All cloned values get dropped before this function
+    /// returns.
     ///
     /// # Examples
     ///
@@ -413,7 +414,8 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// The `init` function will be called only as needed for a value to be
     /// paired with the group of items in each rayon job.  There is no
-    /// constraint on that returned type at all!
+    /// constraint on that returned type at all! The initialized values all
+    /// get dropped before this function returns.
     ///
     /// # Examples
     ///
@@ -602,7 +604,8 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
-    /// to be `Sync`.
+    /// to be `Sync`. All cloned values get dropped before this function
+    /// returns.
     ///
     /// # Examples
     ///
@@ -640,7 +643,8 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// The `init` function will be called only as needed for a value to be
     /// paired with the group of items in each rayon job.  There is no
-    /// constraint on that returned type at all!
+    /// constraint on that returned type at all! The initialized values all
+    /// get dropped before this function returns.
     ///
     /// # Examples
     ///
