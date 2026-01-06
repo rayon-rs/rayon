@@ -71,10 +71,11 @@
 //! `Result`, where `Some`/`Ok` values will let those iterators continue, but
 //! `None`/`Err` values will exit early.
 //!
-//! A note about object safety: It is currently _not_ possible to wrap
-//! a `ParallelIterator` (or any trait that depends on it) using a
-//! `Box<dyn ParallelIterator>` or other kind of dynamic allocation,
-//! because `ParallelIterator` is **not object-safe**.
+//! A note about
+//! [dyn compatiblity](https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility):
+//! It is currently _not_ possible to wrap a `ParallelIterator` (or any trait
+//! that depends on it) using a `Box<dyn ParallelIterator>` or other kind of
+//! dynamic allocation, because `ParallelIterator` is **not dyn-compatible**.
 //! (This keeps the implementation simpler and allows extra optimizations.)
 
 use self::plumbing::*;
