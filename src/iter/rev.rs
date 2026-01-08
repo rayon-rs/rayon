@@ -35,6 +35,10 @@ where
     fn opt_len(&self) -> Option<usize> {
         Some(self.len())
     }
+
+    fn const_length() -> Option<usize> {
+        I::const_length()
+    }
 }
 
 impl<I> IndexedParallelIterator for Rev<I>

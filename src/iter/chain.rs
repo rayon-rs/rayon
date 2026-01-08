@@ -52,6 +52,10 @@ where
     fn opt_len(&self) -> Option<usize> {
         self.a.opt_len()?.checked_add(self.b.opt_len()?)
     }
+
+    fn const_length() -> Option<usize> {
+        A::const_length()?.checked_add(B::const_length()?)
+    }
 }
 
 impl<A, B> IndexedParallelIterator for Chain<A, B>

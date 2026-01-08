@@ -48,6 +48,10 @@ where
     fn opt_len(&self) -> Option<usize> {
         self.base.opt_len()
     }
+
+    fn const_length() -> Option<usize> {
+        I::const_length()
+    }
 }
 
 impl<I, F, R> IndexedParallelIterator for Map<I, F>
