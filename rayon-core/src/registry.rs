@@ -133,6 +133,7 @@ pub(super) struct Registry {
     panic_handler: Option<Box<PanicHandler>>,
     start_handler: Option<Box<StartHandler>>,
     exit_handler: Option<Box<ExitHandler>>,
+    full_blocking: bool,
 
     // When this latch reaches 0, it means that all work on this
     // registry must be complete. This is ensured in the following ways:
@@ -277,6 +278,7 @@ impl Registry {
             panic_handler: builder.take_panic_handler(),
             start_handler: builder.take_start_handler(),
             exit_handler: builder.take_exit_handler(),
+            full_blocking: builder.get_full_blocking(),
         });
 
         // If we return early or panic, make sure to terminate existing threads.
@@ -503,7 +505,11 @@ impl Registry {
             if worker_thread.is_null() {
                 self.in_worker_cold(op)
             } else if (*worker_thread).registry().id() != self.id() {
-                self.in_worker_cross(&*worker_thread, op)
+                if self.full_blocking {
+                    self.in_worker_cross_blocking(op)
+                } else {
+                    self.in_worker_cross(&*worker_thread, op)
+                }
             } else {
                 // Perfectly valid to give them a `&T`: this is the
                 // current thread, so we know the data structure won't be
@@ -560,6 +566,30 @@ impl Registry {
         self.inject(job.as_job_ref());
         current_thread.wait_until(&job.latch);
         job.into_result()
+    }
+
+    #[cold]
+    unsafe fn in_worker_cross_blocking<OP, R>(&self, op: OP) -> R
+    where
+        OP: FnOnce(&WorkerThread, bool) -> R + Send,
+        R: Send,
+    {
+        thread_local!(static LOCK_LATCH: LockLatch = LockLatch::new());
+
+        LOCK_LATCH.with(|l| {
+            let job = StackJob::new(
+                |injected| {
+                    let worker_thread = WorkerThread::current();
+                    assert!(injected && !worker_thread.is_null());
+                    op(&*worker_thread, true)
+                },
+                LatchRef::new(l),
+            );
+            self.inject(job.as_job_ref());
+            job.latch.wait_and_reset(); // Make sure we can use the same latch again next time.
+
+            job.into_result()
+        })
     }
 
     /// Increments the terminate counter. This increment should be
