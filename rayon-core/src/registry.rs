@@ -725,7 +725,7 @@ impl WorkerThread {
     }
 
     #[inline]
-    pub(super) unsafe fn push(&self, job: JobRef) {
+    pub(super) fn push(&self, job: JobRef) {
         let queue_was_empty = self.worker.is_empty();
         self.worker.push(job);
         self.registry.sleep.new_internal_jobs(1, queue_was_empty);
