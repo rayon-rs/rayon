@@ -20,6 +20,7 @@ use crate::split_producer::*;
 
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
+use std::num::NonZero;
 
 pub use self::chunk_by::{ChunkBy, ChunkByMut};
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
@@ -196,12 +197,176 @@ pub trait ParallelSlice<T: Sync> {
     {
         ChunkBy::new(self.as_parallel_slice(), pred)
     }
+
+    /// Selects the median element from the slice in parallel.
+    ///
+    /// Returns `None` if the slice is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    /// let median = v.par_median().unwrap();
+    /// assert_eq!(median, 5);
+    /// ```
+    fn par_median(&self) -> Option<T>
+    where
+        T: Ord + Send + Sync + Copy,
+    {
+        let len = self.as_parallel_slice().len();
+        self.par_k_smallest(len / 2)
+    }
+
+    /// Selects the k-th smallest element from the slice in parallel.
+    ///
+    /// Returns `None` if k is greater than or equal to the length of the slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    /// let third_smallest = v.par_k_smallest(2).unwrap();
+    /// assert_eq!(third_smallest, 3);
+    /// ```
+    fn par_k_smallest(&self, k: usize) -> Option<T>
+    where
+        T: Ord + Send + Sync + Copy,
+    {
+        if k >= self.as_parallel_slice().len() {
+            return None;
+        }
+        Some(par_select_internal(self.as_parallel_slice(), k))
+    }
+
+    /// Selects the k-th largest element from the slice in parallel.
+    ///
+    /// Returns `None` if k is greater than or equal to the length of the slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    /// let third_largest = v.par_k_largest(2).unwrap();
+    /// assert_eq!(third_largest, 7);
+    /// ```
+    fn par_k_largest(&self, k: usize) -> Option<T>
+    where
+        T: Ord + Send + Sync + Copy,
+    {
+        let len = self.as_parallel_slice().len();
+        if k >= len {
+            return None;
+        }
+        self.par_k_smallest(len - 1 - k)
+    }
 }
 
 impl<T: Sync> ParallelSlice<T> for [T] {
     #[inline]
     fn as_parallel_slice(&self) -> &[T] {
         self
+    }
+}
+
+fn par_select_internal<T: Ord + Send + Sync + Copy>(a: &[T], k: usize) -> T {
+    if let Some(v) = par_select_internal_core(a, k) {
+        return v;
+    }
+
+    // sequential fallback with clone
+    let mut a = a.to_vec();
+    *a.select_nth_unstable(k).1
+}
+
+fn par_select_internal_mut<T: Ord + Send + Sync + Copy>(a: &mut [T], k: usize) -> T {
+    if let Some(v) = par_select_internal_core(a, k) {
+        return v;
+    }
+
+    // sequential fallback with in-place mutation
+    *a.select_nth_unstable(k).1
+}
+
+fn par_select_internal_core<T: Ord + Send + Sync + Copy>(a: &[T], k: usize) -> Option<T> {
+    assert!(!a.is_empty());
+    assert!(k < a.len());
+
+    const MIN_SAMPLE_SIZE: usize = 1024;
+    const SAMPLE_QUANTILE_DELTA: usize = 256;
+
+    let n = a.len();
+    let approx_sqrt_n = 1 << (n.ilog2().div_ceil(2));
+    let stride = (n / MIN_SAMPLE_SIZE).max(1);
+
+    // sample approx. sqrt(n) elements once
+    let mut sample = Vec::with_capacity(MIN_SAMPLE_SIZE);
+    a.par_iter()
+        .step_by(stride)
+        .take(approx_sqrt_n.max(MIN_SAMPLE_SIZE))
+        .copied()
+        .collect_into_vec(&mut sample);
+    sample.par_sort_unstable();
+    let s = sample.len();
+
+    // target quantile in sample
+    let q = k * s / n;
+
+    let lo_idx = q.saturating_sub(SAMPLE_QUANTILE_DELTA);
+    let hi_idx = (q + SAMPLE_QUANTILE_DELTA).min(s - 1);
+
+    let lower = sample[lo_idx];
+    let upper = sample[hi_idx];
+
+    // parallel filter
+    let chunk_size = a.len().div_ceil(
+        std::thread::available_parallelism()
+            .map(NonZero::into)
+            .unwrap_or(1),
+    );
+    let (lt, eq_lo, eq_hi, mut mid): (usize, usize, usize, Vec<T>) = a
+        .par_iter()
+        .fold_chunks(
+            chunk_size,
+            || (0, 0, 0, Vec::new()),
+            |(lt, eq_lo, eq_hi, mut mid), &x| {
+                if x < lower {
+                    (lt + 1, eq_lo, eq_hi, mid)
+                } else if x == lower {
+                    (lt, eq_lo + 1, eq_hi, mid)
+                } else if x < upper {
+                    mid.push(x);
+                    (lt, eq_lo, eq_hi, mid)
+                } else if x == upper {
+                    (lt, eq_lo, eq_hi + 1, mid)
+                } else {
+                    (lt, eq_lo, eq_hi, mid)
+                }
+            },
+        )
+        .reduce(
+            || (0, 0, 0, Vec::new()),
+            |(l1, el1, eh1, mut m1), (l2, el2, eh2, m2)| {
+                m1.extend(m2);
+                (l1 + l2, el1 + el2, eh1 + eh2, m1)
+            },
+        );
+
+    // return element, if found
+    if lt <= k && k < lt + eq_lo {
+        Some(lower)
+    } else if lt + eq_lo <= k && k < lt + eq_lo + mid.len() {
+        let idx = k - lt - eq_lo;
+        Some(*mid.select_nth_unstable(idx).1)
+    } else if lt + eq_lo + mid.len() <= k && k < lt + eq_lo + mid.len() + eq_hi {
+        Some(upper)
+    } else {
+        None
     }
 }
 
@@ -750,6 +915,44 @@ pub trait ParallelSliceMut<T: Send> {
         F: Fn(&T, &T) -> bool + Send + Sync,
     {
         ChunkByMut::new(self.as_parallel_slice_mut(), pred)
+    }
+
+    /// Selects the median element from the slice in place.
+    ///
+    /// Returns `None` if the slice is empty.
+    fn par_median_mut(&mut self) -> Option<T>
+    where
+        T: Ord + Send + Sync + Copy,
+    {
+        let len = self.as_parallel_slice_mut().len();
+        self.par_k_smallest_mut(len / 2)
+    }
+
+    /// Selects the k-th smallest element from the slice in parallel, in place.
+    ///
+    /// Returns `None` if k is greater than or equal to the length of the slice.
+    fn par_k_smallest_mut(&mut self, k: usize) -> Option<T>
+    where
+        T: Ord + Send + Sync + Copy,
+    {
+        if k >= self.as_parallel_slice_mut().len() {
+            return None;
+        }
+        Some(par_select_internal_mut(self.as_parallel_slice_mut(), k))
+    }
+
+    /// Selects the k-th largest element from the slice in parallel, in place.
+    ///
+    /// Returns `None` if k is greater than or equal to the length of the slice.
+    fn par_k_largest_mut(&mut self, k: usize) -> Option<T>
+    where
+        T: Ord + Send + Sync + Copy,
+    {
+        let len = self.as_parallel_slice_mut().len();
+        if k >= len {
+            return None;
+        }
+        self.par_k_smallest_mut(len - 1 - k)
     }
 }
 
