@@ -394,6 +394,12 @@ impl ThreadPool {
         let curr = self.registry.current_thread()?;
         Some(curr.yield_local())
     }
+
+    /// Returns the registry for this thread pool. Only available for tests.
+    #[cfg(test)]
+    pub(crate) fn registry(&self) -> &Arc<Registry> {
+        &self.registry
+    }
 }
 
 impl Drop for ThreadPool {

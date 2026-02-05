@@ -66,6 +66,9 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::thread;
 
+#[macro_use]
+mod instrumentation;
+
 mod broadcast;
 mod job;
 mod join;

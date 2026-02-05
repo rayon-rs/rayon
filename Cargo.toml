@@ -22,6 +22,7 @@ workspace = true
 #
 # Only useful on the `wasm32-unknown-unknown` target.
 web_spin_lock = ["dep:wasm_sync", "rayon-core/web_spin_lock"]
+tracing = ["rayon-core/tracing"]
 
 [dependencies]
 # These are both public dependencies!
