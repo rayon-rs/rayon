@@ -437,6 +437,12 @@ impl Registry {
             "inject() sees state.terminate as true"
         );
 
+        trace_event!(
+            tracing::Level::DEBUG,
+            pool_id = self.id().addr,
+            "rayon::job_injected"
+        );
+
         let queue_was_empty = self.injected_jobs.is_empty();
 
         self.injected_jobs.push(injected_job);
@@ -826,6 +832,13 @@ impl WorkerThread {
         // Should not be any work left in our queue.
         debug_assert!(self.take_local_job().is_none());
 
+        trace_event!(
+            tracing::Level::DEBUG,
+            worker = index,
+            pool_id = registry.id().addr,
+            "rayon::thread_exit"
+        );
+
         // Let registry know we are done
         Latch::set(&registry.thread_infos[index].stopped);
     }
@@ -863,6 +876,11 @@ impl WorkerThread {
 
     #[inline]
     pub(super) unsafe fn execute(&self, job: JobRef) {
+        let _span = trace_span!(
+            tracing::Level::DEBUG,
+            "rayon::job_execute",
+            worker = self.index,
+        );
         job.execute();
     }
 
@@ -890,7 +908,15 @@ impl WorkerThread {
                 .find_map(|victim_index| {
                     let victim = &thread_infos[victim_index];
                     match victim.stealer.steal() {
-                        Steal::Success(job) => Some(job),
+                        Steal::Success(job) => {
+                            trace_event!(
+                                tracing::Level::DEBUG,
+                                worker = self.index,
+                                victim = victim_index,
+                                "rayon::job_stolen"
+                            );
+                            Some(job)
+                        }
                         Steal::Empty => None,
                         Steal::Retry => {
                             retry = true;
@@ -925,6 +951,13 @@ unsafe fn main_loop(thread: ThreadBuilder) {
     if let Some(ref handler) = registry.start_handler {
         registry.catch_unwind(|| handler(index));
     }
+
+    trace_event!(
+        tracing::Level::DEBUG,
+        worker = index,
+        pool_id = registry.id().addr,
+        "rayon::thread_start"
+    );
 
     worker_thread.wait_until_out_of_work();
 

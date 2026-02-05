@@ -70,6 +70,8 @@ use std::thread;
 
 #[macro_use]
 mod private;
+#[macro_use]
+mod instrumentation;
 
 mod broadcast;
 mod job;
