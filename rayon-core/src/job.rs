@@ -1,3 +1,4 @@
+use crate::instrumentation::JobContext;
 use crate::latch::Latch;
 use crate::unwind;
 use crossbeam_deque::{Injector, Steal};
@@ -24,14 +25,14 @@ pub(super) trait Job {
     unsafe fn execute(this: *const ());
 }
 
-/// Effectively a Job trait object. Each JobRef **must** be executed
-/// exactly once, or else data may leak.
+/// Effectively a decorated Job trait object. Each JobRef **must** be executed exactly once, or else
+/// data may leak.
 ///
-/// Internally, we store the job's data in a `*const ()` pointer.  The
-/// true type is something like `*const StackJob<...>`, but we hide
-/// it. We also carry the "execute fn" from the `Job` trait.
+/// Internally, we store the job's data in a `*const ()` pointer.  The true type is something like
+/// `*const StackJob<...>`, but we hide it. We also carry the "execute fn" from the `Job` trait.
 pub(super) struct JobRef {
     pointer: *const (),
+    context: JobContext,
     execute_fn: unsafe fn(*const ()),
 }
 
@@ -48,6 +49,7 @@ impl JobRef {
         // erase types:
         JobRef {
             pointer: data as *const (),
+            context: JobContext::current(),
             execute_fn: <T as Job>::execute,
         }
     }
@@ -57,6 +59,11 @@ impl JobRef {
     #[inline]
     pub(super) fn id(&self) -> impl Eq {
         (self.pointer, self.execute_fn)
+    }
+
+    #[inline]
+    pub(super) fn context(&self) -> &JobContext {
+        &self.context
     }
 
     #[inline]
