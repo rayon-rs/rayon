@@ -397,6 +397,7 @@ impl ThreadPool {
 
     /// Returns the registry for this thread pool. Only available for tests.
     #[cfg(test)]
+    #[cfg_attr(not(feature = "tracing"), allow(dead_code))]
     pub(crate) fn registry(&self) -> &Arc<Registry> {
         &self.registry
     }

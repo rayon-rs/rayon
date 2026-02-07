@@ -9,36 +9,73 @@
 //!
 //! All instrumentation compiles to no-ops when the feature is disabled.
 
-/// Emits a tracing event when the `tracing` feature is enabled.
-/// Compiles to nothing when disabled.
 #[cfg(feature = "tracing")]
-macro_rules! trace_event {
-    ($($arg:tt)*) => {
-        tracing::event!($($arg)*)
-    };
+#[macro_use]
+mod inner {
+    /// Emits a tracing event when the `tracing` feature is enabled.
+    /// Compiles to nothing when disabled.
+    macro_rules! trace_event {
+        ($($arg:tt)*) => {
+            tracing::event!($($arg)*)
+        };
+    }
+
+    /// Creates and enters a tracing span when the `tracing` feature is enabled.
+    /// Returns an `EnteredSpan` that will exit when dropped.
+    /// Compiles to nothing when disabled.
+    macro_rules! trace_span {
+        ($($arg:tt)*) => {
+            tracing::span!($($arg)*).entered()
+        };
+    }
+
+    /// Captured context for a job, used to propagate span context across threads.
+    #[derive(Clone)]
+    pub(crate) struct JobContext {
+        span: tracing::Span,
+    }
+
+    impl JobContext {
+        /// Captures the current span context.
+        pub(crate) fn current() -> Self {
+            Self {
+                span: tracing::Span::current(),
+            }
+        }
+
+        /// Returns a reference to the captured span.
+        pub(crate) fn span(&self) -> &tracing::Span {
+            &self.span
+        }
+    }
 }
 
 #[cfg(not(feature = "tracing"))]
-macro_rules! trace_event {
-    ($($arg:tt)*) => {};
+#[macro_use]
+mod inner {
+    macro_rules! trace_event {
+        ($($arg:tt)*) => {};
+    }
+
+    macro_rules! trace_span {
+        ($($arg:tt)*) => {
+            ()
+        };
+    }
+
+    /// Captured context for a job (no-op when tracing is disabled).
+    #[derive(Clone)]
+    pub(crate) struct JobContext;
+
+    impl JobContext {
+        /// Captures the current span context (no-op).
+        pub(crate) fn current() -> Self {
+            Self
+        }
+    }
 }
 
-/// Creates and enters a tracing span when the `tracing` feature is enabled.
-/// Returns an `EnteredSpan` that will exit when dropped.
-/// Compiles to nothing when disabled.
-#[cfg(feature = "tracing")]
-macro_rules! trace_span {
-    ($($arg:tt)*) => {
-        tracing::span!($($arg)*).entered()
-    };
-}
-
-#[cfg(not(feature = "tracing"))]
-macro_rules! trace_span {
-    ($($arg:tt)*) => {
-        ()
-    };
-}
+pub(crate) use inner::*;
 
 #[cfg(all(test, feature = "tracing"))]
 mod tests {
