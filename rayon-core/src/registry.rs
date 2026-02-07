@@ -440,6 +440,7 @@ impl Registry {
         trace_event!(
             tracing::Level::DEBUG,
             pool_id = self.id().addr,
+            job_id = injected_job.context().id(),
             "rayon::job_injected"
         );
 
@@ -881,6 +882,7 @@ impl WorkerThread {
             tracing::Level::DEBUG,
             "rayon::job_execute",
             worker = self.index,
+            job_id = job.context().id(),
         );
         job.execute();
     }
@@ -914,6 +916,7 @@ impl WorkerThread {
                                 tracing::Level::DEBUG,
                                 worker = self.index,
                                 victim = victim_index,
+                                job_id = job.context().id(),
                                 "rayon::job_stolen"
                             );
                             Some(job)
