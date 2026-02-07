@@ -29,23 +29,34 @@ mod inner {
         };
     }
 
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(0);
+
     /// Captured context for a job, used to propagate span context across threads.
     #[derive(Clone)]
     pub(crate) struct JobContext {
         span: tracing::Span,
+        id: u64,
     }
 
     impl JobContext {
-        /// Captures the current span context.
+        /// Captures the current span context and assigns a unique job ID.
         pub(crate) fn current() -> Self {
             Self {
                 span: tracing::Span::current(),
+                id: NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed),
             }
         }
 
         /// Returns a reference to the captured span.
         pub(crate) fn span(&self) -> &tracing::Span {
             &self.span
+        }
+
+        /// Returns the unique job ID.
+        pub(crate) fn id(&self) -> u64 {
+            self.id
         }
     }
 }
@@ -71,6 +82,11 @@ mod inner {
         /// Captures the current span context (no-op).
         pub(crate) fn current() -> Self {
             Self
+        }
+
+        /// Returns a placeholder job ID (no-op).
+        pub(crate) fn id(&self) -> u64 {
+            0
         }
     }
 }
