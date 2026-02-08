@@ -112,8 +112,7 @@ mod tests {
 
     /// Counters for tracking events and spans.
     struct Counters {
-        thread_start: AtomicUsize,
-        thread_exit: AtomicUsize,
+        worker_thread_spans: AtomicUsize,
         thread_idle: AtomicUsize,
         thread_active: AtomicUsize,
         job_stolen: AtomicUsize,
@@ -124,8 +123,7 @@ mod tests {
     impl Counters {
         fn new() -> Arc<Self> {
             Arc::new(Self {
-                thread_start: AtomicUsize::new(0),
-                thread_exit: AtomicUsize::new(0),
+                worker_thread_spans: AtomicUsize::new(0),
                 thread_idle: AtomicUsize::new(0),
                 thread_active: AtomicUsize::new(0),
                 job_stolen: AtomicUsize::new(0),
@@ -156,11 +154,7 @@ mod tests {
                 ) {
                     if field.name() == "message" {
                         let msg = format!("{:?}", value);
-                        if msg.contains("thread_start") {
-                            self.0.thread_start.fetch_add(1, Ordering::Relaxed);
-                        } else if msg.contains("thread_exit") {
-                            self.0.thread_exit.fetch_add(1, Ordering::Relaxed);
-                        } else if msg.contains("thread_idle") {
+                        if msg.contains("thread_idle") {
                             self.0.thread_idle.fetch_add(1, Ordering::Relaxed);
                         } else if msg.contains("thread_active") {
                             self.0.thread_active.fetch_add(1, Ordering::Relaxed);
@@ -175,7 +169,10 @@ mod tests {
         }
 
         fn on_new_span(&self, attrs: &Attributes<'_>, _id: &Id, _ctx: Context<'_, S>) {
-            if attrs.metadata().name().contains("job_execute") {
+            let name = attrs.metadata().name();
+            if name.contains("worker_thread") {
+                self.0.worker_thread_spans.fetch_add(1, Ordering::Relaxed);
+            } else if name.contains("job_execute") {
                 self.0.job_execute_spans.fetch_add(1, Ordering::Relaxed);
             }
         }
@@ -209,24 +206,22 @@ mod tests {
 
         drop(pool);
 
-        // Wait for all threads to stop. Since thread_exit events are emitted
-        // before the stopped latch is set, this guarantees all events are captured.
+        // Wait for all threads to stop.
         registry.wait_until_stopped();
 
-        // Verify thread lifecycle events
-        let starts = counters.thread_start.load(Ordering::Relaxed);
-        let exits = counters.thread_exit.load(Ordering::Relaxed);
+        // Verify worker thread spans
+        let worker_spans = counters.worker_thread_spans.load(Ordering::Relaxed);
         assert!(
-            starts >= 2,
-            "Expected at least 2 thread_start events, got {starts}",
-        );
-        assert!(
-            exits >= 2,
-            "Expected at least 2 thread_exit events, got {exits}",
+            worker_spans >= 2,
+            "Expected at least 2 worker_thread spans, got {worker_spans}",
         );
 
         // Verify job execution spans
-        let spans = counters.job_execute_spans.load(Ordering::Relaxed);
-        assert!(spans > 0, "Expected some job_execute spans, got {}", spans);
+        let job_spans = counters.job_execute_spans.load(Ordering::Relaxed);
+        assert!(
+            job_spans > 0,
+            "Expected some job_execute spans, got {}",
+            job_spans
+        );
     }
 }

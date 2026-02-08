@@ -69,11 +69,7 @@ impl Sleep {
     pub(super) fn start_looking(&self, worker_index: usize) -> IdleState {
         self.counters.add_inactive_thread();
 
-        trace_event!(
-            tracing::Level::DEBUG,
-            worker = worker_index,
-            "rayon::thread_idle"
-        );
+        trace_event!(tracing::Level::DEBUG, "rayon::thread_idle");
 
         IdleState {
             worker_index,

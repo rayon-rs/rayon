@@ -833,13 +833,6 @@ impl WorkerThread {
         // Should not be any work left in our queue.
         debug_assert!(self.take_local_job().is_none());
 
-        trace_event!(
-            tracing::Level::DEBUG,
-            worker = index,
-            pool_id = registry.id().addr,
-            "rayon::thread_exit"
-        );
-
         // Let registry know we are done
         Latch::set(&registry.thread_infos[index].stopped);
     }
@@ -956,11 +949,11 @@ unsafe fn main_loop(thread: ThreadBuilder) {
         registry.catch_unwind(|| handler(index));
     }
 
-    trace_event!(
+    let _span = trace_span!(
         tracing::Level::DEBUG,
+        "rayon::worker_thread",
         worker = index,
         pool_id = registry.id().addr,
-        "rayon::thread_start"
     );
 
     worker_thread.wait_until_out_of_work();
