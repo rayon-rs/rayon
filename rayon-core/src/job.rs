@@ -68,6 +68,15 @@ impl JobRef {
 
     #[inline]
     pub(super) unsafe fn execute(self) {
+        let _context_guard = self.context.enter();
+        // We don't use `parent: ...` to track the parent span, because
+        // if the logging level is above DEBUG, the following span won't
+        // be registered, and context will not be preserved correctly.
+        let _span = trace_span!(
+            tracing::Level::DEBUG,
+            "rayon::job_execute",
+            job_id = self.context.id(),
+        );
         (self.execute_fn)(self.pointer)
     }
 }

@@ -33,6 +33,9 @@ mod inner {
 
     static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(0);
 
+    /// Guard returned by entering a job context.
+    pub(crate) type ContextGuard<'a> = tracing::span::Entered<'a>;
+
     /// Captured context for a job, used to propagate span context across threads.
     #[derive(Clone)]
     pub(crate) struct JobContext {
@@ -49,14 +52,14 @@ mod inner {
             }
         }
 
-        /// Returns a reference to the captured span.
-        pub(crate) fn span(&self) -> &tracing::Span {
-            &self.span
-        }
-
         /// Returns the unique job ID.
         pub(crate) fn id(&self) -> u64 {
             self.id
+        }
+
+        /// Enters the captured span context.
+        pub(crate) fn enter(&self) -> ContextGuard<'_> {
+            self.span.enter()
         }
     }
 }
@@ -74,6 +77,9 @@ mod inner {
         };
     }
 
+    /// Guard returned by entering a job context (no-op).
+    pub(crate) struct ContextGuard;
+
     /// Captured context for a job (no-op when tracing is disabled).
     #[derive(Clone)]
     pub(crate) struct JobContext;
@@ -87,6 +93,11 @@ mod inner {
         /// Returns a placeholder job ID (no-op).
         pub(crate) fn id(&self) -> u64 {
             0
+        }
+
+        /// No-op context entry.
+        pub(crate) fn enter(&self) -> ContextGuard {
+            ContextGuard
         }
     }
 }
