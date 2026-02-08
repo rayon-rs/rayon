@@ -837,13 +837,6 @@ impl WorkerThread {
             // Let registry know we are done
             Latch::set(&registry.thread_infos[index].stopped);
         }
-
-        trace_event!(
-            tracing::Level::DEBUG,
-            worker = index,
-            pool_id = registry.id().addr,
-            "rayon::thread_exit"
-        );
     }
 
     fn find_work(&self) -> Option<JobRef> {
@@ -960,11 +953,11 @@ unsafe fn main_loop(thread: ThreadBuilder) {
             registry.catch_unwind(|| handler(index));
         }
 
-        trace_event!(
+        let _span = trace_span!(
             tracing::Level::DEBUG,
+            "rayon::worker_thread",
             worker = index,
             pool_id = registry.id().addr,
-            "rayon::thread_start"
         );
 
         worker_thread.wait_until_out_of_work();
