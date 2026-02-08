@@ -872,13 +872,6 @@ impl WorkerThread {
 
     #[inline]
     pub(super) unsafe fn execute(&self, job: JobRef) {
-        let _span = trace_span!(
-            parent: job.context().span(),
-            tracing::Level::DEBUG,
-            "rayon::job_execute",
-            worker = self.index,
-            job_id = job.context().id(),
-        );
         unsafe { job.execute() };
     }
 
