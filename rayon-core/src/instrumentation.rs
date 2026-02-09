@@ -5,21 +5,21 @@
 //!
 //! # Spans
 //!
-//! - `rayon::worker_thread` (DEBUG) - Wraps the entire lifetime of a worker thread.
-//!   Fields: `worker` (thread index).
+//! - `rayon::worker_thread` (INFO) - Wraps the entire lifetime of a worker thread.
+//!   Fields: `worker` (thread index), `pool_id`.
 //!
-//! - `rayon::job_execute` (DEBUG) - Wraps the execution of a job.
+//! - `rayon::job_execute` (INFO) - Wraps the execution of a job.
 //!   Fields: `job_id`, `worker` (executing thread index).
 //!   Parent: The span that was active when the job was created (enables cross-thread
 //!   context propagation).
 //!
 //! # Events
 //!
-//! - `thread_idle` (TRACE) - Emitted when a worker thread goes idle.
-//! - `thread_active` (TRACE) - Emitted when a worker thread wakes up.
-//! - `job_injected` (TRACE) - Emitted when a job is injected into the global queue.
-//!   Fields: `job_id`.
-//! - `job_stolen` (TRACE) - Emitted when a job is stolen from another thread.
+//! - `rayon::thread_idle` (DEBUG) - Emitted when a worker thread goes idle.
+//! - `rayon::thread_active` (DEBUG) - Emitted when a worker thread wakes up.
+//! - `rayon::job_injected` (DEBUG) - Emitted when a job is injected into the global queue.
+//!   Fields: `job_id`, `pool_id`.
+//! - `rayon::job_stolen` (DEBUG) - Emitted when a job is stolen from another thread.
 //!   Fields: `job_id`, `victim` (thread stolen from).
 //!
 //! # Context Propagation

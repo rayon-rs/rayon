@@ -942,7 +942,7 @@ unsafe fn main_loop(thread: ThreadBuilder) {
     }
 
     let _span = trace_span!(
-        tracing::Level::DEBUG,
+        tracing::Level::INFO,
         "rayon::worker_thread",
         worker = index,
         pool_id = registry.id().addr,
