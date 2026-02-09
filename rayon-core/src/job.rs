@@ -62,6 +62,7 @@ impl JobRef {
     }
 
     #[inline]
+    #[cfg_attr(not(feature = "tracing"), allow(dead_code))]
     pub(super) fn context(&self) -> &JobContext {
         &self.context
     }
