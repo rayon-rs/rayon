@@ -25,11 +25,18 @@ pub(super) trait Job {
     unsafe fn execute(this: *const ());
 }
 
-/// Effectively a decorated Job trait object. Each JobRef **must** be executed exactly once, or else
-/// data may leak.
+/// Effectively a decorated Job trait object. Each JobRef **must** be
+/// executed exactly once, or else data may leak.
 ///
-/// Internally, we store the job's data in a `*const ()` pointer.  The true type is something like
-/// `*const StackJob<...>`, but we hide it. We also carry the "execute fn" from the `Job` trait.
+/// Internally, we store the job's data in a `*const ()` pointer.  The
+/// true type is something like `*const StackJob<...>`, but we hide
+/// it. We also carry the "execute fn" from the `Job` trait.
+///
+/// When the `tracing` feature is enabled, JobRef also captures the
+/// current span context at creation time. This context is restored
+/// when the job executes, enabling proper parent-child span
+/// relationships even when jobs are stolen and executed by different
+/// worker threads.
 pub(super) struct JobRef {
     pointer: *const (),
     context: JobContext,
@@ -70,9 +77,10 @@ impl JobRef {
     #[inline]
     pub(super) unsafe fn execute(self) {
         let _context_guard = self.context.enter();
-        // We don't use `parent: ...` to track the parent span, because
-        // if the logging level is above DEBUG, the following span won't
-        // be registered, and context will not be preserved correctly.
+        // We use `enter()` to set the parent context rather than
+        // `parent: ...` because `parent:` only works if the span is
+        // recorded. If the span is filtered out (e.g., max level set
+        // to WARN), context would be lost.
         let _span = trace_span!(
             tracing::Level::DEBUG,
             "rayon::job_execute",
