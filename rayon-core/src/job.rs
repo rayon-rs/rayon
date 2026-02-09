@@ -77,6 +77,16 @@ impl JobRef {
             tracing::Level::DEBUG,
             "rayon::job_execute",
             job_id = self.context.id(),
+            worker = {
+                // We find the worker id in the macro to prevent
+                // overhead when the `tracing` feature is disabled.
+                let worker = crate::registry::WorkerThread::current();
+                if worker.is_null() {
+                    0
+                } else {
+                    (*worker).index()
+                }
+            }
         );
         (self.execute_fn)(self.pointer)
     }
