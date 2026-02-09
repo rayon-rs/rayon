@@ -90,7 +90,12 @@ mod inner {
             Self
         }
 
-        /// Returns a placeholder job ID (no-op).
+        /// Returns a placeholder job ID.
+        ///
+        /// This method exists for API compatibility with the tracing-enabled
+        /// version. The value is never used because trace macros expand to
+        /// nothing when the feature is disabled.
+        #[allow(dead_code)]
         pub(crate) fn id(&self) -> u64 {
             0
         }
