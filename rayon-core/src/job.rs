@@ -82,7 +82,7 @@ impl JobRef {
         // recorded. If the span is filtered out (e.g., max level set
         // to WARN), context would be lost.
         let _span = trace_span!(
-            tracing::Level::DEBUG,
+            tracing::Level::INFO,
             "rayon::job_execute",
             job_id = self.context.id(),
             worker = {
