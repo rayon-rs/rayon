@@ -900,7 +900,6 @@ impl WorkerThread {
                         Steal::Success(job) => {
                             trace_event!(
                                 tracing::Level::DEBUG,
-                                worker = self.index,
                                 victim = victim_index,
                                 job_id = job.context().id(),
                                 "rayon::job_stolen"
