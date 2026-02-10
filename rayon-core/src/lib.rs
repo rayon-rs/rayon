@@ -53,6 +53,34 @@
 //! restrictive tilde or inequality requirements for `rayon-core`.  The
 //! conflicting requirements will need to be resolved before the build will
 //! succeed.
+//!
+//! # Tracing
+//!
+//! Rayon supports the [`tracing`](https://docs.rs/tracing) crate for instrumentation,
+//! enabled via the `tracing` Cargo feature. This provides visibility into the runtime
+//! behavior of the thread pool.
+//!
+//! ## Spans (INFO level)
+//!
+//! - `rayon::worker_thread` - Wraps the lifetime of each worker thread.
+//!   Fields: `worker` (thread index), `pool_id`.
+//!
+//! - `rayon::job_execute` - Wraps each job execution.
+//!   Fields: `job_id`, `worker`.
+//!   Parent: The span active when the job was created (enables cross-thread context propagation).
+//!
+//! ## Events (DEBUG level)
+//!
+//! - `rayon::thread_idle` - Worker thread going idle.
+//! - `rayon::thread_active` - Worker thread waking up.
+//! - `rayon::job_injected` - Job injected into global queue. Fields: `job_id`, `pool_id`.
+//! - `rayon::job_stolen` - Job stolen from another thread. Fields: `job_id`, `victim`.
+//!
+//! ## Context Propagation
+//!
+//! Jobs automatically capture the current span context when created. When executed
+//! (potentially on a different thread), they restore this context, so `job_execute`
+//! spans appear as children of the span that spawned the work.
 
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
