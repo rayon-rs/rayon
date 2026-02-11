@@ -24,12 +24,19 @@ web_spin_lock = ["dep:wasm_sync"]
 [dependencies]
 crossbeam-deque.workspace = true
 crossbeam-utils.workspace = true
+tracing = { version = "0.1", default-features = false, features = [
+    "std",
+], optional = true }
 wasm_sync = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand.workspace = true
 rand_xorshift.workspace = true
 scoped-tls.workspace = true
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "std",
+    "registry",
+] }
 
 [target.'cfg(unix)'.dev-dependencies]
 libc.workspace = true
