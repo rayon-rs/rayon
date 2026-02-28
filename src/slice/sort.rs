@@ -259,51 +259,7 @@ where
     false
 }
 
-/// Sorts `v` using heapsort, which guarantees *O*(*n* \* log(*n*)) worst-case.
-#[cold]
-fn heapsort<T, F>(v: &mut [T], is_less: F)
-where
-    F: Fn(&T, &T) -> bool,
-{
-    // This binary heap respects the invariant `parent >= child`.
-    let sift_down = |v: &mut [T], mut node| {
-        loop {
-            // Children of `node`.
-            let mut child = 2 * node + 1;
-            if child >= v.len() {
-                break;
-            }
 
-            // Choose the greater child.
-            if child + 1 < v.len() {
-                // We need a branch to be sure not to out-of-bounds index,
-                // but it's highly predictable.  The comparison, however,
-                // is better done branchless, especially for primitives.
-                child += is_less(&v[child], &v[child + 1]) as usize;
-            }
-
-            // Stop if the invariant holds at `node`.
-            if !is_less(&v[node], &v[child]) {
-                break;
-            }
-
-            // Swap `node` with the greater child, move one step down, and continue sifting.
-            v.swap(node, child);
-            node = child;
-        }
-    };
-
-    // Build the heap in linear time.
-    for i in (0..v.len() / 2).rev() {
-        sift_down(v, i);
-    }
-
-    // Pop maximal elements from the heap.
-    for i in (1..v.len()).rev() {
-        v.swap(0, i);
-        sift_down(&mut v[..i], 0);
-    }
-}
 
 /// Partitions `v` into elements smaller than `pivot`, followed by elements greater than or equal
 /// to `pivot`.
@@ -824,16 +780,13 @@ where
 ///
 /// If the slice had a predecessor in the original array, it is specified as `pred`.
 ///
-/// `limit` is the number of allowed imbalanced partitions before switching to `heapsort`. If zero,
-/// this function will immediately switch to heapsort.
-fn recurse<'a, T, F>(mut v: &'a mut [T], is_less: &F, mut pred: Option<&'a mut T>, mut limit: u32)
+/// `limit` is the number of allowed imbalanced partitions before switching to `sort_unstable_by`. If zero,
+/// this function will immediately switch to `sort_unstable_by`.
+fn recurse<'a, T, F>(mut v: &'a mut [T], is_less: &F, pred: Option<&'a mut T>, mut limit: u32)
 where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,
 {
-    // Slices of up to this length get sorted using insertion sort.
-    const MAX_INSERTION: usize = 20;
-
     // If both partitions are up to this length, we continue sequentially. This number is as small
     // as possible but so that the overhead of Rayon's task scheduling is still negligible.
     const MAX_SEQUENTIAL: usize = 2000;
@@ -841,23 +794,21 @@ where
     // True if the last partitioning was reasonably balanced.
     let mut was_balanced = true;
     // True if the last partitioning didn't shuffle elements (the slice was already partitioned).
-    let mut was_partitioned = true;
+    let was_partitioned = true;
 
     loop {
         let len = v.len();
 
-        // Very short slices get sorted using insertion sort.
-        if len <= MAX_INSERTION {
-            if len >= 2 {
-                insertion_sort_shift_left(v, 1, is_less);
-            }
+        // Very short slices get sorted using the standard library.
+        if len <= MAX_SEQUENTIAL {
+            v.sort_unstable_by(|a, b| if is_less(a, b) { cmp::Ordering::Less } else if is_less(b, a) { cmp::Ordering::Greater } else { cmp::Ordering::Equal });
             return;
         }
 
-        // If too many bad pivot choices were made, simply fall back to heapsort in order to
+        // If too many bad pivot choices were made, simply fall back to the standard library sort in order to
         // guarantee `O(n * log(n))` worst-case.
         if limit == 0 {
-            heapsort(v, is_less);
+            v.sort_unstable_by(|a, b| if is_less(a, b) { cmp::Ordering::Less } else if is_less(b, a) { cmp::Ordering::Greater } else { cmp::Ordering::Equal });
             return;
         }
 
@@ -895,35 +846,20 @@ where
         }
 
         // Partition the slice.
-        let (mid, was_p) = partition(v, pivot, is_less);
-        was_balanced = cmp::min(mid, len - mid) >= len / 8;
-        was_partitioned = was_p;
+        let (mid, _) = partition(v, pivot, is_less);
 
         // Split the slice into `left`, `pivot`, and `right`.
         let (left, right) = v.split_at_mut(mid);
         let (pivot, right) = right.split_at_mut(1);
         let pivot = &mut pivot[0];
 
-        if Ord::max(left.len(), right.len()) <= MAX_SEQUENTIAL {
-            // Recurse into the shorter side only in order to minimize the total number of recursive
-            // calls and consume less stack space. Then just continue with the longer side (this is
-            // akin to tail recursion).
-            if left.len() < right.len() {
-                recurse(left, is_less, pred, limit);
-                v = right;
-                pred = Some(pivot);
-            } else {
-                recurse(right, is_less, Some(pivot), limit);
-                v = left;
-            }
-        } else {
-            // Sort the left and right half in parallel.
-            rayon_core::join(
-                || recurse(left, is_less, pred, limit),
-                || recurse(right, is_less, Some(pivot), limit),
-            );
-            break;
-        }
+        // We already checked that `len > MAX_SEQUENTIAL` at the start of the loop,
+        // so we must do the branch to sort left and right half in parallel.
+        rayon_core::join(
+            || recurse(left, is_less, pred, limit),
+            || recurse(right, is_less, Some(pivot), limit),
+        );
+        break;
     }
 }
 
@@ -1609,44 +1545,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::heapsort;
+    use super::{par_mergesort, par_quicksort};
     use super::split_for_merge;
     use rand::distr::Uniform;
     use rand::{rng, Rng};
 
-    #[test]
-    fn test_heapsort() {
-        let rng = &mut rng();
-
-        for len in (0..25).chain(500..501) {
-            for &modulus in &[5, 10, 100] {
-                let dist = Uniform::new(0, modulus).unwrap();
-                for _ in 0..100 {
-                    let v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
-
-                    // Test heapsort using `<` operator.
-                    let mut tmp = v.clone();
-                    heapsort(&mut tmp, |a, b| a < b);
-                    assert!(tmp.windows(2).all(|w| w[0] <= w[1]));
-
-                    // Test heapsort using `>` operator.
-                    let mut tmp = v.clone();
-                    heapsort(&mut tmp, |a, b| a > b);
-                    assert!(tmp.windows(2).all(|w| w[0] >= w[1]));
-                }
-            }
-        }
-
-        // Sort using a completely random comparison function.
-        // This will reorder the elements *somehow*, but won't panic.
-        let mut v: Vec<_> = (0..100).collect();
-        heapsort(&mut v, |_, _| rand::rng().random());
-        heapsort(&mut v, |a, b| a < b);
-
-        for (i, &entry) in v.iter().enumerate() {
-            assert_eq!(entry, i);
-        }
-    }
 
     #[test]
     fn test_split_for_merge() {
