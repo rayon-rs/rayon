@@ -619,7 +619,7 @@ pub trait ParallelSliceMut<T: Send> {
     where
         T: Ord,
     {
-        par_quicksort(self.as_parallel_slice_mut(), T::lt);
+        par_quicksort(self.as_parallel_slice_mut(), T::cmp);
     }
 
     /// Sorts the slice in parallel with a comparator function, but might not preserve the order of
@@ -680,9 +680,7 @@ pub trait ParallelSliceMut<T: Send> {
     where
         F: Fn(&T, &T) -> Ordering + Sync,
     {
-        par_quicksort(self.as_parallel_slice_mut(), |a, b| {
-            compare(a, b) == Ordering::Less
-        });
+        par_quicksort(self.as_parallel_slice_mut(), compare);
     }
 
     /// Sorts the slice in parallel with a key extraction function, but might not preserve the order
@@ -725,7 +723,7 @@ pub trait ParallelSliceMut<T: Send> {
         K: Ord,
         F: Fn(&T) -> K + Sync,
     {
-        par_quicksort(self.as_parallel_slice_mut(), |a, b| f(a).lt(&f(b)));
+        par_quicksort(self.as_parallel_slice_mut(), |a, b| f(a).cmp(&f(b)));
     }
 
     /// Returns a parallel iterator over the slice producing non-overlapping mutable

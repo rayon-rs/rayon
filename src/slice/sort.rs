@@ -782,33 +782,36 @@ where
 ///
 /// `limit` is the number of allowed imbalanced partitions before switching to `sort_unstable_by`. If zero,
 /// this function will immediately switch to `sort_unstable_by`.
-fn recurse<'a, T, F>(mut v: &'a mut [T], is_less: &F, pred: Option<&'a mut T>, mut limit: u32)
+fn recurse<'a, T, F>(mut v: &'a mut [T], compare: &F, pred: Option<&'a mut T>, mut limit: u32)
 where
     T: Send,
-    F: Fn(&T, &T) -> bool + Sync,
+    F: Fn(&T, &T) -> cmp::Ordering + Sync,
 {
+
     // If both partitions are up to this length, we continue sequentially. This number is as small
     // as possible but so that the overhead of Rayon's task scheduling is still negligible.
     const MAX_SEQUENTIAL: usize = 2000;
 
     // True if the last partitioning was reasonably balanced.
-    let mut was_balanced = true;
+    let was_balanced = true;
     // True if the last partitioning didn't shuffle elements (the slice was already partitioned).
     let was_partitioned = true;
+
+    let is_less = |a: &_, b: &_| compare(a, b) == cmp::Ordering::Less;
 
     loop {
         let len = v.len();
 
         // Very short slices get sorted using the standard library.
         if len <= MAX_SEQUENTIAL {
-            v.sort_unstable_by(|a, b| if is_less(a, b) { cmp::Ordering::Less } else if is_less(b, a) { cmp::Ordering::Greater } else { cmp::Ordering::Equal });
+            v.sort_unstable_by(compare);
             return;
         }
 
         // If too many bad pivot choices were made, simply fall back to the standard library sort in order to
         // guarantee `O(n * log(n))` worst-case.
         if limit == 0 {
-            v.sort_unstable_by(|a, b| if is_less(a, b) { cmp::Ordering::Less } else if is_less(b, a) { cmp::Ordering::Greater } else { cmp::Ordering::Equal });
+            v.sort_unstable_by(compare);
             return;
         }
 
@@ -820,14 +823,14 @@ where
         }
 
         // Choose a pivot and try guessing whether the slice is already sorted.
-        let (pivot, likely_sorted) = choose_pivot(v, is_less);
+        let (pivot, likely_sorted) = choose_pivot(v, &is_less);
 
         // If the last partitioning was decently balanced and didn't shuffle elements, and if pivot
         // selection predicts the slice is likely already sorted...
         if was_balanced && was_partitioned && likely_sorted {
             // Try identifying several out-of-order elements and shifting them to correct
             // positions. If the slice ends up being completely sorted, we're done.
-            if partial_insertion_sort(v, is_less) {
+            if partial_insertion_sort(v, &is_less) {
                 return;
             }
         }
@@ -836,8 +839,8 @@ where
         // slice. Partition the slice into elements equal to and elements greater than the pivot.
         // This case is usually hit when the slice contains many duplicate elements.
         if let Some(&mut ref p) = pred {
-            if !is_less(p, &v[pivot]) {
-                let mid = partition_equal(v, pivot, is_less);
+            if compare(p, &v[pivot]) != cmp::Ordering::Less {
+                let mid = partition_equal(v, pivot, &is_less);
 
                 // Continue sorting elements greater than the pivot.
                 v = &mut v[mid..];
@@ -846,7 +849,7 @@ where
         }
 
         // Partition the slice.
-        let (mid, _) = partition(v, pivot, is_less);
+        let (mid, _) = partition(v, pivot, &is_less);
 
         // Split the slice into `left`, `pivot`, and `right`.
         let (left, right) = v.split_at_mut(mid);
@@ -856,8 +859,8 @@ where
         // We already checked that `len > MAX_SEQUENTIAL` at the start of the loop,
         // so we must do the branch to sort left and right half in parallel.
         rayon_core::join(
-            || recurse(left, is_less, pred, limit),
-            || recurse(right, is_less, Some(pivot), limit),
+            || recurse(left, compare, pred, limit),
+            || recurse(right, compare, Some(pivot), limit),
         );
         break;
     }
@@ -866,10 +869,10 @@ where
 /// Sorts `v` using pattern-defeating quicksort in parallel.
 ///
 /// The algorithm is unstable, in-place, and *O*(*n* \* log(*n*)) worst-case.
-pub(super) fn par_quicksort<T, F>(v: &mut [T], is_less: F)
+pub(super) fn par_quicksort<T, F>(v: &mut [T], compare: F)
 where
     T: Send,
-    F: Fn(&T, &T) -> bool + Sync,
+    F: Fn(&T, &T) -> cmp::Ordering + Sync,
 {
     // Sorting has no meaningful behavior on zero-sized types.
     if size_of::<T>() == 0 {
@@ -879,7 +882,7 @@ where
     // Limit the number of imbalanced partitions to `floor(log2(len)) + 1`.
     let limit = usize::BITS - v.len().leading_zeros();
 
-    recurse(v, &is_less, None, limit);
+    recurse(v, &compare, None, limit);
 }
 
 /// Merges non-decreasing runs `v[..mid]` and `v[mid..]` using `buf` as temporary storage, and
@@ -1545,7 +1548,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{par_mergesort, par_quicksort};
     use super::split_for_merge;
     use rand::distr::Uniform;
     use rand::{rng, Rng};
