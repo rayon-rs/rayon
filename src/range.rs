@@ -300,7 +300,7 @@ macro_rules! convert_char {
     ( $self:ident . $method:ident ( $( $arg:expr ),* ) ) => {{
         let start = $self.range.start as u32;
         let end = $self.range.end as u32;
-        if start < 0xD800 && 0xE000 < end {
+        if start < 0xD800 && 0xE000 <= end {
             // chain the before and after surrogate range fragments
             (start..0xD800)
                 .into_par_iter()
