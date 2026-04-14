@@ -2,9 +2,7 @@
 
 use crate::prelude::*;
 use rand::distr::Uniform;
-use rand::seq::IndexedRandom;
 use rand::{rng, Rng};
-use std::cmp::Ordering::{Equal, Greater, Less};
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 macro_rules! sort {
@@ -68,16 +66,8 @@ macro_rules! sort {
                 }
             }
 
-            // Sort using a completely random comparison function.
-            // This will reorder the elements *somehow*, but won't panic.
-            let mut v: Vec<_> = (0..100).collect();
-            v.$f(|_, _| *[Less, Equal, Greater].choose(&mut rand::rng()).unwrap());
-            v.$f(|a, b| a.cmp(b));
-            for i in 0..v.len() {
-                assert_eq!(v[i], i);
-            }
-
-            // Should not panic.
+            // Modern Rust's sort_unstable_by panics on total order violations,
+            // so we no longer test sorting with a completely random comparison function.
             [0i32; 0].$f(|a, b| a.cmp(b));
             [(); 10].$f(|a, b| a.cmp(b));
             [(); 100].$f(|a, b| a.cmp(b));
