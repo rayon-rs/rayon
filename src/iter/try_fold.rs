@@ -1,6 +1,6 @@
-use super::plumbing::*;
 use super::ParallelIterator;
 use super::Try;
+use super::plumbing::*;
 
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;

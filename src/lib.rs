@@ -114,13 +114,13 @@ pub use rayon_core::ThreadBuilder;
 pub use rayon_core::ThreadPool;
 pub use rayon_core::ThreadPoolBuildError;
 pub use rayon_core::ThreadPoolBuilder;
-pub use rayon_core::{broadcast, spawn_broadcast, BroadcastContext};
+pub use rayon_core::{BroadcastContext, broadcast, spawn_broadcast};
+pub use rayon_core::{Scope, in_place_scope, scope};
+pub use rayon_core::{ScopeFifo, in_place_scope_fifo, scope_fifo};
+pub use rayon_core::{Yield, yield_local, yield_now};
 pub use rayon_core::{current_num_threads, current_thread_index, max_num_threads};
-pub use rayon_core::{in_place_scope, scope, Scope};
-pub use rayon_core::{in_place_scope_fifo, scope_fifo, ScopeFifo};
 pub use rayon_core::{join, join_context};
 pub use rayon_core::{spawn, spawn_fifo};
-pub use rayon_core::{yield_local, yield_now, Yield};
 
 /// We need to transmit raw pointers across threads. It is possible to do this
 /// without any unsafe code by converting pointers to usize or to AtomicPtr<T>

@@ -1,4 +1,4 @@
-use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
+use crate::iter::plumbing::{Folder, UnindexedConsumer, UnindexedProducer, bridge_unindexed};
 use crate::prelude::*;
 use std::iter::once;
 

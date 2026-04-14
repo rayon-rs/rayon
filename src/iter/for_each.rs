@@ -1,6 +1,6 @@
+use super::ParallelIterator;
 use super::noop::*;
 use super::plumbing::*;
-use super::ParallelIterator;
 
 pub(super) fn for_each<I, F, T>(pi: I, op: &F)
 where

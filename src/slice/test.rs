@@ -3,7 +3,7 @@
 use crate::prelude::*;
 use rand::distr::Uniform;
 use rand::seq::IndexedRandom;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 

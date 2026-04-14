@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::registry::{Registry, WorkerThread};
 use crate::sync::{Condvar, Mutex};

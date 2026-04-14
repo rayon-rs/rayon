@@ -1,6 +1,6 @@
-use super::plumbing::*;
 use super::ParallelIterator;
 use super::Try;
+use super::plumbing::*;
 
 use std::ops::ControlFlow::{self, Break, Continue};
 use std::sync::atomic::{AtomicBool, Ordering};

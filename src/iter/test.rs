@@ -1376,19 +1376,11 @@ fn find_map_first_or_last_or_any() {
     assert_eq!(a.par_iter().find_map_last(half_if_positive), Some(512_i32));
 
     fn half_if_positive(x: &i32) -> Option<i32> {
-        if *x > 0 {
-            Some(x / 2)
-        } else {
-            None
-        }
+        if *x > 0 { Some(x / 2) } else { None }
     }
 
     fn half_if_negative(x: &i32) -> Option<i32> {
-        if *x < 0 {
-            Some(x / 2)
-        } else {
-            None
-        }
+        if *x < 0 { Some(x / 2) } else { None }
     }
 }
 
@@ -1425,11 +1417,7 @@ fn check_while_some() {
         .into_par_iter()
         .map(|x| {
             counter.fetch_add(1, Ordering::SeqCst);
-            if x < 1024 {
-                Some(x)
-            } else {
-                None
-            }
+            if x < 1024 { Some(x) } else { None }
         })
         .while_some()
         .max();

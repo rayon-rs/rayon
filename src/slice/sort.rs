@@ -19,9 +19,9 @@ use core::mem::{self, MaybeUninit};
 use core::ptr;
 use core::slice;
 
+use crate::SendPtr;
 use crate::iter::{IndexedParallelIterator, ParallelIterator};
 use crate::slice::ParallelSliceMut;
-use crate::SendPtr;
 
 // When dropped, copies from `src` into `dest`.
 struct InsertionHole<T> {
@@ -1616,7 +1616,7 @@ mod tests {
     use super::heapsort;
     use super::split_for_merge;
     use rand::distr::Uniform;
-    use rand::{rng, Rng};
+    use rand::{Rng, rng};
 
     #[test]
     fn test_heapsort() {
@@ -1656,9 +1656,11 @@ mod tests {
     fn test_split_for_merge() {
         fn check(left: &[u32], right: &[u32]) {
             let (l, r) = split_for_merge(left, right, &|&a, &b| a < b);
-            assert!(left[..l]
-                .iter()
-                .all(|&x| right[r..].iter().all(|&y| x <= y)));
+            assert!(
+                left[..l]
+                    .iter()
+                    .all(|&x| right[r..].iter().all(|&y| x <= y))
+            );
             assert!(right[..r].iter().all(|&x| left[l..].iter().all(|&y| x < y)));
         }
 

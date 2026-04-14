@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use crate::{join, Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder};
+use crate::{Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder, join};
 
 #[test]
 #[should_panic(expected = "Hello, world!")]

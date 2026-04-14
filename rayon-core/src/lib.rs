@@ -86,16 +86,16 @@ mod unwind;
 mod compile_fail;
 mod test;
 
-pub use self::broadcast::{broadcast, spawn_broadcast, BroadcastContext};
+pub use self::broadcast::{BroadcastContext, broadcast, spawn_broadcast};
 pub use self::join::{join, join_context};
 pub use self::registry::ThreadBuilder;
-pub use self::scope::{in_place_scope, scope, Scope};
-pub use self::scope::{in_place_scope_fifo, scope_fifo, ScopeFifo};
+pub use self::scope::{Scope, in_place_scope, scope};
+pub use self::scope::{ScopeFifo, in_place_scope_fifo, scope_fifo};
 pub use self::spawn::{spawn, spawn_fifo};
+pub use self::thread_pool::ThreadPool;
 pub use self::thread_pool::current_thread_has_pending_tasks;
 pub use self::thread_pool::current_thread_index;
-pub use self::thread_pool::ThreadPool;
-pub use self::thread_pool::{yield_local, yield_now, Yield};
+pub use self::thread_pool::{Yield, yield_local, yield_now};
 
 #[cfg(not(feature = "web_spin_lock"))]
 use std::sync;

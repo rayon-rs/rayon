@@ -48,11 +48,7 @@ impl Graph {
 
     pub fn edge_weight(&self, source: Node, target: Node) -> Option<Weight> {
         let w = self.weights[self.edge_index(source, target)];
-        if w.is_max() {
-            None
-        } else {
-            Some(w)
-        }
+        if w.is_max() { None } else { Some(w) }
     }
 
     pub fn edges(&self, source: Node) -> impl Iterator<Item = Edge> + '_ {

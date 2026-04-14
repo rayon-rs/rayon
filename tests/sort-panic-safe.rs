@@ -1,5 +1,5 @@
 use rand::distr::Uniform;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::Ordering;

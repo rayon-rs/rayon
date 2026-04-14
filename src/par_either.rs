@@ -1,5 +1,5 @@
-use crate::iter::plumbing::*;
 use crate::iter::Either::{Left, Right};
+use crate::iter::plumbing::*;
 use crate::iter::*;
 
 /// `Either<L, R>` is a parallel iterator if both `L` and `R` are parallel iterators.

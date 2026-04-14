@@ -391,8 +391,10 @@ fn test_issue_833() {
     let pos = (0..=100).into_par_iter().position_any(|x| x == 50i16);
     assert_eq!(pos, Some(50usize));
 
-    assert!((0..=100)
-        .into_par_iter()
-        .zip(0..=100)
-        .all(|(a, b)| i16::eq(&a, &b)));
+    assert!(
+        (0..=100)
+            .into_par_iter()
+            .zip(0..=100)
+            .all(|(a, b)| i16::eq(&a, &b))
+    );
 }

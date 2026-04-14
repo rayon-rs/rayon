@@ -1,6 +1,6 @@
-use crate::unwind;
 use crate::ThreadPoolBuilder;
-use crate::{scope, scope_fifo, Scope, ScopeFifo};
+use crate::unwind;
+use crate::{Scope, ScopeFifo, scope, scope_fifo};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::iter::once;

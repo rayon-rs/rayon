@@ -12,8 +12,8 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
-use crate::nbody::nbody::NBodyBenchmark;
 use crate::nbody::ExecutionMode;
+use crate::nbody::nbody::NBodyBenchmark;
 
 #[derive(Copy, Clone)]
 struct Vertex {
