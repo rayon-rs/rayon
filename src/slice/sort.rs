@@ -1616,7 +1616,7 @@ mod tests {
     use super::heapsort;
     use super::split_for_merge;
     use rand::distr::Uniform;
-    use rand::{Rng, rng};
+    use rand::{RngExt, rng};
 
     #[test]
     fn test_heapsort() {

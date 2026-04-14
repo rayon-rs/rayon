@@ -1,8 +1,8 @@
 use crate::ThreadPoolBuilder;
 use crate::unwind;
 use crate::{Scope, ScopeFifo, scope, scope_fifo};
-use rand::{Rng, SeedableRng};
-use rand_xorshift::XorShiftRng;
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Barrier, Mutex};
@@ -109,13 +109,12 @@ impl<T: Send> Tree<T> {
 
 fn random_tree(depth: usize) -> Tree<u32> {
     assert!(depth > 0);
-    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
-    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
-    let mut rng = XorShiftRng::from_seed(seed);
+    let seed = std::array::from_fn(|i| i as u8);
+    let mut rng = StdRng::from_seed(seed);
     random_tree1(depth, &mut rng)
 }
 
-fn random_tree1(depth: usize, rng: &mut XorShiftRng) -> Tree<u32> {
+fn random_tree1(depth: usize, rng: &mut StdRng) -> Tree<u32> {
     let children = if depth == 0 {
         vec![]
     } else {

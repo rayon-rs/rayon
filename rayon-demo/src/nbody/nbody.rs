@@ -30,7 +30,7 @@
 // [1]: https://github.com/IntelLabs/RiverTrail/blob/master/examples/nbody-webgl/NBody.js
 
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
-use rand::Rng;
+use rand::RngExt;
 use rayon::prelude::*;
 use std::f64::consts::PI;
 
@@ -49,7 +49,7 @@ pub struct Body {
 }
 
 impl NBodyBenchmark {
-    pub fn new<R: Rng>(num_bodies: usize, rng: &mut R) -> NBodyBenchmark {
+    pub fn new<R: RngExt>(num_bodies: usize, rng: &mut R) -> NBodyBenchmark {
         let bodies0: Vec<_> = (0..num_bodies)
             .map(|_| {
                 let r = rng.random_range(0.0..10_000.0);

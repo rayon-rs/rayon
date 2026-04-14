@@ -5,8 +5,8 @@ use crate::prelude::*;
 use rayon_core::*;
 
 use rand::distr::StandardUniform;
-use rand::{Rng, SeedableRng};
-use rand_xorshift::XorShiftRng;
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::ffi::OsStr;
@@ -15,10 +15,9 @@ use std::sync::mpsc;
 
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 
-fn seeded_rng() -> XorShiftRng {
-    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
-    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
-    XorShiftRng::from_seed(seed)
+fn seeded_rng() -> StdRng {
+    let seed = std::array::from_fn(|i| i as u8);
+    StdRng::from_seed(seed)
 }
 
 #[test]

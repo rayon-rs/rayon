@@ -29,7 +29,6 @@ wasm_sync = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand.workspace = true
-rand_xorshift.workspace = true
 
 
 [workspace]
@@ -51,7 +50,6 @@ crossbeam-deque = "0.8.1"
 crossbeam-utils = "0.8.0"
 either = { version = "1", default-features = false }
 libc = "0.2"
-rand = "0.9"
-rand_xorshift = "0.4"
+rand = "0.10"
 scoped-tls = "1.0"
 wasm_sync = "0.1.0"

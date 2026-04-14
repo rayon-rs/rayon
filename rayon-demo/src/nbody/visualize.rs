@@ -4,7 +4,7 @@ use glium::backend::glutin::{Display, SimpleWindowBuilder};
 use glium::glutin::surface::WindowSurface;
 use glium::index::{IndexBuffer, PrimitiveType};
 use glium::{Depth, DepthTest, DrawParameters, Program, Surface, VertexBuffer};
-use rand::Rng;
+use rand::RngExt;
 use winit::application::ApplicationHandler;
 
 use winit::event::{ElementState, KeyEvent, WindowEvent};

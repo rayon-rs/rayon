@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 use rand::distr::{Alphanumeric, StandardUniform, Uniform};
 use rayon::prelude::*;
 use std::sync::atomic::AtomicUsize;

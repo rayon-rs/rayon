@@ -3,7 +3,7 @@
 macro_rules! make_tests {
     ($n:expr, $m:ident) => {
         mod $m {
-            use rand::Rng;
+            use rand::RngExt;
             use rand::distr::StandardUniform;
             use rayon::prelude::*;
             use std::sync::LazyLock;

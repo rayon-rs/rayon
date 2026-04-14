@@ -419,7 +419,7 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::Rng;
+    /// use rand::RngExt;
     /// use rayon::prelude::*;
     ///
     /// let mut v = vec![0u8; 1_000_000];
@@ -527,7 +527,7 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::{Rng, TryRngCore};
+    /// use rand::{RngExt, TryRng};
     /// use rayon::prelude::*;
     ///
     /// let mut v = vec![0u8; 1_000_000];
@@ -646,7 +646,7 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::Rng;
+    /// use rand::RngExt;
     /// use rayon::prelude::*;
     ///
     /// let a: Vec<_> = (1i32..1_000_000)

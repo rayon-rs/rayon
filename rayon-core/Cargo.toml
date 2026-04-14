@@ -28,7 +28,6 @@ wasm_sync = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand.workspace = true
-rand_xorshift.workspace = true
 scoped-tls.workspace = true
 
 [target.'cfg(unix)'.dev-dependencies]

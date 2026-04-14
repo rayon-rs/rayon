@@ -23,7 +23,7 @@ pub struct Args {
 }
 
 use docopt::Docopt;
-use rand::Rng;
+use rand::RngExt;
 use rand::distr::StandardUniform;
 use std::time::Instant;
 
