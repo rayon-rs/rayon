@@ -1,3 +1,4 @@
+use crate::instrumentation::JobContext;
 use crate::latch::Latch;
 use crate::unwind;
 use crossbeam_deque::{Injector, Steal};
@@ -24,14 +25,21 @@ pub(super) trait Job {
     unsafe fn execute(this: *const ());
 }
 
-/// Effectively a Job trait object. Each JobRef **must** be executed
-/// exactly once, or else data may leak.
+/// Effectively a decorated Job trait object. Each JobRef **must** be
+/// executed exactly once, or else data may leak.
 ///
 /// Internally, we store the job's data in a `*const ()` pointer.  The
 /// true type is something like `*const StackJob<...>`, but we hide
 /// it. We also carry the "execute fn" from the `Job` trait.
+///
+/// When the `tracing` feature is enabled, JobRef also captures the
+/// current span context at creation time. This context is restored
+/// when the job executes, enabling proper parent-child span
+/// relationships even when jobs are stolen and executed by different
+/// worker threads.
 pub(super) struct JobRef {
     pointer: *const (),
+    context: JobContext,
     execute_fn: unsafe fn(*const ()),
 }
 
@@ -48,6 +56,7 @@ impl JobRef {
         // erase types:
         JobRef {
             pointer: data as *const (),
+            context: JobContext::current(),
             execute_fn: <T as Job>::execute,
         }
     }
@@ -60,7 +69,33 @@ impl JobRef {
     }
 
     #[inline]
+    #[cfg_attr(not(feature = "tracing"), allow(dead_code))]
+    pub(super) fn context(&self) -> &JobContext {
+        &self.context
+    }
+
+    #[inline]
     pub(super) unsafe fn execute(self) {
+        let _context_guard = self.context.enter();
+        // We use `enter()` to set the parent context rather than
+        // `parent: ...` because `parent:` only works if the span is
+        // recorded. If the span is filtered out (e.g., max level set
+        // to WARN), context would be lost.
+        let _span = trace_span!(
+            tracing::Level::INFO,
+            "rayon::job_execute",
+            job_id = self.context.id(),
+            worker = {
+                // We find the worker id in the macro to prevent
+                // overhead when the `tracing` feature is disabled.
+                let worker = crate::registry::WorkerThread::current();
+                if worker.is_null() {
+                    0
+                } else {
+                    (*worker).index()
+                }
+            }
+        );
         (self.execute_fn)(self.pointer)
     }
 }

@@ -69,8 +69,26 @@
 //!
 //! # Targets without threading
 //!
-//! Rayon has limited support for targets without `std` threading implementations.
-//! See the [`rayon_core`] documentation for more information about its global fallback.
+//! Rayon has limited support for targets without `std` threading
+//! implementations. See the [`rayon_core`] documentation for more
+//! information about its global fallback.
+//!
+//! # Tracing
+//!
+//! Rayon has optional support for the [`tracing`] crate, enabled via
+//! the `tracing` Cargo feature. When enabled, Rayon emits spans and
+//! events for observability:
+//!
+//! - **Spans**: `rayon::worker_thread` (per-thread lifetime),
+//!   `rayon::job_execute` (per-job)
+//! - **Events**: `rayon::thread_idle`, `rayon::thread_active`,
+//!   `rayon::job_injected`, `rayon::job_stolen`
+//!
+//! Job spans automatically propagate context across thread boundaries,
+//! so jobs appear as children of the span that created them, even when
+//! executed by a different worker.
+//!
+//! [`tracing`]: https://docs.rs/tracing
 //!
 //! # Other questions?
 //!

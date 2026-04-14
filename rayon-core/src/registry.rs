@@ -437,6 +437,13 @@ impl Registry {
             "inject() sees state.terminate as true"
         );
 
+        trace_event!(
+            tracing::Level::DEBUG,
+            pool_id = self.id().addr,
+            job_id = injected_job.context().id(),
+            "rayon::job_injected"
+        );
+
         let queue_was_empty = self.injected_jobs.is_empty();
 
         self.injected_jobs.push(injected_job);
@@ -890,7 +897,15 @@ impl WorkerThread {
                 .find_map(|victim_index| {
                     let victim = &thread_infos[victim_index];
                     match victim.stealer.steal() {
-                        Steal::Success(job) => Some(job),
+                        Steal::Success(job) => {
+                            trace_event!(
+                                tracing::Level::DEBUG,
+                                victim = victim_index,
+                                job_id = job.context().id(),
+                                "rayon::job_stolen"
+                            );
+                            Some(job)
+                        }
                         Steal::Empty => None,
                         Steal::Retry => {
                             retry = true;
@@ -925,6 +940,13 @@ unsafe fn main_loop(thread: ThreadBuilder) {
     if let Some(ref handler) = registry.start_handler {
         registry.catch_unwind(|| handler(index));
     }
+
+    let _span = trace_span!(
+        tracing::Level::INFO,
+        "rayon::worker_thread",
+        worker = index,
+        pool_id = registry.id().addr,
+    );
 
     worker_thread.wait_until_out_of_work();
 
