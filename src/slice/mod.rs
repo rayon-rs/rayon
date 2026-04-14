@@ -9,6 +9,7 @@ mod chunk_by;
 mod chunks;
 mod rchunks;
 mod sort;
+mod windows;
 
 mod test;
 
@@ -24,6 +25,7 @@ use std::fmt::{self, Debug};
 pub use self::chunk_by::{ChunkBy, ChunkByMut};
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
 pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
+pub use self::windows::{ArrayWindows, Windows};
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
@@ -88,10 +90,21 @@ pub trait ParallelSlice<T: Sync> {
     /// assert_eq!(vec![[1, 2], [2, 3]], windows);
     /// ```
     fn par_windows(&self, window_size: usize) -> Windows<'_, T> {
-        Windows {
-            window_size,
-            slice: self.as_parallel_slice(),
-        }
+        Windows::new(window_size, self.as_parallel_slice())
+    }
+
+    /// Returns a parallel iterator over all contiguous array windows of
+    /// length `N`. The windows overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let windows: Vec<_> = [1, 2, 3].par_array_windows().collect();
+    /// assert_eq!(vec![&[1, 2], &[2, 3]], windows);
+    /// ```
+    fn par_array_windows<const N: usize>(&self) -> ArrayWindows<'_, T, N> {
+        ArrayWindows::new(self.as_parallel_slice())
     }
 
     /// Returns a parallel iterator over at most `chunk_size` elements of
@@ -858,88 +871,6 @@ impl<'data, T: 'data + Sync> Producer for IterProducer<'data, T> {
     fn split_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.slice.split_at(index);
         (IterProducer { slice: left }, IterProducer { slice: right })
-    }
-}
-
-/// Parallel iterator over immutable overlapping windows of a slice
-#[derive(Debug)]
-pub struct Windows<'data, T> {
-    window_size: usize,
-    slice: &'data [T],
-}
-
-impl<T> Clone for Windows<'_, T> {
-    fn clone(&self) -> Self {
-        Windows { ..*self }
-    }
-}
-
-impl<'data, T: Sync> ParallelIterator for Windows<'data, T> {
-    type Item = &'data [T];
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: UnindexedConsumer<Self::Item>,
-    {
-        bridge(self, consumer)
-    }
-
-    fn opt_len(&self) -> Option<usize> {
-        Some(self.len())
-    }
-}
-
-impl<T: Sync> IndexedParallelIterator for Windows<'_, T> {
-    fn drive<C>(self, consumer: C) -> C::Result
-    where
-        C: Consumer<Self::Item>,
-    {
-        bridge(self, consumer)
-    }
-
-    fn len(&self) -> usize {
-        assert!(self.window_size >= 1);
-        self.slice.len().saturating_sub(self.window_size - 1)
-    }
-
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-    where
-        CB: ProducerCallback<Self::Item>,
-    {
-        callback.callback(WindowsProducer {
-            window_size: self.window_size,
-            slice: self.slice,
-        })
-    }
-}
-
-struct WindowsProducer<'data, T: Sync> {
-    window_size: usize,
-    slice: &'data [T],
-}
-
-impl<'data, T: 'data + Sync> Producer for WindowsProducer<'data, T> {
-    type Item = &'data [T];
-    type IntoIter = ::std::slice::Windows<'data, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.slice.windows(self.window_size)
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let left_index = Ord::min(self.slice.len(), index + (self.window_size - 1));
-        let left = &self.slice[..left_index];
-        let right = &self.slice[index..];
-        (
-            WindowsProducer {
-                window_size: self.window_size,
-                slice: left,
-            },
-            WindowsProducer {
-                window_size: self.window_size,
-                slice: right,
-            },
-        )
     }
 }
 
