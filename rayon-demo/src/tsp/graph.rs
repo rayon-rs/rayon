@@ -16,9 +16,7 @@ impl Graph {
     pub fn new(num_nodes: usize) -> Graph {
         Graph {
             num_nodes,
-            weights: iter::repeat(Weight::max())
-                .take(num_nodes * num_nodes)
-                .collect(),
+            weights: iter::repeat_n(Weight::max(), num_nodes * num_nodes).collect(),
         }
     }
 

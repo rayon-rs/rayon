@@ -18,7 +18,7 @@ Options:
 use crate::cpu_time::{self, CpuMeasure};
 use rand::distr::StandardUniform;
 use rand::{RngExt, rng};
-use std::iter::repeat;
+use std::iter::repeat_n;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -62,7 +62,7 @@ impl Board {
         born: Vec<usize>,
         survive: Vec<usize>,
     ) -> Board {
-        let new_board = repeat(false).take(rows * cols).collect();
+        let new_board = repeat_n(false, rows * cols).collect();
 
         Board {
             board: new_board,
