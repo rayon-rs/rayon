@@ -88,3 +88,60 @@ impl<'data, T: Sync> Producer for WindowsProducer<'data, T> {
         )
     }
 }
+
+/// Parallel iterator over immutable overlapping windows of a slice
+#[derive(Debug)]
+pub struct ArrayWindows<'data, T: Sync, const N: usize> {
+    slice: &'data [T],
+}
+
+impl<'data, T: Sync, const N: usize> ArrayWindows<'data, T, N> {
+    pub(super) fn new(slice: &'data [T]) -> Self {
+        ArrayWindows { slice }
+    }
+}
+
+impl<T: Sync, const N: usize> Clone for ArrayWindows<'_, T, N> {
+    fn clone(&self) -> Self {
+        ArrayWindows { ..*self }
+    }
+}
+
+impl<'data, T: Sync, const N: usize> ParallelIterator for ArrayWindows<'data, T, N> {
+    type Item = &'data [T; N];
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
+        bridge(self, consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.len())
+    }
+}
+
+impl<T: Sync, const N: usize> IndexedParallelIterator for ArrayWindows<'_, T, N> {
+    fn drive<C>(self, consumer: C) -> C::Result
+    where
+        C: Consumer<Self::Item>,
+    {
+        bridge(self, consumer)
+    }
+
+    fn len(&self) -> usize {
+        assert!(N >= 1);
+        self.slice.len().saturating_sub(const { N - 1 })
+    }
+
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<Self::Item>,
+    {
+        // TODO (MSRV 1.94): use our own producer and the standard `array_windows`
+        Windows::new(N, self.slice)
+            .map(|slice| slice.try_into().unwrap())
+            .with_producer(callback)
+    }
+}

@@ -25,7 +25,7 @@ use std::fmt::{self, Debug};
 pub use self::chunk_by::{ChunkBy, ChunkByMut};
 pub use self::chunks::{Chunks, ChunksExact, ChunksExactMut, ChunksMut};
 pub use self::rchunks::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
-pub use self::windows::Windows;
+pub use self::windows::{ArrayWindows, Windows};
 
 /// Parallel extensions for slices.
 pub trait ParallelSlice<T: Sync> {
@@ -91,6 +91,20 @@ pub trait ParallelSlice<T: Sync> {
     /// ```
     fn par_windows(&self, window_size: usize) -> Windows<'_, T> {
         Windows::new(window_size, self.as_parallel_slice())
+    }
+
+    /// Returns a parallel iterator over all contiguous array windows of
+    /// length `N`. The windows overlap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// let windows: Vec<_> = [1, 2, 3].par_array_windows().collect();
+    /// assert_eq!(vec![&[1, 2], &[2, 3]], windows);
+    /// ```
+    fn par_array_windows<const N: usize>(&self) -> ArrayWindows<'_, T, N> {
+        ArrayWindows::new(self.as_parallel_slice())
     }
 
     /// Returns a parallel iterator over at most `chunk_size` elements of

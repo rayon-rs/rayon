@@ -257,6 +257,13 @@ fn slice_windows() {
 }
 
 #[test]
+fn slice_array_windows() {
+    let s: Vec<_> = (0..10).collect();
+    let v: Vec<&[_; 2]> = s.array_windows().collect();
+    check(&v, || s.par_array_windows::<2>());
+}
+
+#[test]
 fn vec() {
     let v: Vec<_> = (0..10).collect();
     check(&v, || v.clone());
