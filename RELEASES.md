@@ -1,3 +1,10 @@
+# Release rayon 1.12.0 (2026-04-13)
+
+- Fixed a bug in parallel `Range<char>` when the end is 0xE000, just past the
+  surrogate boundary, which was unsafely producing invalid `char` values.
+- The new method `ParallelSlice::par_array_windows` works like `par_windows`
+  but with a constant length, producing `&[T; N]` items.
+
 # Release rayon 1.11.0 / rayon-core 1.13.0 (2025-08-12)
 
 - The minimum supported `rustc` is now 1.80.

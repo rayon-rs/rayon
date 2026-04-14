@@ -1,6 +1,6 @@
 [package]
 name = "rayon"
-version = "1.11.0"
+version = "1.12.0"
 description = "Simple work-stealing parallelism for Rust"
 documentation = "https://docs.rs/rayon/"
 exclude = ["/ci/*", "/.github/*"]
