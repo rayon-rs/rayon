@@ -104,19 +104,21 @@ where
         BroadcastContext::with(&op)
     };
 
-    let n_threads = registry.num_threads();
-    let current_thread = WorkerThread::current().as_ref();
-    let latch = CountLatch::with_count(n_threads, current_thread);
-    let jobs: Vec<_> = (0..n_threads)
-        .map(|_| StackJob::new(&f, LatchRef::new(&latch)))
-        .collect();
-    let job_refs = jobs.iter().map(|job| job.as_job_ref());
+    unsafe {
+        let n_threads = registry.num_threads();
+        let current_thread = WorkerThread::current().as_ref();
+        let latch = CountLatch::with_count(n_threads, current_thread);
+        let jobs: Vec<_> = (0..n_threads)
+            .map(|_| StackJob::new(&f, LatchRef::new(&latch)))
+            .collect();
+        let job_refs = jobs.iter().map(|job| job.as_job_ref());
 
-    registry.inject_broadcast(job_refs);
+        registry.inject_broadcast(job_refs);
 
-    // Wait for all jobs to complete, then collect the results, maybe propagating a panic.
-    latch.wait(current_thread);
-    jobs.into_iter().map(|job| job.into_result()).collect()
+        // Wait for all jobs to complete, then collect the results, maybe propagating a panic.
+        latch.wait(current_thread);
+        jobs.into_iter().map(|job| job.into_result()).collect()
+    }
 }
 
 /// Execute `op` on every thread in the pool. It will be executed on each

@@ -57,6 +57,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![warn(rust_2018_idioms)]
 
 use std::any::Any;

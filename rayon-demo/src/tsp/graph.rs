@@ -26,7 +26,7 @@ impl Graph {
         self.num_nodes
     }
 
-    pub fn all_nodes(&self) -> impl Iterator<Item = Node> {
+    pub fn all_nodes(&self) -> impl Iterator<Item = Node> + use<> {
         (0..self.num_nodes).map(Node::new)
     }
 

@@ -58,7 +58,7 @@ fn as_uninit_slice_mut<T: Copy>(slice: &mut [T]) -> &mut [MaybeUninit<T>] {
 
 unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     let len = slice.len();
-    slice::from_raw_parts_mut(slice.as_mut_ptr().cast(), len)
+    unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr().cast(), len) }
 }
 
 // Sort src, possibly making use of identically sized buf.

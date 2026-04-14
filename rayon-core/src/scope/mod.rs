@@ -680,7 +680,7 @@ impl<'scope> ScopeBase<'scope> {
     where
         FUNC: FnOnce(),
     {
-        let _: Option<()> = Self::execute_job_closure(this, func);
+        let _: Option<()> = unsafe { Self::execute_job_closure(this, func) };
     }
 
     /// Executes `func` as a job in scope. Adjusts the "job completed"
@@ -690,15 +690,17 @@ impl<'scope> ScopeBase<'scope> {
     where
         FUNC: FnOnce() -> R,
     {
-        let result = match unwind::halt_unwinding(func) {
-            Ok(r) => Some(r),
-            Err(err) => {
-                (*this).job_panicked(err);
-                None
-            }
-        };
-        Latch::set(&(*this).job_completed_latch);
-        result
+        unsafe {
+            let result = match unwind::halt_unwinding(func) {
+                Ok(r) => Some(r),
+                Err(err) => {
+                    (*this).job_panicked(err);
+                    None
+                }
+            };
+            Latch::set(&(*this).job_completed_latch);
+            result
+        }
     }
 
     fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
@@ -768,6 +770,6 @@ unsafe impl<T: Sync> Sync for ScopePtr<T> {}
 impl<T> ScopePtr<T> {
     // Helper to avoid disjoint captures of `scope_ptr.0`
     unsafe fn as_ref(&self) -> &T {
-        &*self.0
+        unsafe { &*self.0 }
     }
 }

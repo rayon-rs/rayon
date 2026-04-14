@@ -521,7 +521,7 @@ impl Registry {
     {
         thread_local!(static LOCK_LATCH: LockLatch = const { LockLatch::new() });
 
-        LOCK_LATCH.with(|l| {
+        LOCK_LATCH.with(|l| unsafe {
             // This thread isn't a member of *any* thread pool, so just block.
             debug_assert!(WorkerThread::current().is_null());
             let job = StackJob::new(
@@ -545,21 +545,23 @@ impl Registry {
         OP: FnOnce(&WorkerThread, bool) -> R + Send,
         R: Send,
     {
-        // This thread is a member of a different pool, so let it process
-        // other work while waiting for this `op` to complete.
-        debug_assert!(current_thread.registry().id() != self.id());
-        let latch = SpinLatch::cross(current_thread);
-        let job = StackJob::new(
-            |injected| {
-                let worker_thread = WorkerThread::current();
-                assert!(injected && !worker_thread.is_null());
-                op(&*worker_thread, true)
-            },
-            latch,
-        );
-        self.inject(job.as_job_ref());
-        current_thread.wait_until(&job.latch);
-        job.into_result()
+        unsafe {
+            // This thread is a member of a different pool, so let it process
+            // other work while waiting for this `op` to complete.
+            debug_assert!(current_thread.registry().id() != self.id());
+            let latch = SpinLatch::cross(current_thread);
+            let job = StackJob::new(
+                |injected| {
+                    let worker_thread = WorkerThread::current();
+                    assert!(injected && !worker_thread.is_null());
+                    op(&*worker_thread, true)
+                },
+                latch,
+            );
+            self.inject(job.as_job_ref());
+            current_thread.wait_until(&job.latch);
+            job.into_result()
+        }
     }
 
     /// Increments the terminate counter. This increment should be
@@ -733,7 +735,7 @@ impl WorkerThread {
 
     #[inline]
     pub(super) unsafe fn push_fifo(&self, job: JobRef) {
-        self.push(self.fifo.push(job));
+        unsafe { self.push(self.fifo.push(job)) };
     }
 
     #[inline]
@@ -772,7 +774,7 @@ impl WorkerThread {
     pub(super) unsafe fn wait_until<L: AsCoreLatch + ?Sized>(&self, latch: &L) {
         let latch = latch.as_core_latch();
         if !latch.probe() {
-            self.wait_until_cold(latch);
+            unsafe { self.wait_until_cold(latch) };
         }
     }
 
@@ -789,7 +791,7 @@ impl WorkerThread {
             // Check for local work *before* we start marking ourself idle,
             // especially to avoid modifying shared sleep state.
             if let Some(job) = self.take_local_job() {
-                self.execute(job);
+                unsafe { self.execute(job) };
                 continue;
             }
 
@@ -797,7 +799,7 @@ impl WorkerThread {
             while !latch.probe() {
                 if let Some(job) = self.find_work() {
                     self.registry.sleep.work_found();
-                    self.execute(job);
+                    unsafe { self.execute(job) };
                     // The job might have injected local work, so go back to the outer loop.
                     continue 'outer;
                 } else {
@@ -817,17 +819,19 @@ impl WorkerThread {
     }
 
     unsafe fn wait_until_out_of_work(&self) {
-        debug_assert_eq!(self as *const _, WorkerThread::current());
-        let registry = &*self.registry;
-        let index = self.index;
+        unsafe {
+            debug_assert_eq!(self as *const _, WorkerThread::current());
+            let registry = &*self.registry;
+            let index = self.index;
 
-        self.wait_until(&registry.thread_infos[index].terminate);
+            self.wait_until(&registry.thread_infos[index].terminate);
 
-        // Should not be any work left in our queue.
-        debug_assert!(self.take_local_job().is_none());
+            // Should not be any work left in our queue.
+            debug_assert!(self.take_local_job().is_none());
 
-        // Let registry know we are done
-        Latch::set(&registry.thread_infos[index].stopped);
+            // Let registry know we are done
+            Latch::set(&registry.thread_infos[index].stopped);
+        }
     }
 
     fn find_work(&self) -> Option<JobRef> {
@@ -863,7 +867,7 @@ impl WorkerThread {
 
     #[inline]
     pub(super) unsafe fn execute(&self, job: JobRef) {
-        job.execute();
+        unsafe { job.execute() };
     }
 
     /// Try to steal a single job and return it.
@@ -908,33 +912,35 @@ impl WorkerThread {
 // ////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(thread: ThreadBuilder) {
-    let worker_thread = &WorkerThread::from(thread);
-    WorkerThread::set_current(worker_thread);
-    let registry = &*worker_thread.registry;
-    let index = worker_thread.index;
+    unsafe {
+        let worker_thread = &WorkerThread::from(thread);
+        WorkerThread::set_current(worker_thread);
+        let registry = &*worker_thread.registry;
+        let index = worker_thread.index;
 
-    // let registry know we are ready to do work
-    Latch::set(&registry.thread_infos[index].primed);
+        // let registry know we are ready to do work
+        Latch::set(&registry.thread_infos[index].primed);
 
-    // Worker threads should not panic. If they do, just abort, as the
-    // internal state of the thread pool is corrupted. Note that if
-    // **user code** panics, we should catch that and redirect.
-    let abort_guard = unwind::AbortIfPanic;
+        // Worker threads should not panic. If they do, just abort, as the
+        // internal state of the thread pool is corrupted. Note that if
+        // **user code** panics, we should catch that and redirect.
+        let abort_guard = unwind::AbortIfPanic;
 
-    // Inform a user callback that we started a thread.
-    if let Some(ref handler) = registry.start_handler {
-        registry.catch_unwind(|| handler(index));
-    }
+        // Inform a user callback that we started a thread.
+        if let Some(ref handler) = registry.start_handler {
+            registry.catch_unwind(|| handler(index));
+        }
 
-    worker_thread.wait_until_out_of_work();
+        worker_thread.wait_until_out_of_work();
 
-    // Normal termination, do not abort.
-    mem::forget(abort_guard);
+        // Normal termination, do not abort.
+        mem::forget(abort_guard);
 
-    // Inform a user callback that we exited a thread.
-    if let Some(ref handler) = registry.exit_handler {
-        registry.catch_unwind(|| handler(index));
-        // We're already exiting the thread, there's nothing else to do.
+        // Inform a user callback that we exited a thread.
+        if let Some(ref handler) = registry.exit_handler {
+            registry.catch_unwind(|| handler(index));
+            // We're already exiting the thread, there's nothing else to do.
+        }
     }
 }
 
