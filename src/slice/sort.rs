@@ -1631,12 +1631,12 @@ mod tests {
                     // Test heapsort using `<` operator.
                     let mut tmp = v.clone();
                     heapsort(&mut tmp, |a, b| a < b);
-                    assert!(tmp.windows(2).all(|w| w[0] <= w[1]));
+                    assert!(tmp.is_sorted());
 
                     // Test heapsort using `>` operator.
                     let mut tmp = v.clone();
                     heapsort(&mut tmp, |a, b| a > b);
-                    assert!(tmp.windows(2).all(|w| w[0] >= w[1]));
+                    assert!(tmp.is_sorted_by(|a, b| a >= b));
                 }
             }
         }

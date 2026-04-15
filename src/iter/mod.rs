@@ -2232,7 +2232,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert_eq!(result.len(), 5);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     fn take_any(self, n: usize) -> TakeAny<Self> {
         TakeAny::new(self, n)
@@ -2257,7 +2257,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert_eq!(result.len(), 45);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     fn skip_any(self, n: usize) -> SkipAny<Self> {
         SkipAny::new(self, n)
@@ -2288,7 +2288,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert!(result.len() <= 50);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     ///
     /// ```
@@ -2341,7 +2341,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert!(result.len() >= 50);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     fn skip_any_while<P>(self, predicate: P) -> SkipAnyWhile<Self, P>
     where

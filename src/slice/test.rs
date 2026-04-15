@@ -22,12 +22,12 @@ macro_rules! sort {
                         // Test sort using `<` operator.
                         let mut tmp = v.clone();
                         tmp.$f(|a, b| a.cmp(b));
-                        assert!(tmp.windows(2).all(|w| w[0] <= w[1]));
+                        assert!(tmp.is_sorted());
 
                         // Test sort using `>` operator.
                         let mut tmp = v.clone();
                         tmp.$f(|a, b| b.cmp(a));
-                        assert!(tmp.windows(2).all(|w| w[0] >= w[1]));
+                        assert!(tmp.is_sorted_by(|a, b| a >= b));
                     }
                 }
             }
@@ -39,7 +39,7 @@ macro_rules! sort {
                     let mut v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
 
                     v.$f(|a, b| a.cmp(b));
-                    assert!(v.windows(2).all(|w| w[0] <= w[1]));
+                    assert!(v.is_sorted());
                 }
             }
 
@@ -64,7 +64,7 @@ macro_rules! sort {
                     }
 
                     v.$f(|a, b| a.cmp(b));
-                    assert!(v.windows(2).all(|w| w[0] <= w[1]));
+                    assert!(v.is_sorted());
                 }
             }
 
@@ -121,7 +121,7 @@ fn test_par_sort_stability() {
             // will need to be ordered with increasing
             // counts... i.e. exactly asserting that this sort is
             // stable.
-            assert!(v.windows(2).all(|w| w[0] <= w[1]));
+            assert!(v.is_sorted());
         }
     }
 }

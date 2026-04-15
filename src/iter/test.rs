@@ -2374,6 +2374,6 @@ fn blocks() {
         .chunks(100)
         .map(|c| c.iter().max().copied().unwrap())
         .collect::<Vec<usize>>();
-    assert!(m.windows(2).all(|w| w[0].lt(&w[1])));
+    assert!(m.is_sorted());
     assert_eq!(v.len(), 1000);
 }
