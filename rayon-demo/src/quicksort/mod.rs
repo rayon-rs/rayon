@@ -1,4 +1,4 @@
-#![allow(non_camel_case_types)]
+#![expect(non_camel_case_types)]
 
 const USAGE: &str = "
 Usage: quicksort bench [options]

@@ -1,5 +1,5 @@
 #![cfg(test)]
-#![allow(unused_assignments)]
+#![expect(unused_assignments)]
 
 // These tests are primarily targeting "abusive" producers that will
 // try to drive the "collect consumer" incorrectly. These should

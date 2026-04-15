@@ -211,7 +211,7 @@ pub use self::{
     zip_eq::ZipEq,
 };
 
-#[allow(deprecated)]
+#[expect(deprecated)]
 pub use repeat::repeatn;
 
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
@@ -2445,7 +2445,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 ///
 /// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
 // Waiting for `ExactSizeIterator::is_empty` to be stabilized. See rust-lang/rust#35428
-#[allow(clippy::len_without_is_empty)]
+#[expect(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Divides an iterator into sequential blocks of exponentially-increasing size.
     ///

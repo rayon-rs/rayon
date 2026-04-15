@@ -659,7 +659,7 @@ impl<S> ThreadPoolBuilder<S> {
     }
 }
 
-#[allow(deprecated)]
+#[expect(deprecated)]
 impl Configuration {
     /// Creates and return a valid rayon thread pool configuration, but does not initialize it.
     pub fn new() -> Configuration {
@@ -750,7 +750,7 @@ const CURRENT_THREAD_ALREADY_IN_POOL: &str =
     "The current thread is already part of another thread pool.";
 
 impl Error for ThreadPoolBuildError {
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     fn description(&self) -> &str {
         match self.kind {
             ErrorKind::GlobalPoolAlreadyInitialized => GLOBAL_POOL_ALREADY_INITIALIZED,
@@ -779,7 +779,7 @@ impl fmt::Display for ThreadPoolBuildError {
 
 /// Deprecated in favor of `ThreadPoolBuilder::build_global`.
 #[deprecated(note = "use `ThreadPoolBuilder::build_global`")]
-#[allow(deprecated)]
+#[expect(deprecated)]
 pub fn initialize(config: Configuration) -> Result<(), Box<dyn Error>> {
     config.into_builder().build_global().map_err(Box::from)
 }
@@ -824,7 +824,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
     }
 }
 
-#[allow(deprecated)]
+#[expect(deprecated)]
 impl fmt::Debug for Configuration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.builder.fmt(f)

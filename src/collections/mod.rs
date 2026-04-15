@@ -42,7 +42,6 @@ mod drain_guard {
     /// zero-allocation conversions to/from `Vec`, though not zero-cost:
     /// - `BinaryHeap` will heapify from `Vec`, but at least that will be empty.
     /// - `VecDeque` has to shift items to offset 0 when converting to `Vec`.
-    #[allow(missing_debug_implementations)]
     pub(super) struct DrainGuard<'a, T, C: From<Vec<T>>> {
         collection: &'a mut C,
         vec: Vec<T>,

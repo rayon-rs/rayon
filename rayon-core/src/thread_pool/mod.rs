@@ -49,7 +49,7 @@ pub struct ThreadPool {
 
 impl ThreadPool {
     #[deprecated(note = "Use `ThreadPoolBuilder::build`")]
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn new(configuration: crate::Configuration) -> Result<ThreadPool, Box<dyn Error>> {
         Self::build(configuration.into_builder()).map_err(Box::from)

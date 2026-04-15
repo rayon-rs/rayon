@@ -763,7 +763,7 @@ where
     let len = v.len();
 
     // Three indices near which we are going to choose a pivot.
-    #[allow(clippy::identity_op)]
+    #[expect(clippy::identity_op)]
     let mut a = len / 4 * 1;
     let mut b = len / 4 * 2;
     let mut c = len / 4 * 3;
