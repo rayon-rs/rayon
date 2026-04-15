@@ -234,8 +234,7 @@ where
         // explore while front is of size one.
         while self.to_explore.len() == 1 {
             let front_node = self.to_explore.pop().unwrap();
-            self.to_explore
-                .extend((self.children_of)(&front_node).into_iter());
+            self.to_explore.extend((self.children_of)(&front_node));
             self.seen.push(front_node);
         }
         // now take half of the front.
