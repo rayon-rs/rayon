@@ -108,7 +108,7 @@ where
             (Some(Continue(left)), Continue(right)) => reduce_op(left, right).branch(),
             (Some(control @ Break(_)), _) | (_, control) => control,
         };
-        if let Break(_) = control {
+        if control.is_break() {
             self.full.store(true, Ordering::Relaxed)
         }
         self.opt_control = Some(control);

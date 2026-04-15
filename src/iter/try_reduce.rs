@@ -109,7 +109,7 @@ where
             (Continue(left), Continue(right)) => reduce_op(left, right).branch(),
             (control @ Break(_), _) | (_, control @ Break(_)) => control,
         };
-        if let Break(_) = self.control {
+        if self.control.is_break() {
             self.full.store(true, Ordering::Relaxed);
         }
         self
@@ -123,9 +123,6 @@ where
     }
 
     fn full(&self) -> bool {
-        match self.control {
-            Break(_) => true,
-            _ => self.full.load(Ordering::Relaxed),
-        }
+        self.control.is_break() || self.full.load(Ordering::Relaxed)
     }
 }

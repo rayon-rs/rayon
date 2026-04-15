@@ -152,10 +152,7 @@ where
     }
 
     fn full(&self) -> bool {
-        match self.control {
-            Break(_) => true,
-            _ => self.base.full(),
-        }
+        self.control.is_break() || self.base.full()
     }
 }
 

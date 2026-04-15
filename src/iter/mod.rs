@@ -3505,10 +3505,7 @@ impl<B, C> Try for ControlFlow<B, C> {
     }
 
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-        match self {
-            Self::Continue(c) => ControlFlow::Continue(c),
-            Self::Break(b) => ControlFlow::Break(ControlFlow::Break(b)),
-        }
+        self.map_break(ControlFlow::Break)
     }
 }
 
