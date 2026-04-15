@@ -6,8 +6,8 @@ use wasm_sync::Mutex;
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use crate::iter::plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer};
 use crate::iter::ParallelIterator;
+use crate::iter::plumbing::{Folder, UnindexedConsumer, UnindexedProducer, bridge_unindexed};
 use crate::{current_num_threads, current_thread_index};
 
 /// Conversion trait to convert an `Iterator` to a `ParallelIterator`.

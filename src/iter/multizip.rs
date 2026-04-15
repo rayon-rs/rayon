@@ -118,7 +118,7 @@ macro_rules! nest {
 
 macro_rules! flatten {
     ($( $T:ident ),+) => {{
-        #[allow(non_snake_case)]
+        #[expect(non_snake_case)]
         fn flatten<$( $T ),+>(nest!($( $T ),+) : nest!($( $T ),+)) -> ($( $T, )+) {
             ($( $T, )+)
         }

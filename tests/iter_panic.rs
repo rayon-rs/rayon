@@ -1,5 +1,5 @@
-use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 use std::ops::Range;
 use std::panic::{self, UnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};

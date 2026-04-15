@@ -3,8 +3,8 @@
 macro_rules! make_tests {
     ($n:expr, $m:ident) => {
         mod $m {
+            use rand::RngExt;
             use rand::distr::StandardUniform;
-            use rand::Rng;
             use rayon::prelude::*;
             use std::sync::LazyLock;
             use test::Bencher;
@@ -47,11 +47,13 @@ macro_rules! make_tests {
             fn parallel_find_first_blocks_start(b: &mut Bencher) {
                 let needle = HAYSTACK[0][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .by_exponential_blocks()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .by_exponential_blocks()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
@@ -70,21 +72,25 @@ macro_rules! make_tests {
             fn parallel_find_first_end(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() - 1][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
             #[bench]
             fn parallel_find_first_blocks_end(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() - 1][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .by_exponential_blocks()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .by_exponential_blocks()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
@@ -104,30 +110,34 @@ macro_rules! make_tests {
             fn parallel_find_first_third(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() / 3][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
             #[bench]
             fn parallel_find_dumb_third(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() / 3][0];
-                b.iter(
-                    || assert!(find_dumb(HAYSTACK.par_iter(), (|&&x| x[0] == needle)).is_some()),
-                );
+                b.iter(|| {
+                    assert!(find_dumb(HAYSTACK.par_iter(), (|&&x| x[0] == needle)).is_some())
+                });
             }
 
             #[bench]
             fn parallel_find_first_blocks_third(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() / 3][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .by_exponential_blocks()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .by_exponential_blocks()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
@@ -147,30 +157,34 @@ macro_rules! make_tests {
             fn parallel_find_first_middle(b: &mut Bencher) {
                 let needle = HAYSTACK[(HAYSTACK.len() / 2).saturating_sub(1)][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
             #[bench]
             fn parallel_find_dumb_middle(b: &mut Bencher) {
                 let needle = HAYSTACK[(HAYSTACK.len() / 2).saturating_sub(1)][0];
-                b.iter(
-                    || assert!(find_dumb(HAYSTACK.par_iter(), (|&&x| x[0] == needle)).is_some()),
-                );
+                b.iter(|| {
+                    assert!(find_dumb(HAYSTACK.par_iter(), (|&&x| x[0] == needle)).is_some())
+                });
             }
 
             #[bench]
             fn parallel_find_first_blocks_middle(b: &mut Bencher) {
                 let needle = HAYSTACK[(HAYSTACK.len() / 2).saturating_sub(1)][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .by_exponential_blocks()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .by_exponential_blocks()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
@@ -190,10 +204,12 @@ macro_rules! make_tests {
             fn parallel_find_first_two_thirds(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() / 3 * 2][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
@@ -201,11 +217,13 @@ macro_rules! make_tests {
             fn parallel_find_first_blocks_two_thirds(b: &mut Bencher) {
                 let needle = HAYSTACK[HAYSTACK.len() / 3 * 2][0];
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .by_exponential_blocks()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .by_exponential_blocks()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_some()
+                    )
                 });
             }
 
@@ -225,10 +243,12 @@ macro_rules! make_tests {
             fn parallel_find_first_missing(b: &mut Bencher) {
                 let needle = HAYSTACK.iter().map(|v| v[0]).max().unwrap() + 1;
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_none())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_none()
+                    )
                 });
             }
 
@@ -236,11 +256,13 @@ macro_rules! make_tests {
             fn parallel_find_first_blocks_missing(b: &mut Bencher) {
                 let needle = HAYSTACK.iter().map(|v| v[0]).max().unwrap() + 1;
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .by_exponential_blocks()
-                        .find_first(|&&x| x[0] == needle)
-                        .is_none())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .by_exponential_blocks()
+                            .find_first(|&&x| x[0] == needle)
+                            .is_none()
+                    )
                 });
             }
 
@@ -253,10 +275,12 @@ macro_rules! make_tests {
             #[bench]
             fn parallel_find_any_common(b: &mut Bencher) {
                 b.iter(|| {
-                    assert!(HAYSTACK
-                        .par_iter()
-                        .find_any(|&&x| x[0] % 1000 == 999)
-                        .is_some())
+                    assert!(
+                        HAYSTACK
+                            .par_iter()
+                            .find_any(|&&x| x[0] % 1000 == 999)
+                            .is_some()
+                    )
                 });
             }
 

@@ -16,9 +16,7 @@ impl Graph {
     pub fn new(num_nodes: usize) -> Graph {
         Graph {
             num_nodes,
-            weights: iter::repeat(Weight::max())
-                .take(num_nodes * num_nodes)
-                .collect(),
+            weights: iter::repeat_n(Weight::max(), num_nodes * num_nodes).collect(),
         }
     }
 
@@ -26,7 +24,7 @@ impl Graph {
         self.num_nodes
     }
 
-    pub fn all_nodes(&self) -> impl Iterator<Item = Node> {
+    pub fn all_nodes(&self) -> impl Iterator<Item = Node> + use<> {
         (0..self.num_nodes).map(Node::new)
     }
 
@@ -48,11 +46,7 @@ impl Graph {
 
     pub fn edge_weight(&self, source: Node, target: Node) -> Option<Weight> {
         let w = self.weights[self.edge_index(source, target)];
-        if w.is_max() {
-            None
-        } else {
-            Some(w)
-        }
+        if w.is_max() { None } else { Some(w) }
     }
 
     pub fn edges(&self, source: Node) -> impl Iterator<Item = Edge> + '_ {

@@ -1,5 +1,5 @@
-use super::plumbing::*;
 use super::ParallelIterator;
+use super::plumbing::*;
 
 use std::iter::{self, Sum};
 use std::marker::PhantomData;

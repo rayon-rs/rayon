@@ -3,7 +3,7 @@ use std::time::Instant;
 
 #[cfg(test)]
 mod bench;
-#[allow(clippy::module_inception)]
+#[expect(clippy::module_inception)]
 mod nbody;
 mod visualize;
 use self::nbody::NBodyBenchmark;

@@ -83,43 +83,32 @@ where
     }
 }
 
-/// These traits help drive integer type inference. Without them, an unknown `{integer}` type only
-/// has constraints on `Iter<{integer}>`, which will probably give up and use `i32`. By adding
-/// these traits on the item type, the compiler can see a more direct constraint to infer like
-/// `{integer}: RangeInteger`, which works better. See `test_issue_833` for an example.
-///
-/// They have to be `pub` since they're seen in the public `impl ParallelIterator` constraints, but
-/// we put them in a private modules so they're not actually reachable in our public API.
-mod private {
-    use super::*;
+// These traits help drive integer type inference. Without them, an unknown `{integer}` type only
+// has constraints on `Iter<{integer}>`, which will probably give up and use `i32`. By adding
+// these traits on the item type, the compiler can see a more direct constraint to infer like
+// `{integer}: RangeInteger`, which works better. See `test_issue_833` for an example.
 
-    /// Implementation details of `ParallelIterator for Iter<Self>`
-    pub trait RangeInteger: Sized + Send {
-        private_decl! {}
+/// Implementation details of `ParallelIterator for Iter<Self>`
+trait RangeInteger: Sized + Send {
+    fn drive_unindexed<C>(iter: Iter<Self>, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self>;
 
-        fn drive_unindexed<C>(iter: Iter<Self>, consumer: C) -> C::Result
-        where
-            C: UnindexedConsumer<Self>;
-
-        fn opt_len(iter: &Iter<Self>) -> Option<usize>;
-    }
-
-    /// Implementation details of `IndexedParallelIterator for Iter<Self>`
-    pub trait IndexedRangeInteger: RangeInteger {
-        private_decl! {}
-
-        fn drive<C>(iter: Iter<Self>, consumer: C) -> C::Result
-        where
-            C: Consumer<Self>;
-
-        fn len(iter: &Iter<Self>) -> usize;
-
-        fn with_producer<CB>(iter: Iter<Self>, callback: CB) -> CB::Output
-        where
-            CB: ProducerCallback<Self>;
-    }
+    fn opt_len(iter: &Iter<Self>) -> Option<usize>;
 }
-use private::{IndexedRangeInteger, RangeInteger};
+
+/// Implementation details of `IndexedParallelIterator for Iter<Self>`
+trait IndexedRangeInteger: RangeInteger {
+    fn drive<C>(iter: Iter<Self>, consumer: C) -> C::Result
+    where
+        C: Consumer<Self>;
+
+    fn len(iter: &Iter<Self>) -> usize;
+
+    fn with_producer<CB>(iter: Iter<Self>, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<Self>;
+}
 
 impl<T: RangeInteger> ParallelIterator for Iter<T> {
     type Item = T;
@@ -175,8 +164,6 @@ macro_rules! convert {
 macro_rules! parallel_range_impl {
     ( $t:ty ) => {
         impl RangeInteger for $t {
-            private_impl! {}
-
             fn drive_unindexed<C>(iter: Iter<$t>, consumer: C) -> C::Result
             where
                 C: UnindexedConsumer<$t>,
@@ -196,8 +183,6 @@ macro_rules! indexed_range_impl {
         parallel_range_impl! { $t }
 
         impl IndexedRangeInteger for $t {
-            private_impl! {}
-
             fn drive<C>(iter: Iter<$t>, consumer: C) -> C::Result
             where
                 C: Consumer<$t>,
@@ -391,8 +376,10 @@ fn test_issue_833() {
     let pos = (0..=100).into_par_iter().position_any(|x| x == 50i16);
     assert_eq!(pos, Some(50usize));
 
-    assert!((0..=100)
-        .into_par_iter()
-        .zip(0..=100)
-        .all(|(a, b)| i16::eq(&a, &b)));
+    assert!(
+        (0..=100)
+            .into_par_iter()
+            .zip(0..=100)
+            .all(|(a, b)| i16::eq(&a, &b))
+    );
 }

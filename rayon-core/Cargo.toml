@@ -14,6 +14,9 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lints]
+workspace = true
+
 [features]
 # This feature switches to a spin-lock implementation on the browser's
 # main thread to avoid the forbidden `atomics.wait`.
@@ -28,7 +31,6 @@ wasm_sync = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand.workspace = true
-rand_xorshift.workspace = true
 scoped-tls.workspace = true
 
 [target.'cfg(unix)'.dev-dependencies]

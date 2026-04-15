@@ -6,15 +6,15 @@
 use crate::broadcast::BroadcastContext;
 use crate::job::{ArcJob, HeapJob, JobFifo, JobRef};
 use crate::latch::{CountLatch, Latch};
-use crate::registry::{global_registry, in_worker, Registry, WorkerThread};
+use crate::registry::{Registry, WorkerThread, global_registry, in_worker};
 use crate::unwind;
 use std::any::Any;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ptr;
-use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 #[cfg(test)]
 mod test;
@@ -49,7 +49,7 @@ struct ScopeBase<'scope> {
     /// all of which outlive `'scope`.  They're not actually required to be
     /// `Sync`, but it's still safe to let the `Scope` implement `Sync` because
     /// the closures are only *moved* across threads to be executed.
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     marker: PhantomData<Box<dyn FnOnce(&Scope<'scope>) + Send + Sync + 'scope>>,
 }
 
@@ -680,7 +680,7 @@ impl<'scope> ScopeBase<'scope> {
     where
         FUNC: FnOnce(),
     {
-        let _: Option<()> = Self::execute_job_closure(this, func);
+        let _: Option<()> = unsafe { Self::execute_job_closure(this, func) };
     }
 
     /// Executes `func` as a job in scope. Adjusts the "job completed"
@@ -690,15 +690,17 @@ impl<'scope> ScopeBase<'scope> {
     where
         FUNC: FnOnce() -> R,
     {
-        let result = match unwind::halt_unwinding(func) {
-            Ok(r) => Some(r),
-            Err(err) => {
-                (*this).job_panicked(err);
-                None
-            }
-        };
-        Latch::set(&(*this).job_completed_latch);
-        result
+        unsafe {
+            let result = match unwind::halt_unwinding(func) {
+                Ok(r) => Some(r),
+                Err(err) => {
+                    (*this).job_panicked(err);
+                    None
+                }
+            };
+            Latch::set(&(*this).job_completed_latch);
+            result
+        }
     }
 
     fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
@@ -768,6 +770,6 @@ unsafe impl<T: Sync> Sync for ScopePtr<T> {}
 impl<T> ScopePtr<T> {
     // Helper to avoid disjoint captures of `scope_ptr.0`
     unsafe fn as_ref(&self) -> &T {
-        &*self.0
+        unsafe { &*self.0 }
     }
 }

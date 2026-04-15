@@ -1,4 +1,4 @@
-#![allow(non_camel_case_types)]
+#![expect(non_camel_case_types)]
 
 const USAGE: &str = "
 Usage: quicksort bench [options]
@@ -23,8 +23,8 @@ pub struct Args {
 }
 
 use docopt::Docopt;
+use rand::RngExt;
 use rand::distr::StandardUniform;
-use rand::Rng;
 use std::time::Instant;
 
 pub trait Joiner {

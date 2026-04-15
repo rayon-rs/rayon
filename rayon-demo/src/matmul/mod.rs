@@ -116,7 +116,7 @@ pub fn seq_matmulz(a: &[f32], b: &[f32], dest: &mut [f32]) {
     }
 }
 
-#[allow(clippy::identity_op)]
+#[expect(clippy::identity_op)]
 const MULT_CHUNK: usize = 1 * 1024;
 const LINEAR_CHUNK: usize = 64 * 1024;
 
@@ -153,7 +153,7 @@ where
     (r1, r2, r3, r4)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn join8<F1, F2, F3, F4, F5, F6, F7, F8, R1, R2, R3, R4, R5, R6, R7, R8>(
     f1: F1,
     f2: F2,

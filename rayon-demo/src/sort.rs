@@ -1,9 +1,9 @@
+use rand::RngExt;
 use rand::distr::{Alphanumeric, StandardUniform, Uniform};
-use rand::Rng;
 use rayon::prelude::*;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
-use test::{black_box, Bencher};
+use test::{Bencher, black_box};
 
 fn gen_ascending(len: usize) -> Vec<u64> {
     (0..len as u64).collect()
@@ -259,7 +259,7 @@ trait QuickSort {
 
 impl<T: PartialOrd + Send> QuickSort for [T] {
     fn demo_quick_sort(&mut self) {
-        use crate::quicksort::{quick_sort, Parallel};
+        use crate::quicksort::{Parallel, quick_sort};
         quick_sort::<Parallel, T>(self);
     }
 }

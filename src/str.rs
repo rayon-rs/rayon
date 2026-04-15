@@ -152,6 +152,7 @@ pub trait ParallelString {
     ///    .sum();
     /// assert_eq!(10, total);
     /// ```
+    #[expect(private_bounds)]
     fn par_split<P: Pattern>(&self, separator: P) -> Split<'_, P> {
         Split::new(self.as_parallel_string(), separator)
     }
@@ -173,6 +174,7 @@ pub trait ParallelString {
     ///    .collect();
     /// assert_eq!(lines, ["Mary had a little lamb\n", "little lamb\n", "little lamb."]);
     /// ```
+    #[expect(private_bounds)]
     fn par_split_inclusive<P: Pattern>(&self, separator: P) -> SplitInclusive<'_, P> {
         SplitInclusive::new(self.as_parallel_string(), separator)
     }
@@ -195,6 +197,7 @@ pub trait ParallelString {
     ///     .collect();
     /// assert_eq!(vec!["", "", "1 + 3", " * 2"], parts);
     /// ```
+    #[expect(private_bounds)]
     fn par_split_terminator<P: Pattern>(&self, terminator: P) -> SplitTerminator<'_, P> {
         SplitTerminator::new(self.as_parallel_string(), terminator)
     }
@@ -311,6 +314,7 @@ pub trait ParallelString {
     ///    .sum();
     /// assert_eq!(10, total);
     /// ```
+    #[expect(private_bounds)]
     fn par_matches<P: Pattern>(&self, pattern: P) -> Matches<'_, P> {
         Matches {
             chars: self.as_parallel_string(),
@@ -334,6 +338,7 @@ pub trait ParallelString {
     ///    .collect();
     /// assert_eq!(digits, vec![(0, "1"), (3, "2"), (14, "3"), (17, "4")]);
     /// ```
+    #[expect(private_bounds)]
     fn par_match_indices<P: Pattern>(&self, pattern: P) -> MatchIndices<'_, P> {
         MatchIndices {
             chars: self.as_parallel_string(),
@@ -351,37 +356,32 @@ impl ParallelString for str {
 
 // /////////////////////////////////////////////////////////////////////////
 
-/// We hide the `Pattern` trait in a private module, as its API is not meant
-/// for general consumption.  If we could have privacy on trait items, then it
-/// would be nicer to have its basic existence and implementors public while
-/// keeping all of the methods private.
-mod private {
-    use crate::iter::plumbing::Folder;
-
-    /// Pattern-matching trait for `ParallelString`, somewhat like a mix of
-    /// `std::str::pattern::{Pattern, Searcher}`.
-    ///
-    /// Implementing this trait is not permitted outside of `rayon`.
-    pub trait Pattern: Sized + Sync + Send {
-        private_decl! {}
-        fn find_in(&self, haystack: &str) -> Option<usize>;
-        fn rfind_in(&self, haystack: &str) -> Option<usize>;
-        fn is_suffix_of(&self, haystack: &str) -> bool;
-        fn fold_splits<'ch, F>(&self, haystack: &'ch str, folder: F, skip_last: bool) -> F
-        where
-            F: Folder<&'ch str>;
-        fn fold_inclusive_splits<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
-        where
-            F: Folder<&'ch str>;
-        fn fold_matches<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
-        where
-            F: Folder<&'ch str>;
-        fn fold_match_indices<'ch, F>(&self, haystack: &'ch str, folder: F, base: usize) -> F
-        where
-            F: Folder<(usize, &'ch str)>;
-    }
+/// Pattern-matching trait for `ParallelString`, somewhat like a mix of
+/// `std::str::pattern::{Pattern, Searcher}`.
+///
+/// We keep this trait private because its API is not meant for general
+/// consumption.  If we could have privacy on trait items, then it would be
+/// nicer to have its basic existence and implementors public while keeping
+/// all of the methods private.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
+trait Pattern: Sized + Sync + Send {
+    fn find_in(&self, haystack: &str) -> Option<usize>;
+    fn rfind_in(&self, haystack: &str) -> Option<usize>;
+    fn is_suffix_of(&self, haystack: &str) -> bool;
+    fn fold_splits<'ch, F>(&self, haystack: &'ch str, folder: F, skip_last: bool) -> F
+    where
+        F: Folder<&'ch str>;
+    fn fold_inclusive_splits<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
+    where
+        F: Folder<&'ch str>;
+    fn fold_matches<'ch, F>(&self, haystack: &'ch str, folder: F) -> F
+    where
+        F: Folder<&'ch str>;
+    fn fold_match_indices<'ch, F>(&self, haystack: &'ch str, folder: F, base: usize) -> F
+    where
+        F: Folder<(usize, &'ch str)>;
 }
-use self::private::Pattern;
 
 #[inline]
 fn offset<T>(base: usize) -> impl Fn((usize, T)) -> (usize, T) {
@@ -390,8 +390,6 @@ fn offset<T>(base: usize) -> impl Fn((usize, T)) -> (usize, T) {
 
 macro_rules! impl_pattern {
     (&$self:ident => $pattern:expr) => {
-        private_impl! {}
-
         #[inline]
         fn find_in(&$self, chars: &str) -> Option<usize> {
             chars.find($pattern)
@@ -653,12 +651,12 @@ impl<'ch> UnindexedProducer for EncodeUtf16Producer<'ch> {
 
 /// Parallel iterator over substrings separated by a pattern
 #[derive(Debug, Clone)]
-pub struct Split<'ch, P: Pattern> {
+pub struct Split<'ch, P> {
     chars: &'ch str,
     separator: P,
 }
 
-impl<'ch, P: Pattern> Split<'ch, P> {
+impl<'ch, P> Split<'ch, P> {
     fn new(chars: &'ch str, separator: P) -> Self {
         Split { chars, separator }
     }
@@ -725,12 +723,12 @@ impl<P: Pattern> Fissile<P> for &str {
 
 /// Parallel iterator over substrings separated by a pattern
 #[derive(Debug, Clone)]
-pub struct SplitInclusive<'ch, P: Pattern> {
+pub struct SplitInclusive<'ch, P> {
     chars: &'ch str,
     separator: P,
 }
 
-impl<'ch, P: Pattern> SplitInclusive<'ch, P> {
+impl<'ch, P> SplitInclusive<'ch, P> {
     fn new(chars: &'ch str, separator: P) -> Self {
         SplitInclusive { chars, separator }
     }
@@ -752,7 +750,7 @@ impl<'ch, P: Pattern> ParallelIterator for SplitInclusive<'ch, P> {
 
 /// Parallel iterator over substrings separated by a terminator pattern
 #[derive(Debug, Clone)]
-pub struct SplitTerminator<'ch, P: Pattern> {
+pub struct SplitTerminator<'ch, P> {
     chars: &'ch str,
     terminator: P,
 }
@@ -762,7 +760,7 @@ struct SplitTerminatorProducer<'ch, 'sep, P: Pattern> {
     skip_last: bool,
 }
 
-impl<'ch, P: Pattern> SplitTerminator<'ch, P> {
+impl<'ch, P> SplitTerminator<'ch, P> {
     fn new(chars: &'ch str, terminator: P) -> Self {
         SplitTerminator { chars, terminator }
     }
@@ -893,7 +891,7 @@ impl<'ch> ParallelIterator for SplitAsciiWhitespace<'ch> {
 
 /// Parallel iterator over substrings that match a pattern
 #[derive(Debug, Clone)]
-pub struct Matches<'ch, P: Pattern> {
+pub struct Matches<'ch, P> {
     chars: &'ch str,
     pattern: P,
 }
@@ -949,7 +947,7 @@ impl<'ch, 'pat, P: Pattern> UnindexedProducer for MatchesProducer<'ch, 'pat, P> 
 
 /// Parallel iterator over substrings that match a pattern, with their positions
 #[derive(Debug, Clone)]
-pub struct MatchIndices<'ch, P: Pattern> {
+pub struct MatchIndices<'ch, P> {
     chars: &'ch str,
     pattern: P,
 }

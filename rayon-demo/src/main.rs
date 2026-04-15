@@ -91,10 +91,8 @@ fn main() {
     }
 }
 
-fn seeded_rng() -> rand_xorshift::XorShiftRng {
+fn seeded_rng() -> rand::rngs::StdRng {
     use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
-    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
-    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
-    XorShiftRng::from_seed(seed)
+    let seed = std::array::from_fn(|i| i as u8);
+    rand::rngs::StdRng::from_seed(seed)
 }

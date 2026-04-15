@@ -207,8 +207,10 @@ impl<T: Send> DrainProducer<'_, T> {
 
         // The pointer is derived from `Vec` directly, not through a `Deref`,
         // so it has provenance over the whole allocation.
-        let ptr = vec.as_mut_ptr().add(start);
-        DrainProducer::new(slice::from_raw_parts_mut(ptr, len))
+        unsafe {
+            let ptr = vec.as_mut_ptr().add(start);
+            DrainProducer::new(slice::from_raw_parts_mut(ptr, len))
+        }
     }
 }
 

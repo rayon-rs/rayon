@@ -3,8 +3,8 @@
 use super::*;
 use crate::ThreadPoolBuilder;
 use rand::distr::StandardUniform;
-use rand::{Rng, SeedableRng};
-use rand_xorshift::XorShiftRng;
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 
 fn quick_sort<T: PartialOrd + Send>(v: &mut [T]) {
     if v.len() <= 1 {
@@ -29,10 +29,9 @@ fn partition<T: PartialOrd + Send>(v: &mut [T]) -> usize {
     i
 }
 
-fn seeded_rng() -> XorShiftRng {
-    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
-    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
-    XorShiftRng::from_seed(seed)
+fn seeded_rng() -> StdRng {
+    let seed = std::array::from_fn(|i| i as u8);
+    StdRng::from_seed(seed)
 }
 
 #[test]
