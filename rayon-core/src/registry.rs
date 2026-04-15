@@ -64,11 +64,9 @@ impl fmt::Debug for ThreadBuilder {
 
 /// Generalized trait for spawning a thread in the `Registry`.
 ///
-/// This trait is pub-in-private -- E0445 forces us to make it public,
-/// but we don't actually want to expose these details in the API.
-pub trait ThreadSpawn {
-    private_decl! {}
-
+/// This trait is crate-private, because we don't actually want to
+/// expose these details in the API.
+pub(crate) trait ThreadSpawn {
     /// Spawn a thread with the `ThreadBuilder` parameters, and then
     /// call `ThreadBuilder::run()`.
     fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()>;
@@ -76,14 +74,14 @@ pub trait ThreadSpawn {
 
 /// Spawns a thread in the "normal" way with `std::thread::Builder`.
 ///
-/// This type is pub-in-private -- E0445 forces us to make it public,
-/// but we don't actually want to expose these details in the API.
+/// This type is pub-in-private -- it has to be somewhat exposed to be
+/// usable as a type parameter of `ThreadPoolBuilder`, but we don't
+/// actually want to expose these details in the API.
 #[derive(Debug, Default)]
+#[expect(unnameable_types)]
 pub struct DefaultSpawn;
 
 impl ThreadSpawn for DefaultSpawn {
-    private_impl! {}
-
     fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()> {
         let mut b = thread::Builder::new();
         if let Some(name) = thread.name() {
@@ -99,9 +97,11 @@ impl ThreadSpawn for DefaultSpawn {
 
 /// Spawns a thread with a user's custom callback.
 ///
-/// This type is pub-in-private -- E0445 forces us to make it public,
-/// but we don't actually want to expose these details in the API.
+/// This type is pub-in-private -- it has to be somewhat exposed to be
+/// usable as a type parameter of `ThreadPoolBuilder`, but we don't
+/// actually want to expose these details in the API.
 #[derive(Debug)]
+#[expect(unnameable_types)]
 pub struct CustomSpawn<F>(F);
 
 impl<F> CustomSpawn<F>
@@ -117,8 +117,6 @@ impl<F> ThreadSpawn for CustomSpawn<F>
 where
     F: FnMut(ThreadBuilder) -> io::Result<()>,
 {
-    private_impl! {}
-
     #[inline]
     fn spawn(&mut self, thread: ThreadBuilder) -> io::Result<()> {
         (self.0)(thread)

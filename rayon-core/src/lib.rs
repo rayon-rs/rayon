@@ -66,9 +66,6 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::thread;
 
-#[macro_use]
-mod private;
-
 mod broadcast;
 mod job;
 mod join;
@@ -246,6 +243,7 @@ impl ThreadPoolBuilder {
 
 /// Note: the `S: ThreadSpawn` constraint is an internal implementation detail for the
 /// default spawn and those set by [`spawn_handler`](#method.spawn_handler).
+#[expect(private_bounds)]
 impl<S> ThreadPoolBuilder<S>
 where
     S: ThreadSpawn,

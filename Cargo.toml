@@ -48,6 +48,9 @@ keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [workspace.lints.rust]
+private-bounds = "deny"
+private-interfaces = "deny"
+unnameable-types = "deny"
 unreachable-pub = "deny"
 unsafe-op-in-unsafe-fn = "deny"
 

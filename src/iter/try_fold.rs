@@ -161,6 +161,7 @@ where
 
 // ///////////////////////////////////////////////////////////////////////////
 
+#[expect(private_bounds)]
 impl<I, U: Try, F> TryFoldWith<I, U, F> {
     pub(super) fn new(base: I, item: U::Output, fold_op: F) -> Self {
         TryFoldWith {
@@ -177,6 +178,7 @@ impl<I, U: Try, F> TryFoldWith<I, U, F> {
 /// [`try_fold_with()`]: ParallelIterator::try_fold_with()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
+#[expect(private_bounds)]
 pub struct TryFoldWith<I, U: Try, F> {
     base: I,
     item: U::Output,
