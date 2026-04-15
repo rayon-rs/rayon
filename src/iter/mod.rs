@@ -3501,8 +3501,6 @@ impl<B, C> Try for ControlFlow<B, C> {
     fn from_residual(residual: Self::Residual) -> Self {
         match residual {
             ControlFlow::Break(b) => Self::Break(b),
-            #[allow(unreachable_patterns)]
-            ControlFlow::Continue(_) => unreachable!(),
         }
     }
 
@@ -3525,8 +3523,6 @@ impl<T> Try for Option<T> {
     fn from_residual(residual: Self::Residual) -> Self {
         match residual {
             None => None,
-            #[allow(unreachable_patterns)]
-            Some(_) => unreachable!(),
         }
     }
 
@@ -3549,8 +3545,6 @@ impl<T, E> Try for Result<T, E> {
     fn from_residual(residual: Self::Residual) -> Self {
         match residual {
             Err(e) => Err(e),
-            #[allow(unreachable_patterns)]
-            Ok(_) => unreachable!(),
         }
     }
 
@@ -3573,8 +3567,6 @@ impl<T, E> Try for Poll<Result<T, E>> {
     fn from_residual(residual: Self::Residual) -> Self {
         match residual {
             Err(e) => Poll::Ready(Err(e)),
-            #[allow(unreachable_patterns)]
-            Ok(_) => unreachable!(),
         }
     }
 
@@ -3601,8 +3593,6 @@ impl<T, E> Try for Poll<Option<Result<T, E>>> {
     fn from_residual(residual: Self::Residual) -> Self {
         match residual {
             Err(e) => Poll::Ready(Some(Err(e))),
-            #[allow(unreachable_patterns)]
-            Ok(_) => unreachable!(),
         }
     }
 
