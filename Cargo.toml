@@ -13,6 +13,9 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lints]
+workspace = true
+
 [features]
 # This feature switches to a spin-lock implementation on the browser's
 # main thread to avoid the forbidden `atomics.wait`.
@@ -43,6 +46,12 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
+
+[workspace.lints.rust]
+unreachable-pub = "deny"
+unsafe-op-in-unsafe-fn = "deny"
+
+rust_2018_idioms = { level = "warn", priority = -1 }
 
 # Some dependencies may not be their latest version, in order to support older rustc.
 [workspace.dependencies]
