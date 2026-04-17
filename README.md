@@ -52,7 +52,7 @@ freedom**, which generally rules out most parallel bugs (though not
 all). In other words, **if your code compiles**, it typically does the
 same thing it did before.
 
-For the most, parallel iterators in particular are guaranteed to
+For the most part, parallel iterators in particular are guaranteed to
 produce the same results as their sequential counterparts. One caveat:
 If your iterator has side effects (for example, sending methods to
 other threads through a [Rust channel] or writing to disk), those side
