@@ -1,5 +1,5 @@
 use rand::distr::Uniform;
-use rand::{rng, Rng};
+use rand::{RngExt, rng};
 use rayon::prelude::*;
 use std::cell::Cell;
 use std::cmp::Ordering;
@@ -27,7 +27,7 @@ impl PartialEq for DropCounter {
     }
 }
 
-#[allow(clippy::non_canonical_partial_ord_impl)]
+#[expect(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for DropCounter {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.version.set(self.version.get() + 1);

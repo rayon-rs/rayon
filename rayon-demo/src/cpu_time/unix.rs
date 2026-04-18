@@ -1,4 +1,4 @@
-use libc::{getrusage, RUSAGE_SELF};
+use libc::{RUSAGE_SELF, getrusage};
 use std::mem::MaybeUninit;
 
 pub fn get_cpu_time() -> Option<u64> {

@@ -4,7 +4,6 @@
 use num::Integer;
 use rayon::prelude::*;
 use rayon::range::Iter;
-use std::ops::Add;
 
 /// Use Euclid's formula to count Pythagorean triples
 ///
@@ -48,13 +47,13 @@ fn par_euclid_weightless() -> u32 {
 /// Same as par_euclid, without using rayon.
 fn euclid() -> u32 {
     (1u32..2_000)
-        .map(|m| {
+        .map(|m| -> u32 {
             (1..m)
                 .filter(|n| (m - n).is_odd() && m.gcd(n) == 1)
                 .map(|n| 4_000_000 / (m * m + n * n))
-                .fold(0, Add::add)
+                .sum()
         })
-        .fold(0, Add::add)
+        .sum()
 }
 
 #[bench]

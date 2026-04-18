@@ -138,7 +138,7 @@ fn range_inclusive() {
 
 #[test]
 fn repeat_n() {
-    let v: Vec<_> = std::iter::repeat(1).take(5).collect();
+    let v: Vec<_> = std::iter::repeat_n(1, 5).collect();
     check(&v, || rayon::iter::repeat_n(1, 5));
 }
 
@@ -254,6 +254,13 @@ fn slice_windows() {
     let s: Vec<_> = (0..10).collect();
     let v: Vec<_> = s.windows(2).collect();
     check(&v, || s.par_windows(2));
+}
+
+#[test]
+fn slice_array_windows() {
+    let s: Vec<_> = (0..10).collect();
+    let v: Vec<&[_; 2]> = s.array_windows().collect();
+    check(&v, || s.par_array_windows::<2>());
 }
 
 #[test]

@@ -1,9 +1,9 @@
 use rayon::prelude::*;
 
 use std::panic;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Mutex;
 
 #[test]
 #[cfg_attr(not(panic = "unwind"), ignore)]

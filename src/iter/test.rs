@@ -5,8 +5,8 @@ use crate::prelude::*;
 use rayon_core::*;
 
 use rand::distr::StandardUniform;
-use rand::{Rng, SeedableRng};
-use rand_xorshift::XorShiftRng;
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
 use std::ffi::OsStr;
@@ -15,10 +15,9 @@ use std::sync::mpsc;
 
 fn is_indexed<T: IndexedParallelIterator>(_: T) {}
 
-fn seeded_rng() -> XorShiftRng {
-    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
-    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
-    XorShiftRng::from_seed(seed)
+fn seeded_rng() -> StdRng {
+    let seed = std::array::from_fn(|i| i as u8);
+    StdRng::from_seed(seed)
 }
 
 #[test]
@@ -275,7 +274,7 @@ fn check_skip() {
 
     let mut v1 = Vec::new();
     a.par_iter().skip(0).collect_into_vec(&mut v1);
-    #[allow(clippy::iter_skip_zero)]
+    #[expect(clippy::iter_skip_zero)]
     let v2 = a.iter().skip(0).collect::<Vec<_>>();
     assert_eq!(v1, v2);
 
@@ -1376,19 +1375,11 @@ fn find_map_first_or_last_or_any() {
     assert_eq!(a.par_iter().find_map_last(half_if_positive), Some(512_i32));
 
     fn half_if_positive(x: &i32) -> Option<i32> {
-        if *x > 0 {
-            Some(x / 2)
-        } else {
-            None
-        }
+        if *x > 0 { Some(x / 2) } else { None }
     }
 
     fn half_if_negative(x: &i32) -> Option<i32> {
-        if *x < 0 {
-            Some(x / 2)
-        } else {
-            None
-        }
+        if *x < 0 { Some(x / 2) } else { None }
     }
 }
 
@@ -1425,11 +1416,7 @@ fn check_while_some() {
         .into_par_iter()
         .map(|x| {
             counter.fetch_add(1, Ordering::SeqCst);
-            if x < 1024 {
-                Some(x)
-            } else {
-                None
-            }
+            if x < 1024 { Some(x) } else { None }
         })
         .while_some()
         .max();
@@ -2387,6 +2374,6 @@ fn blocks() {
         .chunks(100)
         .map(|c| c.iter().max().copied().unwrap())
         .collect::<Vec<usize>>();
-    assert!(m.windows(2).all(|w| w[0].lt(&w[1])));
+    assert!(m.is_sorted());
     assert_eq!(v.len(), 1000);
 }

@@ -1,10 +1,6 @@
 [package]
-edition = "2018"
+edition = "2024"
 name = "alt-core"
-version = "0.0.0"
-authors = ["Josh Stone <cuviper@gmail.com>"]
 links = "rayon-core"
 build = "build.rs"
 publish = false
-
-[dependencies]

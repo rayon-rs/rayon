@@ -1,7 +1,7 @@
 use super::plumbing::*;
 use super::*;
 use std::num::NonZeroUsize;
-use std::{fmt, iter, mem};
+use std::{fmt, iter};
 
 /// Iterator adaptor for [the `repeat()` function].
 ///
@@ -167,7 +167,7 @@ where
     }
 
     fn opt_len(&self) -> Option<usize> {
-        Some(self.inner.len())
+        Some(self.len())
     }
 }
 
@@ -190,7 +190,10 @@ where
     }
 
     fn len(&self) -> usize {
-        self.inner.len()
+        match self.inner {
+            RepeatNProducer::Repeats(_, count) => count.get(),
+            RepeatNProducer::Empty => 0,
+        }
     }
 }
 
@@ -203,12 +206,17 @@ enum RepeatNProducer<T> {
 
 impl<T: Clone + Send> Producer for RepeatNProducer<T> {
     type Item = T;
-    type IntoIter = Self;
+    type IntoIter = Either<iter::RepeatN<T>, iter::Empty<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        // We could potentially use `std::iter::RepeatN` with MSRV 1.82, but we have no way to
+        // We could potentially use `std::iter::RepeatN`, but we have no way to
         // create an empty instance without a value in hand, like `repeat_n(value, 0)`.
-        self
+        // `Default` may solve this: https://github.com/rust-lang/rust/pull/139690
+        if let Self::Repeats(element, count) = self {
+            Either::Left(iter::repeat_n(element, count.get()))
+        } else {
+            Either::Right(iter::empty())
+        }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
@@ -229,67 +237,6 @@ impl<T: Clone + Send> Producer for RepeatNProducer<T> {
         } else {
             assert!(index == 0);
             (Self::Empty, Self::Empty)
-        }
-    }
-}
-
-impl<T: Clone> Iterator for RepeatNProducer<T> {
-    type Item = T;
-
-    #[inline]
-    fn next(&mut self) -> Option<T> {
-        if let Self::Repeats(element, count) = self {
-            if let Some(rem) = NonZeroUsize::new(count.get() - 1) {
-                *count = rem;
-                Some(element.clone())
-            } else {
-                match mem::replace(self, Self::Empty) {
-                    Self::Repeats(element, _) => Some(element),
-                    Self::Empty => unreachable!(),
-                }
-            }
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn nth(&mut self, n: usize) -> Option<T> {
-        if let Self::Repeats(_, count) = self {
-            if let Some(rem) = NonZeroUsize::new(count.get().saturating_sub(n)) {
-                *count = rem;
-                return self.next();
-            }
-            *self = Self::Empty;
-        }
-        None
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
-        (len, Some(len))
-    }
-}
-
-impl<T: Clone> DoubleEndedIterator for RepeatNProducer<T> {
-    #[inline]
-    fn next_back(&mut self) -> Option<T> {
-        self.next()
-    }
-
-    #[inline]
-    fn nth_back(&mut self, n: usize) -> Option<T> {
-        self.nth(n)
-    }
-}
-
-impl<T: Clone> ExactSizeIterator for RepeatNProducer<T> {
-    #[inline]
-    fn len(&self) -> usize {
-        match self {
-            Self::Repeats(_, count) => count.get(),
-            Self::Empty => 0,
         }
     }
 }

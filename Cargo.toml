@@ -1,6 +1,6 @@
 [package]
 name = "rayon"
-version = "1.11.0"
+version = "1.12.0"
 description = "Simple work-stealing parallelism for Rust"
 documentation = "https://docs.rs/rayon/"
 exclude = ["/ci/*", "/.github/*"]
@@ -12,6 +12,9 @@ license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [features]
 # This feature switches to a spin-lock implementation on the browser's
@@ -29,7 +32,6 @@ wasm_sync = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand.workspace = true
-rand_xorshift.workspace = true
 
 
 [workspace]
@@ -38,12 +40,21 @@ exclude = ["ci"]
 
 [workspace.package]
 readme = "README.md"
-rust-version = "1.80"
-edition = "2021"
+rust-version = "1.85"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
 keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
+
+[workspace.lints.rust]
+private-bounds = "deny"
+private-interfaces = "deny"
+unnameable-types = "deny"
+unreachable-pub = "deny"
+unsafe-op-in-unsafe-fn = "deny"
+
+rust_2018_idioms = { level = "warn", priority = -1 }
 
 # Some dependencies may not be their latest version, in order to support older rustc.
 [workspace.dependencies]
@@ -51,7 +62,6 @@ crossbeam-deque = "0.8.1"
 crossbeam-utils = "0.8.0"
 either = { version = "1", default-features = false }
 libc = "0.2"
-rand = "0.9"
-rand_xorshift = "0.4"
+rand = "0.10"
 scoped-tls = "1.0"
 wasm_sync = "0.1.0"

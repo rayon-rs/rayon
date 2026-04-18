@@ -137,7 +137,7 @@ fn check_error_send_sync() {
     _send_sync::<ThreadPoolBuildError>();
 }
 
-#[allow(deprecated)]
+#[expect(deprecated)]
 #[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn configuration() {

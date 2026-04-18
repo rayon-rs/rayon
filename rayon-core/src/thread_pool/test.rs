@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use crate::{join, Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder};
+use crate::{Scope, ScopeFifo, ThreadPool, ThreadPoolBuilder, join};
 
 #[test]
 #[should_panic(expected = "Hello, world!")]
@@ -200,7 +200,7 @@ fn mutual_install_sleepy() {
 }
 
 #[test]
-#[allow(deprecated)]
+#[expect(deprecated)]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn check_thread_pool_new() {
     let pool = ThreadPool::new(crate::Configuration::new().num_threads(22)).unwrap();

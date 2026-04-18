@@ -6,8 +6,8 @@ use crate::join;
 use crate::registry::{Registry, ThreadSpawn, WorkerThread};
 use crate::scope::{do_in_place_scope, do_in_place_scope_fifo};
 use crate::spawn;
-use crate::{scope, Scope};
-use crate::{scope_fifo, ScopeFifo};
+use crate::{Scope, scope};
+use crate::{ScopeFifo, scope_fifo};
 use crate::{ThreadPoolBuildError, ThreadPoolBuilder};
 use std::error::Error;
 use std::fmt;
@@ -49,7 +49,7 @@ pub struct ThreadPool {
 
 impl ThreadPool {
     #[deprecated(note = "Use `ThreadPoolBuilder::build`")]
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     /// Deprecated in favor of `ThreadPoolBuilder::build`.
     pub fn new(configuration: crate::Configuration) -> Result<ThreadPool, Box<dyn Error>> {
         Self::build(configuration.into_builder()).map_err(Box::from)

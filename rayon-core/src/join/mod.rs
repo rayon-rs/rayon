@@ -181,6 +181,6 @@ unsafe fn join_recover_from_panic(
     job_b_latch: &SpinLatch<'_>,
     err: Box<dyn Any + Send>,
 ) -> ! {
-    worker_thread.wait_until(job_b_latch);
+    unsafe { worker_thread.wait_until(job_b_latch) };
     unwind::resume_unwinding(err)
 }

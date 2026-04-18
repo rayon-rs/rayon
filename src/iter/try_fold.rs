@@ -1,6 +1,6 @@
-use super::plumbing::*;
 use super::ParallelIterator;
 use super::Try;
+use super::plumbing::*;
 
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
@@ -152,15 +152,13 @@ where
     }
 
     fn full(&self) -> bool {
-        match self.control {
-            Break(_) => true,
-            _ => self.base.full(),
-        }
+        self.control.is_break() || self.base.full()
     }
 }
 
 // ///////////////////////////////////////////////////////////////////////////
 
+#[expect(private_bounds)]
 impl<I, U: Try, F> TryFoldWith<I, U, F> {
     pub(super) fn new(base: I, item: U::Output, fold_op: F) -> Self {
         TryFoldWith {
@@ -177,6 +175,7 @@ impl<I, U: Try, F> TryFoldWith<I, U, F> {
 /// [`try_fold_with()`]: ParallelIterator::try_fold_with()
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[derive(Clone)]
+#[expect(private_bounds)]
 pub struct TryFoldWith<I, U: Try, F> {
     base: I,
     item: U::Output,

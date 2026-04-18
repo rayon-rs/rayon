@@ -12,7 +12,6 @@ docopt = "1"
 fixedbitset = "0.5"
 glium = "0.36"
 rand.workspace = true
-rand_xorshift.workspace = true
 regex = "1"
 winit = "0.30"
 

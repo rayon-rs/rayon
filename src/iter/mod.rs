@@ -79,12 +79,14 @@
 //! (This keeps the implementation simpler and allows extra optimizations.)
 
 use self::plumbing::*;
-use self::private::Try;
 pub use either::Either;
 use std::cmp::Ordering;
 use std::collections::LinkedList;
+use std::convert::Infallible;
 use std::iter::{Product, Sum};
+use std::ops::ControlFlow;
 use std::ops::{Fn, RangeBounds};
+use std::task::Poll;
 
 pub mod plumbing;
 
@@ -166,7 +168,7 @@ pub use self::{
     chunks::Chunks,
     cloned::Cloned,
     copied::Copied,
-    empty::{empty, Empty},
+    empty::{Empty, empty},
     enumerate::Enumerate,
     filter::Filter,
     filter_map::FilterMap,
@@ -185,16 +187,16 @@ pub use self::{
     map::Map,
     map_with::{MapInit, MapWith},
     multizip::MultiZip,
-    once::{once, Once},
+    once::{Once, once},
     panic_fuse::PanicFuse,
     par_bridge::{IterBridge, ParallelBridge},
     positions::Positions,
-    repeat::{repeat, repeat_n, Repeat, RepeatN},
+    repeat::{Repeat, RepeatN, repeat, repeat_n},
     rev::Rev,
     skip::Skip,
     skip_any::SkipAny,
     skip_any_while::SkipAnyWhile,
-    splitter::{split, Split},
+    splitter::{Split, split},
     step_by::StepBy,
     take::Take,
     take_any::TakeAny,
@@ -202,14 +204,14 @@ pub use self::{
     try_fold::{TryFold, TryFoldWith},
     update::Update,
     walk_tree::{
-        walk_tree, walk_tree_postfix, walk_tree_prefix, WalkTree, WalkTreePostfix, WalkTreePrefix,
+        WalkTree, WalkTreePostfix, WalkTreePrefix, walk_tree, walk_tree_postfix, walk_tree_prefix,
     },
     while_some::WhileSome,
     zip::Zip,
     zip_eq::ZipEq,
 };
 
-#[allow(deprecated)]
+#[expect(deprecated)]
 pub use repeat::repeatn;
 
 /// `IntoParallelIterator` implements the conversion to a [`ParallelIterator`].
@@ -419,7 +421,7 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::Rng;
+    /// use rand::RngExt;
     /// use rayon::prelude::*;
     ///
     /// let mut v = vec![0u8; 1_000_000];
@@ -463,6 +465,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .try_for_each(|x| writeln!(io::stdout(), "{:?}", x))
     ///     .expect("expected no write errors");
     /// ```
+    #[expect(private_bounds)]
     fn try_for_each<OP, R>(self, op: OP) -> R
     where
         OP: Fn(Self::Item) -> R + Sync + Send,
@@ -502,6 +505,7 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// assert_eq!(&res[..], &[0, 1, 2, 3, 4])
     /// ```
+    #[expect(private_bounds)]
     fn try_for_each_with<OP, T, R>(self, init: T, op: OP) -> R
     where
         OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
@@ -527,7 +531,7 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::{Rng, TryRngCore};
+    /// use rand::{RngExt, TryRng};
     /// use rayon::prelude::*;
     ///
     /// let mut v = vec![0u8; 1_000_000];
@@ -544,6 +548,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     assert!(v.contains(&i));
     /// }
     /// ```
+    #[expect(private_bounds)]
     fn try_for_each_init<OP, INIT, T, R>(self, init: INIT, op: OP) -> R
     where
         OP: Fn(&mut T, Self::Item) -> R + Sync + Send,
@@ -646,7 +651,7 @@ pub trait ParallelIterator: Sized + Send {
     /// # Examples
     ///
     /// ```
-    /// use rand::Rng;
+    /// use rand::RngExt;
     /// use rayon::prelude::*;
     ///
     /// let a: Vec<_> = (1i32..1_000_000)
@@ -1068,6 +1073,7 @@ pub trait ParallelIterator: Sized + Send {
     /// // Or the squares might overflow before it even reaches `try_reduce`
     /// assert_eq!(sum_squares(1_000_000..1_000_001), None);
     /// ```
+    #[expect(private_bounds)]
     fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
         OP: Fn(T, T) -> Self::Item + Sync + Send,
@@ -1112,6 +1118,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .expect("Some value, since the iterator is not empty")
     ///     .expect_err("not found");
     /// ```
+    #[expect(private_bounds)]
     fn try_reduce_with<T, OP>(self, op: OP) -> Option<Self::Item>
     where
         OP: Fn(T, T) -> Self::Item + Sync + Send,
@@ -1314,6 +1321,7 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// assert_eq!(sum, Some((0..22).sum())); // compare to sequential
     /// ```
+    #[expect(private_bounds)]
     fn try_fold<T, R, ID, F>(self, identity: ID, fold_op: F) -> TryFold<Self, R, ID, F>
     where
         F: Fn(T, Self::Item) -> R + Sync + Send,
@@ -1341,6 +1349,7 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// assert_eq!(sum, Some((0..22).sum())); // compare to sequential
     /// ```
+    #[expect(private_bounds)]
     fn try_fold_with<F, T, R>(self, init: T, fold_op: F) -> TryFoldWith<Self, R, F>
     where
         F: Fn(T, Self::Item) -> R + Sync + Send,
@@ -2223,7 +2232,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert_eq!(result.len(), 5);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     fn take_any(self, n: usize) -> TakeAny<Self> {
         TakeAny::new(self, n)
@@ -2248,7 +2257,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert_eq!(result.len(), 45);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     fn skip_any(self, n: usize) -> SkipAny<Self> {
         SkipAny::new(self, n)
@@ -2279,7 +2288,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert!(result.len() <= 50);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     ///
     /// ```
@@ -2332,7 +2341,7 @@ pub trait ParallelIterator: Sized + Send {
     ///     .collect();
     ///
     /// assert!(result.len() >= 50);
-    /// assert!(result.windows(2).all(|w| w[0] < w[1]));
+    /// assert!(result.is_sorted());
     /// ```
     fn skip_any_while<P>(self, predicate: P) -> SkipAnyWhile<Self, P>
     where
@@ -2436,7 +2445,7 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 ///
 /// **Note:** Not implemented for `u64`, `i64`, `u128`, or `i128` ranges
 // Waiting for `ExactSizeIterator::is_empty` to be stabilized. See rust-lang/rust#35428
-#[allow(clippy::len_without_is_empty)]
+#[expect(clippy::len_without_is_empty)]
 pub trait IndexedParallelIterator: ParallelIterator {
     /// Divides an iterator into sequential blocks of exponentially-increasing size.
     ///
@@ -3467,162 +3476,129 @@ pub trait ParallelDrainRange<Idx = usize> {
     fn par_drain<R: RangeBounds<Idx>>(self, range: R) -> Self::Iter;
 }
 
-/// We hide the `Try` trait in a private module, as it's only meant to be a
-/// stable clone of the standard library's `Try` trait, as yet unstable.
-mod private {
-    use std::convert::Infallible;
-    use std::ops::ControlFlow::{self, Break, Continue};
-    use std::task::Poll;
+/// Clone of `std::ops::Try`, until that is someday stabilized.
+///
+/// Implementing this trait is not permitted outside of `rayon`.
+trait Try {
+    type Output;
+    type Residual;
 
-    /// Clone of `std::ops::Try`.
-    ///
-    /// Implementing this trait is not permitted outside of `rayon`.
-    pub trait Try {
-        private_decl! {}
+    fn from_output(output: Self::Output) -> Self;
 
-        type Output;
-        type Residual;
+    fn from_residual(residual: Self::Residual) -> Self;
 
-        fn from_output(output: Self::Output) -> Self;
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output>;
+}
 
-        fn from_residual(residual: Self::Residual) -> Self;
+impl<B, C> Try for ControlFlow<B, C> {
+    type Output = C;
+    type Residual = ControlFlow<B, Infallible>;
 
-        fn branch(self) -> ControlFlow<Self::Residual, Self::Output>;
+    fn from_output(output: Self::Output) -> Self {
+        Self::Continue(output)
     }
 
-    impl<B, C> Try for ControlFlow<B, C> {
-        private_impl! {}
-
-        type Output = C;
-        type Residual = ControlFlow<B, Infallible>;
-
-        fn from_output(output: Self::Output) -> Self {
-            Continue(output)
-        }
-
-        fn from_residual(residual: Self::Residual) -> Self {
-            match residual {
-                Break(b) => Break(b),
-                #[allow(unreachable_patterns)]
-                Continue(_) => unreachable!(),
-            }
-        }
-
-        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-            match self {
-                Continue(c) => Continue(c),
-                Break(b) => Break(Break(b)),
-            }
+    fn from_residual(residual: Self::Residual) -> Self {
+        match residual {
+            ControlFlow::Break(b) => Self::Break(b),
         }
     }
 
-    impl<T> Try for Option<T> {
-        private_impl! {}
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+        self.map_break(ControlFlow::Break)
+    }
+}
 
-        type Output = T;
-        type Residual = Option<Infallible>;
+impl<T> Try for Option<T> {
+    type Output = T;
+    type Residual = Option<Infallible>;
 
-        fn from_output(output: Self::Output) -> Self {
-            Some(output)
-        }
+    fn from_output(output: Self::Output) -> Self {
+        Some(output)
+    }
 
-        fn from_residual(residual: Self::Residual) -> Self {
-            match residual {
-                None => None,
-                #[allow(unreachable_patterns)]
-                Some(_) => unreachable!(),
-            }
-        }
-
-        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-            match self {
-                Some(c) => Continue(c),
-                None => Break(None),
-            }
+    fn from_residual(residual: Self::Residual) -> Self {
+        match residual {
+            None => None,
         }
     }
 
-    impl<T, E> Try for Result<T, E> {
-        private_impl! {}
-
-        type Output = T;
-        type Residual = Result<Infallible, E>;
-
-        fn from_output(output: Self::Output) -> Self {
-            Ok(output)
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Some(c) => ControlFlow::Continue(c),
+            None => ControlFlow::Break(None),
         }
+    }
+}
 
-        fn from_residual(residual: Self::Residual) -> Self {
-            match residual {
-                Err(e) => Err(e),
-                #[allow(unreachable_patterns)]
-                Ok(_) => unreachable!(),
-            }
-        }
+impl<T, E> Try for Result<T, E> {
+    type Output = T;
+    type Residual = Result<Infallible, E>;
 
-        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-            match self {
-                Ok(c) => Continue(c),
-                Err(e) => Break(Err(e)),
-            }
+    fn from_output(output: Self::Output) -> Self {
+        Ok(output)
+    }
+
+    fn from_residual(residual: Self::Residual) -> Self {
+        match residual {
+            Err(e) => Err(e),
         }
     }
 
-    impl<T, E> Try for Poll<Result<T, E>> {
-        private_impl! {}
-
-        type Output = Poll<T>;
-        type Residual = Result<Infallible, E>;
-
-        fn from_output(output: Self::Output) -> Self {
-            output.map(Ok)
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Ok(c) => ControlFlow::Continue(c),
+            Err(e) => ControlFlow::Break(Err(e)),
         }
+    }
+}
 
-        fn from_residual(residual: Self::Residual) -> Self {
-            match residual {
-                Err(e) => Poll::Ready(Err(e)),
-                #[allow(unreachable_patterns)]
-                Ok(_) => unreachable!(),
-            }
-        }
+impl<T, E> Try for Poll<Result<T, E>> {
+    type Output = Poll<T>;
+    type Residual = Result<Infallible, E>;
 
-        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-            match self {
-                Poll::Pending => Continue(Poll::Pending),
-                Poll::Ready(Ok(c)) => Continue(Poll::Ready(c)),
-                Poll::Ready(Err(e)) => Break(Err(e)),
-            }
+    fn from_output(output: Self::Output) -> Self {
+        output.map(Ok)
+    }
+
+    fn from_residual(residual: Self::Residual) -> Self {
+        match residual {
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 
-    impl<T, E> Try for Poll<Option<Result<T, E>>> {
-        private_impl! {}
-
-        type Output = Poll<Option<T>>;
-        type Residual = Result<Infallible, E>;
-
-        fn from_output(output: Self::Output) -> Self {
-            match output {
-                Poll::Ready(o) => Poll::Ready(o.map(Ok)),
-                Poll::Pending => Poll::Pending,
-            }
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Poll::Pending => ControlFlow::Continue(Poll::Pending),
+            Poll::Ready(Ok(c)) => ControlFlow::Continue(Poll::Ready(c)),
+            Poll::Ready(Err(e)) => ControlFlow::Break(Err(e)),
         }
+    }
+}
 
-        fn from_residual(residual: Self::Residual) -> Self {
-            match residual {
-                Err(e) => Poll::Ready(Some(Err(e))),
-                #[allow(unreachable_patterns)]
-                Ok(_) => unreachable!(),
-            }
+impl<T, E> Try for Poll<Option<Result<T, E>>> {
+    type Output = Poll<Option<T>>;
+    type Residual = Result<Infallible, E>;
+
+    fn from_output(output: Self::Output) -> Self {
+        match output {
+            Poll::Ready(o) => Poll::Ready(o.map(Ok)),
+            Poll::Pending => Poll::Pending,
         }
+    }
 
-        fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-            match self {
-                Poll::Pending => Continue(Poll::Pending),
-                Poll::Ready(None) => Continue(Poll::Ready(None)),
-                Poll::Ready(Some(Ok(c))) => Continue(Poll::Ready(Some(c))),
-                Poll::Ready(Some(Err(e))) => Break(Err(e)),
-            }
+    fn from_residual(residual: Self::Residual) -> Self {
+        match residual {
+            Err(e) => Poll::Ready(Some(Err(e))),
+        }
+    }
+
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Poll::Pending => ControlFlow::Continue(Poll::Pending),
+            Poll::Ready(None) => ControlFlow::Continue(Poll::Ready(None)),
+            Poll::Ready(Some(Ok(c))) => ControlFlow::Continue(Poll::Ready(Some(c))),
+            Poll::Ready(Some(Err(e))) => ControlFlow::Break(Err(e)),
         }
     }
 }
