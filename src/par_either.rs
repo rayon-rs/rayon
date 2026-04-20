@@ -23,6 +23,17 @@ where
     fn opt_len(&self) -> Option<usize> {
         self.as_ref().either(L::opt_len, R::opt_len)
     }
+
+    fn const_length() -> Option<usize> {
+        let left_len = L::const_length()?;
+        let right_len = R::const_length()?;
+
+        if left_len == right_len {
+            Some(left_len)
+        } else {
+            None
+        }
+    }
 }
 
 impl<L, R> IndexedParallelIterator for Either<L, R>

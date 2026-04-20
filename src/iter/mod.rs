@@ -249,6 +249,11 @@ pub trait IntoParallelIterator {
     ///
     /// [`zip`]: IndexedParallelIterator::zip()
     fn into_par_iter(self) -> Self::Iter;
+
+    /// Provides the length of the produced Iterator if known
+    fn const_length() -> Option<usize> {
+        None
+    }
 }
 
 /// `IntoParallelRefIterator` implements the conversion to a
@@ -2428,6 +2433,14 @@ pub trait ParallelIterator: Sized + Send {
     fn opt_len(&self) -> Option<usize> {
         None
     }
+
+    /// Internal method used to define the behavior of this parallel
+    /// iterator. You should not need to call this directly.
+    /// 
+    /// Returns the constant length of Iterators of this type, if known
+    fn const_length() -> Option<usize> where Self: Sized  {
+        None
+    }
 }
 
 impl<T: ParallelIterator> IntoParallelIterator for T {
@@ -2436,6 +2449,10 @@ impl<T: ParallelIterator> IntoParallelIterator for T {
 
     fn into_par_iter(self) -> T {
         self
+    }
+
+    fn const_length() -> Option<usize> {
+        <T as ParallelIterator>::const_length()
     }
 }
 
