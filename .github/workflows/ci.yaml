@@ -16,7 +16,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [
+          macos-latest,     # aarch64-apple-darwin
+          windows-11-arm,   # aarch64-pc-windows-msvc
+          ubuntu-24.04-arm, # aarch64-unknown-linux-gnu
+          windows-latest,   # x86_64-pc-windows-msvc
+          ubuntu-latest,    # x86_64-unknown-linux-gnu
+        ]
         rust: [stable, beta, nightly]
     steps:
       - uses: actions/checkout@v5
