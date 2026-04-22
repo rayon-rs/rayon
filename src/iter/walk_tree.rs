@@ -1,6 +1,5 @@
 use crate::iter::plumbing::{Folder, UnindexedConsumer, UnindexedProducer, bridge_unindexed};
 use crate::prelude::*;
-use std::iter::once;
 
 #[derive(Debug)]
 struct WalkTreePrefixProducer<'b, S, B> {
@@ -91,7 +90,7 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let producer = WalkTreePrefixProducer {
-            to_explore: once(self.initial_state).collect(),
+            to_explore: vec![self.initial_state],
             seen: Vec::new(),
             children_of: &self.children_of,
         };
@@ -316,7 +315,7 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let producer = WalkTreePostfixProducer {
-            to_explore: once(self.initial_state).collect(),
+            to_explore: vec![self.initial_state],
             seen: Vec::new(),
             children_of: &self.children_of,
         };
