@@ -3498,10 +3498,8 @@ impl<B, C> Try for ControlFlow<B, C> {
         Self::Continue(output)
     }
 
-    fn from_residual(residual: Self::Residual) -> Self {
-        match residual {
-            ControlFlow::Break(b) => Self::Break(b),
-        }
+    fn from_residual(ControlFlow::Break(b): Self::Residual) -> Self {
+        Self::Break(b)
     }
 
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
@@ -3517,10 +3515,8 @@ impl<T> Try for Option<T> {
         Some(output)
     }
 
-    fn from_residual(residual: Self::Residual) -> Self {
-        match residual {
-            None => None,
-        }
+    fn from_residual(None: Self::Residual) -> Self {
+        None
     }
 
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
@@ -3539,10 +3535,8 @@ impl<T, E> Try for Result<T, E> {
         Ok(output)
     }
 
-    fn from_residual(residual: Self::Residual) -> Self {
-        match residual {
-            Err(e) => Err(e),
-        }
+    fn from_residual(Err(e): Self::Residual) -> Self {
+        Err(e)
     }
 
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
@@ -3561,10 +3555,8 @@ impl<T, E> Try for Poll<Result<T, E>> {
         output.map(Ok)
     }
 
-    fn from_residual(residual: Self::Residual) -> Self {
-        match residual {
-            Err(e) => Poll::Ready(Err(e)),
-        }
+    fn from_residual(Err(e): Self::Residual) -> Self {
+        Poll::Ready(Err(e))
     }
 
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
@@ -3587,10 +3579,8 @@ impl<T, E> Try for Poll<Option<Result<T, E>>> {
         }
     }
 
-    fn from_residual(residual: Self::Residual) -> Self {
-        match residual {
-            Err(e) => Poll::Ready(Some(Err(e))),
-        }
+    fn from_residual(Err(e): Self::Residual) -> Self {
+        Poll::Ready(Some(Err(e)))
     }
 
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
