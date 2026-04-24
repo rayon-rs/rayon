@@ -8,7 +8,7 @@ use crate::{
     Yield,
 };
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
-use std::cell::Cell;
+use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::hash::{DefaultHasher, Hasher};
 use std::io;
@@ -299,10 +299,9 @@ impl Registry {
                 // Rather than starting a new thread, we're just taking over the current thread
                 // *without* running the main loop, so we can still return from here.
                 // The WorkerThread is leaked, but we never shutdown the global pool anyway.
-                let worker_thread = Box::into_raw(Box::new(WorkerThread::from(thread)));
 
                 unsafe {
-                    WorkerThread::set_current(worker_thread);
+                    WorkerThread::set_current(WorkerThread::from(thread));
                     Latch::set(&registry.thread_infos[index].primed);
                 }
                 continue;
@@ -668,8 +667,14 @@ pub(super) struct WorkerThread {
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
-    static WORKER_THREAD_STATE: Cell<*const WorkerThread> = const { Cell::new(ptr::null()) };
+    static WORKER_THREAD_STATE: UnsafeCell<Option<WorkerThread>> = const { UnsafeCell::new(None) };
 }
+
+const _: () = {
+    if size_of::<Option<WorkerThread>>() != size_of::<WorkerThread>() {
+        panic!()
+    }
+};
 
 impl From<ThreadBuilder> for WorkerThread {
     fn from(thread: ThreadBuilder) -> Self {
@@ -686,10 +691,8 @@ impl From<ThreadBuilder> for WorkerThread {
 
 impl Drop for WorkerThread {
     fn drop(&mut self) {
-        // Undo `set_current`
         WORKER_THREAD_STATE.with(|t| {
-            assert!(t.get().eq(&(self as *const _)));
-            t.set(ptr::null());
+            unsafe { assert!((&*t.get()).is_none()) };
         });
     }
 }
@@ -700,16 +703,43 @@ impl WorkerThread {
     /// anywhere on the current thread.
     #[inline]
     pub(super) fn current() -> *const WorkerThread {
-        WORKER_THREAD_STATE.get()
+        WORKER_THREAD_STATE.with(|t| {
+            unsafe { (&*t.get()).as_ref().map_or(ptr::null(), |r| r) }
+        })
     }
 
     /// Sets `self` as the worker-thread index for the current thread.
     /// This is done during worker-thread startup.
-    unsafe fn set_current(thread: *const WorkerThread) {
+    fn set_current(thread: WorkerThread) {
         WORKER_THREAD_STATE.with(|t| {
-            assert!(t.get().is_null());
-            t.set(thread);
+            unsafe {
+                assert!((&*t.get()).is_none());
+                t.get().write(Some(thread));
+            }
         });
+    }
+
+    /// Sets `self` as the worker-thread index for the current thread.
+    /// This is done during worker-thread startup.
+    fn with_current<F, R>(thread: WorkerThread, f: F) -> R where F: FnOnce(&WorkerThread) -> R {
+        WORKER_THREAD_STATE.with(|t| {
+            unsafe {
+                let t = t.get();
+                assert!((&*t).is_none());
+                t.write(Some(thread));
+
+                struct Guard(*mut Option<WorkerThread>);
+
+                impl Drop for Guard {
+                    fn drop(&mut self) {
+                        unsafe { *self.0 = None };
+                    }
+                }
+
+                let _g = Guard(t);
+                f((&*t).as_ref().unwrap_unchecked())
+            }
+        })
     }
 
     /// Returns the registry that owns this worker thread.
@@ -910,14 +940,12 @@ impl WorkerThread {
 // ////////////////////////////////////////////////////////////////////////
 
 unsafe fn main_loop(thread: ThreadBuilder) {
-    unsafe {
-        let worker_thread = &WorkerThread::from(thread);
-        WorkerThread::set_current(worker_thread);
+    WorkerThread::with_current(WorkerThread::from(thread), |worker_thread| {
         let registry = &*worker_thread.registry;
         let index = worker_thread.index;
 
         // let registry know we are ready to do work
-        Latch::set(&registry.thread_infos[index].primed);
+        unsafe { Latch::set(&registry.thread_infos[index].primed) };
 
         // Worker threads should not panic. If they do, just abort, as the
         // internal state of the thread pool is corrupted. Note that if
@@ -929,7 +957,7 @@ unsafe fn main_loop(thread: ThreadBuilder) {
             registry.catch_unwind(|| handler(index));
         }
 
-        worker_thread.wait_until_out_of_work();
+        unsafe { worker_thread.wait_until_out_of_work() };
 
         // Normal termination, do not abort.
         mem::forget(abort_guard);
@@ -939,7 +967,7 @@ unsafe fn main_loop(thread: ThreadBuilder) {
             registry.catch_unwind(|| handler(index));
             // We're already exiting the thread, there's nothing else to do.
         }
-    }
+    });
 }
 
 /// If already in a worker-thread, just execute `op`.  Otherwise,
