@@ -12,7 +12,7 @@ use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::hash::{DefaultHasher, Hasher};
 use std::io;
-use std::mem;
+use std::mem::{self, ManuallyDrop};
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
@@ -667,7 +667,8 @@ pub(super) struct WorkerThread {
 // worker is fully unwound. Using an unsafe pointer avoids the need
 // for a RefCell<T> etc.
 thread_local! {
-    static WORKER_THREAD_STATE: UnsafeCell<Option<WorkerThread>> = const { UnsafeCell::new(None) };
+    static WORKER_THREAD_STATE: ManuallyDrop<UnsafeCell<Option<WorkerThread>>> =
+        const { ManuallyDrop::new(UnsafeCell::new(None)) };
 }
 
 const _: () = {
@@ -703,39 +704,39 @@ impl WorkerThread {
     /// anywhere on the current thread.
     #[inline]
     pub(super) fn current() -> *const WorkerThread {
-        WORKER_THREAD_STATE.with(|t| {
-            unsafe { (&*t.get()).as_ref().map_or(ptr::null(), |r| r) }
-        })
+        WORKER_THREAD_STATE.with(|t| unsafe { (&*t.get()).as_ref().map_or(ptr::null(), |r| r) })
     }
 
     /// Sets `self` as the worker-thread index for the current thread.
     /// This is done during worker-thread startup.
     fn set_current(thread: WorkerThread) {
-        WORKER_THREAD_STATE.with(|t| {
-            unsafe {
-                assert!((&*t.get()).is_none());
-                t.get().write(Some(thread));
-            }
+        WORKER_THREAD_STATE.with(|t| unsafe {
+            let t = t.get();
+            assert!((&*t).is_none());
+            t.write(Some(thread));
         });
     }
 
     /// Sets `self` as the worker-thread index for the current thread.
     /// This is done during worker-thread startup.
-    fn with_current<F, R>(thread: WorkerThread, f: F) -> R where F: FnOnce(&WorkerThread) -> R {
+    fn with_current<F, R>(thread: WorkerThread, f: F) -> R
+    where
+        F: FnOnce(&WorkerThread) -> R,
+    {
         WORKER_THREAD_STATE.with(|t| {
+            struct Guard(*mut Option<WorkerThread>);
+
+            impl Drop for Guard {
+                fn drop(&mut self) {
+                    let t = unsafe { (&mut *self.0).take() };
+                    drop(t);
+                }
+            }
+
             unsafe {
                 let t = t.get();
                 assert!((&*t).is_none());
                 t.write(Some(thread));
-
-                struct Guard(*mut Option<WorkerThread>);
-
-                impl Drop for Guard {
-                    fn drop(&mut self) {
-                        unsafe { *self.0 = None };
-                    }
-                }
-
                 let _g = Guard(t);
                 f((&*t).as_ref().unwrap_unchecked())
             }
