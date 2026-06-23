@@ -84,7 +84,7 @@ where
         }
     }
 
-    fn from_transpose(transpose: &'data mut HashMapVecTranspose<K, V, S>) -> Self {
+    fn from_transpose<S2>(transpose: &'data mut HashMapVecTranspose<K, V, S2>) -> Self {
         let len = transpose.len;
         let map = transpose
             .map
