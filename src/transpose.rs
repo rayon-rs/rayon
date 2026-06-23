@@ -1,3 +1,7 @@
+//! This module contains the parallel iterator type for transposing a
+//! HashMap of Vecs into a Vec of HashMaps.  Use HashMapVecTranspose::new
+//! to operate the iterator.
+
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use crate::vec::{DrainProducer, SliceDrain};
@@ -13,7 +17,7 @@ pub struct HashMapVecTranspose<K, V, S> {
 }
 
 impl<K, V, S> HashMapVecTranspose<K, V, S> {
-	/// Create a new HashMapVecTranspose.
+    /// Create a new HashMapVecTranspose.  All Vecs must be the same length.
     pub fn new(map: HashMap<K, Vec<V>, S>, len: usize) -> Self {
         Self { map, len }
     }
