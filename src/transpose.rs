@@ -8,6 +8,7 @@ use crate::vec::{DrainProducer, SliceDrain};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash};
 use std::iter;
+use std::marker::PhantomData;
 
 /// Parallel iterator that clones K and moves V and yields `HashMap<K, V>` out of a hashmap of vectors.
 #[derive(Debug, Clone)]
@@ -65,18 +66,22 @@ where
 
 // ////////////////////////////////////////////////////////////////////////
 struct TransposeProducer<'data, K, V: Send, S> {
-    map: HashMap<K, DrainProducer<'data, V>, S>,
+    map: Vec<(K, DrainProducer<'data, V>)>,
     len: usize,
+    _randomstate: PhantomData<S>,
 }
 
 impl<'data, K, V, S> TransposeProducer<'data, K, V, S>
 where
     K: Clone + Eq + Hash,
     V: Send,
-    S: BuildHasher + Default,
 {
-    fn new(map: HashMap<K, DrainProducer<'data, V>, S>, len: usize) -> Self {
-        Self { map, len }
+    fn new(map: Vec<(K, DrainProducer<'data, V>)>, len: usize) -> Self {
+        Self {
+            map,
+            len,
+            _randomstate: PhantomData,
+        }
     }
 
     fn from_transpose(transpose: &'data mut HashMapVecTranspose<K, V, S>) -> Self {
@@ -112,7 +117,11 @@ where
             .into_iter()
             .map(|(key, drain_producer)| (key, drain_producer.into_iter()))
             .collect();
-        TransposeSliceDrain { map, len }
+        TransposeSliceDrain {
+            map,
+            len,
+            _randomstate: PhantomData,
+        }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
@@ -133,8 +142,9 @@ where
 
 // like std::vec::Drain, without updating a source Vec
 struct TransposeSliceDrain<'data, K, V, S> {
-    map: HashMap<K, SliceDrain<'data, V>, S>,
+    map: Vec<(K, SliceDrain<'data, V>)>,
     len: usize,
+    _randomstate: PhantomData<S>,
 }
 
 impl<'data, K, V, S> Iterator for TransposeSliceDrain<'data, K, V, S>
