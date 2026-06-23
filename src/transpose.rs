@@ -22,8 +22,8 @@ impl<K, V, S> HashMapVecTranspose<K, V, S> {
 impl<K, V, S> ParallelIterator for HashMapVecTranspose<K, V, S>
 where
     K: Send + Clone + Eq + Hash,
-    V: Send,
-    S: Send + BuildHasher + Default,
+    V: Send + Clone,
+    S: Send + Clone + BuildHasher + Default,
 {
     type Item = HashMap<K, V, S>;
 
@@ -39,8 +39,8 @@ where
 impl<K, V, S> IndexedParallelIterator for HashMapVecTranspose<K, V, S>
 where
     K: Send + Clone + Eq + Hash,
-    V: Send,
-    S: Send + BuildHasher + Default,
+    V: Send + Clone,
+    S: Send + Clone + BuildHasher + Default,
 {
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
@@ -51,8 +51,12 @@ where
     }
 
     fn with_producer<CB: ProducerCallback<Self::Item>>(mut self, callback: CB) -> CB::Output {
+        // Allocate the HashMaps single-threaded to avoid allocator lock contention
+        let mut hash_maps =
+            vec![HashMap::with_capacity_and_hasher(self.map.len(), S::default()); self.len];
+
         // Create the producer as the exclusive "owner" of the slice.
-        let producer = TransposeProducer::from_transpose(&mut self);
+        let producer = TransposeProducer::from_transpose(&mut self, &mut hash_maps);
 
         // The producer will move or drop each item from the drained range.
         callback.callback(producer)
@@ -60,22 +64,28 @@ where
 }
 
 // ////////////////////////////////////////////////////////////////////////
-struct TransposeProducer<'data, K, V: Send, S> {
+struct TransposeProducer<'data, K: Send, V: Send, S: Send> {
     map: HashMap<K, DrainProducer<'data, V>, S>,
-    len: usize,
+    hash_maps: DrainProducer<'data, HashMap<K, V, S>>,
 }
 
 impl<'data, K, V, S> TransposeProducer<'data, K, V, S>
 where
-    K: Clone + Eq + Hash,
+    K: Send + Clone + Eq + Hash,
     V: Send,
-    S: BuildHasher + Default,
+    S: Send + BuildHasher + Default,
 {
-    fn new(map: HashMap<K, DrainProducer<'data, V>, S>, len: usize) -> Self {
-        Self { map, len }
+    fn new(
+        map: HashMap<K, DrainProducer<'data, V>, S>,
+        hash_maps: DrainProducer<'data, HashMap<K, V, S>>,
+    ) -> Self {
+        Self { map, hash_maps }
     }
 
-    fn from_transpose(transpose: &'data mut HashMapVecTranspose<K, V, S>) -> Self {
+    fn from_transpose(
+        transpose: &'data mut HashMapVecTranspose<K, V, S>,
+        hash_maps: &'data mut Vec<HashMap<K, V, S>>,
+    ) -> Self {
         let len = transpose.len;
         let map = transpose
             .map
@@ -87,7 +97,11 @@ where
                 })
             })
             .collect();
-        Self::new(map, len)
+        let hash_maps = unsafe {
+            hash_maps.set_len(0);
+            DrainProducer::from_vec(hash_maps, len)
+        };
+        Self::new(map, hash_maps)
     }
 }
 
@@ -101,18 +115,18 @@ where
     type IntoIter = TransposeSliceDrain<'data, K, V, S>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let len = self.len;
         let map = self
             .map
             .into_iter()
             .map(|(key, drain_producer)| (key, drain_producer.into_iter()))
             .collect();
-        TransposeSliceDrain { map, len }
+        let hash_maps = self.hash_maps.into_iter();
+        TransposeSliceDrain { map, hash_maps }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         // TODO: figure out if there is a way to reuse the allocation of self
-        let (left, right) = self
+        let (m_left, m_right) = self
             .map
             .into_iter()
             .map(|(key, drain_producer)| {
@@ -120,7 +134,8 @@ where
                 ((key.clone(), left), (key, right))
             })
             .collect();
-        (Self::new(left, index), Self::new(right, self.len - index))
+        let (h_left, h_right) = self.hash_maps.split_at(index);
+        (Self::new(m_left, h_left), Self::new(m_right, h_right))
     }
 }
 
@@ -129,7 +144,7 @@ where
 // like std::vec::Drain, without updating a source Vec
 struct TransposeSliceDrain<'data, K, V, S> {
     map: HashMap<K, SliceDrain<'data, V>, S>,
-    len: usize,
+    hash_maps: SliceDrain<'data, HashMap<K, V, S>>,
 }
 
 impl<'data, K, V, S> Iterator for TransposeSliceDrain<'data, K, V, S>
@@ -141,18 +156,19 @@ where
     type Item = HashMap<K, V, S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.map
-            .iter_mut()
-            .map(|(key, iter)| Some((key.clone(), iter.next()?)))
-            .collect()
+        let mut hash_map = self.hash_maps.next()?;
+        for (key, iter) in &mut self.map {
+            hash_map.insert(key.clone(), iter.next()?);
+        }
+        Some(hash_map)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
+        (self.len(), Some(self.len()))
     }
 
     fn count(self) -> usize {
-        self.len
+        self.len()
     }
 }
 
@@ -163,10 +179,11 @@ where
     S: BuildHasher + Default,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.map
-            .iter_mut()
-            .map(|(key, iter)| Some((key.clone(), iter.next_back()?)))
-            .collect()
+        let mut hash_map = self.hash_maps.next_back()?;
+        for (key, iter) in &mut self.map {
+            hash_map.insert(key.clone(), iter.next_back()?);
+        }
+        Some(hash_map)
     }
 }
 
@@ -177,7 +194,7 @@ where
     S: BuildHasher + Default,
 {
     fn len(&self) -> usize {
-        self.len
+        self.hash_maps.len()
     }
 }
 
