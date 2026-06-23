@@ -95,6 +95,7 @@ where
             .map
             .iter_mut()
             .map(|(key, vec)| {
+                assert_eq!(vec.len(), len);
                 (key.clone(), unsafe {
                     vec.set_len(0);
                     DrainProducer::from_vec(vec, len)
