@@ -58,7 +58,15 @@ where
 
     fn with_producer<CB: ProducerCallback<Self::Item>>(mut self, callback: CB) -> CB::Output {
         // Create the producer as the exclusive "owner" of the slice.
-        let producer = TransposeProducer::from_transpose(&mut self);
+        let producers = self
+            .vec
+            .into_iter()
+            .map(|iter| iter.into_par_iter().with_producer(callback))
+            .collect();
+        let producer = TransposeProducer {
+            producers,
+            len: self.len,
+        };
 
         // The producer will move or drop each item from the drained range.
         callback.callback(producer)
@@ -66,17 +74,17 @@ where
 }
 
 // ////////////////////////////////////////////////////////////////////////
-struct TransposeProducer<'data, T: Send> {
-    map: Vec<DrainProducer<'data, T>>,
+struct TransposeProducer<Pr> {
+    producers: Vec<Pr>,
     len: usize,
 }
 
-impl<'data, T: Send> TransposeProducer<'data, T> {
-    fn new(map: Vec<DrainProducer<'data, T>>, len: usize) -> Self {
-        Self { map, len }
+impl<Pr: Send> TransposeProducer<Pr> {
+    fn new(producers: Vec<Pr>, len: usize) -> Self {
+        Self { producers, len }
     }
 
-    fn from_transpose<P>(transpose: &'data mut Transpose<P>) -> Self
+    fn from_transpose<P>(transpose: &mut Transpose<P>) -> Self
     where
         P: Send,
         P: IntoParallelIterator<Iter: IndexedParallelIterator<Item = T>>,
@@ -97,19 +105,30 @@ impl<'data, T: Send> TransposeProducer<'data, T> {
     }
 }
 
-impl<'data, T: 'data + Send> Producer for TransposeProducer<'data, T> {
-    type Item = TransposeIterator<T>;
-    type IntoIter = TransposeSliceDrain<'data, T>;
+impl<Pr, T> Producer for TransposeProducer<Pr>
+where
+    Pr: Producer<Item = T>,
+{
+    type Item = T;
+    type IntoIter = TransposeSliceDrain<Pr::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
         let len = self.len;
-        let map = self.map.into_iter().map(IntoIterator::into_iter).collect();
+        let map = self
+            .producers
+            .into_iter()
+            .map(Producer::into_iter)
+            .collect();
         TransposeSliceDrain { map, len }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         // TODO: figure out if there is a way to reuse the allocation of self
-        let (left, right) = self.map.into_iter().map(Producer::split_at).collect();
+        let (left, right) = self
+            .producers
+            .into_iter()
+            .map(|producer| producer.split_at(index))
+            .collect();
         (Self::new(left, index), Self::new(right, self.len - index))
     }
 }
@@ -117,12 +136,12 @@ impl<'data, T: 'data + Send> Producer for TransposeProducer<'data, T> {
 // ////////////////////////////////////////////////////////////////////////
 
 // like std::vec::Drain, without updating a source Vec
-struct TransposeSliceDrain<'data, T> {
-    map: Vec<SliceDrain<'data, T>>,
+struct TransposeSliceDrain<I> {
+    map: Vec<I>,
     len: usize,
 }
 
-impl<'data, T: 'data> Iterator for TransposeSliceDrain<'data, T> {
+impl<I> Iterator for TransposeSliceDrain<I> {
     type Item = TransposeIterator<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -138,16 +157,16 @@ impl<'data, T: 'data> Iterator for TransposeSliceDrain<'data, T> {
     }
 }
 
-impl<'data, T: 'data> DoubleEndedIterator for TransposeSliceDrain<'data, T> {
+impl<I> DoubleEndedIterator for TransposeSliceDrain<I> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.map.iter_mut().map(Iterator::next_back)
     }
 }
 
-impl<'data, T: 'data> ExactSizeIterator for TransposeSliceDrain<'data, T> {
+impl<I> ExactSizeIterator for TransposeSliceDrain<I> {
     fn len(&self) -> usize {
         self.len
     }
 }
 
-impl<'data, T: 'data> iter::FusedIterator for TransposeSliceDrain<'data, T> {}
+impl<I> iter::FusedIterator for TransposeSliceDrain<I> {}
