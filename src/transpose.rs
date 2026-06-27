@@ -5,32 +5,32 @@
 use crate::iter::plumbing::*;
 use crate::iter::*;
 use crate::vec::{DrainProducer, SliceDrain};
-use std::collections::HashMap;
-use std::hash::{BuildHasher, Hash};
 use std::iter;
-use std::marker::PhantomData;
 
-/// Parallel iterator that clones K and moves V and yields `HashMap<K, V>` out of a hashmap of vectors.
+/// Parallel transposing iterator
 #[derive(Debug, Clone)]
-pub struct HashMapVecTranspose<K, V, S> {
-    map: HashMap<K, Vec<V>, S>,
+pub struct Transpose<T> {
+    vec: Vec<Vec<T>>,
     len: usize,
 }
 
-impl<K, V, S> HashMapVecTranspose<K, V, S> {
-    /// Create a new HashMapVecTranspose.  All Vecs must be the same length.
-    pub fn new(map: HashMap<K, Vec<V>, S>, len: usize) -> Self {
-        Self { map, len }
-    }
+/// An iterator which yields the transposed items.
+#[derive(Debug, Clone)]
+pub struct TransposeIterator<T> {
+	/* ??? */
 }
 
-impl<K, V, S> ParallelIterator for HashMapVecTranspose<K, V, S>
+pub fn transpose<T, P, I>(iter: I, len: usize) -> Transpose<P>
 where
-    K: Send + Clone + Eq + Hash,
-    V: Send,
-    S: Send + BuildHasher + Default,
+    I: IntoIterator<Item = Vec<T>>,
+    P: IntoParallelIterator<Iter: IndexedParallelIterator<Item = T>>,
 {
-    type Item = HashMap<K, V, S>;
+    let vec = iter.into_iter().collect();
+    Transpose { vec, len }
+}
+
+impl<T: Send> ParallelIterator for Transpose<T> {
+    type Item = TransposeIterator<T>;
 
     fn drive_unindexed<C: UnindexedConsumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
@@ -41,12 +41,7 @@ where
     }
 }
 
-impl<K, V, S> IndexedParallelIterator for HashMapVecTranspose<K, V, S>
-where
-    K: Send + Clone + Eq + Hash,
-    V: Send,
-    S: Send + BuildHasher + Default,
-{
+impl<T: Send> IndexedParallelIterator for Transpose<T> {
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
@@ -65,75 +60,49 @@ where
 }
 
 // ////////////////////////////////////////////////////////////////////////
-struct TransposeProducer<'data, K, V: Send, S> {
-    map: Vec<(K, DrainProducer<'data, V>)>,
+struct TransposeProducer<'data, T: Send> {
+    map: Vec<DrainProducer<'data, T>>,
     len: usize,
-    _randomstate: PhantomData<S>,
 }
 
-impl<'data, K, V, S> TransposeProducer<'data, K, V, S>
+impl<'data, T> TransposeProducer<'data, T>
 where
-    K: Clone + Eq + Hash,
-    V: Send,
+    T: Send,
 {
-    fn new(map: Vec<(K, DrainProducer<'data, V>)>, len: usize) -> Self {
-        Self {
-            map,
-            len,
-            _randomstate: PhantomData,
-        }
+    fn new(map: Vec<DrainProducer<'data, T>>, len: usize) -> Self {
+        Self { map, len }
     }
 
-    fn from_transpose<S2>(transpose: &'data mut HashMapVecTranspose<K, V, S2>) -> Self {
+    fn from_transpose(transpose: &'data mut Transpose<T>) -> Self {
         let len = transpose.len;
         let map = transpose
-            .map
+            .vec
             .iter_mut()
-            .map(|(key, vec)| {
+            .map(|vec| {
                 assert_eq!(vec.len(), len);
-                (key.clone(), unsafe {
+                unsafe {
                     vec.set_len(0);
                     DrainProducer::from_vec(vec, len)
-                })
+                }
             })
             .collect();
         Self::new(map, len)
     }
 }
 
-impl<'data, K, V, S> Producer for TransposeProducer<'data, K, V, S>
-where
-    K: 'data + Send + Clone + Eq + Hash,
-    V: 'data + Send,
-    S: 'data + Send + BuildHasher + Default,
-{
-    type Item = HashMap<K, V, S>;
-    type IntoIter = TransposeSliceDrain<'data, K, V, S>;
+impl<'data, T: 'data + Send> Producer for TransposeProducer<'data, T> {
+    type Item = TransposeIterator<T>;
+    type IntoIter = TransposeSliceDrain<'data, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         let len = self.len;
-        let map = self
-            .map
-            .into_iter()
-            .map(|(key, drain_producer)| (key, drain_producer.into_iter()))
-            .collect();
-        TransposeSliceDrain {
-            map,
-            len,
-            _randomstate: PhantomData,
-        }
+        let map = self.map.into_iter().map(IntoIterator::into_iter).collect();
+        TransposeSliceDrain { map, len }
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         // TODO: figure out if there is a way to reuse the allocation of self
-        let (left, right) = self
-            .map
-            .into_iter()
-            .map(|(key, drain_producer)| {
-                let (left, right) = drain_producer.split_at(index);
-                ((key.clone(), left), (key, right))
-            })
-            .collect();
+        let (left, right) = self.map.into_iter().map(Producer::split_at).collect();
         (Self::new(left, index), Self::new(right, self.len - index))
     }
 }
@@ -141,25 +110,16 @@ where
 // ////////////////////////////////////////////////////////////////////////
 
 // like std::vec::Drain, without updating a source Vec
-struct TransposeSliceDrain<'data, K, V, S> {
-    map: Vec<(K, SliceDrain<'data, V>)>,
+struct TransposeSliceDrain<'data, T> {
+    map: Vec<SliceDrain<'data, T>>,
     len: usize,
-    _randomstate: PhantomData<S>,
 }
 
-impl<'data, K, V, S> Iterator for TransposeSliceDrain<'data, K, V, S>
-where
-    K: Clone + Eq + Hash,
-    V: 'data,
-    S: BuildHasher + Default,
-{
-    type Item = HashMap<K, V, S>;
+impl<'data, T: 'data> Iterator for TransposeSliceDrain<'data, T> {
+    type Item = TransposeIterator<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.map
-            .iter_mut()
-            .map(|(key, iter)| Some((key.clone(), iter.next()?)))
-            .collect()
+        self.map.iter_mut().map(Iterator::next)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -171,35 +131,16 @@ where
     }
 }
 
-impl<'data, K, V, S> DoubleEndedIterator for TransposeSliceDrain<'data, K, V, S>
-where
-    K: Clone + Eq + Hash,
-    V: 'data,
-    S: BuildHasher + Default,
-{
+impl<'data, T: 'data> DoubleEndedIterator for TransposeSliceDrain<'data, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.map
-            .iter_mut()
-            .map(|(key, iter)| Some((key.clone(), iter.next_back()?)))
-            .collect()
+        self.map.iter_mut().map(Iterator::next_back)
     }
 }
 
-impl<'data, K, V, S> ExactSizeIterator for TransposeSliceDrain<'data, K, V, S>
-where
-    K: Clone + Eq + Hash,
-    V: 'data,
-    S: BuildHasher + Default,
-{
+impl<'data, T: 'data> ExactSizeIterator for TransposeSliceDrain<'data, T> {
     fn len(&self) -> usize {
         self.len
     }
 }
 
-impl<'data, K, V, S> iter::FusedIterator for TransposeSliceDrain<'data, K, V, S>
-where
-    K: Clone + Eq + Hash,
-    V: 'data,
-    S: BuildHasher + Default,
-{
-}
+impl<'data, T: 'data> iter::FusedIterator for TransposeSliceDrain<'data, T> {}
