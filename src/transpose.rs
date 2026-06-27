@@ -9,27 +9,29 @@ use std::iter;
 
 /// Parallel transposing iterator
 #[derive(Debug, Clone)]
-pub struct Transpose<T> {
-    vec: Vec<Vec<T>>,
+pub struct Transpose<P> {
+    vec: Vec<P>,
     len: usize,
 }
 
 /// An iterator which yields the transposed items.
 #[derive(Debug, Clone)]
-pub struct TransposeIterator<T> {
-	/* ??? */
-}
+pub struct TransposeIterator<T> {/* ??? */}
 
 pub fn transpose<T, P, I>(iter: I, len: usize) -> Transpose<P>
 where
-    I: IntoIterator<Item = Vec<T>>,
+    I: IntoIterator<Item = P>,
     P: IntoParallelIterator<Iter: IndexedParallelIterator<Item = T>>,
 {
     let vec = iter.into_iter().collect();
     Transpose { vec, len }
 }
 
-impl<T: Send> ParallelIterator for Transpose<T> {
+impl<T, P> ParallelIterator for Transpose<P>
+where
+    P: Send,
+    P: IntoParallelIterator<Iter: IndexedParallelIterator<Item = T>>,
+{
     type Item = TransposeIterator<T>;
 
     fn drive_unindexed<C: UnindexedConsumer<Self::Item>>(self, consumer: C) -> C::Result {
@@ -41,7 +43,11 @@ impl<T: Send> ParallelIterator for Transpose<T> {
     }
 }
 
-impl<T: Send> IndexedParallelIterator for Transpose<T> {
+impl<T, P> IndexedParallelIterator for Transpose<P>
+where
+    P: Send,
+    P: IntoParallelIterator<Iter: IndexedParallelIterator<Item = T>>,
+{
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
@@ -65,15 +71,16 @@ struct TransposeProducer<'data, T: Send> {
     len: usize,
 }
 
-impl<'data, T> TransposeProducer<'data, T>
-where
-    T: Send,
-{
+impl<'data, T: Send> TransposeProducer<'data, T> {
     fn new(map: Vec<DrainProducer<'data, T>>, len: usize) -> Self {
         Self { map, len }
     }
 
-    fn from_transpose(transpose: &'data mut Transpose<T>) -> Self {
+    fn from_transpose<P>(transpose: &'data mut Transpose<P>) -> Self
+    where
+        P: Send,
+        P: IntoParallelIterator<Iter: IndexedParallelIterator<Item = T>>,
+    {
         let len = transpose.len;
         let map = transpose
             .vec
