@@ -61,7 +61,10 @@ where
         let producers = self
             .vec
             .into_iter()
-            .map(|iter| iter.into_par_iter().with_producer(callback))
+            .map(|iter| {
+                // I don't know how to get the Producer from the iter here.
+                iter.into_par_iter().with_producer(callback)
+            })
             .collect();
         let producer = TransposeProducer {
             producers,
