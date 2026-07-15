@@ -118,11 +118,13 @@ impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter
     where
         F: Folder<Self::Item>,
     {
-        // Guard against work-stealing-induced recursion, in case `Iter::next()`
-        // calls rayon internally, so we don't deadlock our mutex. We might also
-        // be recursing via `folder` methods, which doesn't present a mutex hazard,
-        // but it's lower overhead for us to just check this once, rather than
-        // updating additional shared state on every mutex lock/unlock.
+        // Fast-path out of work-stealing-induced recursion, in case `Iter::next()`
+        // calls rayon internally. The `try_lock` below is what actually keeps this
+        // safe from a mutex deadlock (issue #1142); this check just avoids a
+        // pointless `try_lock`/consume cycle when we'd only be re-entering our own
+        // fold. We might also be recursing via `folder` methods, which is likewise
+        // not worth re-entering; it's lower overhead to check this once, rather
+        // than updating additional shared state on every mutex lock/unlock.
         // (If this isn't a rayon thread, then there's no work-stealing anyway...)
         if let Some(i) = current_thread_index() {
             // Note: If the number of threads in the pool ever grows dynamically, then
@@ -137,19 +139,27 @@ impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter
         }
 
         loop {
-            if let Ok(mut iter) = self.iter.lock() {
-                if let Some(it) = iter.next() {
-                    drop(iter);
-                    folder = folder.consume(it);
-                    if folder.full() {
-                        return folder;
-                    }
-                } else {
+            // Use `try_lock` rather than a blocking `lock`. If another thread is
+            // already pulling from the iterator, a blocking `lock` would *park*
+            // this worker thread, and a parked worker can't participate in
+            // work-stealing. When `Iter::next()` re-enters rayon (e.g. calls
+            // `join`), the thread holding the lock may then wait for work that
+            // only a parked worker could run, deadlocking the pool (issue #1142).
+            // Instead we just give up this split; whichever thread holds the lock
+            // will continue driving the shared iterator.
+            let Ok(mut iter) = self.iter.try_lock() else {
+                // Contended (another thread is pulling) or poisoned (a panic
+                // elsewhere, which the pool will re-throw when joined). Either
+                // way, stop this split rather than blocking.
+                return folder;
+            };
+            if let Some(it) = iter.next() {
+                drop(iter);
+                folder = folder.consume(it);
+                if folder.full() {
                     return folder;
                 }
             } else {
-                // any panics from other threads will have been caught by the pool,
-                // and will be re-thrown when joined - just exit
                 return folder;
             }
         }
