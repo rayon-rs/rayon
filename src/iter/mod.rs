@@ -58,6 +58,55 @@
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
 //! traits.
 //!
+//! # Ordering
+//!
+//! For parallel iterators over data with a meaningful order, order-dependent
+//! adaptors and consumers -- such as [`map`], [`filter`], [`enumerate`],
+//! [`zip`], and collecting into an ordered container like [`Vec`] -- produce
+//! exactly the same sequence that the equivalent sequential [`Iterator`] would,
+//! even though the work is split across threads:
+//!
+//! ```rust
+//! use rayon::prelude::*;
+//! let par: Vec<i32> = (0..1000).into_par_iter().map(|x| x * 2).collect();
+//! let seq: Vec<i32> = (0..1000).map(|x| x * 2).collect();
+//! assert_eq!(par, seq);
+//! ```
+//!
+//! There are important exceptions and caveats:
+//!
+//! - Not every parallel iterator has a meaningful order to begin with -- much
+//!   like sequential [`HashMap`] iteration -- and some, such as [`walk_tree`],
+//!   guarantee no ordering at all.
+//! - [`ParallelBridge`] is not guaranteed to preserve the order of the source
+//!   iterator.
+//! - The `*_any` methods, such as [`find_any`], return an arbitrary matching
+//!   item rather than a positional one; use [`find_first`] or [`find_last`]
+//!   when position matters.
+//! - Reductions such as [`reduce`], [`sum`], and [`product`] combine items in
+//!   an unspecified order, so their operation should be [associative] for
+//!   deterministic results.
+//! - Side effects happen in an unspecified order: the closure given to
+//!   [`for_each`] may observe items in any order and run on any thread, even
+//!   though an order-dependent consumer like [`collect`] still yields ordered
+//!   results.
+//!
+//! [`map`]: ParallelIterator::map
+//! [`filter`]: ParallelIterator::filter
+//! [`enumerate`]: IndexedParallelIterator::enumerate
+//! [`zip`]: IndexedParallelIterator::zip
+//! [`for_each`]: ParallelIterator::for_each
+//! [`collect`]: ParallelIterator::collect
+//! [`find_any`]: ParallelIterator::find_any
+//! [`find_first`]: ParallelIterator::find_first
+//! [`find_last`]: ParallelIterator::find_last
+//! [`reduce`]: ParallelIterator::reduce
+//! [`sum`]: ParallelIterator::sum
+//! [`product`]: ParallelIterator::product
+//! [`HashMap`]: std::collections::HashMap
+//! [`walk_tree`]: crate::iter::walk_tree()
+//! [associative]: https://en.wikipedia.org/wiki/Associative_property
+//!
 //! If you'd like to build a custom parallel iterator, or to write your own
 //! combinator, then check out the [split] function and the [plumbing] module.
 //!
