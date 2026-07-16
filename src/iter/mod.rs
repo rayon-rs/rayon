@@ -62,7 +62,7 @@
 //!
 //! For parallel iterators over data with a meaningful order, order-preserving
 //! adaptors -- such as [`map`], [`filter`], [`enumerate`], and [`zip`] -- retain
-//! the source order when their results are collected into a [`Vec`]. Provided
+//! the source order when their results are collected into a [`Vec`], for example. Provided
 //! their closures do not depend on how work is scheduled, this produces the
 //! same sequence that the equivalent sequential [`Iterator`] would, even
 //! though the work is split across threads:
