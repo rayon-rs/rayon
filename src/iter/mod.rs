@@ -58,6 +58,26 @@
 //! check out the [`ParallelIterator`] and [`IndexedParallelIterator`]
 //! traits.
 //!
+//! If you'd like to build a custom parallel iterator, or to write your own
+//! combinator, then check out the [split] function and the [plumbing] module.
+//!
+//! [regular iterator]: Iterator
+//! [split]: split()
+//! [plumbing]: plumbing
+//!
+//! Note: Several of the `ParallelIterator` methods rely on a `Try` trait which
+//! has been deliberately obscured from the public API.  This trait is intended
+//! to mirror the unstable `std::ops::Try` with implementations for `Option` and
+//! `Result`, where `Some`/`Ok` values will let those iterators continue, but
+//! `None`/`Err` values will exit early.
+//!
+//! A note about
+//! [dyn compatiblity](https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility):
+//! It is currently _not_ possible to wrap a `ParallelIterator` (or any trait
+//! that depends on it) using a `Box<dyn ParallelIterator>` or other kind of
+//! dynamic allocation, because `ParallelIterator` is **not dyn-compatible**.
+//! (This keeps the implementation simpler and allows extra optimizations.)
+//!
 //! # Ordering
 //!
 //! For parallel iterators over data with a meaningful order, order-preserving
@@ -120,26 +140,6 @@
 //! [`ParallelBridge`]: crate::iter::ParallelBridge
 //! [`walk_tree`]: crate::iter::walk_tree()
 //! [associative]: https://en.wikipedia.org/wiki/Associative_property
-//!
-//! If you'd like to build a custom parallel iterator, or to write your own
-//! combinator, then check out the [split] function and the [plumbing] module.
-//!
-//! [regular iterator]: Iterator
-//! [split]: split()
-//! [plumbing]: plumbing
-//!
-//! Note: Several of the `ParallelIterator` methods rely on a `Try` trait which
-//! has been deliberately obscured from the public API.  This trait is intended
-//! to mirror the unstable `std::ops::Try` with implementations for `Option` and
-//! `Result`, where `Some`/`Ok` values will let those iterators continue, but
-//! `None`/`Err` values will exit early.
-//!
-//! A note about
-//! [dyn compatiblity](https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility):
-//! It is currently _not_ possible to wrap a `ParallelIterator` (or any trait
-//! that depends on it) using a `Box<dyn ParallelIterator>` or other kind of
-//! dynamic allocation, because `ParallelIterator` is **not dyn-compatible**.
-//! (This keeps the implementation simpler and allows extra optimizations.)
 
 use self::plumbing::*;
 pub use either::Either;
