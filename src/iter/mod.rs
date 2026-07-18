@@ -105,6 +105,7 @@ mod test;
 //   can be readily distinguished.
 
 mod blocks;
+mod cartesian_product;
 mod chain;
 mod chunks;
 mod cloned;
@@ -164,6 +165,7 @@ mod zip_eq;
 
 pub use self::{
     blocks::{ExponentialBlocks, UniformBlocks},
+    cartesian_product::CartesianProduct,
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -2619,6 +2621,44 @@ pub trait IndexedParallelIterator: ParallelIterator {
             "iterators must have the same length"
         );
         ZipEq::new(self, zip_op_iter)
+    }
+
+    /// Iterates over the cartesian product of this iterator and `other`,
+    /// yielding every pair `(a, b)` where `a` comes from `self` and `b` comes
+    /// from `other`. Pairs are produced in row-major order: all pairs for the
+    /// first `a`, then all pairs for the second `a`, and so on.
+    ///
+    /// Because both inputs are indexed, the product has a known length
+    /// (`self.len() * other.len()`), so it is itself an
+    /// [`IndexedParallelIterator`]. That means it can be collected into a
+    /// pre-allocated `Vec` (e.g. with [`collect_into_vec()`]) and split freely --
+    /// unlike a `flat_map`-based product, which is not indexed.
+    ///
+    /// Both inputs are buffered so their elements can be paired by index in
+    /// parallel: this allocates `O(self.len() + other.len())` and drives both
+    /// inputs to completion before any pair is produced.
+    ///
+    /// [`collect_into_vec()`]: IndexedParallelIterator::collect_into_vec
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let pairs: Vec<(i32, char)> = (0..2)
+    ///     .into_par_iter()
+    ///     .cartesian_product(vec!['a', 'b'])
+    ///     .collect();
+    /// assert_eq!(pairs, vec![(0, 'a'), (0, 'b'), (1, 'a'), (1, 'b')]);
+    /// ```
+    fn cartesian_product<J>(self, other: J) -> CartesianProduct<Self, J::Iter>
+    where
+        Self::Item: Clone + Sync,
+        J: IntoParallelIterator,
+        J::Iter: IndexedParallelIterator,
+        <J::Iter as ParallelIterator>::Item: Clone + Sync,
+    {
+        CartesianProduct::new(self, other.into_par_iter())
     }
 
     /// Interleaves elements of this iterator and the other given
