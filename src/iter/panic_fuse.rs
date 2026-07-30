@@ -2,8 +2,9 @@ use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
-/// `PanicFuse` is an adaptor that wraps an iterator with a fuse in case
-/// of panics, to halt all threads as soon as possible.
+/// `PanicFuse` is an adaptor that tries to avoid starting new iterator items
+/// after a panic is observed. It cannot interrupt closures already running, so
+/// the panic is not propagated until they return or unwind.
 ///
 /// This struct is created by the [`panic_fuse()`] method on [`ParallelIterator`]
 ///
