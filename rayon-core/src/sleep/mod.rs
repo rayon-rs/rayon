@@ -1,10 +1,11 @@
 //! Code that decides when workers should go to sleep. See README.md
 //! for an overview.
 
+use crate::SpinPolicy;
 use crate::latch::CoreLatch;
 use crate::sync::{Condvar, Mutex};
 use crossbeam_utils::CachePadded;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 mod counters;
@@ -24,6 +25,18 @@ pub(super) struct Sleep {
     worker_sleep_states: Vec<CachePadded<WorkerSleepState>>,
 
     counters: AtomicCounters,
+
+    /// How idle workers spin searching for work (see [`SpinPolicy`]).
+    policy: SpinPolicy,
+
+    /// Number of idle workers currently in the yield/steal spin rounds.
+    /// Maintained only under `SpinPolicy::ProducerBounded`: at most one
+    /// searcher per currently-executing worker (each producer owns one
+    /// deque a searcher could steal from), minimum one. Workers beyond
+    /// the budget skip straight to the sleepy protocol (announce via the
+    /// JEC, one final search, then block), so a draining pool tapers its
+    /// searchers with its producers instead of paying pool-width sweeps.
+    searchers: AtomicUsize,
 }
 
 /// An instance of this struct is created when a thread becomes idle.
@@ -47,6 +60,10 @@ pub(super) struct IdleState {
     /// an episode that found work before sleeping means spinning pays off
     /// here; an episode that slept means it did not.
     pub(super) slept: bool,
+
+    /// Whether this idle thread holds one of the bounded searcher slots
+    /// (only meaningful under `SpinPolicy::Bounded`).
+    is_searcher: bool,
 }
 
 /// The "sleep state" for an individual worker.
@@ -63,33 +80,73 @@ const ROUNDS_UNTIL_SLEEPY: u32 = 32;
 const ROUNDS_UNTIL_SLEEPING: u32 = ROUNDS_UNTIL_SLEEPY + 1;
 
 impl Sleep {
-    pub(super) fn new(n_threads: usize) -> Sleep {
+    pub(super) fn new(n_threads: usize, policy: SpinPolicy) -> Sleep {
         assert!(n_threads <= THREADS_MAX);
         Sleep {
             worker_sleep_states: (0..n_threads).map(|_| Default::default()).collect(),
             counters: AtomicCounters::new(),
+            policy,
+            searchers: AtomicUsize::new(0),
         }
     }
 
+    /// Under `ProducerBounded`, try to take a searcher slot; the budget
+    /// is one searcher per currently-active (executing) worker, minimum
+    /// one. Trivially true for the other policies (no shared state
+    /// touched).
     #[inline]
-    pub(super) fn start_looking(&self, worker_index: usize, spin: bool) -> IdleState {
+    fn try_acquire_searcher(&self) -> bool {
+        if self.policy != SpinPolicy::ProducerBounded {
+            return true;
+        }
+        let inactive = self.counters.load(Ordering::Relaxed).inactive_threads();
+        let max = Ord::max(self.worker_sleep_states.len() - inactive, 1);
+        self.searchers
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+                (n < max).then_some(n + 1)
+            })
+            .is_ok()
+    }
+
+    #[inline]
+    fn release_searcher(&self, idle_state: &mut IdleState) {
+        if idle_state.is_searcher && self.policy == SpinPolicy::ProducerBounded {
+            self.searchers.fetch_sub(1, Ordering::Relaxed);
+        }
+        idle_state.is_searcher = false;
+    }
+
+    #[inline]
+    pub(super) fn start_looking(&self, worker_index: usize, adaptive_spin: bool) -> IdleState {
         self.counters.add_inactive_thread();
 
+        // A worker denied spinning -- adaptively (its previous idle episode
+        // ended in sleep), by the bound (no searcher slot free), or by a
+        // zero bound -- skips the yield/steal spin rounds and enters the
+        // sleepy protocol directly: announce via the JEC, one final search,
+        // then block. This is the stock protocol from round
+        // ROUNDS_UNTIL_SLEEPY on, so the no-lost-wakeup reasoning is
+        // unchanged.
+        let (spin, is_searcher) = match self.policy {
+            SpinPolicy::Unbounded => (true, false),
+            SpinPolicy::Adaptive => (adaptive_spin, false),
+            SpinPolicy::ProducerBounded => {
+                let got = self.try_acquire_searcher();
+                (got, got)
+            }
+        };
         IdleState {
             worker_index,
-            // A worker whose previous idle episode ended in sleep skips the
-            // yield/steal spin rounds and enters the sleepy protocol
-            // directly: announce via the JEC, one final search, then block.
-            // This is the stock protocol from round ROUNDS_UNTIL_SLEEPY on,
-            // so the no-lost-wakeup reasoning is unchanged.
             rounds: if spin { 0 } else { ROUNDS_UNTIL_SLEEPY },
             jobs_counter: JobsEventCounter::DUMMY,
             slept: false,
+            is_searcher,
         }
     }
 
     #[inline]
-    pub(super) fn work_found(&self) {
+    pub(super) fn work_found(&self, idle_state: &mut IdleState) {
+        self.release_searcher(idle_state);
         // If we were the last idle thread and other threads are still sleeping,
         // then we should wake up another thread.
         let threads_to_wake = self.counters.sub_inactive_thread();
@@ -171,7 +228,9 @@ impl Sleep {
             }
         }
 
-        // Successfully registered as asleep.
+        // Successfully registered as asleep. A bounded searcher gives up
+        // its slot so another idle worker may spin in its place.
+        self.release_searcher(idle_state);
         idle_state.slept = true;
 
         // We have one last check for injected jobs to do. This protects against
@@ -203,11 +262,23 @@ impl Sleep {
 
         // Update other state:
         idle_state.wake_fully();
-        // `wake_fully` grants a fresh spin budget, but this episode just
-        // proved the pool idle enough to sleep: skip straight back to the
-        // sleepy protocol. If work is why we were woken, the next search
-        // finds it and the following episode re-arms spinning.
-        idle_state.rounds = ROUNDS_UNTIL_SLEEPY;
+        // `wake_fully` grants a fresh spin budget; whether the woken
+        // worker may use it depends on the policy. Under the adaptive
+        // default this episode just proved the pool idle enough to sleep,
+        // so it skips straight back to the sleepy protocol: if work is why
+        // we were woken, the next search finds it and the following
+        // episode re-arms spinning. Under a bound the budget requires a
+        // slot; unbounded keeps the historical fresh spin.
+        match self.policy {
+            SpinPolicy::Unbounded => {}
+            SpinPolicy::Adaptive => idle_state.rounds = ROUNDS_UNTIL_SLEEPY,
+            SpinPolicy::ProducerBounded => {
+                idle_state.is_searcher = self.try_acquire_searcher();
+                if !idle_state.is_searcher {
+                    idle_state.rounds = ROUNDS_UNTIL_SLEEPY;
+                }
+            }
+        }
         latch.wake_up();
     }
 

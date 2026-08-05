@@ -416,3 +416,34 @@ fn yield_local_to_spawn() {
     // for it to finish if a different thread stole it first.
     assert_eq!(22, rx.recv().unwrap());
 }
+
+#[test]
+fn spin_policy_pools_work() {
+    // All three spin policies must produce identical results across
+    // repeated idle/busy transitions (each iteration lets the pool go
+    // idle, exercising the arm/disarm, slot, and wake paths).
+    let builders = [
+        ThreadPoolBuilder::new().num_threads(8),
+        ThreadPoolBuilder::new().num_threads(8).bounded_searchers(),
+        ThreadPoolBuilder::new()
+            .num_threads(8)
+            .unbounded_searchers(),
+    ];
+    for builder in builders {
+        let pool = builder.build().unwrap();
+        for _ in 0..50 {
+            let sum = pool.install(|| {
+                crate::scope(|s| {
+                    let (tx, rx) = channel();
+                    for i in 0..64 {
+                        let tx = tx.clone();
+                        s.spawn(move |_| tx.send(i).unwrap());
+                    }
+                    drop(tx);
+                    rx.iter().sum::<i32>()
+                })
+            });
+            assert_eq!(sum, (0..64).sum::<i32>());
+        }
+    }
+}

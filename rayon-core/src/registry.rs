@@ -245,6 +245,8 @@ impl Registry {
 
         let breadth_first = builder.get_breadth_first();
 
+        let spin_policy = builder.spin_policy;
+
         let (workers, stealers): (Vec<_>, Vec<_>) = (0..n_threads)
             .map(|_| {
                 let worker = if breadth_first {
@@ -268,7 +270,7 @@ impl Registry {
 
         let registry = Arc::new(Registry {
             thread_infos: stealers.into_iter().map(ThreadInfo::new).collect(),
-            sleep: Sleep::new(n_threads),
+            sleep: Sleep::new(n_threads, spin_policy),
             injected_jobs: Injector::new(),
             broadcasts: Mutex::new(broadcasts),
             terminate_count: AtomicUsize::new(1),
@@ -809,7 +811,7 @@ impl WorkerThread {
                 .start_looking(self.index, self.spin_next.get());
             while !latch.probe() {
                 if let Some(job) = self.find_work() {
-                    self.registry.sleep.work_found();
+                    self.registry.sleep.work_found(&mut idle_state);
                     self.spin_next.set(!idle_state.slept);
                     unsafe { self.execute(job) };
                     // The job might have injected local work, so go back to the outer loop.
@@ -823,7 +825,7 @@ impl WorkerThread {
 
             // If we were sleepy, we are not anymore. We "found work" --
             // whatever the surrounding thread was doing before it had to wait.
-            self.registry.sleep.work_found();
+            self.registry.sleep.work_found(&mut idle_state);
             self.spin_next.set(!idle_state.slept);
             break;
         }
