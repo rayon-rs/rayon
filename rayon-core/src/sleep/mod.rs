@@ -41,6 +41,12 @@ pub(super) struct IdleState {
     /// Once we become sleepy, what was the sleepy counter value?
     /// Set to `INVALID_SLEEPY_COUNTER` otherwise.
     jobs_counter: JobsEventCounter,
+
+    /// Whether this idle episode reached the point of blocking on the
+    /// condvar. Used by the worker to adapt its next episode's spinning:
+    /// an episode that found work before sleeping means spinning pays off
+    /// here; an episode that slept means it did not.
+    pub(super) slept: bool,
 }
 
 /// The "sleep state" for an individual worker.
@@ -66,13 +72,19 @@ impl Sleep {
     }
 
     #[inline]
-    pub(super) fn start_looking(&self, worker_index: usize) -> IdleState {
+    pub(super) fn start_looking(&self, worker_index: usize, spin: bool) -> IdleState {
         self.counters.add_inactive_thread();
 
         IdleState {
             worker_index,
-            rounds: 0,
+            // A worker whose previous idle episode ended in sleep skips the
+            // yield/steal spin rounds and enters the sleepy protocol
+            // directly: announce via the JEC, one final search, then block.
+            // This is the stock protocol from round ROUNDS_UNTIL_SLEEPY on,
+            // so the no-lost-wakeup reasoning is unchanged.
+            rounds: if spin { 0 } else { ROUNDS_UNTIL_SLEEPY },
             jobs_counter: JobsEventCounter::DUMMY,
+            slept: false,
         }
     }
 
@@ -160,6 +172,7 @@ impl Sleep {
         }
 
         // Successfully registered as asleep.
+        idle_state.slept = true;
 
         // We have one last check for injected jobs to do. This protects against
         // deadlock in the very unlikely event that
@@ -190,6 +203,11 @@ impl Sleep {
 
         // Update other state:
         idle_state.wake_fully();
+        // `wake_fully` grants a fresh spin budget, but this episode just
+        // proved the pool idle enough to sleep: skip straight back to the
+        // sleepy protocol. If work is why we were woken, the next search
+        // finds it and the following episode re-arms spinning.
+        idle_state.rounds = ROUNDS_UNTIL_SLEEPY;
         latch.wake_up();
     }
 

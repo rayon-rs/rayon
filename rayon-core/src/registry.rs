@@ -651,6 +651,15 @@ pub(super) struct WorkerThread {
     /// the "stealer" half of the worker's broadcast deque
     stealer: Stealer<JobRef>,
 
+    /// Adaptive spin: whether this worker's next idle episode gets the
+    /// yield/steal spin rounds. Set from how the previous episode ended --
+    /// work found before sleeping re-arms spinning, an episode that had to
+    /// block disarms it. Under load searches succeed and every worker
+    /// spins (the historical behavior); in idle or periodic workloads
+    /// spinning self-extinguishes, and re-arms as soon as a search finds
+    /// work again. Purely worker-local: no shared state.
+    spin_next: Cell<bool>,
+
     /// local queue used for `spawn_fifo` indirection
     fifo: JobFifo,
 
@@ -678,6 +687,7 @@ impl From<ThreadBuilder> for WorkerThread {
             stealer: thread.stealer,
             fifo: JobFifo::new(),
             index: thread.index,
+            spin_next: Cell::new(true),
             rng: XorShift64Star::new(),
             registry: thread.registry,
         }
@@ -793,10 +803,14 @@ impl WorkerThread {
                 continue;
             }
 
-            let mut idle_state = self.registry.sleep.start_looking(self.index);
+            let mut idle_state = self
+                .registry
+                .sleep
+                .start_looking(self.index, self.spin_next.get());
             while !latch.probe() {
                 if let Some(job) = self.find_work() {
                     self.registry.sleep.work_found();
+                    self.spin_next.set(!idle_state.slept);
                     unsafe { self.execute(job) };
                     // The job might have injected local work, so go back to the outer loop.
                     continue 'outer;
@@ -810,6 +824,7 @@ impl WorkerThread {
             // If we were sleepy, we are not anymore. We "found work" --
             // whatever the surrounding thread was doing before it had to wait.
             self.registry.sleep.work_found();
+            self.spin_next.set(!idle_state.slept);
             break;
         }
 
