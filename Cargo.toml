@@ -48,11 +48,11 @@ keywords = ["parallel", "thread", "concurrency", "join", "performance"]
 categories = ["concurrency"]
 
 [workspace.lints.rust]
-private-bounds = "deny"
-private-interfaces = "deny"
-unnameable-types = "deny"
-unreachable-pub = "deny"
-unsafe-op-in-unsafe-fn = "deny"
+private_bounds = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+unreachable_pub = "deny"
+unsafe_op_in_unsafe_fn = "deny"
 
 rust_2018_idioms = { level = "warn", priority = -1 }
 
