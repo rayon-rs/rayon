@@ -14,10 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
       - run: cargo build --verbose
       - run: cargo test --verbose --package rayon
       - run: cargo test --verbose --package rayon-core
