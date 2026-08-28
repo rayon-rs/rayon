@@ -108,6 +108,7 @@ impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter
 
     fn split(self) -> (Self, Option<Self>) {
         // Check if the iterator is exhausted
+        #[allow(deprecated, reason = "TODO (MSRV 1.95): use try_update")]
         let update = self
             .split_count
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |c| c.checked_sub(1));

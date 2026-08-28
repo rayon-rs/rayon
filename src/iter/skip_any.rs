@@ -101,6 +101,7 @@ struct SkipAnyFolder<'f, C> {
 }
 
 fn checked_decrement(u: &AtomicUsize) -> bool {
+    #[allow(deprecated, reason = "TODO (MSRV 1.95): use try_update")]
     u.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |u| u.checked_sub(1))
         .is_ok()
 }

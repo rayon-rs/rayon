@@ -181,6 +181,7 @@ impl<'p, P: 'p + Fn(&T) -> bool, T> Folder<T> for FindFolder<'p, T, P> {
 
         if !found_best_in_range && (self.find_op)(&item) {
             // Update the best found index if ours is better.
+            #[allow(deprecated, reason = "TODO (MSRV 1.95): use try_update")]
             let update =
                 self.best_found
                     .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
