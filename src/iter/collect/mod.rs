@@ -15,7 +15,7 @@ where
     I: IndexedParallelIterator<Item = T>,
     T: Send,
 {
-    v.truncate(0); // clear any old data
+    v.clear(); // clear any old data
     let len = pi.len();
     collect_with_consumer(v, len, |consumer| pi.drive(consumer));
 }
@@ -49,8 +49,8 @@ where
     B: Send,
 {
     // clear any old data
-    left.truncate(0);
-    right.truncate(0);
+    left.clear();
+    right.clear();
 
     let len = pi.len();
     collect_with_consumer(right, len, |right_consumer| {
