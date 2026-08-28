@@ -2009,7 +2009,7 @@ fn check_interleave_uneven() {
             .collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {i} failed");
 
-        res.truncate(0);
+        res.clear();
         xs.par_iter()
             .interleave(&ys)
             .rev()
@@ -2056,7 +2056,7 @@ fn check_interleave_shortest() {
             .collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {i} failed");
 
-        res.truncate(0);
+        res.clear();
         xs.par_iter()
             .interleave_shortest(&ys)
             .rev()
@@ -2119,7 +2119,7 @@ fn check_chunks_uneven() {
             .collect_into_vec(&mut res);
         assert_eq!(expected, res, "Case {i} failed");
 
-        res.truncate(0);
+        res.clear();
         v.into_par_iter().chunks(n).rev().collect_into_vec(&mut res);
         assert_eq!(
             expected.into_iter().rev().collect::<Vec<Vec<u32>>>(),

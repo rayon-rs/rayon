@@ -204,7 +204,7 @@ mod test {
                 .collect_into_vec(&mut res);
             assert_eq!(expected, res, "Case {i} failed");
 
-            res.truncate(0);
+            res.clear();
             v.into_par_iter()
                 .fold_chunks_with(n, 0, sum)
                 .rev()
