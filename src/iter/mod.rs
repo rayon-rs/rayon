@@ -105,6 +105,7 @@ mod test;
 //   can be readily distinguished.
 
 mod blocks;
+mod cartesian_product;
 mod chain;
 mod chunks;
 mod cloned;
@@ -164,6 +165,7 @@ mod zip_eq;
 
 pub use self::{
     blocks::{ExponentialBlocks, UniformBlocks},
+    cartesian_product::CartesianProduct,
     chain::Chain,
     chunks::Chunks,
     cloned::Cloned,
@@ -909,6 +911,50 @@ pub trait ParallelIterator: Sized + Send {
         SI: IntoIterator<Item: Send>,
     {
         FlatMapIter::new(self, map_op)
+    }
+
+    /// Iterates over the cartesian product of this iterator and `other`,
+    /// yielding every pair `(a, b)` where `a` comes from `self` and `b` comes
+    /// from `other`. Pairs are produced in row-major order: all pairs for the
+    /// first `a`, then all pairs for the second `a`, and so on.
+    ///
+    /// Only `other` is buffered, into an `O(other.len())` shared allocation;
+    /// `self` is streamed and never materialized. When both input lengths are
+    /// known, the product reports its length, so [`collect()`] preallocates.
+    ///
+    /// Parallelism comes from splitting `self`, and each of its elements is
+    /// expanded across `other` sequentially. A very small `self` with a large
+    /// `other` therefore underutilizes the pool. Put the larger input first, or
+    /// use [`collect_into_vec()`] on indexed inputs, which splits the whole
+    /// product.
+    ///
+    /// If both inputs are [`IndexedParallelIterator`]s, the product is one too,
+    /// so it also supports [`collect_into_vec()`], [`enumerate()`], and friends.
+    /// That indexed path buffers both inputs, because an arbitrary split can land
+    /// in the middle of a row.
+    ///
+    /// [`collect()`]: ParallelIterator::collect
+    /// [`collect_into_vec()`]: IndexedParallelIterator::collect_into_vec
+    /// [`enumerate()`]: IndexedParallelIterator::enumerate
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let pairs: Vec<(i32, char)> = (0..2)
+    ///     .into_par_iter()
+    ///     .cartesian_product(vec!['a', 'b'])
+    ///     .collect();
+    /// assert_eq!(pairs, vec![(0, 'a'), (0, 'b'), (1, 'a'), (1, 'b')]);
+    /// ```
+    fn cartesian_product<J>(self, other: J) -> CartesianProduct<Self, J::Iter>
+    where
+        Self::Item: Clone + Sync,
+        J: IntoParallelIterator,
+        <J::Iter as ParallelIterator>::Item: Clone + Sync,
+    {
+        CartesianProduct::new(self, other.into_par_iter())
     }
 
     /// An adaptor that flattens parallel-iterable `Item`s into one large iterator.
