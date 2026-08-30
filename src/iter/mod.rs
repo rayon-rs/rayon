@@ -366,12 +366,38 @@ pub trait ParallelIterator: Sized + Send {
 
     /// Executes `OP` on each item produced by the iterator, in parallel.
     ///
+    /// In terms of [atomic memory orderings][ordering], all operations
+    /// performed by the closure `OP` *happen before* `for_each` returns.
+    /// That is, once `for_each` returns, the calling thread is guaranteed to
+    /// observe every effect of `OP` without any further synchronization, just
+    /// as if each item had been processed on its own [scoped thread][scope]
+    /// that was joined before returning.
+    ///
+    /// [ordering]: std::sync::atomic
+    /// [scope]: std::thread::scope
+    ///
     /// # Examples
     ///
     /// ```
     /// use rayon::prelude::*;
     ///
     /// (0..100).into_par_iter().for_each(|x| println!("{:?}", x));
+    /// ```
+    ///
+    /// Because every call to `OP` happens before `for_each` returns, shared
+    /// state written during iteration can be read without further
+    /// synchronization afterwards:
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use rayon::prelude::*;
+    ///
+    /// let mut counter = AtomicUsize::new(0);
+    /// (0..10).into_par_iter().for_each(|_| {
+    ///     counter.fetch_add(1, Ordering::Relaxed);
+    /// });
+    /// // This non-atomic read is sound and sees every increment.
+    /// assert_eq!(*counter.get_mut(), 10);
     /// ```
     fn for_each<OP>(self, op: OP)
     where
@@ -386,6 +412,11 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` value will be cloned only as needed to be paired with
     /// the group of items in each rayon job.  It does not require the type
     /// to be `Sync`.
+    ///
+    /// Like [`for_each`], all operations performed by `OP` *happen before*
+    /// this method returns.
+    ///
+    /// [`for_each`]: #method.for_each
     ///
     /// # Examples
     ///
@@ -417,6 +448,11 @@ pub trait ParallelIterator: Sized + Send {
     /// The `init` function will be called only as needed for a value to be
     /// paired with the group of items in each rayon job.  There is no
     /// constraint on that returned type at all!
+    ///
+    /// Like [`for_each`], all operations performed by `OP` *happen before*
+    /// this method returns.
+    ///
+    /// [`for_each`]: #method.for_each
     ///
     /// # Examples
     ///
