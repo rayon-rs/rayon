@@ -22,6 +22,7 @@ workspace = true
 #
 # Only useful on the `wasm32-unknown-unknown` target.
 web_spin_lock = ["dep:wasm_sync", "rayon-core/web_spin_lock"]
+tracing = ["rayon-core/tracing"]
 
 [dependencies]
 # These are both public dependencies!
@@ -64,4 +65,9 @@ either = { version = "1", default-features = false }
 libc = "0.2"
 rand = "0.10"
 scoped-tls = "1.0"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "std",
+    "registry",
+] }
 wasm_sync = "0.1.0"
