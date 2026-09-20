@@ -1353,11 +1353,17 @@ where
         //
         // If `is_less` panics at any point during the merge process, `s` will get dropped and copy the
         // remaining parts of `left` and `right` into `dest`.
+        // Derive each raw pointer from `left` and `right` exactly once. Calling `as_mut_ptr`
+        // twice would re-derive a fresh mutable pointer from the same reference, invalidating
+        // the pointer stored in `s` before the merge even starts. Every access below is rooted
+        // in `s` for the same reason.
+        let left_start = left.as_mut_ptr();
+        let right_start = right.as_mut_ptr();
         let mut s = State {
-            left_start: left.as_mut_ptr(),
-            left_end: left.as_mut_ptr().add(left_len),
-            right_start: right.as_mut_ptr(),
-            right_end: right.as_mut_ptr().add(right_len),
+            left_start,
+            left_end: left_start.add(left_len),
+            right_start,
+            right_end: right_start.add(right_len),
             dest,
         };
 
@@ -1375,9 +1381,15 @@ where
         } else {
             // Function `split_for_merge` might panic. If that happens, `s` will get destructed and copy
             // the whole `left` and `right` into `dest`.
-            let (left_mid, right_mid) = split_for_merge(left, right, is_less);
-            let (left_l, left_r) = left.split_at_mut(left_mid);
-            let (right_l, right_r) = right.split_at_mut(right_mid);
+            let (left_mid, right_mid) = split_for_merge(
+                slice::from_raw_parts(s.left_start, left_len),
+                slice::from_raw_parts(s.right_start, right_len),
+                is_less,
+            );
+            let (left_l, left_r) =
+                slice::from_raw_parts_mut(s.left_start, left_len).split_at_mut(left_mid);
+            let (right_l, right_r) =
+                slice::from_raw_parts_mut(s.right_start, right_len).split_at_mut(right_mid);
 
             // Prevent the destructor of `s` from running. Rayon will ensure that both calls to
             // `par_merge` happen. If one of the two calls panics, they will ensure that elements still
@@ -1687,6 +1699,47 @@ mod tests {
             left.sort();
             right.sort();
             check(&left, &right);
+        }
+    }
+
+    #[test]
+    fn par_merge_panic_leaves_dest_complete() {
+        use super::par_merge;
+        use std::cell::Cell;
+        use std::panic::{self, AssertUnwindSafe};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // `par_merge` switches to the parallel path above `MAX_SEQUENTIAL` (5000) total
+        // elements, so exercise a length on either side of that.
+        for &half in &[16usize, 4000] {
+            for &trip in &[1usize, 3, 7] {
+                let mut left: Vec<Cell<u32>> = (0..half).map(|i| Cell::new(2 * i as u32)).collect();
+                let mut right: Vec<Cell<u32>> =
+                    (0..half).map(|i| Cell::new(2 * i as u32 + 1)).collect();
+                let mut dest: Vec<Cell<u32>> = vec![Cell::new(u32::MAX); 2 * half];
+
+                let countdown = AtomicUsize::new(trip);
+                let is_less = |a: &Cell<u32>, b: &Cell<u32>| {
+                    // Interior mutability lets the comparator write through its arguments.
+                    b.set(b.get());
+                    if countdown.fetch_sub(1, Ordering::Relaxed) == 1 {
+                        panic!("is_less");
+                    }
+                    a.get() < b.get()
+                };
+
+                let dest_ptr = dest.as_mut_ptr();
+                let result = panic::catch_unwind(AssertUnwindSafe(|| unsafe {
+                    par_merge(&mut left, &mut right, dest_ptr, &is_less);
+                }));
+                assert!(result.is_err());
+
+                // Even though `is_less` panicked, every element must have reached `dest`.
+                let mut got: Vec<u32> = dest.iter().map(|c| c.get()).collect();
+                got.sort_unstable();
+                let want: Vec<u32> = (0..2 * half as u32).collect();
+                assert_eq!(got, want);
+            }
         }
     }
 }
