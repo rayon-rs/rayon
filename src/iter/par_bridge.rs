@@ -138,7 +138,7 @@ impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter
         }
 
         loop {
-            if let Ok(mut iter) = self.iter.lock() {
+            if let Ok(mut iter) = self.iter.try_lock() {
                 if let Some(it) = iter.next() {
                     drop(iter);
                     folder = folder.consume(it);
@@ -149,10 +149,99 @@ impl<Iter: Iterator + Send> UnindexedProducer for &IterParallelProducer<'_, Iter
                     return folder;
                 }
             } else {
-                // any panics from other threads will have been caught by the pool,
-                // and will be re-thrown when joined - just exit
+                // A contended or poisoned lock cannot make progress in this split,
+                // so let the worker holding it continue and just exit.
                 return folder;
             }
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::{AtomicBool, AtomicUsize, IterParallelProducer, Mutex, Ordering};
+    use crate::ThreadPoolBuilder;
+    use crate::iter::noop::NoopConsumer;
+    use crate::iter::plumbing::UnindexedProducer;
+    use std::sync::{Arc, mpsc};
+    use std::thread;
+    use std::time::Duration;
+
+    struct Reentrant {
+        first: bool,
+        flags: Arc<[AtomicBool; 2]>,
+        done: Arc<AtomicBool>,
+    }
+
+    impl Iterator for Reentrant {
+        type Item = ();
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.first {
+                self.first = false;
+                while self
+                    .flags
+                    .iter()
+                    .filter(|flag| flag.load(Ordering::Relaxed))
+                    .count()
+                    < 2
+                {
+                    thread::yield_now();
+                }
+                let done = Arc::clone(&self.done);
+                crate::join(
+                    || {
+                        while !done.load(Ordering::Relaxed) {
+                            thread::yield_now();
+                        }
+                    },
+                    || (),
+                );
+            }
+            None
+        }
+    }
+
+    #[test]
+    fn contended_lock_does_not_park_worker() {
+        let (done_tx, done_rx) = mpsc::channel();
+
+        thread::spawn(move || {
+            let pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+            pool.install(|| {
+                let flags = Arc::new([AtomicBool::new(false), AtomicBool::new(false)]);
+                let done = Arc::new(AtomicBool::new(false));
+                let producer = IterParallelProducer {
+                    split_count: AtomicUsize::new(2),
+                    iter: Mutex::new(
+                        Reentrant {
+                            first: true,
+                            flags: Arc::clone(&flags),
+                            done: Arc::clone(&done),
+                        }
+                        .fuse(),
+                    ),
+                    threads_started: &flags[..],
+                };
+
+                let done_a = Arc::clone(&done);
+                let done_b = Arc::clone(&done);
+                crate::join(
+                    || {
+                        producer.fold_with(NoopConsumer);
+                        done_a.store(true, Ordering::Relaxed);
+                    },
+                    || {
+                        producer.fold_with(NoopConsumer);
+                        done_b.store(true, Ordering::Relaxed);
+                    },
+                );
+            });
+            done_tx.send(()).unwrap();
+        });
+
+        assert!(
+            done_rx.recv_timeout(Duration::from_secs(2)).is_ok(),
+            "a contended par_bridge lock parked a worker"
+        );
     }
 }
