@@ -53,6 +53,35 @@ struct ScopeBase<'scope> {
     marker: PhantomData<Box<dyn FnOnce(&Scope<'scope>) + Send + Sync + 'scope>>,
 }
 
+trait ScopeWrapper<'scope> {
+    fn base(&self) -> &ScopeBase<'scope>;
+    unsafe fn base_ptr(this: *const Self) -> *const ScopeBase<'scope>;
+}
+
+impl<'scope> ScopeWrapper<'scope> for Scope<'scope> {
+    #[inline]
+    fn base(&self) -> &ScopeBase<'scope> {
+        &self.base
+    }
+
+    #[inline]
+    unsafe fn base_ptr(this: *const Self) -> *const ScopeBase<'scope> {
+        unsafe { &raw const (*this).base }
+    }
+}
+
+impl<'scope> ScopeWrapper<'scope> for ScopeFifo<'scope> {
+    #[inline]
+    fn base(&self) -> &ScopeBase<'scope> {
+        &self.base
+    }
+
+    #[inline]
+    unsafe fn base_ptr(this: *const Self) -> *const ScopeBase<'scope> {
+        unsafe { &raw const (*this).base }
+    }
+}
+
 /// Creates a "fork-join" scope `s` and invokes the closure with a
 /// reference to `s`. This closure can then spawn asynchronous tasks
 /// into `s`. Those tasks may run asynchronously with respect to the
@@ -560,15 +589,7 @@ impl<'scope> Scope<'scope> {
     where
         BODY: Fn(&Scope<'scope>, BroadcastContext<'_>) + Send + Sync + 'scope,
     {
-        let scope_ptr = ScopePtr(self);
-        let job = ArcJob::new(move || unsafe {
-            // SAFETY: this job will execute before the scope ends.
-            let scope = scope_ptr.as_ref();
-            let body = &body;
-            let func = move || BroadcastContext::with(move |ctx| body(scope, ctx));
-            ScopeBase::execute_job(&scope.base, func)
-        });
-        self.base.inject_broadcast(job)
+        ScopeBroadcast::inject(self, body);
     }
 }
 
@@ -625,15 +646,7 @@ impl<'scope> ScopeFifo<'scope> {
     where
         BODY: Fn(&ScopeFifo<'scope>, BroadcastContext<'_>) + Send + Sync + 'scope,
     {
-        let scope_ptr = ScopePtr(self);
-        let job = ArcJob::new(move || unsafe {
-            // SAFETY: this job will execute before the scope ends.
-            let scope = scope_ptr.as_ref();
-            let body = &body;
-            let func = move || BroadcastContext::with(move |ctx| body(scope, ctx));
-            ScopeBase::execute_job(&scope.base, func)
-        });
-        self.base.inject_broadcast(job)
+        ScopeBroadcast::inject(self, body);
     }
 }
 
@@ -661,19 +674,6 @@ impl<'scope> ScopeBase<'scope> {
             self.job_completed_latch.increment();
             job.into_job_ref()
         }
-    }
-
-    fn inject_broadcast<FUNC>(&self, job: Arc<ArcJob<FUNC>>)
-    where
-        FUNC: Fn() + Send + Sync + 'scope,
-    {
-        let n_threads = self.registry.num_threads();
-        let job_refs = (0..n_threads).map(|_| unsafe {
-            self.job_completed_latch.increment();
-            ArcJob::as_job_ref(&job)
-        });
-
-        self.registry.inject_broadcast(job_refs);
     }
 
     /// Executes `func` as a job, either aborting or executing as
@@ -718,7 +718,9 @@ impl<'scope> ScopeBase<'scope> {
     }
 
     fn job_panicked(&self, err: Box<dyn Any + Send + 'static>) {
-        // capture the first error we see, free the rest
+        // Capture the first error we see, and drop the rest.
+        // Abort if there's another panic while dropping `err`.
+        let abort_guard = unwind::AbortIfPanic;
         if self.panic.load(Ordering::Relaxed).is_null() {
             let nil = ptr::null_mut();
             let mut err = ManuallyDrop::new(Box::new(err)); // box up the fat ptr
@@ -733,7 +735,10 @@ impl<'scope> ScopeBase<'scope> {
                 // another panic raced in ahead of us, so drop ours
                 let _: Box<Box<_>> = ManuallyDrop::into_inner(err);
             }
+        } else {
+            drop(err);
         }
+        std::mem::forget(abort_guard);
     }
 
     fn maybe_propagate_panic(&self) {
@@ -785,5 +790,65 @@ impl<T> ScopePtr<T> {
     // Helper to avoid disjoint captures of `scope_ptr.0`
     unsafe fn as_ref(&self) -> &T {
         unsafe { &*self.0 }
+    }
+}
+
+/// This type ensures that a broadcast `BODY` is completely dropped before the scope is allowed to
+/// return. Any panics from job execution or the drop are also saved in the scope.
+struct ScopeBroadcast<'scope, SCOPE, BODY>
+where
+    SCOPE: ScopeWrapper<'scope>,
+{
+    scope_ptr: ScopePtr<SCOPE>,
+    body: ManuallyDrop<BODY>,
+    marker: PhantomData<&'scope ()>,
+}
+
+impl<'scope, SCOPE, BODY> ScopeBroadcast<'scope, SCOPE, BODY>
+where
+    SCOPE: ScopeWrapper<'scope> + Sync,
+    BODY: Fn(&SCOPE, BroadcastContext<'_>) + Send + Sync + 'scope,
+{
+    fn inject(scope: &SCOPE, body: BODY) {
+        let base = scope.base();
+
+        // NB: this single latch increment keeps the scope alive until the guard drops, so we know
+        // that the job has executed on each thread and the closure has dropped.
+        base.job_completed_latch.increment();
+        let guard = Self {
+            scope_ptr: ScopePtr(scope),
+            body: ManuallyDrop::new(body),
+            marker: PhantomData,
+        };
+
+        let job = ArcJob::new(move || unsafe {
+            // SAFETY: the guard keeps the scope alive.
+            let scope = guard.scope_ptr.as_ref();
+            let body = &*guard.body;
+            let func = move || BroadcastContext::with(move |ctx| body(scope, ctx));
+            if let Err(err) = unwind::halt_unwinding(func) {
+                scope.base().job_panicked(err);
+            }
+        });
+
+        let n_threads = base.registry.num_threads();
+        let job_refs = (0..n_threads).map(|_| unsafe { ArcJob::as_job_ref(&job) });
+        base.registry.inject_broadcast(job_refs);
+    }
+}
+
+impl<'scope, SCOPE, BODY> Drop for ScopeBroadcast<'scope, SCOPE, BODY>
+where
+    SCOPE: ScopeWrapper<'scope>,
+{
+    fn drop(&mut self) {
+        unsafe {
+            // SAFETY: our latch count increment from `inject` keeps the scope alive
+            // until this `execute_job` finishes the manual drop and decrements it.
+            // Also, `body` is dropped exactly once and never accessed again
+            let base = ScopeWrapper::base_ptr(self.scope_ptr.0);
+            let body = &mut self.body;
+            ScopeBase::execute_job(base, move || ManuallyDrop::drop(body));
+        }
     }
 }

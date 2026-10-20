@@ -618,3 +618,74 @@ fn scope_spawn_broadcast_panic_many() {
     assert_eq!(count.into_inner(), 7);
     assert!(result.is_err(), "broadcast panic should propagate!");
 }
+
+#[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
+fn scope_spawn_broadcast_panic_drop() {
+    struct PanicOnDrop;
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("Hello, world!");
+        }
+    }
+
+    let panic_on_drop = PanicOnDrop;
+    let pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+    let result = crate::unwind::halt_unwinding(|| {
+        pool.scope(|s| {
+            s.spawn_broadcast(move |_, _| {
+                let _ = &panic_on_drop;
+            });
+        });
+    });
+    assert!(result.is_err(), "broadcast drop panic should propagate!");
+}
+
+#[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
+fn scope_spawn_broadcast_drop() {
+    struct Guard<'a> {
+        latch: super::ScopePtr<super::CountLatch>,
+        count: &'a AtomicUsize,
+        barrier: &'a Barrier,
+    }
+
+    impl Drop for Guard<'_> {
+        fn drop(&mut self) {
+            // SAFETY: the barrier ensures that the scope hasn't ended.
+            let current_count = unsafe { self.latch.as_ref().peek() };
+            self.count.store(current_count, Ordering::Relaxed);
+            self.barrier.wait();
+        }
+    }
+
+    let mut starting_count = usize::MAX;
+    let count_at_drop = AtomicUsize::new(0);
+
+    let start = &Barrier::new(3);
+    let barrier = &Barrier::new(2);
+
+    let pool = ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+    pool.in_place_scope(|scope| {
+        let latch = &scope.base.job_completed_latch;
+        starting_count = latch.peek();
+        let guard = Guard {
+            latch: super::ScopePtr(latch),
+            count: &count_at_drop,
+            barrier,
+        };
+
+        scope.spawn_broadcast(move |_, _| {
+            let _ = &guard;
+            start.wait();
+        });
+
+        // First wait with the broadcast, so the ArcJob will definitely
+        // drop in the pool, then wait for that drop to happen.
+        start.wait();
+        barrier.wait();
+    });
+
+    // Make sure the latch had a count representing the closure's drop (via `Guard::drop`)
+    assert!(starting_count < count_at_drop.into_inner());
+}
