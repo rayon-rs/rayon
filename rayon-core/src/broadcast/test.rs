@@ -216,6 +216,30 @@ fn spawn_broadcast_panic_many() {
 }
 
 #[test]
+#[cfg_attr(not(panic = "unwind"), ignore)]
+fn spawn_broadcast_panic_drop() {
+    struct PanicOnDrop;
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("Hello, world!");
+        }
+    }
+
+    let panic_on_drop = PanicOnDrop;
+    let (panic_tx, panic_rx) = channel();
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(2)
+        .panic_handler(move |e| panic_tx.send(e).unwrap())
+        .build()
+        .unwrap();
+    pool.spawn_broadcast(move |_| {
+        let _ = &panic_on_drop;
+    });
+    drop(pool); // including panic_tx
+    assert_eq!(panic_rx.into_iter().count(), 1);
+}
+
+#[test]
 #[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn broadcast_sleep_race() {
     let test_duration = time::Duration::from_secs(1);
