@@ -826,6 +826,8 @@ where
             let scope = guard.scope_ptr.as_ref();
             let body = &*guard.body;
             let func = move || BroadcastContext::with(move |ctx| body(scope, ctx));
+            // This is like `ScopeBase::execute_job` but without touching the latch for each call,
+            // since we're using a single count to keep the scope alive until we `Drop`.
             if let Err(err) = unwind::halt_unwinding(func) {
                 scope.base().job_panicked(err);
             }
@@ -843,12 +845,18 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            // SAFETY: our latch count increment from `inject` keeps the scope alive
-            // until this `execute_job` finishes the manual drop and decrements it.
+            // SAFETY: our latch increment from `inject` keeps the scope alive for the
+            // manual `body` drop and panic handling, until the final `Latch::set`.
             // Also, `body` is dropped exactly once and never accessed again
             let base = ScopeWrapper::base_ptr(self.scope_ptr.0);
             let body = &mut self.body;
-            ScopeBase::execute_job(base, move || ManuallyDrop::drop(body));
+            let func = move || ManuallyDrop::drop(body);
+            if let Err(err) = unwind::halt_unwinding(func) {
+                (*base).job_panicked(err);
+            }
+            // NB: Once the latch is set, the scope is allowed to return, dropping the `ScopeBase`
+            // itself (and its wrapping type) and leaving the region of the `'scope` lifetime.
+            Latch::set(&(*base).job_completed_latch);
         }
     }
 }
