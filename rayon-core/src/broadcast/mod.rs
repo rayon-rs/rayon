@@ -3,6 +3,7 @@ use crate::latch::{CountLatch, LatchRef};
 use crate::registry::{Registry, WorkerThread};
 use std::fmt;
 use std::marker::PhantomData;
+use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 mod test;
@@ -131,22 +132,37 @@ pub(super) unsafe fn spawn_broadcast_in<OP>(op: OP, registry: &Arc<Registry>)
 where
     OP: Fn(BroadcastContext<'_>) + Send + Sync + 'static,
 {
-    let job = ArcJob::new({
-        let registry = Arc::clone(registry);
-        move || {
-            registry.catch_unwind(|| BroadcastContext::with(&op));
-            registry.terminate(); // (*) permit registry to terminate now
-        }
+    // Ensure that registry cannot terminate until this job has executed on each thread
+    // and `op` has dropped. This ref is decremented in `SpawnBroadcast::drop`.
+    registry.increment_terminate_count();
+    let guard = SpawnBroadcast {
+        registry: Arc::clone(registry),
+        op: ManuallyDrop::new(op),
+    };
+
+    let job = ArcJob::new(move || {
+        let op = &*guard.op;
+        guard.registry.catch_unwind(|| BroadcastContext::with(op));
     });
 
     let n_threads = registry.num_threads();
-    let job_refs = (0..n_threads).map(|_| {
-        // Ensure that registry cannot terminate until this job has executed
-        // on each thread. This ref is decremented at the (*) above.
-        registry.increment_terminate_count();
-
-        ArcJob::as_static_job_ref(&job)
-    });
+    let job_refs = (0..n_threads).map(|_| ArcJob::as_static_job_ref(&job));
 
     registry.inject_broadcast(job_refs);
+}
+
+struct SpawnBroadcast<OP> {
+    registry: Arc<Registry>,
+    op: ManuallyDrop<OP>,
+}
+
+impl<OP> Drop for SpawnBroadcast<OP> {
+    fn drop(&mut self) {
+        // SAFETY: `op` is dropped exactly once and never accessed again
+        unsafe {
+            let op = &mut self.op;
+            self.registry.catch_unwind(|| ManuallyDrop::drop(op));
+            self.registry.terminate(); // permit registry to terminate now
+        }
+    }
 }

@@ -387,6 +387,11 @@ impl CountLatch {
         debug_assert!(old_counter != 0);
     }
 
+    #[cfg(test)]
+    pub(super) fn peek(&self) -> usize {
+        self.counter.load(Ordering::Relaxed)
+    }
+
     pub(super) fn wait(&self, owner: Option<&WorkerThread>) {
         match &self.kind {
             CountLatchKind::Stealing {
