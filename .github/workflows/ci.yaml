@@ -34,6 +34,17 @@ jobs:
       - run: cargo test --verbose --package rayon-core
       - run: ./ci/highlander.sh
 
+  miri:
+    runs-on: ubuntu-latest
+    env:
+      MIRIFLAGS: "-Zmiri-tree-borrows -Zmiri-ignore-leaks -Zmiri-many-seeds=0..32"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - run: cargo miri test --package rayon-core --test miri-tree-borrows
+
   # rayon-demo has huge dependencies, so limit its testing.
   # build on stable, test on nightly (because of #[bench])
   demo:
@@ -119,7 +130,7 @@ jobs:
   success:
     name: Success
     runs-on: ubuntu-latest
-    needs: [check, test, demo, i686, wasm, wasi, fmt]
+    needs: [check, test, miri, demo, i686, wasm, wasi, fmt]
     # Github branch protection is exceedingly silly and treats "jobs skipped because a dependency
     # failed" as success. So we have to do some contortions to ensure the job fails if any of its
     # dependencies fails.
