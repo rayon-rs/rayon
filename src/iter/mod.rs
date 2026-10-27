@@ -72,7 +72,7 @@
 //! `None`/`Err` values will exit early.
 //!
 //! A note about
-//! [dyn compatiblity](https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility):
+//! [dyn compatibility](https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility):
 //! It is currently _not_ possible to wrap a `ParallelIterator` (or any trait
 //! that depends on it) using a `Box<dyn ParallelIterator>` or other kind of
 //! dynamic allocation, because `ParallelIterator` is **not dyn-compatible**.
