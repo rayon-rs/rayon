@@ -11,7 +11,7 @@ use crate::unwind;
 use std::any::Any;
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
+use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -53,7 +53,7 @@ struct ScopeBase<'scope> {
     marker: PhantomData<Box<dyn FnOnce(&Scope<'scope>) + Send + Sync + 'scope>>,
 }
 
-trait ScopeWrapper<'scope> {
+trait ScopeWrapper<'scope>: Send + Sync + 'scope {
     fn base(&self) -> &ScopeBase<'scope>;
     unsafe fn base_ptr(this: *const Self) -> *const ScopeBase<'scope>;
 }
@@ -567,13 +567,7 @@ impl<'scope> Scope<'scope> {
     where
         BODY: FnOnce(&Scope<'scope>) + Send + 'scope,
     {
-        let scope_ptr = ScopePtr(self);
-        let job = HeapJob::new(move || unsafe {
-            // SAFETY: this job will execute before the scope ends.
-            let scope = scope_ptr.as_ref();
-            ScopeBase::execute_job(&scope.base, move || body(scope))
-        });
-        let job_ref = self.base.heap_job_ref(job);
+        let job_ref = spawn_job(self, body);
 
         // Since `Scope` implements `Sync`, we can't be sure that we're still in a
         // thread of this pool, so we can't just push to the local worker thread.
@@ -618,13 +612,7 @@ impl<'scope> ScopeFifo<'scope> {
     where
         BODY: FnOnce(&ScopeFifo<'scope>) + Send + 'scope,
     {
-        let scope_ptr = ScopePtr(self);
-        let job = HeapJob::new(move || unsafe {
-            // SAFETY: this job will execute before the scope ends.
-            let scope = scope_ptr.as_ref();
-            ScopeBase::execute_job(&scope.base, move || body(scope))
-        });
-        let job_ref = self.base.heap_job_ref(job);
+        let job_ref = spawn_job(self, body);
 
         // If we're in the pool, use our scope's private fifo for this thread to execute
         // in a locally-FIFO order. Otherwise, just use the pool's global injector.
@@ -648,6 +636,33 @@ impl<'scope> ScopeFifo<'scope> {
     {
         ScopeBroadcast::inject(self, body);
     }
+}
+
+/// Creates a `JobRef` for a scope `body`, incrementing the scope's latch.
+///
+/// The caller is responsible for making sure that the returned job is executed,
+/// or else the scope will never complete.
+fn spawn_job<'scope, SCOPE, BODY>(scope: &SCOPE, body: BODY) -> JobRef
+where
+    SCOPE: ScopeWrapper<'scope>,
+    BODY: FnOnce(&SCOPE) + Send + 'scope,
+{
+    // NB: Since `execute_job` decrements the latch allowing the scope to return, we need to make
+    // sure the closure doesn't have any "dereferenceable" arguments that may be left dangling,
+    // even though the call will *move* the closure itself. We must only capture a *raw* scope
+    // pointer, and wrapping the body in `MaybeUninit` hides all of its references.
+    // See also <https://github.com/rust-lang/rust/issues/101983>.
+    // TODO: use `MaybeDangling` when that's stable in our MSRV.
+    let body = MaybeUninit::new(body);
+    let scope_ptr = ScopePtr(scope);
+    let job = HeapJob::new(move || unsafe {
+        // SAFETY: this job will execute before the scope ends.
+        let base = scope_ptr.base_ptr();
+        ScopeBase::execute_job(base, move || {
+            body.assume_init()(scope_ptr.as_ref());
+        })
+    });
+    scope.base().heap_job_ref(job)
 }
 
 impl<'scope> ScopeBase<'scope> {
@@ -791,6 +806,14 @@ impl<T> ScopePtr<T> {
     unsafe fn as_ref(&self) -> &T {
         unsafe { &*self.0 }
     }
+
+    // Perform a raw projection, avoiding any reference to the scope itself
+    unsafe fn base_ptr<'scope>(&self) -> *const ScopeBase<'scope>
+    where
+        T: ScopeWrapper<'scope>,
+    {
+        unsafe { ScopeWrapper::base_ptr(self.0) }
+    }
 }
 
 /// This type ensures that a broadcast `BODY` is completely dropped before the scope is allowed to
@@ -806,7 +829,7 @@ where
 
 impl<'scope, SCOPE, BODY> ScopeBroadcast<'scope, SCOPE, BODY>
 where
-    SCOPE: ScopeWrapper<'scope> + Sync,
+    SCOPE: ScopeWrapper<'scope>,
     BODY: Fn(&SCOPE, BroadcastContext<'_>) + Send + Sync + 'scope,
 {
     fn inject(scope: &SCOPE, body: BODY) {
@@ -848,7 +871,7 @@ where
             // SAFETY: our latch increment from `inject` keeps the scope alive for the
             // manual `body` drop and panic handling, until the final `Latch::set`.
             // Also, `body` is dropped exactly once and never accessed again
-            let base = ScopeWrapper::base_ptr(self.scope_ptr.0);
+            let base = self.scope_ptr.base_ptr();
             let body = &mut self.body;
             let func = move || ManuallyDrop::drop(body);
             if let Err(err) = unwind::halt_unwinding(func) {
