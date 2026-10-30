@@ -214,3 +214,101 @@ fn slice_chunk_by_mut() {
         .collect();
     assert_eq!(par, seq);
 }
+
+#[test]
+fn test_par_median() {
+    let v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    let median = v.par_median().unwrap();
+    assert_eq!(median, 5);
+
+    let v: Vec<i32> = (0..10).collect();
+    let median = v.par_median().unwrap();
+    assert_eq!(median, 5);
+
+    let v: Vec<i32> = (0..11).collect();
+    let median = v.par_median().unwrap();
+    assert_eq!(median, 5);
+
+    assert!([0i32; 0].par_median().is_none());
+}
+
+#[test]
+fn test_par_k_smallest() {
+    let v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    let third_smallest = v.par_k_smallest(2).unwrap();
+    assert_eq!(third_smallest, 3);
+
+    let v: Vec<i32> = (0..10).collect();
+    let smallest = v.par_k_smallest(0).unwrap();
+    assert_eq!(smallest, 0);
+
+    let largest = v.par_k_smallest(9).unwrap();
+    assert_eq!(largest, 9);
+
+    assert!(vec![1, 2, 3].par_k_smallest(5).is_none());
+}
+
+#[test]
+fn test_par_k_largest() {
+    let v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    let third_largest = v.par_k_largest(2).unwrap();
+    assert_eq!(third_largest, 7);
+
+    let v: Vec<i32> = (0..10).collect();
+    let largest = v.par_k_largest(0).unwrap();
+    assert_eq!(largest, 9);
+
+    let smallest = v.par_k_largest(9).unwrap();
+    assert_eq!(smallest, 0);
+
+    assert!(vec![1, 2, 3].par_k_largest(5).is_none());
+}
+
+#[test]
+fn test_par_median_mut() {
+    let mut v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    let median = v.par_median_mut().unwrap();
+    assert_eq!(median, 5);
+
+    let mut v: Vec<i32> = (0..10).collect();
+    let median = v.par_median_mut().unwrap();
+    assert_eq!(median, 5);
+
+    let mut v: Vec<i32> = (0..11).collect();
+    let median = v.par_median_mut().unwrap();
+    assert_eq!(median, 5);
+
+    assert!([0i32; 0].par_median_mut().is_none());
+}
+
+#[test]
+fn test_par_k_smallest_mut() {
+    let mut v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    let third_smallest = v.par_k_smallest_mut(2).unwrap();
+    assert_eq!(third_smallest, 3);
+
+    let mut v: Vec<i32> = (0..10).collect();
+    let smallest = v.par_k_smallest_mut(0).unwrap();
+    assert_eq!(smallest, 0);
+
+    let largest = v.par_k_smallest_mut(9).unwrap();
+    assert_eq!(largest, 9);
+
+    assert!(vec![1, 2, 3].par_k_smallest_mut(5).is_none());
+}
+
+#[test]
+fn test_par_k_largest_mut() {
+    let mut v = vec![5, 1, 9, 3, 7, 2, 8, 4, 6];
+    let third_largest = v.par_k_largest_mut(2).unwrap();
+    assert_eq!(third_largest, 7);
+
+    let mut v: Vec<i32> = (0..10).collect();
+    let largest = v.par_k_largest_mut(0).unwrap();
+    assert_eq!(largest, 9);
+
+    let smallest = v.par_k_largest_mut(9).unwrap();
+    assert_eq!(smallest, 0);
+
+    assert!(vec![1, 2, 3].par_k_largest_mut(5).is_none());
+}
