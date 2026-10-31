@@ -33,7 +33,7 @@ steal work from them.
 This technique is not new. It was first introduced by the [Cilk project][cilk],
 done at MIT in the late nineties. The name Rayon is an homage to that work.
 
-[cilk]: http://supertech.csail.mit.edu/cilk/
+[cilk]: https://cilk.mit.edu/
 
 ## What should I do if I use `Rc`, `Cell`, `RefCell` or other non-Send-and-Sync types?
 
