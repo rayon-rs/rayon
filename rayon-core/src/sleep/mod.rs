@@ -69,6 +69,8 @@ impl Sleep {
     pub(super) fn start_looking(&self, worker_index: usize) -> IdleState {
         self.counters.add_inactive_thread();
 
+        trace_event!(tracing::Level::DEBUG, "rayon::thread_idle");
+
         IdleState {
             worker_index,
             rounds: 0,
@@ -78,6 +80,8 @@ impl Sleep {
 
     #[inline]
     pub(super) fn work_found(&self) {
+        trace_event!(tracing::Level::DEBUG, "rayon::thread_active");
+
         // If we were the last idle thread and other threads are still sleeping,
         // then we should wake up another thread.
         let threads_to_wake = self.counters.sub_inactive_thread();
