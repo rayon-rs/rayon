@@ -2104,6 +2104,22 @@ fn check_chunks_len() {
 }
 
 #[test]
+fn check_chunks_large_size_split_at_end() {
+    // `rev().take(0)` splits the chunks at their full length and keeps only the
+    // empty part, so the huge base range is never iterated.
+    let size = usize::MAX / 2 + 1;
+    for len in [usize::MAX / 2 + 2, usize::MAX - 1, usize::MAX] {
+        let count = (0..len)
+            .into_par_iter()
+            .fold_chunks(size, || (), |(), _| ())
+            .rev()
+            .take(0)
+            .count();
+        assert_eq!(count, 0, "len={len}");
+    }
+}
+
+#[test]
 fn check_chunks_uneven() {
     let cases: Vec<(Vec<u32>, usize, Vec<Vec<u32>>)> = vec![
         ((0..5).collect(), 3, vec![vec![0, 1, 2], vec![3, 4]]),
