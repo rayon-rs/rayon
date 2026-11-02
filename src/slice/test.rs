@@ -171,6 +171,46 @@ fn test_par_rchunks_exact_mut_remainder() {
 }
 
 #[test]
+fn test_par_chunks_large_chunk_size_take_and_skip() {
+    macro_rules! check {
+        ($v:ident, $size:ident, $n:ident, $seq:ident, $par:ident, $adaptor:ident) => {
+            let expected: Vec<_> = $v.$seq($size).$adaptor($n).map(|c| c.len()).collect();
+            let actual: Vec<_> = $v.$par($size).$adaptor($n).map(|c| c.len()).collect();
+            let (par, adaptor, size, n) = (stringify!($par), stringify!($adaptor), $size, $n);
+            assert_eq!(
+                actual,
+                expected,
+                "{par}({size}).{adaptor}({n}), len={}",
+                $v.len()
+            );
+        };
+    }
+
+    // zero-sized elements allow slices with lengths up to `usize::MAX`
+    let mut v = vec![(); usize::MAX];
+    for len in [0, 1, 2, usize::MAX / 2 + 1, usize::MAX - 1, usize::MAX] {
+        let v = &mut v[..len];
+        for size in [
+            usize::MAX / 2,
+            usize::MAX / 2 + 1,
+            usize::MAX - 1,
+            usize::MAX,
+        ] {
+            for n in 0..=3 {
+                check!(v, size, n, chunks, par_chunks, take);
+                check!(v, size, n, chunks, par_chunks, skip);
+                check!(v, size, n, chunks_mut, par_chunks_mut, take);
+                check!(v, size, n, chunks_mut, par_chunks_mut, skip);
+                check!(v, size, n, rchunks, par_rchunks, take);
+                check!(v, size, n, rchunks, par_rchunks, skip);
+                check!(v, size, n, rchunks_mut, par_rchunks_mut, take);
+                check!(v, size, n, rchunks_mut, par_rchunks_mut, skip);
+            }
+        }
+    }
+}
+
+#[test]
 fn slice_chunk_by() {
     let v: Vec<_> = (0..1000).collect();
     assert_eq!(v[..0].par_chunk_by(|_, _| todo!()).count(), 0);

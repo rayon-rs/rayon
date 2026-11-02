@@ -72,7 +72,10 @@ impl<'data, T: 'data + Sync> Producer for RChunksProducer<'data, T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = self.slice.len().saturating_sub(index * self.chunk_size);
+        let elem_index = self
+            .slice
+            .len()
+            .saturating_sub(index.saturating_mul(self.chunk_size));
         let (left, right) = self.slice.split_at(elem_index);
         (
             RChunksProducer {
@@ -252,7 +255,10 @@ impl<'data, T: 'data + Send> Producer for RChunksMutProducer<'data, T> {
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = self.slice.len().saturating_sub(index * self.chunk_size);
+        let elem_index = self
+            .slice
+            .len()
+            .saturating_sub(index.saturating_mul(self.chunk_size));
         let (left, right) = self.slice.split_at_mut(elem_index);
         (
             RChunksMutProducer {

@@ -122,7 +122,7 @@ where
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
-        let elem_index = Ord::min(index * self.chunk_size, self.len);
+        let elem_index = Ord::min(index.saturating_mul(self.chunk_size), self.len);
         let (left, right) = self.base.split_at(elem_index);
         (
             ChunkProducer {
