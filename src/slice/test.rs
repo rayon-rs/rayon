@@ -68,10 +68,15 @@ macro_rules! sort {
                 }
             }
 
-            // Sort using a completely random comparison function.
-            // This will reorder the elements *somehow*, but won't panic.
+            // Sort using a completely random comparison function. This reorders the elements
+            // *somehow* and may panic -- the unstable sort delegates its leaves to the standard
+            // library, which panics when the comparator does not implement a total order -- but it
+            // must never lose elements or cause undefined behavior. After re-sorting with a valid
+            // comparator we must recover the original `0..100` permutation.
             let mut v: Vec<_> = (0..100).collect();
-            v.$f(|_, _| *[Less, Equal, Greater].choose(&mut rand::rng()).unwrap());
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                v.$f(|_, _| *[Less, Equal, Greater].choose(&mut rand::rng()).unwrap());
+            }));
             v.$f(|a, b| a.cmp(b));
             for i in 0..v.len() {
                 assert_eq!(v[i], i);

@@ -259,50 +259,28 @@ where
     false
 }
 
-/// Sorts `v` using heapsort, which guarantees *O*(*n* \* log(*n*)) worst-case.
-#[cold]
-fn heapsort<T, F>(v: &mut [T], is_less: F)
+/// Sequentially sorts `v`, used for the leaves of the parallel recursion.
+///
+/// This delegates to the standard library's [`sort_unstable_by`](slice::sort_unstable_by) (an
+/// `ipnsort` implementation) rather than reimplementing a base-case sort. The `is_less` predicate
+/// is turned into a total [`Ordering`](cmp::Ordering) exactly once here, so the conversion is not
+/// duplicated across call sites.
+///
+/// Note that `sort_unstable_by` panics if `is_less` does not implement a total order, whereas the
+/// old hand-written fallback would merely produce an unspecified permutation.
+fn sort_leaf<T, F>(v: &mut [T], is_less: &F)
 where
     F: Fn(&T, &T) -> bool,
 {
-    // This binary heap respects the invariant `parent >= child`.
-    let sift_down = |v: &mut [T], mut node| {
-        loop {
-            // Children of `node`.
-            let mut child = 2 * node + 1;
-            if child >= v.len() {
-                break;
-            }
-
-            // Choose the greater child.
-            if child + 1 < v.len() {
-                // We need a branch to be sure not to out-of-bounds index,
-                // but it's highly predictable.  The comparison, however,
-                // is better done branchless, especially for primitives.
-                child += is_less(&v[child], &v[child + 1]) as usize;
-            }
-
-            // Stop if the invariant holds at `node`.
-            if !is_less(&v[node], &v[child]) {
-                break;
-            }
-
-            // Swap `node` with the greater child, move one step down, and continue sifting.
-            v.swap(node, child);
-            node = child;
+    v.sort_unstable_by(|a, b| {
+        if is_less(a, b) {
+            cmp::Ordering::Less
+        } else if is_less(b, a) {
+            cmp::Ordering::Greater
+        } else {
+            cmp::Ordering::Equal
         }
-    };
-
-    // Build the heap in linear time.
-    for i in (0..v.len() / 2).rev() {
-        sift_down(v, i);
-    }
-
-    // Pop maximal elements from the heap.
-    for i in (1..v.len()).rev() {
-        v.swap(0, i);
-        sift_down(&mut v[..i], 0);
-    }
+    });
 }
 
 /// Partitions `v` into elements smaller than `pivot`, followed by elements greater than or equal
@@ -824,14 +802,14 @@ where
 ///
 /// If the slice had a predecessor in the original array, it is specified as `pred`.
 ///
-/// `limit` is the number of allowed imbalanced partitions before switching to `heapsort`. If zero,
-/// this function will immediately switch to heapsort.
+/// `limit` is the number of allowed imbalanced partitions before falling back to a sequential
+/// sort. If zero, this function will immediately fall back.
 fn recurse<'a, T, F>(mut v: &'a mut [T], is_less: &F, mut pred: Option<&'a mut T>, mut limit: u32)
 where
     T: Send,
     F: Fn(&T, &T) -> bool + Sync,
 {
-    // Slices of up to this length get sorted using insertion sort.
+    // Slices of up to this length get sorted sequentially by the standard library.
     const MAX_INSERTION: usize = 20;
 
     // If both partitions are up to this length, we continue sequentially. This number is as small
@@ -846,18 +824,17 @@ where
     loop {
         let len = v.len();
 
-        // Very short slices get sorted using insertion sort.
+        // Very short slices get sorted sequentially by the standard library.
         if len <= MAX_INSERTION {
-            if len >= 2 {
-                insertion_sort_shift_left(v, 1, is_less);
-            }
+            sort_leaf(v, is_less);
             return;
         }
 
-        // If too many bad pivot choices were made, simply fall back to heapsort in order to
-        // guarantee `O(n * log(n))` worst-case.
+        // If too many bad pivot choices were made, fall back to a sequential sort. The standard
+        // library's `sort_unstable_by` guarantees `O(n * log(n))` worst-case, so it preserves the
+        // overall worst-case bound just as the old heapsort fallback did.
         if limit == 0 {
-            heapsort(v, is_less);
+            sort_leaf(v, is_less);
             return;
         }
 
@@ -1613,44 +1590,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::heapsort;
     use super::split_for_merge;
     use rand::distr::Uniform;
     use rand::{RngExt, rng};
-
-    #[test]
-    fn test_heapsort() {
-        let rng = &mut rng();
-
-        for len in (0..25).chain(500..501) {
-            for &modulus in &[5, 10, 100] {
-                let dist = Uniform::new(0, modulus).unwrap();
-                for _ in 0..100 {
-                    let v: Vec<i32> = rng.sample_iter(&dist).take(len).collect();
-
-                    // Test heapsort using `<` operator.
-                    let mut tmp = v.clone();
-                    heapsort(&mut tmp, |a, b| a < b);
-                    assert!(tmp.is_sorted());
-
-                    // Test heapsort using `>` operator.
-                    let mut tmp = v.clone();
-                    heapsort(&mut tmp, |a, b| a > b);
-                    assert!(tmp.is_sorted_by(|a, b| a >= b));
-                }
-            }
-        }
-
-        // Sort using a completely random comparison function.
-        // This will reorder the elements *somehow*, but won't panic.
-        let mut v: Vec<_> = (0..100).collect();
-        heapsort(&mut v, |_, _| rand::rng().random());
-        heapsort(&mut v, |a, b| a < b);
-
-        for (i, &entry) in v.iter().enumerate() {
-            assert_eq!(entry, i);
-        }
-    }
 
     #[test]
     fn test_split_for_merge() {
