@@ -889,6 +889,9 @@ impl WorkerThread {
             return None;
         }
 
+        // Amortize epoch entry/exit over the scan, retaining each deque's fence.
+        // Drop the guard before executing a job or entering the idle protocol.
+        let _guard = crossbeam_epoch::pin();
         let mut probes = 0usize;
         let mut complete = false;
 

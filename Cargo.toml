@@ -59,6 +59,7 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 # Some dependencies may not be their latest version, in order to support older rustc.
 [workspace.dependencies]
 crossbeam-deque = "0.8.1"
+crossbeam-epoch = "0.9"
 crossbeam-utils = "0.8.0"
 either = { version = "1", default-features = false }
 libc = "0.2"
