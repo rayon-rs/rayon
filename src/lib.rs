@@ -97,6 +97,7 @@ pub mod result;
 pub mod slice;
 pub mod str;
 pub mod string;
+pub mod transpose;
 pub mod vec;
 
 mod math;

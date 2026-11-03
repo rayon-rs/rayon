@@ -201,7 +201,7 @@ impl<T: Send> DrainProducer<'_, T> {
     ///
     /// Unsafe because we're moving from beyond `vec.len()`, so the caller must ensure
     /// that data is initialized and not read after the borrow is released.
-    unsafe fn from_vec(vec: &mut Vec<T>, len: usize) -> DrainProducer<'_, T> {
+    pub(crate) unsafe fn from_vec(vec: &mut Vec<T>, len: usize) -> DrainProducer<'_, T> {
         let start = vec.len();
         assert!(vec.capacity() - start >= len);
 
