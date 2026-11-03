@@ -795,12 +795,12 @@ impl WorkerThread {
 
             let mut idle_state = self.registry.sleep.start_looking(self.index);
             while !latch.probe() {
-                if let Some(job) = self.find_work() {
+                if let Some(job) = self.find_work(|| latch.probe()) {
                     self.registry.sleep.work_found();
                     unsafe { self.execute(job) };
                     // The job might have injected local work, so go back to the outer loop.
                     continue 'outer;
-                } else {
+                } else if !latch.probe() {
                     self.registry
                         .sleep
                         .no_work_found(&mut idle_state, latch, || self.has_injected_job())
@@ -832,19 +832,25 @@ impl WorkerThread {
         }
     }
 
-    fn find_work(&self) -> Option<JobRef> {
+    fn find_work(&self, mut is_complete: impl FnMut() -> bool) -> Option<JobRef> {
         // Try to find some work to do. We give preference first
         // to things in our local deque, then in other workers
         // deques, and finally to injected jobs from the
         // outside. The idea is to finish what we started before
         // we take on something new.
         self.take_local_job()
-            .or_else(|| self.steal())
-            .or_else(|| self.registry.pop_injected_job())
+            .or_else(|| self.steal(&mut is_complete))
+            .or_else(|| {
+                if is_complete() {
+                    None
+                } else {
+                    self.registry.pop_injected_job()
+                }
+            })
     }
 
     pub(super) fn yield_now(&self) -> Yield {
-        match self.find_work() {
+        match self.find_work(|| false) {
             Some(job) => unsafe {
                 self.execute(job);
                 Yield::Executed
@@ -872,7 +878,7 @@ impl WorkerThread {
     ///
     /// This should only be done as a last resort, when there is no
     /// local work to do.
-    fn steal(&self) -> Option<JobRef> {
+    fn steal(&self, mut is_complete: impl FnMut() -> bool) -> Option<JobRef> {
         // we only steal when we don't have any work to do locally
         debug_assert!(self.local_deque_is_empty());
 
@@ -883,12 +889,26 @@ impl WorkerThread {
             return None;
         }
 
+        // Amortize epoch entry/exit over the scan, retaining each deque's fence.
+        // Drop the guard before executing a job or entering the idle protocol.
+        let _guard = crossbeam_epoch::pin();
+        let mut probes = 0usize;
+        let mut complete = false;
+
         loop {
             let mut retry = false;
             let start = self.rng.next_usize(num_threads);
             let job = (start..num_threads)
                 .chain(0..start)
                 .filter(move |&i| i != self.index)
+                .take_while(|_| {
+                    // Keep full scans and retries while the awaited work is unfinished.
+                    if probes % 16 == 0 {
+                        complete = is_complete();
+                    }
+                    probes = probes.wrapping_add(1);
+                    !complete
+                })
                 .find_map(|victim_index| {
                     let victim = &thread_infos[victim_index];
                     match victim.stealer.steal() {
@@ -900,7 +920,7 @@ impl WorkerThread {
                         }
                     }
                 });
-            if job.is_some() || !retry {
+            if job.is_some() || complete || !retry {
                 return job;
             }
             std::hint::spin_loop();
