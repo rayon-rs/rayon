@@ -77,6 +77,69 @@
 //! that depends on it) using a `Box<dyn ParallelIterator>` or other kind of
 //! dynamic allocation, because `ParallelIterator` is **not dyn-compatible**.
 //! (This keeps the implementation simpler and allows extra optimizations.)
+//!
+//! # Ordering
+//!
+//! For parallel iterators over data with a meaningful order, order-preserving
+//! adaptors -- such as [`map`], [`filter`], [`enumerate`], and [`zip`] -- retain
+//! the source order when their results are collected into a [`Vec`], for example. Provided
+//! their closures do not depend on how work is scheduled, this produces the
+//! same sequence that the equivalent sequential [`Iterator`] would, even
+//! though the work is split across threads:
+//!
+//! ```rust
+//! use rayon::prelude::*;
+//! let par: Vec<i32> = (0..1000)
+//!     .into_par_iter()
+//!     .filter(|x| *x % 3 == 0)
+//!     .map(|x| x * 2)
+//!     .collect();
+//! let seq: Vec<i32> = (0..1000)
+//!     .filter(|x| *x % 3 == 0)
+//!     .map(|x| x * 2)
+//!     .collect();
+//! assert_eq!(par, seq);
+//! ```
+//!
+//! There are important exceptions and caveats:
+//!
+//! - Not every parallel iterator has a meaningful order to begin with -- much
+//!   like sequential [`HashMap`] iteration -- and some, such as [`walk_tree`],
+//!   guarantee no ordering at all.
+//! - [`ParallelBridge`] is not guaranteed to preserve the order of the source
+//!   iterator.
+//! - `*_any` methods deliberately relax positional selection. Search methods
+//!   such as [`find_any`] may return any matching item; use [`find_first`] or
+//!   [`find_last`] for a positional search. [`take_any`] and [`skip_any`],
+//!   including their `*_while` variants, select or discard items from anywhere
+//!   in the source. Retained items still preserve their relative order when
+//!   collected into a [`Vec`].
+//! - Reductions such as [`reduce`], [`sum`], and [`product`] combine items in
+//!   an unspecified order, so their operation should be [associative] for
+//!   deterministic results.
+//! - Closures may run concurrently and in an unspecified temporal order. Side
+//!   effects or other scheduling-sensitive state can therefore produce different
+//!   values from a sequential iterator, even when `collect::<Vec<_>>()`
+//!   preserves the resulting items' source order.
+//!
+//! [`map`]: ParallelIterator::map
+//! [`filter`]: ParallelIterator::filter
+//! [`enumerate`]: IndexedParallelIterator::enumerate
+//! [`zip`]: IndexedParallelIterator::zip
+//! [`find_any`]: ParallelIterator::find_any
+//! [`find_first`]: ParallelIterator::find_first
+//! [`find_last`]: ParallelIterator::find_last
+//! [`take_any`]: ParallelIterator::take_any
+//! [`skip_any`]: ParallelIterator::skip_any
+//! [`reduce`]: ParallelIterator::reduce
+//! [`sum`]: ParallelIterator::sum
+//! [`product`]: ParallelIterator::product
+//! [`Vec`]: std::vec::Vec
+//! [`Iterator`]: std::iter::Iterator
+//! [`HashMap`]: std::collections::HashMap
+//! [`ParallelBridge`]: crate::iter::ParallelBridge
+//! [`walk_tree`]: crate::iter::walk_tree()
+//! [associative]: https://en.wikipedia.org/wiki/Associative_property
 
 use self::plumbing::*;
 pub use either::Either;
