@@ -32,7 +32,7 @@ There are three main thread states:
   waiting to be awoken.
 
 We sometimes refer to the final two states collectively as **inactive**.
-Threads begin as idle but transition to idle and finally sleeping when
+Threads begin as idle but transition to sleepy and finally sleeping when
 they're unable to find work to do.
 
 ## Sleepy threads
