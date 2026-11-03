@@ -170,6 +170,34 @@ where
     }
 }
 
+/// Extends a binary heap with items from a parallel iterator, through a
+/// mutable reference.
+impl<T> ParallelExtend<T> for &mut BinaryHeap<T>
+where
+    T: Ord + Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a binary heap with copied items from a parallel iterator, through
+/// a mutable reference.
+impl<'a, T> ParallelExtend<&'a T> for &mut BinaryHeap<T>
+where
+    T: 'a + Copy + Ord + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
 /// Extends a B-tree map with items from a parallel iterator.
 impl<K, V> ParallelExtend<(K, V)> for BTreeMap<K, V>
 where
@@ -198,6 +226,36 @@ where
     }
 }
 
+/// Extends a B-tree map with items from a parallel iterator, through a
+/// mutable reference.
+impl<K, V> ParallelExtend<(K, V)> for &mut BTreeMap<K, V>
+where
+    K: Ord + Send,
+    V: Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = (K, V)>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a B-tree map with copied items from a parallel iterator, through
+/// a mutable reference.
+impl<'a, K: 'a, V: 'a> ParallelExtend<(&'a K, &'a V)> for &mut BTreeMap<K, V>
+where
+    K: Copy + Ord + Send + Sync,
+    V: Copy + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = (&'a K, &'a V)>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
 /// Extends a B-tree set with items from a parallel iterator.
 impl<T> ParallelExtend<T> for BTreeSet<T>
 where
@@ -221,6 +279,34 @@ where
         I: IntoParallelIterator<Item = &'a T>,
     {
         extend!(self, par_iter);
+    }
+}
+
+/// Extends a B-tree set with items from a parallel iterator, through a
+/// mutable reference.
+impl<T> ParallelExtend<T> for &mut BTreeSet<T>
+where
+    T: Ord + Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a B-tree set with copied items from a parallel iterator, through
+/// a mutable reference.
+impl<'a, T> ParallelExtend<&'a T> for &mut BTreeSet<T>
+where
+    T: 'a + Copy + Ord + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a T>,
+    {
+        (**self).par_extend(par_iter)
     }
 }
 
@@ -255,6 +341,38 @@ where
     }
 }
 
+/// Extends a hash map with items from a parallel iterator, through a mutable
+/// reference.
+impl<K, V, S> ParallelExtend<(K, V)> for &mut HashMap<K, V, S>
+where
+    K: Eq + Hash + Send,
+    V: Send,
+    S: BuildHasher + Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = (K, V)>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a hash map with copied items from a parallel iterator, through a
+/// mutable reference.
+impl<'a, K: 'a, V: 'a, S> ParallelExtend<(&'a K, &'a V)> for &mut HashMap<K, V, S>
+where
+    K: Copy + Eq + Hash + Send + Sync,
+    V: Copy + Send + Sync,
+    S: BuildHasher + Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = (&'a K, &'a V)>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
 /// Extends a hash set with items from a parallel iterator.
 impl<T, S> ParallelExtend<T> for HashSet<T, S>
 where
@@ -283,6 +401,36 @@ where
     }
 }
 
+/// Extends a hash set with items from a parallel iterator, through a mutable
+/// reference.
+impl<T, S> ParallelExtend<T> for &mut HashSet<T, S>
+where
+    T: Eq + Hash + Send,
+    S: BuildHasher + Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a hash set with copied items from a parallel iterator, through a
+/// mutable reference.
+impl<'a, T, S> ParallelExtend<&'a T> for &mut HashSet<T, S>
+where
+    T: 'a + Copy + Eq + Hash + Send + Sync,
+    S: BuildHasher + Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
 /// Extends a linked list with items from a parallel iterator.
 impl<T> ParallelExtend<T> for LinkedList<T>
 where
@@ -307,6 +455,34 @@ where
         I: IntoParallelIterator<Item = &'a T>,
     {
         self.par_extend(par_iter.into_par_iter().copied())
+    }
+}
+
+/// Extends a linked list with items from a parallel iterator, through a
+/// mutable reference.
+impl<T> ParallelExtend<T> for &mut LinkedList<T>
+where
+    T: Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a linked list with copied items from a parallel iterator, through
+/// a mutable reference.
+impl<'a, T> ParallelExtend<&'a T> for &mut LinkedList<T>
+where
+    T: 'a + Copy + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a T>,
+    {
+        (**self).par_extend(par_iter)
     }
 }
 
@@ -407,6 +583,39 @@ impl<'a> ParallelExtend<Cow<'a, OsStr>> for OsString {
         I: IntoParallelIterator<Item = Cow<'a, OsStr>>,
     {
         extend_reserved!(self, par_iter, osstring_len);
+    }
+}
+
+/// Extends an OS-string with string slices from a parallel iterator, through
+/// a mutable reference.
+impl<'a> ParallelExtend<&'a OsStr> for &mut OsString {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a OsStr>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends an OS-string with strings from a parallel iterator, through a
+/// mutable reference.
+impl ParallelExtend<OsString> for &mut OsString {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = OsString>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends an OS-string with string slices from a parallel iterator, through
+/// a mutable reference.
+impl<'a> ParallelExtend<Cow<'a, OsStr>> for &mut OsString {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = Cow<'a, OsStr>>,
+    {
+        (**self).par_extend(par_iter)
     }
 }
 
@@ -539,6 +748,72 @@ impl<'a> ParallelExtend<Cow<'a, str>> for String {
     }
 }
 
+/// Extends a string with characters from a parallel iterator, through a
+/// mutable reference.
+impl ParallelExtend<char> for &mut String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = char>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a string with copied characters from a parallel iterator, through
+/// a mutable reference.
+impl<'a> ParallelExtend<&'a char> for &mut String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a char>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a string with string slices from a parallel iterator, through a
+/// mutable reference.
+impl<'a> ParallelExtend<&'a str> for &mut String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a str>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a string with strings from a parallel iterator, through a mutable
+/// reference.
+impl ParallelExtend<String> for &mut String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = String>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a string with boxed strings from a parallel iterator, through a
+/// mutable reference.
+impl ParallelExtend<Box<str>> for &mut String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = Box<str>>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a string with string slices from a parallel iterator, through a
+/// mutable reference.
+impl<'a> ParallelExtend<Cow<'a, str>> for &mut String {
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = Cow<'a, str>>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
 /// Extends a deque with items from a parallel iterator.
 impl<T> ParallelExtend<T> for VecDeque<T>
 where
@@ -562,6 +837,34 @@ where
         I: IntoParallelIterator<Item = &'a T>,
     {
         extend_reserved!(self, par_iter);
+    }
+}
+
+/// Extends a deque with items from a parallel iterator, through a mutable
+/// reference.
+impl<T> ParallelExtend<T> for &mut VecDeque<T>
+where
+    T: Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a deque with copied items from a parallel iterator, through a
+/// mutable reference.
+impl<'a, T> ParallelExtend<&'a T> for &mut VecDeque<T>
+where
+    T: 'a + Copy + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a T>,
+    {
+        (**self).par_extend(par_iter)
     }
 }
 
@@ -605,6 +908,34 @@ where
         I: IntoParallelIterator<Item = &'a T>,
     {
         self.par_extend(par_iter.into_par_iter().copied())
+    }
+}
+
+/// Extends a vector with items from a parallel iterator, through a mutable
+/// reference.
+impl<T> ParallelExtend<T> for &mut Vec<T>
+where
+    T: Send,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = T>,
+    {
+        (**self).par_extend(par_iter)
+    }
+}
+
+/// Extends a vector with copied items from a parallel iterator, through a
+/// mutable reference.
+impl<'a, T> ParallelExtend<&'a T> for &mut Vec<T>
+where
+    T: 'a + Copy + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: IntoParallelIterator<Item = &'a T>,
+    {
+        (**self).par_extend(par_iter)
     }
 }
 

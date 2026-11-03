@@ -7,9 +7,10 @@ use rayon_core::*;
 use rand::distr::StandardUniform;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::collections::{BinaryHeap, VecDeque};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::sync::mpsc;
 
@@ -1844,6 +1845,127 @@ fn check_extend_pairs() {
 
     check::<BTreeMap<usize, i32>>();
     check::<HashMap<usize, i32>>();
+}
+
+/// Calls `par_extend` through the `&mut C` forwarding impls: no
+/// `C: ParallelExtend` bound is in scope, so this compiles only if the
+/// mutable-reference impl itself exists (issue #1089).
+fn par_extend_ref<C, I>(mut c: &mut C, par_iter: I)
+where
+    for<'c> &'c mut C: ParallelExtend<I::Item>,
+    I: IntoParallelIterator,
+{
+    ParallelExtend::par_extend(&mut c, par_iter);
+}
+
+#[test]
+fn check_extend_ref_items() {
+    fn check<C>()
+    where
+        C: Default + Eq + Debug + Extend<i32> + for<'a> Extend<&'a i32>,
+        for<'c> &'c mut C: ParallelExtend<i32>,
+        for<'c, 'a> &'c mut C: ParallelExtend<&'a i32>,
+    {
+        let mut serial = C::default();
+        let mut parallel = C::default();
+
+        // extend with references
+        let v: Vec<_> = (0..128).collect();
+        serial.extend(&v);
+        par_extend_ref(&mut parallel, &v);
+        assert_eq!(serial, parallel);
+
+        // extend with values
+        serial.extend(-128..0);
+        par_extend_ref(&mut parallel, -128..0);
+        assert_eq!(serial, parallel);
+    }
+
+    check::<BTreeSet<_>>();
+    check::<HashSet<_>>();
+    check::<LinkedList<_>>();
+    check::<Vec<_>>();
+    check::<VecDeque<_>>();
+}
+
+#[test]
+fn check_extend_ref_heap() {
+    let mut serial: BinaryHeap<_> = Default::default();
+    let mut parallel: BinaryHeap<_> = Default::default();
+
+    // extend with references
+    let v: Vec<_> = (0..128).collect();
+    serial.extend(&v);
+    par_extend_ref(&mut parallel, &v);
+    assert_eq!(
+        serial.clone().into_sorted_vec(),
+        parallel.clone().into_sorted_vec()
+    );
+
+    // extend with values
+    serial.extend(-128..0);
+    par_extend_ref(&mut parallel, -128..0);
+    assert_eq!(serial.into_sorted_vec(), parallel.into_sorted_vec());
+}
+
+#[test]
+fn check_extend_ref_pairs() {
+    fn check<C>()
+    where
+        C: Default + Eq + Debug + Extend<(usize, i32)> + for<'a> Extend<(&'a usize, &'a i32)>,
+        for<'c> &'c mut C: ParallelExtend<(usize, i32)>,
+        for<'c, 'a> &'c mut C: ParallelExtend<(&'a usize, &'a i32)>,
+    {
+        let mut serial = C::default();
+        let mut parallel = C::default();
+
+        // extend with references
+        let m: HashMap<_, _> = (0..128).enumerate().collect();
+        serial.extend(&m);
+        par_extend_ref(&mut parallel, &m);
+        assert_eq!(serial, parallel);
+
+        // extend with values
+        let v: Vec<(_, _)> = (-128..0).enumerate().collect();
+        serial.extend(v.clone());
+        par_extend_ref(&mut parallel, v);
+        assert_eq!(serial, parallel);
+    }
+
+    check::<BTreeMap<usize, i32>>();
+    check::<HashMap<usize, i32>>();
+}
+
+#[test]
+fn check_extend_ref_strings() {
+    let mut s = String::from("abc");
+    par_extend_ref(&mut s, vec!['d', 'e']);
+    par_extend_ref(&mut s, vec![&'f']);
+    par_extend_ref(&mut s, vec!["g"]);
+    par_extend_ref(&mut s, vec![String::from("h")]);
+    par_extend_ref(&mut s, vec![Box::<str>::from("i")]);
+    par_extend_ref(&mut s, vec![Cow::from("j")]);
+    assert_eq!(s, "abcdefghij");
+
+    let mut os = OsString::from("ab");
+    par_extend_ref(&mut os, vec![OsStr::new("c")]);
+    par_extend_ref(&mut os, vec![OsString::from("d")]);
+    par_extend_ref(&mut os, vec![Cow::from(OsStr::new("e"))]);
+    assert_eq!(os, OsString::from("abcde"));
+}
+
+#[test]
+fn check_extend_ref_tuple() {
+    // The motivating example from issue #1089: extend two collections that
+    // are not stored as a tuple, through a tuple of mutable references.
+    let mut vec1 = vec![1., 2., 3.];
+    let mut vec2 = vec!["1".to_string(), "2".to_string(), "3".to_string()];
+
+    let input = vec![4, 5, 6];
+    (&mut vec1, &mut vec2).par_extend(input.into_par_iter().map(|i| (i as f64, i.to_string())));
+
+    assert_eq!(vec1, [1., 2., 3., 4., 5., 6.]);
+    assert_eq!(vec2, ["1", "2", "3", "4", "5", "6"]);
 }
 
 #[test]
