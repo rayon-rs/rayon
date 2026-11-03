@@ -1927,22 +1927,24 @@ pub trait ParallelIterator: Sized + Send {
         WhileSome::new(self)
     }
 
-    /// Wraps an iterator with a fuse in case of panics, to halt all threads
-    /// as soon as possible.
+    /// Wraps an iterator with a fuse that tries to avoid starting new items
+    /// after a panic is observed.
     ///
     /// Panics within parallel iterators are always propagated to the caller,
-    /// but they don't always halt the rest of the iterator right away, due to
-    /// the internal semantics of [`join`]. This adaptor makes a greater effort
-    /// to stop processing other items sooner, with the cost of additional
-    /// synchronization overhead, which may also inhibit some optimizations.
+    /// but this adaptor cannot interrupt user closures that are already running.
+    /// Such closures may continue until they return or unwind, and the panic
+    /// cannot be propagated until they do because they may borrow from the caller.
     ///
-    /// [`join`]: crate::join()#panics
+    /// This adaptor adds synchronization overhead that may inhibit some
+    /// optimizations. In return, it makes a greater effort to avoid starting
+    /// new items after a panic is observed.
     ///
     /// # Examples
     ///
-    /// If this code didn't use `panic_fuse()`, it would continue processing
-    /// many more items in other threads (with long sleep delays) before the
-    /// panic is finally propagated.
+    /// `panic_fuse()` cannot interrupt user closures already processing items
+    /// when a panic occurs. The panic is not propagated until they return or
+    /// unwind. Without it, this code could also start many more items in other
+    /// threads (with long sleep delays) before the panic is propagated.
     ///
     /// ```should_panic
     /// use rayon::prelude::*;
