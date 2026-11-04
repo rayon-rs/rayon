@@ -11,6 +11,7 @@ where
     map_triples(expected.len() + 1, |i, j, k| {
         Split::forward(f(), i, j, k, expected);
         Split::reverse(f(), i, j, k, expected);
+        Split::fold(f(), i, j, k, expected);
     });
 }
 
@@ -46,6 +47,14 @@ impl Split {
             k,
             reverse: false,
         });
+        assert_eq!(result, expected);
+    }
+
+    fn fold<I>(iter: I, i: usize, j: usize, k: usize, expected: &[I::Item])
+    where
+        I: IntoParallelIterator<Iter: IndexedParallelIterator, Item: PartialEq + Debug>,
+    {
+        let result = iter.into_par_iter().with_producer(FoldSplit { i, j, k });
         assert_eq!(result, expected);
     }
 
@@ -93,6 +102,55 @@ impl<T> ProducerCallback<T> for Split {
         } else {
             chain.collect()
         }
+    }
+}
+
+/// Like `Split`, but folds each part with `Producer::fold_with`, which is
+/// how `bridge` consumes the leaves, instead of using `into_iter`.
+#[derive(Debug)]
+struct FoldSplit {
+    i: usize,
+    j: usize,
+    k: usize,
+}
+
+impl<T> ProducerCallback<T> for FoldSplit {
+    type Output = Vec<T>;
+
+    fn callback<P>(self, producer: P) -> Self::Output
+    where
+        P: Producer<Item = T>,
+    {
+        println!("{self:?}");
+
+        let (left, d) = producer.split_at(self.k);
+        let (a, mid) = left.split_at(self.i);
+        let (b, c) = mid.split_at(self.j - self.i);
+
+        let folder = VecFolder(Vec::new());
+        let folder = a.fold_with(folder);
+        let folder = b.fold_with(folder);
+        let folder = c.fold_with(folder);
+        d.fold_with(folder).complete()
+    }
+}
+
+struct VecFolder<T>(Vec<T>);
+
+impl<T> Folder<T> for VecFolder<T> {
+    type Result = Vec<T>;
+
+    fn consume(mut self, item: T) -> Self {
+        self.0.push(item);
+        self
+    }
+
+    fn complete(self) -> Vec<T> {
+        self.0
+    }
+
+    fn full(&self) -> bool {
+        false
     }
 }
 
