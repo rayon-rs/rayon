@@ -58,3 +58,31 @@ fn check_intersperse_rev() {
             assert_eq!(x, if i % 2 == 0 { i / 2 } else { -1 });
         });
 }
+
+#[test]
+fn check_intersperse_split_folds() {
+    // Producers split at an even index end with an interspersed item, which
+    // must not be lost when the leaves are folded instead of iterated.
+    let v: Vec<_> = (0..5).into_par_iter().intersperse(-1).take(2).collect();
+    assert_eq!(v, [0, -1]);
+
+    let v: Vec<_> = (0..5).into_par_iter().intersperse(-1).skip(1).collect();
+    assert_eq!(v, [-1, 1, -1, 2, -1, 3, -1, 4]);
+
+    let v: Vec<_> = (0..1000)
+        .into_par_iter()
+        .intersperse(-1)
+        .with_max_len(1)
+        .collect();
+    assert_eq!(v.len(), 1999);
+    for (i, x) in v.into_iter().enumerate() {
+        assert_eq!(x, if i % 2 == 0 { i as i32 / 2 } else { -1 });
+    }
+
+    let sum: i32 = (0..1000)
+        .into_par_iter()
+        .intersperse(1000)
+        .with_max_len(1)
+        .sum();
+    assert_eq!(sum, (0..1000).sum::<i32>() + 999 * 1000);
+}

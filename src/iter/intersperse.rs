@@ -188,12 +188,22 @@ where
     where
         F: Folder<Self::Item>,
     {
+        // The folder only adds clones in front of base items, so it can't
+        // produce the clone that ends this part when it was split off at an
+        // even index -- possibly a lone clone with no base items at all.
+        let clone_last = self.len > 0 && ((self.len & 1 == 1) == self.clone_first);
+
         let folder1 = IntersperseFolder {
             base: folder,
             item: self.item,
             clone_first: self.clone_first,
         };
-        self.base.fold_with(folder1).base
+        let folder1 = self.base.fold_with(folder1);
+        if clone_last && !folder1.base.full() {
+            folder1.base.consume(folder1.item)
+        } else {
+            folder1.base
+        }
     }
 }
 
