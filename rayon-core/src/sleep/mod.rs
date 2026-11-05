@@ -6,6 +6,7 @@ use crate::sync::{Condvar, Mutex};
 use crossbeam_utils::CachePadded;
 use std::sync::atomic::Ordering;
 use std::thread;
+use std::time::{Duration, Instant};
 
 mod counters;
 pub(crate) use self::counters::THREADS_MAX;
@@ -24,6 +25,7 @@ pub(super) struct Sleep {
     worker_sleep_states: Vec<CachePadded<WorkerSleepState>>,
 
     counters: AtomicCounters,
+    idle_spin_timeout: Option<Duration>,
 }
 
 /// An instance of this struct is created when a thread becomes idle.
@@ -37,6 +39,8 @@ pub(super) struct IdleState {
 
     /// How many rounds have we been circling without sleeping?
     rounds: u32,
+
+    spin_budget: Option<(Instant, Duration)>,
 
     /// Once we become sleepy, what was the sleepy counter value?
     /// Set to `INVALID_SLEEPY_COUNTER` otherwise.
@@ -57,11 +61,12 @@ const ROUNDS_UNTIL_SLEEPY: u32 = 32;
 const ROUNDS_UNTIL_SLEEPING: u32 = ROUNDS_UNTIL_SLEEPY + 1;
 
 impl Sleep {
-    pub(super) fn new(n_threads: usize) -> Sleep {
+    pub(super) fn new(n_threads: usize, idle_spin_timeout: Option<Duration>) -> Sleep {
         assert!(n_threads <= THREADS_MAX);
         Sleep {
             worker_sleep_states: (0..n_threads).map(|_| Default::default()).collect(),
             counters: AtomicCounters::new(),
+            idle_spin_timeout,
         }
     }
 
@@ -72,6 +77,9 @@ impl Sleep {
         IdleState {
             worker_index,
             rounds: 0,
+            spin_budget: self
+                .idle_spin_timeout
+                .map(|timeout| (Instant::now(), timeout)),
             jobs_counter: JobsEventCounter::DUMMY,
         }
     }
@@ -91,16 +99,25 @@ impl Sleep {
         latch: &CoreLatch,
         has_injected_jobs: impl FnOnce() -> bool,
     ) {
+        if let Some((start, budget)) = idle_state.spin_budget {
+            if idle_state.rounds < ROUNDS_UNTIL_SLEEPY {
+                if start.elapsed() < budget {
+                    std::hint::spin_loop();
+                    return;
+                }
+                idle_state.rounds = ROUNDS_UNTIL_SLEEPY;
+            }
+        }
         if idle_state.rounds < ROUNDS_UNTIL_SLEEPY {
-            thread::yield_now();
+            idle_state.yield_now();
             idle_state.rounds += 1;
         } else if idle_state.rounds == ROUNDS_UNTIL_SLEEPY {
             idle_state.jobs_counter = self.announce_sleepy();
             idle_state.rounds += 1;
-            thread::yield_now();
+            idle_state.yield_now();
         } else if idle_state.rounds < ROUNDS_UNTIL_SLEEPING {
             idle_state.rounds += 1;
-            thread::yield_now();
+            idle_state.yield_now();
         } else {
             debug_assert_eq!(idle_state.rounds, ROUNDS_UNTIL_SLEEPING);
             self.sleep(idle_state, latch, has_injected_jobs);
@@ -312,7 +329,18 @@ impl Sleep {
 }
 
 impl IdleState {
+    fn yield_now(&self) {
+        if self.spin_budget.is_some() {
+            std::hint::spin_loop();
+        } else {
+            thread::yield_now();
+        }
+    }
+
     fn wake_fully(&mut self) {
+        if let Some((start, _)) = &mut self.spin_budget {
+            *start = Instant::now();
+        }
         self.rounds = 0;
         self.jobs_counter = JobsEventCounter::DUMMY;
     }
