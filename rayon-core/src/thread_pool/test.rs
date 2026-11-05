@@ -48,20 +48,32 @@ fn join_a_lot(n: usize) {
 fn sleeper_stop() {
     use std::{thread, time};
 
-    let registry;
+    for timeout in [
+        None,
+        Some(time::Duration::ZERO),
+        Some(time::Duration::from_micros(64)),
+    ] {
+        let registry;
 
-    {
-        // once we exit this block, thread pool will be dropped
-        let thread_pool = ThreadPoolBuilder::new().num_threads(22).build().unwrap();
-        registry = Arc::clone(&thread_pool.registry);
+        {
+            // once we exit this block, thread pool will be dropped
+            let builder = ThreadPoolBuilder::new().num_threads(22);
+            let builder = if let Some(t) = timeout {
+                builder.idle_spin_timeout(t)
+            } else {
+                builder
+            };
+            let thread_pool = builder.build().unwrap();
+            registry = Arc::clone(&thread_pool.registry);
 
-        // Give time for at least some of the thread pool to fall asleep.
-        thread::sleep(time::Duration::from_secs(1));
+            // Give time for at least some of the thread pool to fall asleep.
+            thread::sleep(time::Duration::from_secs(1));
+        }
+
+        // once thread pool is dropped, registry should terminate, which
+        // should lead to worker threads stopping
+        registry.wait_until_stopped();
     }
-
-    // once thread pool is dropped, registry should terminate, which
-    // should lead to worker threads stopping
-    registry.wait_until_stopped();
 }
 
 /// Creates a start/exit handler that increments an atomic counter.
@@ -176,27 +188,45 @@ fn mutual_install() {
 fn mutual_install_sleepy() {
     use std::{thread, time};
 
-    let pool1 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
-    let pool2 = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+    for timeout in [
+        None,
+        Some(time::Duration::ZERO),
+        Some(time::Duration::from_micros(64)),
+    ] {
+        let builder = ThreadPoolBuilder::new().num_threads(1);
+        let builder = if let Some(t) = timeout {
+            builder.idle_spin_timeout(t)
+        } else {
+            builder
+        };
+        let pool1 = builder.build().unwrap();
+        let builder = ThreadPoolBuilder::new().num_threads(1);
+        let builder = if let Some(t) = timeout {
+            builder.idle_spin_timeout(t)
+        } else {
+            builder
+        };
+        let pool2 = builder.build().unwrap();
 
-    let ok = pool1.install(|| {
-        // This creates a dependency from `pool1` -> `pool2`
-        pool2.install(|| {
-            // Give `pool1` time to fall asleep.
-            thread::sleep(time::Duration::from_secs(1));
-
-            // This creates a dependency from `pool2` -> `pool1`
-            pool1.install(|| {
-                // Give `pool2` time to fall asleep.
+        let ok = pool1.install(|| {
+            // This creates a dependency from `pool1` -> `pool2`
+            pool2.install(|| {
+                // Give `pool1` time to fall asleep.
                 thread::sleep(time::Duration::from_secs(1));
 
-                // If they blocked on inter-pool installs, there would be no
-                // threads left to run this!
-                true
+                // This creates a dependency from `pool2` -> `pool1`
+                pool1.install(|| {
+                    // Give `pool2` time to fall asleep.
+                    thread::sleep(time::Duration::from_secs(1));
+
+                    // If they blocked on inter-pool installs, there would be no
+                    // threads left to run this!
+                    true
+                })
             })
-        })
-    });
-    assert!(ok);
+        });
+        assert!(ok);
+    }
 }
 
 #[test]

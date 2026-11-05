@@ -65,6 +65,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::thread;
+use std::time::Duration;
 
 mod broadcast;
 mod job;
@@ -194,6 +195,8 @@ pub struct ThreadPoolBuilder<S = DefaultSpawn> {
     /// "depth-first" fashion. If true, they will do a "breadth-first"
     /// fashion. Depth-first is the default.
     breadth_first: bool,
+
+    idle_spin_timeout: Option<Duration>,
 }
 
 /// Contains the rayon thread pool configuration. Use [`ThreadPoolBuilder`] instead.
@@ -230,6 +233,7 @@ impl Default for ThreadPoolBuilder {
             exit_handler: None,
             spawn_handler: DefaultSpawn,
             breadth_first: false,
+            idle_spin_timeout: None,
         }
     }
 }
@@ -441,7 +445,25 @@ impl<S> ThreadPoolBuilder<S> {
             start_handler: self.start_handler,
             exit_handler: self.exit_handler,
             breadth_first: self.breadth_first,
+            idle_spin_timeout: self.idle_spin_timeout,
         }
+    }
+
+    /// Sets the time workers actively search for work before trying to sleep.
+    ///
+    /// By default, idle workers yield to the operating system between searches.
+    /// With this setting, workers instead use a spin hint between searches until
+    /// the timeout expires, then use the normal sleep and wakeup protocol.
+    /// A zero timeout skips the active waiting period. The timeout is checked
+    /// between searches; it is not a deadline for the thread to fall asleep.
+    ///
+    /// This can reduce wakeup latency for frequent short bursts of parallel work,
+    /// at the cost of CPU time and power while waiting. It can hurt performance
+    /// when other work competes for the same CPUs. The setting applies only to
+    /// this pool and should be measured with the intended workload.
+    pub fn idle_spin_timeout(mut self, timeout: Duration) -> Self {
+        self.idle_spin_timeout = Some(timeout);
+        self
     }
 
     /// Returns a reference to the current spawn handler.
@@ -796,6 +818,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
             ref exit_handler,
             spawn_handler: _,
             ref breadth_first,
+            ref idle_spin_timeout,
         } = *self;
 
         // Just print `Some(<closure>)` or `None` to the debug
@@ -820,6 +843,7 @@ impl<S> fmt::Debug for ThreadPoolBuilder<S> {
             .field("start_handler", &start_handler)
             .field("exit_handler", &exit_handler)
             .field("breadth_first", &breadth_first)
+            .field("idle_spin_timeout", idle_spin_timeout)
             .finish()
     }
 }

@@ -35,6 +35,12 @@ We sometimes refer to the final two states collectively as **inactive**.
 Threads begin as idle but transition to idle and finally sleeping when
 they're unable to find work to do.
 
+A pool configured with `ThreadPoolBuilder::idle_spin_timeout` uses an elapsed-time
+budget instead of yielding between the initial searches. When the budget expires,
+it enters the same sleepy and sleeping states described below. Finding work or
+fully waking a worker starts a new budget. A changed jobs event counter only
+retries the sleep handshake; it does not restart the budget.
+
 ## Sleepy threads
 
 There is one other special state worth mentioning. During the idle state,
