@@ -819,8 +819,11 @@ impl<'ch, 'sep, P: Pattern + 'sep> UnindexedProducer for SplitTerminatorProducer
 pub struct Lines<'ch>(&'ch str);
 
 #[inline]
-fn no_carriage_return(line: &str) -> &str {
-    line.strip_suffix('\r').unwrap_or(line)
+fn no_line_ending(line: &str) -> &str {
+    match line.strip_suffix('\n') {
+        Some(line) => line.strip_suffix('\r').unwrap_or(line),
+        None => line,
+    }
 }
 
 impl<'ch> ParallelIterator for Lines<'ch> {
@@ -831,8 +834,8 @@ impl<'ch> ParallelIterator for Lines<'ch> {
         C: UnindexedConsumer<Self::Item>,
     {
         self.0
-            .par_split_terminator('\n')
-            .map(no_carriage_return)
+            .par_split_inclusive('\n')
+            .map(no_line_ending)
             .drive_unindexed(consumer)
     }
 }
