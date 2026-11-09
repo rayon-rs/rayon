@@ -56,6 +56,8 @@ pub fn execute_strings_split() {
         ("A..B..", '.'),
         ("foo\r\nbar\n\nbaz\n", '\n'),
         ("foo\nbar\n\r\nbaz", '\n'),
+        ("foo\nbar\r", '\r'),
+        ("\r", '\r'),
         ("A few words", ' '),
         (" Mary   had\ta\u{2009}little  \n\t lamb", ' '),
         ("Mary had a little lamb\nlittle lamb\nlittle lamb.", '\n'),
