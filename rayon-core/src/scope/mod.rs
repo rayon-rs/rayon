@@ -95,6 +95,8 @@ impl<'scope> ScopeWrapper<'scope> for ScopeFifo<'scope> {
 /// tasks spawned using `scope()` must be allocated onto the heap,
 /// whereas `join()` can make exclusive use of the stack. **Prefer
 /// `join()` (or, even better, parallel iterators) where possible.**
+/// Note that while `join()` does not directly allocate its tasks, it may still
+/// allocate indirectly.
 ///
 /// # Example
 ///
