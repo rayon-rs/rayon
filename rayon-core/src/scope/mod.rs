@@ -95,6 +95,8 @@ impl<'scope> ScopeWrapper<'scope> for ScopeFifo<'scope> {
 /// tasks spawned using `scope()` must be allocated onto the heap,
 /// whereas `join()` can make exclusive use of the stack. **Prefer
 /// `join()` (or, even better, parallel iterators) where possible.**
+/// Note that `join()` does not allocate per task, while the per-thread-pool
+/// data structures used by Rayon may need allocations that amortize over all tasks.
 ///
 /// # Example
 ///
