@@ -123,9 +123,15 @@ impl<'scope> ScopeWrapper<'scope> for ScopeFifo<'scope> {
 /// # A note on threading
 ///
 /// The closure given to `scope()` executes in the Rayon thread pool,
-/// as do those given to `spawn()`. This means that you can't access
-/// thread-local variables (well, you can, but they may have
-/// unexpected values).
+/// as do those given to `spawn()`. This means that the task may run on a
+/// different thread than the one where `scope()` or `spawn()` was called,
+/// so thread-local values from the caller will not carry over. Thread-local
+/// storage still works normally: it is not undefined behavior to read or
+/// write it, and a value written at the start of a closure can be read
+/// again later in that same closure, because once it starts running it
+/// stays on the same thread. But if the thread pool ran the task on a
+/// different thread, the thread-local values it sees may differ from those
+/// at the call site.
 ///
 /// # Task execution
 ///
