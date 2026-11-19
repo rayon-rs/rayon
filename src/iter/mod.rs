@@ -416,7 +416,10 @@ pub trait ParallelIterator: Sized + Send {
     ///
     /// The `init` function will be called only as needed for a value to be
     /// paired with the group of items in each rayon job.  There is no
-    /// constraint on that returned type at all!
+    /// constraint on that returned type at all! The `Sync + Send` bounds
+    /// apply to the `OP` and `INIT` functions, not to `T` -- they're parsed
+    /// like `(Fn() -> T) + Sync + Send` because `INIT` may be called from
+    /// any worker thread, while the value it returns is unconstrained.
     ///
     /// # Examples
     ///
