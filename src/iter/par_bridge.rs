@@ -4,6 +4,7 @@ use std::sync::Mutex;
 #[cfg(feature = "web_spin_lock")]
 use wasm_sync::Mutex;
 
+use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use crate::iter::ParallelIterator;
@@ -52,6 +53,8 @@ use crate::{current_num_threads, current_thread_index};
 /// ```
 pub trait ParallelBridge: Sized {
     /// Creates a bridge from this type to a `ParallelIterator`.
+    ///
+    /// Use [`IterBridge::with_max_concurrency`] to limit the number of consumers.
     fn par_bridge(self) -> IterBridge<Self>;
 }
 
@@ -74,7 +77,7 @@ where
 #[derive(Debug, Clone)]
 pub struct IterBridge<Iter> {
     iter: Iter,
-    max_concurrency: Option<usize>,
+    max_concurrency: Option<NonZeroUsize>,
 }
 
 impl<Iter> IterBridge<Iter> {
@@ -82,6 +85,7 @@ impl<Iter> IterBridge<Iter> {
     ///
     /// The bridge continues to use the current Rayon thread pool. It may use fewer
     /// consumers than requested, and does not guarantee affinity to particular threads.
+    /// A limit of one disables splitting of this bridge.
     /// This does not limit other parallel operations, including nested parallel work
     /// performed by a consumer.
     ///
@@ -102,8 +106,8 @@ impl<Iter> IterBridge<Iter> {
     /// ```
     #[must_use]
     pub fn with_max_concurrency(mut self, max_concurrency: usize) -> Self {
-        assert!(max_concurrency != 0, "max_concurrency must not be zero");
-        self.max_concurrency = Some(max_concurrency);
+        self.max_concurrency =
+            Some(NonZeroUsize::new(max_concurrency).expect("max_concurrency must not be zero"));
         self
     }
 }
@@ -121,7 +125,7 @@ where
         let num_threads = current_num_threads();
         // Each successful split adds one consumer to the initial consumer.
         let split_count = match self.max_concurrency {
-            Some(max) => max.min(num_threads) - 1,
+            Some(max) => max.get().min(num_threads) - 1,
             None => num_threads,
         };
         let threads_started: Vec<_> = (0..num_threads).map(|_| AtomicBool::new(false)).collect();
