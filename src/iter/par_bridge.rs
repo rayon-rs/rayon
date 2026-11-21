@@ -4,6 +4,7 @@ use std::sync::Mutex;
 #[cfg(feature = "web_spin_lock")]
 use wasm_sync::Mutex;
 
+use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use crate::iter::ParallelIterator;
@@ -52,6 +53,8 @@ use crate::{current_num_threads, current_thread_index};
 /// ```
 pub trait ParallelBridge: Sized {
     /// Creates a bridge from this type to a `ParallelIterator`.
+    ///
+    /// Use [`IterBridge::with_max_concurrency`] to limit the number of consumers.
     fn par_bridge(self) -> IterBridge<Self>;
 }
 
@@ -60,7 +63,10 @@ where
     T: Iterator<Item: Send> + Send,
 {
     fn par_bridge(self) -> IterBridge<Self> {
-        IterBridge { iter: self }
+        IterBridge {
+            iter: self,
+            max_concurrency: None,
+        }
     }
 }
 
@@ -71,6 +77,39 @@ where
 #[derive(Debug, Clone)]
 pub struct IterBridge<Iter> {
     iter: Iter,
+    max_concurrency: Option<NonZeroUsize>,
+}
+
+impl<Iter> IterBridge<Iter> {
+    /// Limits the number of concurrent consumers of this bridge.
+    ///
+    /// The bridge continues to use the current Rayon thread pool. It may use fewer
+    /// consumers than requested, and does not guarantee affinity to particular threads.
+    /// A limit of one disables splitting of this bridge.
+    /// This does not limit other parallel operations, including nested parallel work
+    /// performed by a consumer.
+    ///
+    /// By default, the bridge uses the existing thread pool without an explicit limit.
+    /// Calling this method again replaces the previous limit.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `max_concurrency` is zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    ///
+    /// let sum: u32 = (0..100).par_bridge().with_max_concurrency(4).sum();
+    /// assert_eq!(sum, 4950);
+    /// ```
+    #[must_use]
+    pub fn with_max_concurrency(mut self, max_concurrency: usize) -> Self {
+        self.max_concurrency =
+            Some(NonZeroUsize::new(max_concurrency).expect("max_concurrency must not be zero"));
+        self
+    }
 }
 
 impl<Iter> ParallelIterator for IterBridge<Iter>
@@ -84,11 +123,16 @@ where
         C: UnindexedConsumer<Self::Item>,
     {
         let num_threads = current_num_threads();
+        // Each successful split adds one consumer to the initial consumer.
+        let split_count = match self.max_concurrency {
+            Some(max) => max.get().min(num_threads) - 1,
+            None => num_threads,
+        };
         let threads_started: Vec<_> = (0..num_threads).map(|_| AtomicBool::new(false)).collect();
 
         bridge_unindexed(
             &IterParallelProducer {
-                split_count: AtomicUsize::new(num_threads),
+                split_count: AtomicUsize::new(split_count),
                 iter: Mutex::new(self.iter.fuse()),
                 threads_started: &threads_started,
             },
