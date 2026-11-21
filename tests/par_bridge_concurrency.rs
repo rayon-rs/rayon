@@ -32,22 +32,30 @@ fn bounded_concurrency() {
             items.sort_unstable();
             assert_eq!(items, (0..1000).collect::<Vec<_>>());
             let count = consumers.load(Ordering::Relaxed);
-            assert!((1..=limit.min(8)).contains(&count));
+            assert_eq!(count, limit.min(8));
         }
     });
 }
 
 #[test]
+#[cfg_attr(any(target_os = "emscripten", target_family = "wasm"), ignore)]
 fn bounded_bridge_clone_and_reconfigure() {
-    let bridge = (0..100).par_bridge().with_max_concurrency(1);
-    assert_eq!(bridge.clone().count(), 100);
-    assert_eq!(bridge.clone().fold(|| (), |(), _| ()).count(), 1);
-    let consumers = bridge
-        .with_max_concurrency(4)
-        .with_max_concurrency(1)
-        .fold(|| (), |(), _| ())
-        .count();
-    assert_eq!(consumers, 1);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .build()
+        .unwrap();
+
+    pool.install(|| {
+        let bridge = (0..100).par_bridge().with_max_concurrency(1);
+        assert_eq!(bridge.clone().count(), 100);
+        assert_eq!(bridge.clone().fold(|| (), |(), _| ()).count(), 1);
+        let bridge = bridge.with_max_concurrency(3);
+        assert_eq!(bridge.clone().fold(|| (), |(), _| ()).count(), 3);
+        assert_eq!(
+            bridge.with_max_concurrency(1).fold(|| (), |(), _| ()).count(),
+            1
+        );
+    });
 }
 
 #[test]
